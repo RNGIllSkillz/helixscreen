@@ -226,7 +226,7 @@ prototype-ui9/
 │   ├── generate-icon-consts.py  # Auto-generate icon constants
 │   └── screenshot.sh            # Build + run + screenshot automation
 ├── docs/
-│   ├── XML_UI_SYSTEM.md         # Complete XML system guide
+│   ├── LVGL9_XML_GUIDE.md       # Complete LVGL 9 XML guide (consolidated)
 │   ├── QUICK_REFERENCE.md       # Common patterns
 │   └── ROADMAP.md               # Development plan
 ├── Makefile                     # Build system (auto-parallel)
@@ -310,6 +310,187 @@ make
 magick /tmp/ui-screenshot-*.bmp /tmp/screenshot.png
 ```
 
+## UI Screenshot Review System
+
+The project includes an automated UI review system that uses Claude Code agents to verify UI changes against requirements.
+
+### Overview
+
+The review system takes:
+- **Screenshot** - Visual output to analyze (PNG format)
+- **Requirements** - Detailed UI specifications to verify against
+- **XML Source** - The panel XML file being reviewed
+- **Changelog** - List of fixes/additions to verify
+
+And produces:
+- Requirement-by-requirement verification (PASS/FAIL/PARTIAL)
+- Identified issues with severity ratings
+- Specific XML fixes using correct LVGL v9 syntax
+- Line-number references to source files
+
+### Quick Start
+
+```bash
+# 1. Create or update requirements (one-time or per-iteration)
+cp docs/templates/ui-requirements-template.md docs/requirements/home-panel-v1.md
+# Edit with specific requirements
+
+# 2. Document your changes in a changelog
+cp docs/templates/ui-changelog-template.md docs/changelogs/home-panel-$(date +%Y-%m-%d).md
+# Document fixes/additions
+
+# 3. Build and screenshot
+./scripts/screenshot.sh
+
+# 4. Convert BMP to PNG
+LATEST=$(ls -t /tmp/ui-screenshot-*.bmp | head -1)
+magick "$LATEST" "${LATEST%.bmp}.png"
+
+# 5. Run the review script
+./scripts/review-ui-screenshot.sh \
+  --screenshot "${LATEST%.bmp}.png" \
+  --requirements docs/requirements/home-panel-v1.md \
+  --xml-source ui_xml/home_panel.xml \
+  --changelog docs/changelogs/home-panel-$(date +%Y-%m-%d).md
+```
+
+The script will output a comprehensive prompt. Copy it and paste into Claude Code along with the screenshot image.
+
+### Directory Structure
+
+```
+docs/
+├── templates/
+│   ├── ui-requirements-template.md    # Blank template for new requirements
+│   └── ui-changelog-template.md       # Blank template for new changelogs
+├── requirements/
+│   └── home-panel-v1.md              # Example: Home panel requirements
+└── changelogs/
+    └── home-panel-2025-01-11.md      # Example: Recent changes log
+```
+
+### Templates
+
+**Requirements Template** (`docs/templates/ui-requirements-template.md`):
+- Layout specifications (dimensions, padding, alignment)
+- Component definitions (cards, buttons, labels)
+- Typography (fonts, sizes, colors)
+- Spacing & alignment rules
+- Interactive elements
+- Data binding expectations
+
+**Changelog Template** (`docs/templates/ui-changelog-template.md`):
+- Fixed issues (before/after XML)
+- New additions (implementation details)
+- Improvements (rationale and changes)
+- Verification criteria for each change
+
+### Example Requirements
+
+See `docs/requirements/home-panel-v1.md` for a complete example covering:
+- Two-section vertical layout (printer visualization + cards)
+- Card specifications (dimensions, colors, borders)
+- Icon + label stacks with proper spacing
+- Reactive data binding setup
+- Color palette verification
+- Flex alignment rules
+
+### Example Changelog
+
+See `docs/changelogs/home-panel-2025-01-11.md` for a complete example documenting:
+- Initial panel creation
+- Component-by-component implementation
+- Expected visual results
+- Verification criteria
+- Critical elements to check
+
+### Agent Behavior
+
+The review agent:
+- ✓ Verifies each requirement against screenshot
+- ✓ Classifies issues by severity (CRITICAL/MAJOR/MINOR)
+- ✓ Provides exact XML fixes with line numbers
+- ✓ References LVGL v9 syntax correctly
+- ✓ Validates constant references against globals.xml
+- ✓ Checks spacing, alignment, colors, typography
+- ✓ Confirms changelog items were applied correctly
+
+### Best Practices
+
+**Requirements:**
+- Be specific: "Icon 48px" not "Icon medium sized"
+- Use exact values: "#ff4444" not "red-ish"
+- Reference constants: "#card_bg" when applicable
+- Mark checkboxes to track verification status
+
+**Changelogs:**
+- Document WHAT changed (XML before/after)
+- Explain WHY it changed (rationale)
+- Describe EXPECTED visual result
+- Provide verification criteria
+
+**Screenshots:**
+- Always convert BMP to PNG first
+- Ensure screenshot shows the relevant panel
+- Take screenshot after UI fully renders (2+ seconds)
+- Check file size < 5MB
+
+### Common Use Cases
+
+**After making XML changes:**
+```bash
+# Document changes in changelog
+vim docs/changelogs/panel-name-$(date +%Y-%m-%d).md
+
+# Build, screenshot, review
+make && ./scripts/screenshot.sh
+./scripts/review-ui-screenshot.sh --screenshot /tmp/ui-screenshot-latest.png \
+  --requirements docs/requirements/panel-name-v1.md \
+  --xml-source ui_xml/panel_name.xml \
+  --changelog docs/changelogs/panel-name-$(date +%Y-%m-%d).md
+```
+
+**Creating requirements for a new panel:**
+```bash
+# Start from template
+cp docs/templates/ui-requirements-template.md docs/requirements/new-panel-v1.md
+
+# Fill in specifications based on design
+vim docs/requirements/new-panel-v1.md
+
+# Create initial changelog
+cp docs/templates/ui-changelog-template.md docs/changelogs/new-panel-$(date +%Y-%m-%d).md
+```
+
+**Iterative refinement:**
+1. Review identifies issues
+2. Fix XML based on agent suggestions
+3. Update changelog with fixes
+4. Re-run review to verify
+5. Repeat until all requirements pass
+
+### Output Interpretation
+
+**Status Codes:**
+- ✓ **PASS** - Meets specification exactly
+- ⚠ **PARTIAL** - Close but has deviations (agent explains what's off)
+- ✗ **FAIL** - Does not meet spec (agent explains why)
+- ? **CANNOT_VERIFY** - Not visible in screenshot
+
+**Severity Levels:**
+- **CRITICAL** - Breaks functionality/usability
+- **MAJOR** - Significant visual deviation
+- **MINOR** - Small cosmetic issue
+- **SUGGESTION** - Optional improvement
+
+### Tips
+
+- Run review early and often (catch issues before they compound)
+- Keep requirements updated as design evolves
+- Archive changelogs (track history of iterations)
+- Use agent suggestions as learning tool for LVGL v9 XML syntax
+- Reference `lvgl/xmls/*.xml` files for available attributes
+
 ## Common Gotchas
 
 1. **Subject registration conflict** - If `globals.xml` declares subjects, they're registered with empty values before C++ initialization. Solution: Remove `<subjects>` from globals.xml, let C++ handle all subject registration.
@@ -332,7 +513,7 @@ printf("Active panel: %d\n", lv_subject_get_int(&active_panel_subject));
 
 - **[STATUS.md](STATUS.md)** - Development journal with daily updates
 - **[README.md](README.md)** - Project overview and quick start
-- **[XML_UI_SYSTEM.md](docs/XML_UI_SYSTEM.md)** - Complete XML guide with examples
+- **[LVGL9_XML_GUIDE.md](docs/LVGL9_XML_GUIDE.md)** - Complete LVGL 9 XML guide (consolidated reference, patterns, troubleshooting)
 - **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Common patterns and solutions
 - **[ROADMAP.md](docs/ROADMAP.md)** - Planned features and milestones
 

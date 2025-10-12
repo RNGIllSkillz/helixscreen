@@ -22,6 +22,9 @@
 		<px name="padding_normal" value="20"/>
 		<px name="padding_small" value="10"/>
 		<px name="printer_img_size" value="400"/>
+		<px name="accent_bar_width" value="4"/>
+		<px name="accent_bar_height" value="28"/>
+		<px name="accent_bar_gap" value="18"/>
 		<percent name="card_width" value="45%"/>
 		<percent name="card_height" value="80%"/>
 
