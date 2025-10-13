@@ -1,36 +1,244 @@
 # Project Status - LVGL 9 UI Prototype
 
-**Last Updated:** 2025-10-11 23:45
+**Last Updated:** 2025-10-13 (Motion Panel XYZ Controls COMPLETE)
 
 ## Current State
 
-✅ **6-panel navigation system with home panel and print select panel structure (Phase 2 complete)**
+✅ **Motion Panel with 8-Direction Jog Pad and Z-Axis Controls COMPLETE (Phase 5.3 finished)**
+✅ **Numeric Keypad Modal Component COMPLETE (Phase 5.2 finished)**
+✅ **Controls Panel Launcher with 6-Card Menu COMPLETE (Phase 5.1 finished)**
+✅ **Print Select Panel with Dual Views, Sorting, Empty State, Confirmation Dialogs COMPLETE (Phase 4 finished)**
 
 ### What Works
 
 - **6 Panel Navigation** - Click icons to switch between Home, Controls, Filament, Settings, Advanced, and Print Select panels
+- **Command-Line Panel Selection** - Launch directly to any panel via CLI argument for testing
 - **Reactive Icon Colors** - Active panel icon shows in red (#ff4444), inactive in white (#ffffff)
-- **Print Select Panel Structure** - Empty scrollable grid container ready for card population
+- **Print Select Panel with Cards** - Dynamic XML-based file cards in **4-column grid layout** (1024×800 display)
+  - Card dimensions: 204×280px (increased to fit metadata without scrollbar)
+  - Thumbnail: 180×180px centered images
+  - Responsive constants in globals.xml (future: 3-col for smaller displays)
+- **File Card Component** - Reusable XML component (print_file_card.xml) with API properties
+  - Thumbnail display with centering
+  - Filename truncation with ellipsis (single line, 204px width)
+  - **Metadata row with icons** - Clock (print time) + Leaf (filament weight)
+  - **Icon + text layout** - Red accent icons with gray text per design spec
+- **Mock Data System** - 30-file generator with varied print times, filament weights, and filenames
+- **Utility Functions** - Time/filament formatting (ui_utils.cpp) for clean display strings
 - **Home Panel Content** - Temperature display, network status (WiFi icon), light control button (Bambu X1C-inspired)
-- **Hybrid Icon Support** - Mix FontAwesome fonts (fa_icons_64, fa_icons_48, fa_icons_32) and custom PNG images
+- **Hybrid Icon Support** - Mix FontAwesome fonts (fa_icons_64, fa_icons_48, fa_icons_32, fa_icons_16) and custom PNG images
 - **Subject-Observer Pattern** - Automatic UI updates via LVGL 9's reactive data binding
 - **XML-Based UI** - Complete layout defined declaratively in XML files
-- **FontAwesome Icons** - Multiple sizes (64px, 48px, 32px) with auto-generated UTF-8 constants
+- **FontAwesome Icons** - Multiple sizes (64px, 48px, 32px, 16px) with auto-generated UTF-8 constants
 - **Custom Icons** - SVG-to-PNG conversion with `style_img_recolor` support
 - **Theme System** - Global color/size constants in `globals.xml`
-- **Screenshot Utility** - Automated 2-second capture to `/tmp`
+- **Screenshot Utility** - Automated 2-second capture to `/tmp` with panel argument support
 - **Testing Framework** - Catch2-based unit tests with `make test` integration
 - **Clean Architecture** - Minimal C++ code, mostly initialization and reactive updates
+- **Comprehensive Documentation** - HANDOFF.md, ROADMAP.md, STATUS.md, LVGL9_XML_GUIDE.md with LV_SIZE_CONTENT troubleshooting
+
+- **Controls Panel Launcher** - 6-card menu (400×200px cards) in 2×3 scrollable grid
+  - Card-based navigation to sub-screens (Motion, Temps, Extrusion, etc.)
+  - Click handlers wired and ready for sub-screen implementation
+  - Clean card design with icons, titles, and subtitles
+  - Proper flex wrapping (row_wrap) and vertical scrolling
+
+- **Numeric Keypad Modal Component** - Reusable integer input widget (700px wide, right-docked)
+  - Full-screen semi-transparent backdrop with click-to-cancel
+  - Large input display (montserrat_48 font) with unit labels
+  - 3×4 button grid (0-9 + backspace) with proper centering
+  - Header bar with back button, dynamic title, and OK button
+  - Callback-based API with min/max validation
+  - FontAwesome backspace icon (fa_icons_32) in orange accent color
+  - Single reusable instance pattern (create once, reconfigure on show)
+
+- **Motion Panel (Sub-Screen)** - Complete XYZ movement controls
+  - 8-direction jog pad: ↖ ↑ ↗, ← ⊙ →, ↙ ↓ ↘ (3×3 grid)
+  - Custom bold arrow font (diagonal_arrows_40) with Unicode glyphs
+  - Z-axis controls: +10mm, +1mm, -1mm, -10mm buttons
+  - Distance selector: 0.1mm, 1mm, 10mm, 100mm radio buttons
+  - Position display card with reactive X/Y/Z coordinates
+  - Home buttons: All, X, Y, Z axes
+  - Mock position simulation for testing
+  - Back button returns to Controls launcher
 
 ### Active Development
 
-**Current Focus:** Phase 3 - Print Select Panel Card Population
+**Current Focus:** Phase 5.4 - Temperature Sub-Screens (Nozzle + Bed control)
 
-**Next Tasks:**
-- **Print Select Panel:** Populate with file cards using dynamic XML instantiation
-- Create C++ wrapper for card generation
-- Use validated pattern from test_dynamic_cards.cpp
-- Add 16-20 mock files with formatted metadata
+**Completed Today (2025-10-13):**
+- ✅ Created motion panel XML with 3×3 jog pad grid (motion_panel.xml)
+- ✅ Generated custom diagonal_arrows_40 font with Unicode arrows (←↑→↓↖↗↙↘)
+- ✅ Updated generate-icon-consts.py to use Unicode arrow codepoints (U+2190-2193, U+2196-2199)
+- ✅ Fixed Z-axis button event handlers by removing unnecessary container layers
+- ✅ Implemented C++ motion panel wrapper (ui_panel_motion.cpp/h)
+- ✅ Added reactive position display with X/Y/Z subject bindings
+- ✅ Wired all jog pad buttons (8 directions + center home)
+- ✅ Wired distance selector buttons with visual feedback
+- ✅ Wired home buttons (All, X, Y, Z)
+- ✅ Implemented mock position simulation (X/Y jog moves, Z buttons increment/decrement)
+- ✅ Added motion panel dimensions to globals.xml
+- ✅ Integrated motion panel into Controls launcher
+
+**Arrow Icon Evolution:**
+1. Initial attempt: Tried using FontAwesome arrows (missing diagonal glyphs in Free version)
+2. Second attempt: Tried Montserrat font (Unicode arrows not included)
+3. Final solution: Generated custom font from Arial Unicode MS with bold 40px arrows
+4. Result: Consistent bold styling across all 8 directions
+
+**Button Layout Fix:**
+- Z-axis buttons originally had nested `lv_obj` containers for icon+text layout
+- Containers captured click events, preventing button callbacks from firing
+- Solution: Applied flex layout directly to `lv_button` widgets, removed container layer
+- Pattern now matches jog pad buttons (labels directly inside buttons)
+
+**Completed Earlier (2025-10-12 Late Night):**
+- ✅ Created numeric keypad modal XML component (numeric_keypad_modal.xml)
+- ✅ Implemented C++ wrapper with callback API (ui_component_keypad.cpp/h)
+- ✅ Added keypad dimension constants to globals.xml (700px width, 140×100px buttons)
+- ✅ Regenerated fa_icons_32 font to include backspace icon (U+F55A)
+- ✅ Added backspace icon to font generation pipeline (package.json)
+- ✅ Installed lv_font_conv npm package for font regeneration
+- ✅ Wired all button event handlers (digits, backspace, OK, cancel)
+- ✅ Implemented input state management with string buffer
+- ✅ Added dynamic title and unit label support
+- ✅ Integrated keypad into main app initialization
+- ✅ Tested with interactive demo (launches on startup)
+
+**Font Generation Workflow Established:**
+1. Update icon ranges in package.json (convert-font-32, convert-font-64, etc.)
+2. Run `npm run convert-font-XX` to regenerate font C files
+3. Run `python3 scripts/generate-icon-consts.py` to update globals.xml
+4. Rebuild binary with `make`
+
+**Completed Earlier (2025-10-12 Night):**
+- ✅ Created comprehensive 70-page Controls Panel UI design specification
+- ✅ Implemented 6-card launcher panel (Movement, Nozzle Temp, Bed Temp, Extrusion, Fan, Motors)
+- ✅ Added new FontAwesome icons to ui_fonts.h (motion, temperature, extrusion icons)
+- ✅ Regenerated icon constants with generate-icon-consts.py (27 total icons)
+- ✅ Fixed card layout: proper flex row_wrap for 2×3 grid
+- ✅ Adjusted card dimensions: 400×200px (fits 2 columns with 20px gaps)
+- ✅ Created C++ panel integration (ui_panel_controls.cpp/h)
+- ✅ Wired click event handlers for all 6 cards
+- ✅ Integrated Controls Panel into main navigation system
+- ✅ Fan Control card styled as "Coming soon" placeholder (dimmed)
+- ✅ All cards render cleanly without scrollbars
+
+**Design Decisions:**
+- Card-based launcher menu (Bambu X1C style) instead of inline controls
+- Each card opens a dedicated sub-screen for focused control
+- Reusable numeric keypad modal for temperature input
+- Motion sub-screen will use button grid (simplified from circular jog pad)
+- Used existing fa_icons_64 glyphs (arrows, home, settings) as placeholders
+
+**Next Steps:**
+- Phase 3: Implement Motion sub-screen with directional jog buttons
+- Phase 4: Implement Temperature sub-screens (wire keypad to Nozzle + Bed cards)
+- Phase 5: Implement Extrusion sub-screen with load/unload controls
+- Phase 6: Wire all controls to mock printer state (simulate API calls)
+
+**Completed Earlier (2025-10-12 Evening):**
+- ✅ Icon-only view toggle button (40×40px, fa-list ↔ fa-th-large)
+- ✅ Dual view modes: Card view (grid) + List view (sortable table)
+- ✅ List view with 4-column layout: Filename | Size | Modified | Time
+- ✅ Column sorting with visual indicators (▲/▼ arrows)
+- ✅ Empty state message ("No files available for printing")
+- ✅ Reusable confirmation dialog component (confirmation_dialog.xml)
+- ✅ Utility functions: format_file_size(), format_modified_date()
+- ✅ Updated all documentation (requirements v2.0, HANDOFF.md, STATUS.md)
+- ✅ Added ICON_LIST and ICON_TH_LARGE to icon system
+
+**Design Decisions:**
+- Simplified list view from 7 columns to 4 (removed Thumbnail, Filament, Slicer)
+- View toggle shows opposite mode icon (list icon in card mode, card icon in list mode)
+- Default view: Card mode (user preference remembered per session)
+- Default sort: Filename ascending
+
+**Next Phase: Phase 5 - Remaining Panels OR Moonraker Integration**
+- Option A: Build out Controls, Filament, Settings, Advanced panels
+- Option B: Wire Print/Delete buttons to Moonraker API
+- Future: Tab bar for storage sources, search/filter, hover effects
+
+## Recent Achievements (2025-10-12 Evening)
+
+### ✅ Print Select Panel Metadata Labels Fixed
+
+**Root Cause Identified:**
+- Metadata labels were created but invisible due to **LV_SIZE_CONTENT width bug**
+- LVGL's auto-sizing calculations fail for labels inside XML components with property substitution
+- Labels rendered with zero width despite having content
+
+**Solution Implemented:**
+- Replaced `width="LV_SIZE_CONTENT"` with explicit pixel dimensions
+- Time labels: `width="65"` (fits "2h30m" format)
+- Weight labels: `width="55"` (fits "120g" format)
+- All labels now render correctly with proper spacing
+
+**Enhancements Added:**
+- **fa_icons_16 font** - Created 16px FontAwesome font for metadata icons
+- **Clock icon** - Red accent (`#primary_color`) for print time
+- **Leaf icon** - Red accent (`#primary_color`) for filament weight
+- **Icon + text layout** - 4px gap between icon and text, 8px gap between metadata items
+- **Color scheme** - Red accent icons with gray text (`#text_secondary`) per design spec
+
+**Infrastructure Improvements:**
+- **Command-line panel selection** - `./build/bin/guppy-ui-proto print-select` launches directly to Print Select panel
+- **Updated screenshot.sh** - Added panel argument support: `./scripts/screenshot.sh guppy-ui-proto output print-select`
+- **String lifetime fix** - Used `lv_strdup()` to create persistent copies of metadata strings
+- **Card height adjustment** - Increased from 256px to 280px to accommodate metadata without scrollbars
+
+**Documentation Updates:**
+- **LVGL9_XML_GUIDE.md** - Added critical LV_SIZE_CONTENT warning with symptoms, root cause, and explicit dimension recommendations
+- **print-select-panel-v1.md** - Updated color specifications to match implementation (red icons, gray text)
+
+**Files Modified:**
+- `ui_xml/print_file_card.xml` - Added metadata icon + text layout with explicit dimensions
+- `ui_xml/globals.xml` - Increased `file_card_height` to 280px
+- `src/main.cpp` - Added argc/argv parsing for panel selection, registered fa_icons_16 font
+- `src/ui_panel_print_select.cpp` - Fixed string lifetime issue with lv_strdup()
+- `scripts/screenshot.sh` - Added panel argument support
+- `scripts/generate-icon-consts.py` - Regenerated icons including clock and leaf
+- `docs/LVGL9_XML_GUIDE.md` - Added LV_SIZE_CONTENT troubleshooting section
+- `docs/requirements/print-select-panel-v1.md` - Updated color specifications
+
+**Result:**
+✅ Print Select Panel fully functional with 8 test cards displaying:
+- Thumbnails (180×180px centered)
+- Filenames (truncated with ellipsis)
+- Print times with clock icons (red + gray text)
+- Filament weights with leaf icons (red + gray text)
+- No scrollbars (280px card height fits all content)
+
+### ✅ 4-Column Layout Optimization (2025-10-12 Afternoon)
+
+**Layout Adjustment:**
+- Changed from 3-column to **4-column grid** for 1024×800 display
+- Updated card dimensions in globals.xml:
+  - `file_card_width`: 260px → **204px**
+  - `file_card_height`: 312px → **256px**
+  - `file_card_thumbnail_size`: 236px → **180px**
+- Grid math: 204×4 + 20×3 (gaps) = 876px (fits in 890px available width)
+- Created new 180×180px centered placeholder thumbnail
+- Added responsive design comments (future: 3-col for smaller displays)
+
+**Benefits:**
+- More cards visible per screen (4 per row vs 3)
+- Better use of horizontal space on medium displays
+- Maintains clean grid alignment with proper spacing
+- Constants-based design allows easy adjustment for different screen sizes
+
+**Documentation Updates:**
+- Created comprehensive HANDOFF.md (complete project handoff guide)
+- Updated ROADMAP.md with Phase 3 Print Select Panel progress
+- Updated STATUS.md with 4-column layout details
+- All documentation now reflects current architecture and next steps
+
+**Files Modified:**
+- `ui_xml/globals.xml` - Card dimension constants
+- `assets/images/placeholder_thumb_centered.png` - Resized to 180×180px
+- `docs/HANDOFF.md` - NEW comprehensive handoff document
+- `docs/ROADMAP.md` - Updated Phase 3 status and recent work
+- `STATUS.md` - Updated current state and achievements
 
 ## Recent Achievements (2025-10-11 Evening)
 

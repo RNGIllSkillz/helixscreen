@@ -109,7 +109,7 @@ lv_xml_create(screen, "app_layout", NULL);  // NOW create UI
 
 If subjects are created in XML before C++ initialization, they'll have empty/default values and block proper initialization.
 
-### 3. FontAwesome Icon Constants
+### 2. FontAwesome Icon Constants
 
 Icons are auto-generated in `globals.xml` to avoid UTF-8 encoding issues:
 
@@ -125,7 +125,44 @@ The script reads icon definitions from `include/ui_fonts.h` and writes UTF-8 byt
 <lv_label text="#icon_home" style_text_font="fa_icons_64"/>
 ```
 
-**Available icon fonts:** `fa_icons_64`, `fa_icons_48`, `fa_icons_32`
+**Available icon fonts:** `fa_icons_64`, `fa_icons_48`, `fa_icons_32`, `fa_icons_16`
+
+### 3. Font Generation Workflow
+
+**Adding new FontAwesome icons to custom fonts:**
+
+```bash
+# 1. Install lv_font_conv if not already installed
+npm install lv_font_conv
+
+# 2. Edit package.json to add icon Unicode codepoint to the font range
+# Example: Add 0xf55a (backspace icon) to fa_icons_32
+vim package.json
+# Update: --range 0xf015,...,0xf55a
+
+# 3. Regenerate the font C file
+npm run convert-font-32   # or convert-font-64, convert-font-48, etc.
+
+# 4. Update globals.xml with UTF-8 byte sequences
+python3 scripts/generate-icon-consts.py
+
+# 5. Rebuild the binary
+make
+```
+
+**Font Configuration Files:**
+- `package.json` - NPM scripts with font generation commands
+- `scripts/generate-icon-consts.py` - Auto-generates icon constants in globals.xml
+- `assets/fonts/fa-solid-900.ttf` - Source FontAwesome font file
+- `assets/fonts/fa_icons_XX.c` - Generated LVGL font files
+
+**Example: Adding the backspace icon (U+F55A) to 32px font:**
+```json
+// In package.json
+"convert-font-32": "lv_font_conv --font assets/fonts/fa-solid-900.ttf --size 32 --bpp 4 --format lvgl --range 0xf015,0xf1de,...,0xf55a --no-compress -o assets/fonts/fa_icons_32.c"
+```
+
+Then run: `npm run convert-font-32 && python3 scripts/generate-icon-consts.py && make`
 
 ### 4. Reactive Navigation System
 

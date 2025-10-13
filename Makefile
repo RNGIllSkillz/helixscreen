@@ -29,7 +29,7 @@ APP_SRCS := $(filter-out $(SRC_DIR)/test_dynamic_cards.cpp,$(wildcard $(SRC_DIR)
 APP_OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(APP_SRCS))
 
 # Fonts
-FONT_SRCS := assets/fonts/fa_icons_64.c assets/fonts/fa_icons_48.c assets/fonts/fa_icons_32.c assets/fonts/fa_icons_16.c
+FONT_SRCS := assets/fonts/fa_icons_64.c assets/fonts/fa_icons_48.c assets/fonts/fa_icons_32.c assets/fonts/fa_icons_16.c assets/fonts/diagonal_arrows_40.c
 FONT_OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(FONT_SRCS))
 
 # SDL2
@@ -59,7 +59,7 @@ TEST_BIN := $(BIN_DIR)/run_tests
 TEST_SRCS := $(wildcard $(TEST_UNIT_DIR)/*.cpp)
 TEST_OBJS := $(patsubst $(TEST_UNIT_DIR)/%.cpp,$(OBJ_DIR)/tests/%.o,$(TEST_SRCS))
 
-.PHONY: all clean run test test-cards
+.PHONY: all clean run test test-cards test-print-select
 
 all: $(TARGET)
 
@@ -153,4 +153,29 @@ $(TEST_CARDS_OBJ): $(SRC_DIR)/test_dynamic_cards.cpp
 	@mkdir -p $(dir $@)
 	@echo "Compiling $<..."
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@
+
+# Print select panel test with mock data
+TEST_PRINT_SELECT_BIN := $(BIN_DIR)/test_print_select_panel
+TEST_PRINT_SELECT_OBJ := $(OBJ_DIR)/tests/test_print_select_panel.o
+MOCK_FILES_OBJ := $(OBJ_DIR)/tests/mock_print_files.o
+
+test-print-select: $(TEST_PRINT_SELECT_BIN)
+	@echo "Running print select panel test..."
+	@$(TEST_PRINT_SELECT_BIN)
+
+$(TEST_PRINT_SELECT_BIN): $(TEST_PRINT_SELECT_OBJ) $(MOCK_FILES_OBJ) $(LVGL_OBJS)
+	@mkdir -p $(BIN_DIR)
+	@echo "Linking test_print_select_panel..."
+	@$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
+	@echo "✓ Test binary ready: $@"
+
+$(TEST_PRINT_SELECT_OBJ): $(TEST_DIR)/test_print_select_panel.cpp
+	@mkdir -p $(dir $@)
+	@echo "Compiling $<..."
+	@$(CXX) $(CXXFLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
+
+$(MOCK_FILES_OBJ): $(TEST_DIR)/mock_print_files.cpp
+	@mkdir -p $(dir $@)
+	@echo "Compiling $<..."
+	@$(CXX) $(CXXFLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
 

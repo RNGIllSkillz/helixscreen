@@ -18,7 +18,7 @@ static lv_obj_t* panel_widgets[UI_PANEL_COUNT] = {nullptr};
 static bool subjects_initialized = false;
 
 // Observer callback - updates all icon colors when active panel changes
-static void active_panel_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+static void active_panel_observer_cb(lv_observer_t* /*observer*/, lv_subject_t* subject) {
     int32_t new_active_panel = lv_subject_get_int(subject);
 
     // Update all icon color subjects based on which panel is active

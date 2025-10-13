@@ -1034,6 +1034,39 @@ The script reads icon definitions from `include/ui_fonts.h` and writes UTF-8 byt
 
 ### Common Issues
 
+#### ⚠️ LV_SIZE_CONTENT not working correctly (CRITICAL)
+
+**Issue:** `LV_SIZE_CONTENT` frequently fails to calculate correct dimensions, especially for labels inside XML components with property substitution.
+
+**Symptoms:**
+- Labels with `width="LV_SIZE_CONTENT"` render with zero width (invisible)
+- Cards with `height="LV_SIZE_CONTENT"` get unexpected scrollbars
+- Flex layouts don't size children correctly when using LV_SIZE_CONTENT
+
+**Root Cause:** LVGL's auto-sizing calculations don't always work correctly in XML context, particularly when:
+- Using API properties (`$property_name`)
+- Inside flex containers
+- With dynamically created components
+
+**Fix:** **ALWAYS use explicit pixel dimensions instead of LV_SIZE_CONTENT**
+
+```xml
+<!-- ✗ DOESN'T WORK - Labels will be invisible -->
+<lv_label text="$metadata"
+          width="LV_SIZE_CONTENT"
+          height="LV_SIZE_CONTENT"/>
+
+<!-- ✓ WORKS - Use explicit dimensions -->
+<lv_label text="$metadata"
+          width="70"
+          height="20"/>
+```
+
+**Recommendation:** Measure expected content size and add 10-20% padding for safety. For example:
+- Short labels (5-10 chars): `width="60-80"`
+- Medium labels (10-20 chars): `width="100-140"`
+- Numbers/times: `width="40-70"`
+
 #### "No constant was found with name X"
 
 **Cause:** Constant not defined in globals.xml or not registered before component creation.

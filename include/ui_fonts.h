@@ -8,6 +8,9 @@ LV_FONT_DECLARE(fa_icons_48);  // Status card icons (large displays)
 LV_FONT_DECLARE(fa_icons_32);  // Status card icons (small displays)
 LV_FONT_DECLARE(fa_icons_16);  // Metadata icons (small inline)
 
+// Bold arrows font (Unicode arrows from system font - size 40 for boldness)
+LV_FONT_DECLARE(diagonal_arrows_40);  // ←↑→↓↖↗↙↘ all 8 directions
+
 // Navigation icons (available in 64px)
 #define ICON_HOME              "\xEF\x80\x95"      // U+F015 house
 #define ICON_CONTROLS          "\xEF\x87\x9E"      // U+F1DE sliders
@@ -26,3 +29,35 @@ LV_FONT_DECLARE(fa_icons_16);  // Metadata icons (small inline)
 // Metadata icons (available in 16px)
 #define ICON_CLOCK             "\xEF\x80\x97"      // U+F017 clock-o
 #define ICON_LEAF              "\xEF\x81\xAC"      // U+F06C leaf
+
+// Detail view icons (available in 32px)
+#define ICON_CHEVRON_LEFT      "\xEF\x81\x93"      // U+F053 chevron-left
+#define ICON_TRASH             "\xEF\x87\xB8"      // U+F1F8 trash
+
+// View toggle icons (available in 32px)
+#define ICON_LIST              "\xEF\x80\xBA"      // U+F03A list
+#define ICON_TH_LARGE          "\xEF\x80\x89"      // U+F009 th-large
+
+// Controls panel icons (available in 64px, 32px)
+#define ICON_ARROWS_ALL        "\xEF\x82\xB2"      // U+F0B2 arrows-up-down-left-right
+#define ICON_FIRE              "\xEF\x81\xAD"      // U+F06D fire
+#define ICON_ARROW_UP_LINE     "\xEF\x8D\x82"      // U+F342 arrow-up-from-line
+#define ICON_FAN               "\xEF\xA1\xA3"      // U+F863 fan
+#define ICON_POWER_OFF         "\xEF\x80\x91"      // U+F011 power-off
+
+// Motion control icons - using Unicode arrows from diagonal_arrows_40 font
+#define ICON_ARROW_UP          "\xE2\x86\x91"      // U+2191 upwards arrow ↑
+#define ICON_ARROW_DOWN        "\xE2\x86\x93"      // U+2193 downwards arrow ↓
+#define ICON_ARROW_LEFT        "\xE2\x86\x90"      // U+2190 leftwards arrow ←
+#define ICON_ARROW_RIGHT       "\xE2\x86\x92"      // U+2192 rightwards arrow →
+#define ICON_CHEVRON_UP        "\xEF\x81\xB7"      // U+F077 chevron-up
+#define ICON_CHEVRON_DOWN      "\xEF\x81\xB8"      // U+F078 chevron-down
+
+// Diagonal direction icons (text labels for now, icons TBD)
+#define ICON_ARROW_UP_LEFT     "\xE2\x86\x96"      // Unicode ↖ (fallback)
+#define ICON_ARROW_UP_RIGHT    "\xE2\x86\x97"      // Unicode ↗ (fallback)
+#define ICON_ARROW_DOWN_LEFT   "\xE2\x86\x99"      // Unicode ↙ (fallback)
+#define ICON_ARROW_DOWN_RIGHT  "\xE2\x86\x98"      // Unicode ↘ (fallback)
+
+// Keypad icons (available in 32px)
+#define ICON_BACKSPACE         "\xEF\x95\x9A"      // U+F55A delete-left

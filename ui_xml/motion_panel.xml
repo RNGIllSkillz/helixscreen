@@ -1,0 +1,237 @@
+<?xml version="1.0"?>
+<component>
+  <!-- Motion Sub-Screen: XYZ Movement & Homing -->
+  <!-- Simplified button grid design (vs circular jog pad) -->
+
+  <view extends="lv_obj" name="motion_panel" width="100%" height="100%" style_bg_color="#panel_bg" style_pad_all="0" flag_scrollable="false" flex_flow="column">
+    <!-- Header Bar (matches keypad header exactly) -->
+    <lv_obj name="motion_header" width="100%" height="60"
+            style_bg_color="#panel_bg"
+            style_bg_opa="0"
+            style_border_width="0"
+            style_pad_all="0"
+            flag_scrollable="false"
+            flex_flow="row"
+            style_flex_main_place="space_between"
+            style_flex_cross_place="center">
+
+      <!-- Left side: Back button + Title -->
+      <lv_obj height="100%"
+              width="400"
+              style_bg_opa="0"
+              style_border_width="0"
+              style_pad_all="0"
+              flag_scrollable="false"
+              flex_flow="row"
+              style_flex_cross_place="center"
+              style_pad_gap="12">
+
+        <lv_label name="back_button"
+                  text="&lt;"
+                  style_text_font="montserrat_28"
+                  style_text_color="#text_primary"
+                  flag_clickable="true"
+                  flag_scrollable="false"/>
+
+        <lv_label name="motion_title"
+                  text="Motion: XYZ"
+                  width="320"
+                  style_text_font="montserrat_28"
+                  style_text_color="#text_primary"
+                  flag_scrollable="false"/>
+      </lv_obj>
+
+      <!-- Right side: Empty spacer (no OK button like keypad) -->
+      <lv_obj width="40" height="40" style_bg_opa="0" flag_scrollable="false" style_border_width="0" style_pad_all="0"/>
+    </lv_obj>
+
+    <!-- Content Area: Two Columns -->
+    <lv_obj name="motion_content" flex_grow="1" width="100%"
+            style_bg_opa="0" style_pad_all="20"
+            flag_scrollable="false" style_border_width="0" style_border_opa="0"
+            flex_flow="row" style_flex_main_place="space_between">
+
+      <!-- Left Column (65%): XY Jog Pad + Controls -->
+      <lv_obj name="left_column" width="65%" height="100%"
+              style_bg_opa="0" style_pad_all="0"
+              flag_scrollable="false" style_border_width="0" style_border_opa="0"
+              flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center"
+              style_pad_gap="20">
+
+        <!-- XY Jog Pad: 3×3 Button Grid -->
+        <lv_obj name="jog_pad_container" width="#jog_pad_size" height="#jog_pad_size"
+                style_bg_color="#card_bg" style_radius="12" style_pad_all="#jog_pad_padding"
+                style_border_width="0" style_border_opa="0"
+                flag_scrollable="false"
+                flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center"
+                style_pad_gap="12">
+
+          <!-- Row 1: NW, N, NE -->
+          <lv_obj width="100%" height="80"
+                  flag_scrollable="false"
+                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                  style_bg_opa="0" style_border_width="0" style_border_opa="0" style_pad_all="0" style_pad_gap="12">
+            <lv_button name="jog_nw" width="#jog_button_size" height="#jog_button_size"
+                    style_bg_color="#jog_button_bg" style_radius="8" style_border_width="0">
+              <lv_label text="#icon_arrow_up_left" style_text_font="diagonal_arrows_40" style_text_color="#text_primary" align="center"/>
+            </lv_button>
+            <lv_button name="jog_n" width="#jog_button_size" height="#jog_button_size"
+                    style_bg_color="#jog_button_bg" style_radius="8" style_border_width="0">
+              <lv_label text="#icon_arrow_up" style_text_font="diagonal_arrows_40" style_text_color="#text_primary" align="center"/>
+            </lv_button>
+            <lv_button name="jog_ne" width="#jog_button_size" height="#jog_button_size"
+                    style_bg_color="#jog_button_bg" style_radius="8" style_border_width="0">
+              <lv_label text="#icon_arrow_up_right" style_text_font="diagonal_arrows_40" style_text_color="#text_primary" align="center"/>
+            </lv_button>
+          </lv_obj>
+
+          <!-- Row 2: W, Home, E -->
+          <lv_obj width="100%" height="80"
+                  flag_scrollable="false"
+                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                  style_bg_opa="0" style_border_width="0" style_border_opa="0" style_pad_all="0" style_pad_gap="12">
+            <lv_button name="jog_w" width="#jog_button_size" height="#jog_button_size"
+                    style_bg_color="#jog_button_bg" style_radius="8" style_border_width="0">
+              <lv_label text="#icon_arrow_left" style_text_font="diagonal_arrows_40" style_text_color="#text_primary" align="center"/>
+            </lv_button>
+            <lv_button name="jog_home_xy" width="#jog_button_size" height="#jog_button_size"
+                    style_bg_color="#primary_color" style_radius="8" style_border_width="0">
+              <lv_label text="#icon_home" style_text_font="fa_icons_32" style_text_color="#text_primary" align="center"/>
+            </lv_button>
+            <lv_button name="jog_e" width="#jog_button_size" height="#jog_button_size"
+                    style_bg_color="#jog_button_bg" style_radius="8" style_border_width="0">
+              <lv_label text="#icon_arrow_right" style_text_font="diagonal_arrows_40" style_text_color="#text_primary" align="center"/>
+            </lv_button>
+          </lv_obj>
+
+          <!-- Row 3: SW, S, SE -->
+          <lv_obj width="100%" height="80"
+                  flag_scrollable="false"
+                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                  style_bg_opa="0" style_border_width="0" style_border_opa="0" style_pad_all="0" style_pad_gap="12">
+            <lv_button name="jog_sw" width="#jog_button_size" height="#jog_button_size"
+                    style_bg_color="#jog_button_bg" style_radius="8" style_border_width="0">
+              <lv_label text="#icon_arrow_down_left" style_text_font="diagonal_arrows_40" style_text_color="#text_primary" align="center"/>
+            </lv_button>
+            <lv_button name="jog_s" width="#jog_button_size" height="#jog_button_size"
+                    style_bg_color="#jog_button_bg" style_radius="8" style_border_width="0">
+              <lv_label text="#icon_arrow_down" style_text_font="diagonal_arrows_40" style_text_color="#text_primary" align="center"/>
+            </lv_button>
+            <lv_button name="jog_se" width="#jog_button_size" height="#jog_button_size"
+                    style_bg_color="#jog_button_bg" style_radius="8" style_border_width="0">
+              <lv_label text="#icon_arrow_down_right" style_text_font="diagonal_arrows_40" style_text_color="#text_primary" align="center"/>
+            </lv_button>
+          </lv_obj>
+        </lv_obj>
+
+        <!-- Distance Selector: Radio Buttons -->
+        <lv_obj name="distance_selector" width="100%" height="48"
+                style_bg_opa="0" style_pad_all="0" style_border_width="0" style_border_opa="0"
+                flag_scrollable="false"
+                flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                style_pad_gap="8">
+          <lv_button name="dist_0_1" width="#distance_button_width" height="#distance_button_height"
+                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
+            <lv_label text="0.1mm" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+          </lv_button>
+          <lv_button name="dist_1" width="#distance_button_width" height="#distance_button_height"
+                  style_bg_color="#jog_selected_distance" style_radius="6" style_border_width="0">
+            <lv_label text="1mm" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+          </lv_button>
+          <lv_button name="dist_10" width="#distance_button_width" height="#distance_button_height"
+                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
+            <lv_label text="10mm" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+          </lv_button>
+          <lv_button name="dist_100" width="#distance_button_width" height="#distance_button_height"
+                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
+            <lv_label text="100mm" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+          </lv_button>
+        </lv_obj>
+
+        <!-- Home Buttons Row -->
+        <lv_obj name="home_buttons" width="100%" height="48"
+                style_bg_opa="0" style_pad_all="0" style_border_width="0" style_border_opa="0"
+                flag_scrollable="false"
+                flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                style_pad_gap="12">
+          <lv_button name="home_all" width="#home_button_width" height="#home_button_height"
+                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
+            <lv_label text="Home All" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+          </lv_button>
+          <lv_button name="home_x" width="#home_button_width" height="#home_button_height"
+                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
+            <lv_label text="Home X" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+          </lv_button>
+          <lv_button name="home_y" width="#home_button_width" height="#home_button_height"
+                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
+            <lv_label text="Home Y" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+          </lv_button>
+          <lv_button name="home_z" width="#home_button_width" height="#home_button_height"
+                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0">
+            <lv_label text="Home Z" style_text_font="montserrat_14" style_text_color="#text_primary" align="center"/>
+          </lv_button>
+        </lv_obj>
+      </lv_obj>
+
+      <!-- Right Column (35%): Z-Axis Controls + Position Display -->
+      <lv_obj name="right_column" width="35%" height="100%"
+              style_bg_opa="0" style_pad_all="0"
+              flag_scrollable="false" style_border_width="0" style_border_opa="0"
+              flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center"
+              style_pad_gap="20">
+
+        <!-- Position Display Card -->
+        <lv_obj name="position_card" width="100%" height="#position_card_height"
+                style_bg_color="#card_bg" style_radius="8" style_border_width="0" style_border_opa="0" style_border_color="#card_bg" style_pad_all="16"
+                flag_scrollable="false"
+                flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start"
+                style_pad_gap="8">
+          <lv_label text="Position:" style_text_font="montserrat_16" style_text_color="#text_secondary"/>
+          <lv_label name="pos_x" bind_text="motion_pos_x" style_text_font="montserrat_20" style_text_color="#text_primary"/>
+          <lv_label name="pos_y" bind_text="motion_pos_y" style_text_font="montserrat_20" style_text_color="#text_primary"/>
+          <lv_label name="pos_z" bind_text="motion_pos_z" style_text_font="montserrat_20" style_text_color="#text_primary"/>
+        </lv_obj>
+
+        <!-- Z-Axis Button Group -->
+        <lv_obj name="z_controls" width="100%" height="#z_controls_height"
+                style_bg_opa="0" style_pad_all="0" style_border_width="0" style_border_opa="0"
+                flag_scrollable="false"
+                flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center"
+                style_pad_gap="12">
+
+          <lv_button name="z_up_10" width="#z_button_width" height="#z_button_height"
+                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0"
+                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                  style_pad_gap="4">
+            <lv_label text="#icon_chevron_up" style_text_font="fa_icons_32" style_text_color="#text_primary"/>
+            <lv_label text="10mm" style_text_font="montserrat_16" style_text_color="#text_primary"/>
+          </lv_button>
+
+          <lv_button name="z_up_1" width="#z_button_width" height="#z_button_height"
+                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0"
+                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                  style_pad_gap="4">
+            <lv_label text="#icon_chevron_up" style_text_font="fa_icons_32" style_text_color="#text_primary"/>
+            <lv_label text="1mm" style_text_font="montserrat_16" style_text_color="#text_primary"/>
+          </lv_button>
+
+          <lv_button name="z_down_1" width="#z_button_width" height="#z_button_height"
+                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0"
+                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                  style_pad_gap="4">
+            <lv_label text="#icon_chevron_down" style_text_font="fa_icons_32" style_text_color="#text_primary"/>
+            <lv_label text="1mm" style_text_font="montserrat_16" style_text_color="#text_primary"/>
+          </lv_button>
+
+          <lv_button name="z_down_10" width="#z_button_width" height="#z_button_height"
+                  style_bg_color="#jog_button_bg" style_radius="6" style_border_width="0"
+                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                  style_pad_gap="4">
+            <lv_label text="#icon_chevron_down" style_text_font="fa_icons_32" style_text_color="#text_primary"/>
+            <lv_label text="10mm" style_text_font="montserrat_16" style_text_color="#text_primary"/>
+          </lv_button>
+        </lv_obj>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

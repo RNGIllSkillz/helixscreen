@@ -1,17 +1,214 @@
 <component>
-	<!-- Print Select Panel - Scrollable grid of print files -->
+	<!-- Print Select Panel - Dual view: Card grid or List view -->
 	<view extends="lv_obj"
 	      width="100%"
 	      height="100%"
 	      style_bg_color="#panel_bg"
-	      style_pad_all="16"
-	      style_pad_gap="20"
+	      style_pad_all="0"
 	      style_border_width="0"
-	      flex_flow="row_wrap"
-	      flag_scrollable="true"
-	      name="print_select_container">
+	      flex_flow="column"
+	      name="print_select_panel_root">
 
-		<!-- Cards will be dynamically added here via C++ -->
+		<!-- Top bar with view toggle -->
+		<lv_obj width="100%"
+		        height="56"
+		        style_bg_color="#panel_bg"
+		        style_border_width="0"
+		        style_pad_left="16"
+		        style_pad_right="16"
+		        style_pad_top="8"
+		        style_pad_bottom="8"
+		        flex_flow="row"
+		        style_flex_main_place="end"
+		        style_flex_cross_place="center">
 
+			<!-- View toggle button (icon-only) -->
+			<lv_obj name="view_toggle_btn"
+			        width="40"
+			        height="40"
+			        style_bg_opa="0"
+			        style_border_width="0"
+			        flag_clickable="true">
+				<lv_label name="view_toggle_icon"
+				          text="#icon_list"
+				          style_text_font="fa_icons_32"
+				          style_text_color="#text_primary"
+				          align="center"/>
+			</lv_obj>
+		</lv_obj>
+
+		<!-- Card view container (default visible) -->
+		<lv_obj name="card_view_container"
+		        width="100%"
+		        height="100%"
+		        style_bg_color="#panel_bg"
+		        style_pad_all="16"
+		        style_pad_gap="20"
+		        style_border_width="0"
+		        flex_flow="row_wrap"
+		        flag_scrollable="true"
+		        flex_grow="1">
+
+			<!-- Cards will be dynamically added here via C++ -->
+		</lv_obj>
+
+		<!-- List view container (initially hidden) -->
+		<lv_obj name="list_view_container"
+		        width="100%"
+		        height="100%"
+		        style_bg_color="#panel_bg"
+		        style_pad_all="0"
+		        style_border_width="0"
+		        flex_flow="column"
+		        flex_grow="1"
+		        flag_hidden="true">
+
+			<!-- Column headers -->
+			<lv_obj name="list_header"
+			        width="100%"
+			        height="40"
+			        style_bg_color="#panel_bg"
+			        style_border_width="0"
+			        style_border_side="2"
+			        style_border_color="#card_bg"
+			        style_pad_left="16"
+			        style_pad_right="16"
+			        style_pad_top="8"
+			        style_pad_bottom="8"
+			        flex_flow="row"
+			        style_flex_main_place="start"
+			        style_flex_cross_place="center">
+
+				<!-- Filename header (flex-grow) -->
+				<lv_button name="header_filename"
+				          width="510"
+				          height="32"
+				          style_bg_opa="0"
+				          style_border_width="0"
+				          style_pad_all="0"
+				          flex_grow="1"
+				          flag_clickable="true">
+					<lv_label text="Filename ▼"
+					          width="510"
+					          height="24"
+					          style_text_font="montserrat_16"
+					          style_text_color="#text_primary"
+					          style_text_align="left"
+					          align="left_mid"/>
+				</lv_button>
+
+				<!-- Size header -->
+				<lv_button name="header_size"
+				          width="80"
+				          height="32"
+				          style_bg_opa="0"
+				          style_border_width="0"
+				          style_pad_all="0"
+				          flex_grow="0"
+				          flag_clickable="true">
+					<lv_label text="Size"
+					          width="80"
+					          height="24"
+					          style_text_font="montserrat_16"
+					          style_text_color="#text_primary"
+					          style_text_align="right"
+					          align="center"/>
+				</lv_button>
+
+				<!-- Modified header -->
+				<lv_button name="header_modified"
+				          width="130"
+				          height="32"
+				          style_bg_opa="0"
+				          style_border_width="0"
+				          style_pad_all="0"
+				          flex_grow="0"
+				          flag_clickable="true">
+					<lv_label text="Modified"
+					          width="130"
+					          height="24"
+					          style_text_font="montserrat_16"
+					          style_text_color="#text_primary"
+					          style_text_align="right"
+					          align="center"/>
+				</lv_button>
+
+				<!-- Print Time header -->
+				<lv_button name="header_print_time"
+				          width="90"
+				          height="32"
+				          style_bg_opa="0"
+				          style_border_width="0"
+				          style_pad_all="0"
+				          flex_grow="0"
+				          flag_clickable="true">
+					<lv_label text="Time"
+					          width="90"
+					          height="24"
+					          style_text_font="montserrat_16"
+					          style_text_color="#text_primary"
+					          style_text_align="right"
+					          align="center"/>
+				</lv_button>
+			</lv_obj>
+
+			<!-- Scrollable list rows container -->
+			<lv_obj name="list_rows_container"
+			        width="100%"
+			        height="100%"
+			        style_bg_color="#panel_bg"
+			        style_pad_left="16"
+			        style_pad_right="16"
+			        style_pad_top="8"
+			        style_pad_bottom="16"
+			        style_pad_gap="8"
+			        style_border_width="0"
+			        flex_flow="column"
+			        flag_scrollable="true"
+			        flex_grow="1">
+
+				<!-- List rows will be dynamically added here via C++ -->
+			</lv_obj>
+		</lv_obj>
+
+		<!-- Empty state message (shared, initially hidden) -->
+		<lv_obj name="empty_state_container"
+		        width="100%"
+		        height="100%"
+		        style_bg_color="#panel_bg"
+		        style_border_width="0"
+		        style_pad_all="0"
+		        align="center"
+		        flex_grow="1"
+		        flag_hidden="true">
+
+			<lv_obj width="400"
+			        height="200"
+			        style_bg_opa="0"
+			        style_border_width="0"
+			        style_pad_all="0"
+			        align="center"
+			        flex_flow="column"
+			        style_flex_main_place="center"
+			        style_flex_cross_place="center">
+
+				<lv_label text="No files available for printing"
+				          width="400"
+				          height="32"
+				          style_text_font="montserrat_20"
+				          style_text_color="#text_primary"
+				          style_text_align="center"
+				          style_pad_all="0"/>
+
+				<lv_label text="Upload gcode files to get started"
+				          width="400"
+				          height="24"
+				          style_text_font="montserrat_16"
+				          style_text_color="#text_secondary"
+				          style_text_align="center"
+				          style_pad_all="0"
+				          style_pad_top="8"/>
+			</lv_obj>
+		</lv_obj>
 	</view>
 </component>

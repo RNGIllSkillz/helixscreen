@@ -29,21 +29,95 @@
 		<percent name="card_width" value="45%"/>
 		<percent name="card_height" value="80%"/>
 
+		<!-- Print file card dimensions -->
+		<!-- 4 columns on medium display (1024x600): 204*4 + 20*3 = 876px (fits in 890px available width) -->
+		<!-- 3 columns on smaller displays: future responsive layout work (Phase 7) -->
+		<px name="file_card_width" value="204"/>
+		<px name="file_card_height" value="280"/>  <!-- thumbnail + labels + padding + spacing + metadata -->
+		<px name="file_card_padding" value="12"/>
+		<px name="file_card_thumbnail_size" value="180"/>  <!-- card_width - (2 * padding) -->
+		<px name="file_card_spacing" value="8"/>
+		<color name="file_card_thumbnail_bg" value="0x2a2a2a"/>
+
+		<!-- Button dimensions -->
+		<px name="button_height" value="50"/>
+		<px name="button_padding" value="12"/>
+
+		<!-- Detail view dimensions -->
+		<px name="detail_metadata_height" value="100"/>
+		<px name="detail_back_icon_size" value="32"/>
+		<px name="detail_separator_height" value="2"/>
+
+		<!-- Motion panel dimensions -->
+		<px name="jog_button_size" value="76"/>          <!-- Reduced from 80 to fit 3 buttons + gaps in container -->
+		<px name="jog_pad_size" value="320"/>
+		<px name="jog_pad_padding" value="20"/>
+		<px name="jog_pad_gap" value="12"/>
+		<px name="distance_button_width" value="85"/>    <!-- Increased from 70 to fit "100mm" text -->
+		<px name="distance_button_height" value="42"/>   <!-- Increased from 36 to fit text without clipping -->
+		<px name="home_button_width" value="120"/>       <!-- Increased from 100 to fit "Home All" text -->
+		<px name="home_button_height" value="44"/>       <!-- Increased from 40 for better proportions -->
+		<px name="z_button_width" value="140"/>          <!-- Increased from 120 to fit icon + "10mm" text -->
+		<px name="z_button_height" value="58"/>          <!-- Increased slightly for better proportions -->
+		<px name="position_card_height" value="140"/>
+		<px name="z_controls_height" value="280"/>       <!-- Increased to accommodate taller Z buttons -->
+
+		<!-- Numeric Keypad Modal dimensions -->
+		<px name="keypad_width" value="700"/>
+		<px name="keypad_padding" value="40"/>
+		<px name="keypad_section_gap" value="40"/>
+		<px name="keypad_input_height" value="120"/>
+		<px name="keypad_button_width" value="140"/>
+		<px name="keypad_button_height" value="100"/>
+		<px name="keypad_button_gap" value="20"/>
+
+		<!-- Keypad colors -->
+		<color name="keypad_bg" value="0x2a2a2a"/>          <!-- Dark card background -->
+		<color name="keypad_input_bg" value="0x1e1e1e"/>    <!-- Darker input display -->
+		<color name="keypad_button_bg" value="0x505050"/>   <!-- Number button gray (much lighter!) -->
+		<color name="keypad_button_esc_bg" value="0x666666"/> <!-- ESC mid-gray -->
+		<color name="keypad_ok_bg" value="0x4caf50"/>       <!-- Green OK button -->
+		<color name="keypad_accent_orange" value="0xff9800"/> <!-- Orange backspace -->
+
+		<!-- Motion control button colors -->
+		<color name="jog_button_bg" value="0x505050"/>      <!-- Jog pad buttons (much lighter for better contrast!) -->
+		<color name="jog_selected_distance" value="0xcc3333"/> <!-- Softer red for selected distance -->
+
 		<!-- ===================================================================== -->
 		<!-- FontAwesome icon constants - AUTO-GENERATED - DO NOT EDIT MANUALLY   -->
 		<!-- Run: python3 scripts/generate-icon-consts.py                         -->
 		<!-- ===================================================================== -->
 		<str name="icon_advanced" value=""/>  <!-- U+F142 ellipsis-vertical -->
+		<str name="icon_arrow_down" value="↓"/>  <!-- U+2193 downwards arrow -->
+		<str name="icon_arrow_down_left" value="↙"/>  <!-- U+2199 diagonal down-left -->
+		<str name="icon_arrow_down_right" value="↘"/>  <!-- U+2198 diagonal down-right -->
+		<str name="icon_arrow_left" value="←"/>  <!-- U+2190 leftwards arrow -->
+		<str name="icon_arrow_right" value="→"/>  <!-- U+2192 rightwards arrow -->
+		<str name="icon_arrow_up" value="↑"/>  <!-- U+2191 upwards arrow -->
+		<str name="icon_arrow_up_left" value="↖"/>  <!-- U+2196 diagonal up-left -->
+		<str name="icon_arrow_up_line" value=""/>  <!-- U+F342 arrow-up-from-line -->
+		<str name="icon_arrow_up_right" value="↗"/>  <!-- U+2197 diagonal up-right -->
+		<str name="icon_arrows_all" value=""/>  <!-- U+F0B2 arrows-up-down-left-right -->
+		<str name="icon_backspace" value=""/>  <!-- U+F55A delete-left -->
+		<str name="icon_chevron_down" value=""/>  <!-- U+F078 chevron-down -->
+		<str name="icon_chevron_left" value=""/>  <!-- U+F053 chevron-left -->
+		<str name="icon_chevron_up" value=""/>  <!-- U+F077 chevron-up -->
 		<str name="icon_clock" value=""/>  <!-- U+F017 clock-o -->
 		<str name="icon_controls" value=""/>  <!-- U+F1DE sliders -->
 		<str name="icon_ethernet" value=""/>  <!-- U+F796 ethernet -->
+		<str name="icon_fan" value=""/>  <!-- U+F863 fan -->
 		<str name="icon_filament" value=""/>  <!-- U+F576 fill-drip -->
+		<str name="icon_fire" value=""/>  <!-- U+F06D fire -->
 		<str name="icon_folder" value=""/>  <!-- U+F07C folder-open -->
 		<str name="icon_home" value=""/>  <!-- U+F015 house -->
 		<str name="icon_leaf" value=""/>  <!-- U+F06C leaf -->
 		<str name="icon_lightbulb" value=""/>  <!-- U+F0EB lightbulb -->
+		<str name="icon_list" value=""/>  <!-- U+F03A list -->
+		<str name="icon_power_off" value=""/>  <!-- U+F011 power-off -->
 		<str name="icon_settings" value=""/>  <!-- U+F013 gear -->
 		<str name="icon_temperature" value=""/>  <!-- U+F2C7 thermometer-half -->
+		<str name="icon_th_large" value=""/>  <!-- U+F009 th-large -->
+		<str name="icon_trash" value=""/>  <!-- U+F1F8 trash -->
 		<str name="icon_wifi" value=""/>  <!-- U+F1EB wifi -->
 		<str name="icon_wifi_slash" value=""/>  <!-- U+F127 wifi-slash -->	</consts>
 

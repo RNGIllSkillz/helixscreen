@@ -20,19 +20,54 @@ import re
 # FontAwesome 6 Free Solid icon mappings
 # Format: 'constant_name': (unicode_codepoint, 'description')
 ICONS = {
+    # Navigation icons
     'icon_home': (0xF015, 'house'),
     'icon_controls': (0xF1DE, 'sliders'),
     'icon_filament': (0xF576, 'fill-drip'),
     'icon_settings': (0xF013, 'gear'),
     'icon_advanced': (0xF142, 'ellipsis-vertical'),
     'icon_folder': (0xF07C, 'folder-open'),
+
+    # Status icons
     'icon_temperature': (0xF2C7, 'thermometer-half'),
     'icon_wifi': (0xF1EB, 'wifi'),
     'icon_ethernet': (0xF796, 'ethernet'),
     'icon_wifi_slash': (0xF127, 'wifi-slash'),
     'icon_lightbulb': (0xF0EB, 'lightbulb'),
+
+    # Metadata icons
     'icon_clock': (0xF017, 'clock-o'),
     'icon_leaf': (0xF06C, 'leaf'),
+
+    # Action icons
+    'icon_chevron_left': (0xF053, 'chevron-left'),
+    'icon_trash': (0xF1F8, 'trash'),
+    'icon_list': (0xF03A, 'list'),
+    'icon_th_large': (0xF009, 'th-large'),
+
+    # Controls panel launcher icons
+    'icon_arrows_all': (0xF0B2, 'arrows-up-down-left-right'),
+    'icon_fire': (0xF06D, 'fire'),
+    'icon_arrow_up_line': (0xF342, 'arrow-up-from-line'),
+    'icon_fan': (0xF863, 'fan'),
+    'icon_power_off': (0xF011, 'power-off'),
+
+    # Motion control icons - Unicode arrows from diagonal_arrows_40 font
+    'icon_arrow_up': (0x2191, 'upwards arrow'),
+    'icon_arrow_down': (0x2193, 'downwards arrow'),
+    'icon_arrow_left': (0x2190, 'leftwards arrow'),
+    'icon_arrow_right': (0x2192, 'rightwards arrow'),
+    'icon_arrow_up_left': (0x2196, 'diagonal up-left'),
+    'icon_arrow_up_right': (0x2197, 'diagonal up-right'),
+    'icon_arrow_down_left': (0x2199, 'diagonal down-left'),
+    'icon_arrow_down_right': (0x2198, 'diagonal down-right'),
+
+    # FontAwesome chevrons for Z-axis
+    'icon_chevron_up': (0xF077, 'chevron-up'),
+    'icon_chevron_down': (0xF078, 'chevron-down'),
+
+    # Keypad icons
+    'icon_backspace': (0xF55A, 'delete-left'),
 }
 
 GLOBALS_FILE = 'ui_xml/globals.xml'

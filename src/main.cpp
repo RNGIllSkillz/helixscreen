@@ -4,8 +4,13 @@
 #include "ui_theme.h"
 #include "ui_fonts.h"
 #include "ui_panel_home.h"
+#include "ui_panel_print_select.h"
+#include "ui_panel_controls.h"
+#include "ui_panel_motion.h"
+#include "ui_component_keypad.h"
 #include <SDL.h>
 #include <cstdio>
+#include <cstring>
 #include <ctime>
 
 // LVGL display and input
@@ -107,11 +112,41 @@ static void save_screenshot() {
 }
 
 // Main application
-int main(int, char**) {
+int main(int argc, char** argv) {
+    // Parse command-line arguments for panel selection
+    int initial_panel = UI_PANEL_HOME;  // Default to home panel
+    bool show_motion = false;  // Special flag for motion sub-screen
+
+    if (argc > 1) {
+        const char* panel_arg = argv[1];
+        if (strcmp(panel_arg, "home") == 0) {
+            initial_panel = UI_PANEL_HOME;
+        } else if (strcmp(panel_arg, "controls") == 0) {
+            initial_panel = UI_PANEL_CONTROLS;
+        } else if (strcmp(panel_arg, "motion") == 0) {
+            initial_panel = UI_PANEL_CONTROLS;
+            show_motion = true;
+        } else if (strcmp(panel_arg, "filament") == 0) {
+            initial_panel = UI_PANEL_FILAMENT;
+        } else if (strcmp(panel_arg, "settings") == 0) {
+            initial_panel = UI_PANEL_SETTINGS;
+        } else if (strcmp(panel_arg, "advanced") == 0) {
+            initial_panel = UI_PANEL_ADVANCED;
+        } else if (strcmp(panel_arg, "print-select") == 0 || strcmp(panel_arg, "print_select") == 0) {
+            initial_panel = UI_PANEL_PRINT_SELECT;
+        } else {
+            printf("Unknown panel: %s\n", panel_arg);
+            printf("Usage: %s [panel_name]\n", argv[0]);
+            printf("Available panels: home, controls, motion, filament, settings, advanced, print-select\n");
+            return 1;
+        }
+    }
+
     printf("GuppyScreen UI Prototype\n");
     printf("========================\n");
     printf("Target: %dx%d\n", SCREEN_WIDTH, SCREEN_HEIGHT);
     printf("Nav Width: %d pixels\n", UI_NAV_WIDTH(SCREEN_WIDTH));
+    printf("Initial Panel: %d\n", initial_panel);
     printf("\n");
 
     // Initialize LVGL (handles SDL internally)
@@ -128,30 +163,45 @@ int main(int, char**) {
     lv_xml_register_font(NULL, "fa_icons_64", &fa_icons_64);
     lv_xml_register_font(NULL, "fa_icons_48", &fa_icons_48);
     lv_xml_register_font(NULL, "fa_icons_32", &fa_icons_32);
+    lv_xml_register_font(NULL, "fa_icons_16", &fa_icons_16);
+    lv_xml_register_font(NULL, "diagonal_arrows_40", &diagonal_arrows_40);
+    lv_xml_register_font(NULL, "montserrat_14", &lv_font_montserrat_14);
     lv_xml_register_font(NULL, "montserrat_16", &lv_font_montserrat_16);
     lv_xml_register_font(NULL, "montserrat_20", &lv_font_montserrat_20);
     lv_xml_register_font(NULL, "montserrat_28", &lv_font_montserrat_28);
-    lv_xml_register_image(NULL, "A:/Users/pbrown/code/guppyscreen/prototype-ui9/assets/images/printer_400.png",
-                          "A:/Users/pbrown/code/guppyscreen/prototype-ui9/assets/images/printer_400.png");
+    lv_xml_register_font(NULL, "montserrat_48", &lv_font_montserrat_48);
+    lv_xml_register_image(NULL, "A:assets/images/printer_400.png",
+                          "A:assets/images/printer_400.png");
     lv_xml_register_image(NULL, "filament_spool",
-                          "A:/Users/pbrown/code/guppyscreen/prototype-ui9/assets/images/filament_spool.png");
+                          "A:assets/images/filament_spool.png");
+    lv_xml_register_image(NULL, "A:assets/images/placeholder_thumb_centered.png",
+                          "A:assets/images/placeholder_thumb_centered.png");
 
     // Register XML components (globals first to make constants available)
     LV_LOG_USER("Registering XML components...");
-    lv_xml_component_register_from_file("A:/Users/pbrown/code/guppyscreen/prototype-ui9/ui_xml/globals.xml");
-    lv_xml_component_register_from_file("A:/Users/pbrown/code/guppyscreen/prototype-ui9/ui_xml/navigation_bar.xml");
-    lv_xml_component_register_from_file("A:/Users/pbrown/code/guppyscreen/prototype-ui9/ui_xml/home_panel.xml");
-    lv_xml_component_register_from_file("A:/Users/pbrown/code/guppyscreen/prototype-ui9/ui_xml/controls_panel.xml");
-    lv_xml_component_register_from_file("A:/Users/pbrown/code/guppyscreen/prototype-ui9/ui_xml/filament_panel.xml");
-    lv_xml_component_register_from_file("A:/Users/pbrown/code/guppyscreen/prototype-ui9/ui_xml/settings_panel.xml");
-    lv_xml_component_register_from_file("A:/Users/pbrown/code/guppyscreen/prototype-ui9/ui_xml/advanced_panel.xml");
-    lv_xml_component_register_from_file("A:/Users/pbrown/code/guppyscreen/prototype-ui9/ui_xml/print_select_panel.xml");
-    lv_xml_component_register_from_file("A:/Users/pbrown/code/guppyscreen/prototype-ui9/ui_xml/app_layout.xml");
+    lv_xml_component_register_from_file("A:ui_xml/globals.xml");
+    lv_xml_component_register_from_file("A:ui_xml/confirmation_dialog.xml");
+    lv_xml_component_register_from_file("A:ui_xml/numeric_keypad_modal.xml");
+    lv_xml_component_register_from_file("A:ui_xml/print_file_card.xml");
+    lv_xml_component_register_from_file("A:ui_xml/print_file_list_row.xml");
+    lv_xml_component_register_from_file("A:ui_xml/print_file_detail.xml");
+    lv_xml_component_register_from_file("A:ui_xml/navigation_bar.xml");
+    lv_xml_component_register_from_file("A:ui_xml/home_panel.xml");
+    lv_xml_component_register_from_file("A:ui_xml/controls_panel.xml");
+    lv_xml_component_register_from_file("A:ui_xml/motion_panel.xml");
+    lv_xml_component_register_from_file("A:ui_xml/filament_panel.xml");
+    lv_xml_component_register_from_file("A:ui_xml/settings_panel.xml");
+    lv_xml_component_register_from_file("A:ui_xml/advanced_panel.xml");
+    lv_xml_component_register_from_file("A:ui_xml/print_select_panel.xml");
+    lv_xml_component_register_from_file("A:ui_xml/app_layout.xml");
 
     // Initialize reactive subjects BEFORE creating XML
     LV_LOG_USER("Initializing reactive subjects...");
     ui_nav_init();  // Navigation system (icon colors, active panel)
     ui_panel_home_init_subjects();  // Home panel data bindings
+    ui_panel_print_select_init_subjects();  // Print select panel (none yet)
+    ui_panel_controls_init_subjects();  // Controls panel launcher
+    ui_panel_motion_init_subjects();  // Motion sub-screen position display
 
     // Create entire UI from XML (single component contains everything)
     lv_obj_t* app_layout = (lv_obj_t*)lv_xml_create(screen, "app_layout", NULL);
@@ -176,7 +226,51 @@ int main(int, char**) {
     // Setup home panel observers (panels[0] is home panel)
     ui_panel_home_setup_observers(panels[0]);
 
+    // Setup controls panel (wire launcher card click handlers)
+    ui_panel_controls_set(panels[UI_PANEL_CONTROLS]);
+    ui_panel_controls_wire_events(panels[UI_PANEL_CONTROLS]);
+
+    // Setup print select panel (wires up events, creates overlays, populates data)
+    ui_panel_print_select_setup(panels[UI_PANEL_PRINT_SELECT]);
+    ui_panel_print_select_populate_test_data(panels[UI_PANEL_PRINT_SELECT]);
+
+    // Initialize numeric keypad modal component (creates reusable keypad widget)
+    ui_keypad_init(screen);
+
     LV_LOG_USER("XML UI created successfully with reactive navigation");
+
+    // Switch to initial panel (if different from default HOME)
+    if (initial_panel != UI_PANEL_HOME) {
+        ui_nav_set_active((ui_panel_id_t)initial_panel);
+        printf("Switched to panel %d\n", initial_panel);
+    }
+
+    // Force a few render cycles to ensure panel switch and layout complete
+    for (int i = 0; i < 5; i++) {
+        lv_timer_handler();
+        SDL_Delay(10);
+    }
+
+    // Keypad is initialized and ready to be shown when controls panel buttons are clicked
+
+    // Special case: Show motion panel if requested
+    if (show_motion) {
+        printf("Creating and showing motion sub-screen...\n");
+
+        // Create motion panel
+        lv_obj_t* motion_panel = (lv_obj_t*)lv_xml_create(screen, "motion_panel", nullptr);
+        if (motion_panel) {
+            ui_panel_motion_setup(motion_panel, screen);
+
+            // Hide controls launcher, show motion panel
+            lv_obj_add_flag(panels[UI_PANEL_CONTROLS], LV_OBJ_FLAG_HIDDEN);
+
+            // Set mock position data
+            ui_panel_motion_set_position(120.5f, 105.2f, 15.8f);
+
+            printf("Motion panel displayed\n");
+        }
+    }
 
     // Auto-screenshot timer (2 seconds after UI creation)
     uint32_t screenshot_time = SDL_GetTicks() + 2000;

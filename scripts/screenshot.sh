@@ -1,9 +1,11 @@
 #!/bin/bash
 # UI Prototype Screenshot Helper
 # Builds, runs, captures, and compresses screenshot in one command
-# Usage: ./screenshot.sh [binary_name] [output_name]
+# Usage: ./screenshot.sh [binary_name] [output_name] [panel_name]
 #   binary_name: Name of binary to run (default: guppy-ui-proto)
 #   output_name: Name for output file (default: timestamp)
+#   panel_name:  Panel to display (default: home)
+#                Options: home, controls, filament, settings, advanced, print-select
 
 set -e
 
@@ -16,6 +18,9 @@ NAME="${2:-$(date +%s)}"
 BMP_FILE="/tmp/ui-screenshot-${NAME}.bmp"
 PNG_FILE="/tmp/ui-screenshot-${NAME}.png"
 
+# Get panel name (third arg) or default to empty (uses app default)
+PANEL="${3:-}"
+
 # Build
 echo "Building prototype..."
 make -j$(sysctl -n hw.ncpu) 2>&1 | grep -E "(Compiling|Linking|Build complete|error:)" || true
@@ -24,9 +29,13 @@ make -j$(sysctl -n hw.ncpu) 2>&1 | grep -E "(Compiling|Linking|Build complete|er
 rm -f /tmp/ui-screenshot.bmp
 
 # Run and auto-capture (app saves with timestamp)
-echo "Running ${BINARY} (3 second timeout)..."
-TIMESTAMP=$(date +%s)
-gtimeout 3 "${BINARY_PATH}" 2>&1 | grep -E "(LVGL initialized|Screenshot saved|Switched to panel|Error|error)" || true
+if [ -n "$PANEL" ]; then
+    echo "Running ${BINARY} with panel: ${PANEL} (3 second timeout)..."
+    gtimeout 3 "${BINARY_PATH}" "${PANEL}" 2>&1 | grep -E "(LVGL initialized|Screenshot saved|Switched to panel|Initial Panel|Error|error)" || true
+else
+    echo "Running ${BINARY} (3 second timeout)..."
+    gtimeout 3 "${BINARY_PATH}" 2>&1 | grep -E "(LVGL initialized|Screenshot saved|Switched to panel|Error|error)" || true
+fi
 
 # Find the most recent screenshot (app now saves with timestamps)
 LATEST_BMP=$(ls -t /tmp/ui-screenshot-*.bmp 2>/dev/null | head -1)
