@@ -387,6 +387,29 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     home_label_area.y2 = center_y + 14;
     lv_draw_label(layer, &home_label_dsc, &home_label_area);
 
+    // Draw zone boundary lines to show the edges of each directional click zone
+    // 8 zones means 8 boundaries - at 22.5° intervals starting from 22.5°
+    // These mark the boundaries between: N/NE, NE/E, E/SE, SE/S, S/SW, SW/W, W/NW, NW/N
+    for (float angle_deg : {22.5f, 67.5f, 112.5f, 157.5f, 202.5f, 247.5f, 292.5f, 337.5f}) {
+        float angle_rad = angle_deg * M_PI / 180.0f;
+
+        lv_draw_line_dsc_t boundary_line_dsc;
+        lv_draw_line_dsc_init(&boundary_line_dsc);
+        boundary_line_dsc.color = lv_color_hex(0x484848);  // More subtle gray
+        boundary_line_dsc.width = 1;  // Very thin
+        boundary_line_dsc.opa = LV_OPA_50;  // 50% opacity for extra subtlety
+
+        // Start point: just outside home button (27% of radius)
+        boundary_line_dsc.p1.x = center_x + (radius * 0.27f) * cosf(angle_rad);
+        boundary_line_dsc.p1.y = center_y + (radius * 0.27f) * sinf(angle_rad);
+
+        // End point: at outer edge (98% to avoid clipping)
+        boundary_line_dsc.p2.x = center_x + (radius * 0.98f) * cosf(angle_rad);
+        boundary_line_dsc.p2.y = center_y + (radius * 0.98f) * sinf(angle_rad);
+
+        lv_draw_line(layer, &boundary_line_dsc);
+    }
+
     // Draw distance labels showing movement amounts for each ring
     lv_draw_label_dsc_t label_dsc;
     lv_draw_label_dsc_init(&label_dsc);
