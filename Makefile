@@ -85,9 +85,24 @@ TEST_BIN := $(BIN_DIR)/run_tests
 TEST_SRCS := $(wildcard $(TEST_UNIT_DIR)/*.cpp)
 TEST_OBJS := $(patsubst $(TEST_UNIT_DIR)/%.cpp,$(OBJ_DIR)/tests/%.o,$(TEST_SRCS))
 
-.PHONY: all clean run test test-cards test-print-select demo compile_commands libhv-build
+.PHONY: all clean run test test-cards test-print-select demo compile_commands libhv-build apply-patches
 
-all: $(TARGET)
+# Apply LVGL patches if not already applied
+apply-patches:
+	@echo "Checking LVGL patches..."
+	@if git -C $(LVGL_DIR) diff --quiet src/drivers/sdl/lv_sdl_window.c 2>/dev/null; then \
+		echo "Applying LVGL SDL window position patch..."; \
+		if git -C $(LVGL_DIR) apply --check ../../patches/lvgl_sdl_window_position.patch 2>/dev/null; then \
+			git -C $(LVGL_DIR) apply ../../patches/lvgl_sdl_window_position.patch && \
+			echo "✓ Patch applied successfully"; \
+		else \
+			echo "⚠ Cannot apply patch (already applied or conflicts)"; \
+		fi \
+	else \
+		echo "✓ LVGL SDL window position patch already applied"; \
+	fi
+
+all: apply-patches $(TARGET)
 
 # Link binary
 $(TARGET): $(APP_OBJS) $(LVGL_OBJS) $(THORVG_OBJS) $(FONT_OBJS) $(MATERIAL_ICON_OBJS)

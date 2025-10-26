@@ -1,0 +1,66 @@
+diff --git a/src/drivers/sdl/lv_sdl_window.c b/src/drivers/sdl/lv_sdl_window.c
+index 4429c94..c2a3ff7 100644
+--- a/src/drivers/sdl/lv_sdl_window.c
++++ b/src/drivers/sdl/lv_sdl_window.c
+@@ -375,10 +375,60 @@ static void window_create(lv_display_t * disp)
+ 
+     int32_t hor_res = (int32_t)((float)(disp->hor_res) * dsc->zoom);
+     int32_t ver_res = (int32_t)((float)(disp->ver_res) * dsc->zoom);
++
++    /* Check environment variables for window position */
++    int x_pos = SDL_WINDOWPOS_UNDEFINED;
++    int y_pos = SDL_WINDOWPOS_UNDEFINED;
++
++    const char* display_env = getenv("HELIX_SDL_DISPLAY");
++    const char* xpos_env = getenv("HELIX_SDL_XPOS");
++    const char* ypos_env = getenv("HELIX_SDL_YPOS");
++
++    if (display_env != NULL) {
++        /* Center window on specific display by calculating actual center position */
++        int display_num = atoi(display_env);
++        int num_displays = SDL_GetNumVideoDisplays();
++
++        if (display_num >= 0 && display_num < num_displays) {
++            SDL_Rect display_bounds;
++            if (SDL_GetDisplayBounds(display_num, &display_bounds) == 0) {
++                /* Calculate center position on the display */
++                x_pos = display_bounds.x + (display_bounds.w - hor_res) / 2;
++                y_pos = display_bounds.y + (display_bounds.h - ver_res) / 2;
++                LV_LOG_USER("Window centered on display %d at (%d, %d) [display bounds: %dx%d at %d,%d]",
++                            display_num, x_pos, y_pos,
++                            display_bounds.w, display_bounds.h,
++                            display_bounds.x, display_bounds.y);
++            } else {
++                LV_LOG_WARN("Failed to get bounds for display %d, using SDL_WINDOWPOS_CENTERED", display_num);
++                x_pos = SDL_WINDOWPOS_CENTERED;
++                y_pos = SDL_WINDOWPOS_CENTERED;
++            }
++        } else {
++            LV_LOG_WARN("Invalid display number %d (available: 0-%d), using SDL_WINDOWPOS_CENTERED",
++                        display_num, num_displays - 1);
++            x_pos = SDL_WINDOWPOS_CENTERED;
++            y_pos = SDL_WINDOWPOS_CENTERED;
++        }
++    }
++    else if (xpos_env != NULL && ypos_env != NULL) {
++        /* Use exact coordinates if both X and Y are specified */
++        x_pos = atoi(xpos_env);
++        y_pos = atoi(ypos_env);
++        LV_LOG_USER("Window position set to exact coordinates (%d, %d)", x_pos, y_pos);
++    }
++
+     dsc->window = SDL_CreateWindow("LVGL Simulator",
+-                                   SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
++                                   x_pos, y_pos,
+                                    hor_res, ver_res, flag);       /*last param. SDL_WINDOW_BORDERLESS to hide borders*/
+ 
++    /* If we calculated an explicit position, set it again after window creation
++     * to ensure it's honored (some window managers adjust initial position) */
++    if (display_env != NULL && x_pos != SDL_WINDOWPOS_UNDEFINED && x_pos != SDL_WINDOWPOS_CENTERED) {
++        SDL_SetWindowPosition(dsc->window, x_pos, y_pos);
++        LV_LOG_USER("Explicitly set window position to (%d, %d) after creation", x_pos, y_pos);
++    }
++
+     dsc->renderer = SDL_CreateRenderer(dsc->window, -1,
+                                        LV_SDL_ACCELERATED ? SDL_RENDERER_ACCELERATED : SDL_RENDERER_SOFTWARE);
+ #if LV_USE_DRAW_SDL == 0

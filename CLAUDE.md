@@ -52,25 +52,60 @@ python3 scripts/generate-icon-consts.py  # Regenerate icon constants
 **Binary:** `build/bin/helix-ui-proto`
 **Panels:** home, controls, motion, nozzle-temp, bed-temp, extrusion, filament, settings, advanced, print-select
 
+### Multi-Display Support (macOS)
+
+The prototype supports multi-monitor workflows with automatic display positioning:
+
+```bash
+# Run on specific display (centered)
+./build/bin/helix-ui-proto --display 0    # Display 0 (main)
+./build/bin/helix-ui-proto --display 1    # Display 1 (secondary)
+
+# Exact positioning
+./build/bin/helix-ui-proto --x-pos 100 --y-pos 200
+
+# Combine with other options
+./build/bin/helix-ui-proto -d 1 -s small --panel home
+```
+
+**Implementation:** Uses LVGL submodule patch (auto-applied by Makefile) that reads environment variables to control SDL window position. See `patches/lvgl_sdl_window_position.patch`.
+
 ### Screenshot Workflow ⚠️
 
 **ALWAYS use the screenshot script instead of manual BMP/magick commands:**
 
 ```bash
-# Correct approach:
+# Basic usage (auto-opens on display 1):
 ./scripts/screenshot.sh helix-ui-proto output [panel_name]
+
+# With flags (panel optional - flags can be 3rd arg if no panel specified):
+./scripts/screenshot.sh helix-ui-proto output panel -s small
+./scripts/screenshot.sh helix-ui-proto wizard-test --wizard -s tiny
+
+# Override display:
+HELIX_SCREENSHOT_DISPLAY=0 ./scripts/screenshot.sh helix-ui-proto output panel
 
 # Examples:
 ./scripts/screenshot.sh helix-ui-proto extrusion-test extrusion
-./scripts/screenshot.sh helix-ui-proto controls-launcher controls
+./scripts/screenshot.sh helix-ui-proto controls-launcher controls -s large
 ./scripts/screenshot.sh helix-ui-proto home-panel home
+./scripts/screenshot.sh helix-ui-proto wizard-tiny --wizard -s tiny
 ```
 
-The script handles:
-- Building the binary
-- Running with 2-second auto-screenshot
-- Converting BMP → PNG automatically
-- Saving to `/tmp/[output-name].png`
+**Script features:**
+- ✅ Dependency validation (gtimeout, ImageMagick)
+- ✅ Panel name validation with helpful error messages
+- ✅ Flexible argument handling (panel optional, flags pass-through)
+- ✅ Colored output with progress indicators
+- ✅ Opens window on display 1 by default (keeps terminal visible)
+- ✅ Automatic build before running
+- ✅ BMP → PNG conversion with cleanup
+- ✅ Comprehensive error handling
+- ✅ Optional auto-open: `HELIX_SCREENSHOT_OPEN=1 ./scripts/screenshot.sh ...`
+
+**Environment variables:**
+- `HELIX_SCREENSHOT_DISPLAY` - Override display (default: 1)
+- `HELIX_SCREENSHOT_OPEN` - Auto-open in Preview after capture
 
 **❌ Avoid:** Reading raw BMPs from `/tmp` and manually running `magick` commands. The screenshot script is the canonical way to capture UI states.
 
@@ -250,6 +285,7 @@ if (!ui_nav_go_back()) {
 ## Common Gotchas
 
 **⚠️ READ DOCUMENTATION FIRST:** Before implementing features in these areas, **ALWAYS read the relevant documentation** to avoid common pitfalls:
+- **Build system/patches:** Read **docs/BUILD_SYSTEM.md** for patch management and multi-display support
 - **XML syntax/attributes:** Read **docs/LVGL9_XML_GUIDE.md** "Troubleshooting" section (lines 1130-1323) FIRST
 - **Component patterns/registration:** Read **docs/QUICK_REFERENCE.md** "Registration Order" and examples FIRST
 - **Icon workflow:** Read **docs/QUICK_REFERENCE.md** "Icon & Image Assets" section (lines 273-377) FIRST

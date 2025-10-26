@@ -215,6 +215,9 @@ int main(int argc, char** argv) {
     bool show_keypad = false;  // Special flag for keypad testing
     bool show_step_test = false;  // Special flag for step progress widget testing
     bool force_wizard = false;  // Force wizard to run even if config exists
+    int display_num = -1;  // Display number for window placement (-1 means unset)
+    int x_pos = -1;  // X position for window placement (-1 means unset)
+    int y_pos = -1;  // Y position for window placement (-1 means unset)
 
     // Parse arguments
     for (int i = 1; i < argc; i++) {
@@ -289,6 +292,31 @@ int main(int argc, char** argv) {
             show_keypad = true;
         } else if (strcmp(argv[i], "-w") == 0 || strcmp(argv[i], "--wizard") == 0) {
             force_wizard = true;
+        } else if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--display") == 0) {
+            if (i + 1 < argc) {
+                display_num = atoi(argv[++i]);
+                if (display_num < 0) {
+                    printf("Error: display number must be >= 0\n");
+                    return 1;
+                }
+            } else {
+                printf("Error: -d/--display requires a number argument\n");
+                return 1;
+            }
+        } else if (strcmp(argv[i], "-x") == 0 || strcmp(argv[i], "--x-pos") == 0) {
+            if (i + 1 < argc) {
+                x_pos = atoi(argv[++i]);
+            } else {
+                printf("Error: -x/--x-pos requires a number argument\n");
+                return 1;
+            }
+        } else if (strcmp(argv[i], "-y") == 0 || strcmp(argv[i], "--y-pos") == 0) {
+            if (i + 1 < argc) {
+                y_pos = atoi(argv[++i]);
+            } else {
+                printf("Error: -y/--y-pos requires a number argument\n");
+                return 1;
+            }
         } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             printf("Usage: %s [options]\n", argv[0]);
             printf("Options:\n");
@@ -296,6 +324,9 @@ int main(int argc, char** argv) {
             printf("  -p, --panel <panel>  Initial panel (default: home)\n");
             printf("  -k, --keypad         Show numeric keypad for testing\n");
             printf("  -w, --wizard         Force first-run configuration wizard\n");
+            printf("  -d, --display <n>    Display number for window placement (0, 1, 2...)\n");
+            printf("  -x, --x-pos <n>      X coordinate for window position\n");
+            printf("  -y, --y-pos <n>      Y coordinate for window position\n");
             printf("  -h, --help           Show this help message\n");
             printf("\nAvailable panels:\n");
             printf("  home, controls, motion, nozzle-temp, bed-temp, extrusion,\n");
@@ -305,6 +336,12 @@ int main(int argc, char** argv) {
             printf("  small  = %dx%d\n", UI_SCREEN_SMALL_W, UI_SCREEN_SMALL_H);
             printf("  medium = %dx%d (default)\n", UI_SCREEN_MEDIUM_W, UI_SCREEN_MEDIUM_H);
             printf("  large  = %dx%d\n", UI_SCREEN_LARGE_W, UI_SCREEN_LARGE_H);
+            printf("\nWindow placement:\n");
+            printf("  Use -d to center window on specific display\n");
+            printf("  Use -x/-y for exact pixel coordinates (both required)\n");
+            printf("  Examples:\n");
+            printf("    %s --display 1        # Center on display 1\n", argv[0]);
+            printf("    %s -x 100 -y 200      # Position at (100, 200)\n", argv[0]);
             return 0;
         } else {
             // Legacy support: first positional arg is panel name
@@ -344,6 +381,24 @@ int main(int argc, char** argv) {
     // Initialize config system
     Config* config = Config::get_instance();
     config->init("helixconfig.json");
+
+    // Set window position environment variables for LVGL SDL driver
+    if (display_num >= 0) {
+        char display_str[32];
+        snprintf(display_str, sizeof(display_str), "%d", display_num);
+        setenv("HELIX_SDL_DISPLAY", display_str, 1);
+        printf("Window will be centered on display %d\n", display_num);
+    }
+    if (x_pos >= 0 && y_pos >= 0) {
+        char x_str[32], y_str[32];
+        snprintf(x_str, sizeof(x_str), "%d", x_pos);
+        snprintf(y_str, sizeof(y_str), "%d", y_pos);
+        setenv("HELIX_SDL_XPOS", x_str, 1);
+        setenv("HELIX_SDL_YPOS", y_str, 1);
+        printf("Window will be positioned at (%d, %d)\n", x_pos, y_pos);
+    } else if ((x_pos >= 0 && y_pos < 0) || (x_pos < 0 && y_pos >= 0)) {
+        printf("Warning: Both -x and -y must be specified for exact positioning. Ignoring.\n");
+    }
 
     // Initialize LVGL (handles SDL internally)
     if (!init_lvgl()) {

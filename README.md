@@ -196,21 +196,64 @@ python3 scripts/generate-icon-consts.py
 
 This updates `ui_xml/globals.xml` with UTF-8 byte sequences for all icons.
 
+### Multi-Display Support (macOS)
+
+Control which display the UI window appears on:
+
+```bash
+# Center window on specific display
+./build/bin/helix-ui-proto --display 0     # Display 0 (main)
+./build/bin/helix-ui-proto --display 1     # Display 1 (secondary)
+
+# Position at exact coordinates
+./build/bin/helix-ui-proto --x-pos 100 --y-pos 200
+
+# Combine with other options
+./build/bin/helix-ui-proto -d 1 -s small --panel home
+```
+
+**How it works:**
+- Uses `SDL_GetDisplayBounds()` to query actual display geometry
+- Calculates true center position for the specified display
+- Supports multi-monitor setups with different resolutions
+- Useful for dual-display development workflows
+
+**Available displays:**
+Run without arguments to see auto-detected display information in logs.
+
 ### Screenshot Workflow
+
+The screenshot utility provides automated build → run → capture → convert workflow:
 
 ```bash
 # Interactive: press S while running
 ./build/bin/helix-ui-proto
 
-# Automated: build + run + screenshot
-./scripts/screenshot.sh helix-ui-proto output-name [panel]
+# Automated: build + run + screenshot (auto-opens on display 1)
+./scripts/screenshot.sh helix-ui-proto output-name [panel] [options]
 
 # Examples
 ./scripts/screenshot.sh helix-ui-proto home-screen home
-./scripts/screenshot.sh helix-ui-proto motion-panel motion
+./scripts/screenshot.sh helix-ui-proto motion-panel motion -s small
+./scripts/screenshot.sh helix-ui-proto controls controls -s large
+
+# Override display for screenshots
+HELIX_SCREENSHOT_DISPLAY=0 ./scripts/screenshot.sh helix-ui-proto test home
+
+# Auto-open in Preview after capture
+HELIX_SCREENSHOT_OPEN=1 ./scripts/screenshot.sh helix-ui-proto review home
 ```
 
-Screenshots saved to `/tmp/[output-name].png`
+**Features:**
+- ✅ **Automatic display positioning** - Opens on display 1 by default (keeps terminal visible)
+- ✅ **Colored output** - Visual progress indicators and status messages
+- ✅ **Panel validation** - Catches invalid panel names before running
+- ✅ **Dependency checking** - Verifies gtimeout and ImageMagick are installed
+- ✅ **Error handling** - Clear error messages with troubleshooting hints
+- ✅ **Smart cleanup** - Auto-removes BMP, keeps only compressed PNG
+- ✅ **Optional preview** - Set `HELIX_SCREENSHOT_OPEN=1` to auto-open result
+
+Screenshots saved to `/tmp/ui-screenshot-[name].png`
 
 ## Key Technical Details
 

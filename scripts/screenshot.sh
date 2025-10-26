@@ -1,14 +1,47 @@
 #!/bin/bash
-# UI Prototype Screenshot Helper
-# Builds, runs, captures, and compresses screenshot in one command
-# Usage: ./screenshot.sh [binary_name] [output_name] [panel_name] [additional args...]
+# HelixScreen UI Screenshot Utility
+#
+# Builds, runs, captures, and converts screenshots automatically
+#
+# Usage: ./screenshot.sh [binary_name] [output_name] [panel_name_or_flags...] [additional args...]
 #   binary_name: Name of binary to run (default: helix-ui-proto)
 #   output_name: Name for output file (default: timestamp)
-#   panel_name:  Panel to display (default: home)
-#   Additional args: Forwarded to binary (e.g., -s small, --size large)
-#                Options: home, controls, filament, settings, advanced, print-select
+#   panel_name:  Panel to display (optional - if omitted or starts with -, treated as flag)
+#   Additional args: Forwarded to binary (e.g., -s small, --wizard)
+#
+# Available Panels:
+#   home, controls, motion, nozzle-temp, bed-temp, extrusion,
+#   print-status, filament, settings, advanced, print-select, file-detail, step-test
+#
+# Display Selection:
+#   - Automatically opens UI on display 1 (keeps terminal visible on display 0)
+#   - Override with: HELIX_SCREENSHOT_DISPLAY=0 ./screenshot.sh ...
+#
+# Examples:
+#   ./screenshot.sh helix-ui-proto home home              # Panel name as 3rd arg
+#   ./screenshot.sh helix-ui-proto motion motion -s small # Panel + size flag
+#   ./screenshot.sh helix-ui-proto wizard --wizard -s tiny # Flags only (no panel)
+#   HELIX_SCREENSHOT_DISPLAY=0 ./screenshot.sh helix-ui-proto controls controls
 
 set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Print colored message
+info() { echo -e "${BLUE}ℹ${NC} $1"; }
+success() { echo -e "${GREEN}✓${NC} $1"; }
+warn() { echo -e "${YELLOW}⚠${NC} $1"; }
+error() { echo -e "${RED}✗${NC} $1"; }
+
+# Detect script directory and change to project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
 
 # Get binary name (first arg) or default
 BINARY="${1:-helix-ui-proto}"
@@ -19,46 +52,149 @@ NAME="${2:-$(date +%s)}"
 BMP_FILE="/tmp/ui-screenshot-${NAME}.bmp"
 PNG_FILE="/tmp/ui-screenshot-${NAME}.png"
 
-# Get panel name (third arg) or default to empty (uses app default)
-PANEL="${3:-}"
-
-# Get any additional arguments (everything after first 3 args)
-shift 3 2>/dev/null || true
-EXTRA_ARGS="$@"
-
-# Build
-echo "Building prototype..."
-make -j$(sysctl -n hw.ncpu) 2>&1 | grep -E "(Compiling|Linking|Build complete|error:)" || true
-
-# Clean old screenshots
-rm -f /tmp/ui-screenshot.bmp
-
-# Run and auto-capture (app saves with timestamp)
-if [ -n "$PANEL" ]; then
-    echo "Running ${BINARY} with panel: ${PANEL} (3 second timeout)..."
-    gtimeout 3 "${BINARY_PATH}" $EXTRA_ARGS -p "${PANEL}" 2>&1 | grep -E "(LVGL initialized|Screenshot saved|Switched to panel|Initial Panel|Error|error)" || true
-else
-    echo "Running ${BINARY} (3 second timeout)..."
-    gtimeout 3 "${BINARY_PATH}" $EXTRA_ARGS 2>&1 | grep -E "(LVGL initialized|Screenshot saved|Switched to panel|Error|error)" || true
-fi
-
-# Find the most recent screenshot (app now saves with timestamps)
-LATEST_BMP=$(ls -t /tmp/ui-screenshot-*.bmp 2>/dev/null | head -1)
-if [ -n "$LATEST_BMP" ]; then
-    # Rename to requested name
-    if [ "$LATEST_BMP" != "$BMP_FILE" ]; then
-        mv "$LATEST_BMP" "$BMP_FILE"
+# Get panel name (third arg) or treat as flags if starts with -
+# This allows: ./screenshot.sh binary name panel [flags]
+#          OR: ./screenshot.sh binary name [flags] (no panel)
+PANEL=""
+EXTRA_ARGS=""
+if [ $# -ge 3 ]; then
+    if [[ "${3}" == -* ]]; then
+        # Third arg is a flag, treat it and everything after as extra args
+        shift 2
+        EXTRA_ARGS="$@"
+    else
+        # Third arg is a panel name
+        PANEL="${3}"
+        shift 3 2>/dev/null || true
+        EXTRA_ARGS="$@"
     fi
 else
-    echo "ERROR: Screenshot not captured"
+    shift 2 2>/dev/null || true
+    EXTRA_ARGS="$@"
+fi
+
+# Validate panel name if provided
+VALID_PANELS="home controls motion nozzle-temp bed-temp extrusion print-status filament settings advanced print-select file-detail step-test"
+if [ -n "$PANEL" ]; then
+    if ! echo "$VALID_PANELS" | grep -qw "$PANEL"; then
+        error "Invalid panel: '$PANEL'"
+        info "Available panels: $VALID_PANELS"
+        exit 1
+    fi
+fi
+
+# Detect which display to use
+if [ -z "$HELIX_SCREENSHOT_DISPLAY" ]; then
+    # Default to display 1 (assumes terminal is on display 0)
+    HELIX_SCREENSHOT_DISPLAY=1
+    info "Opening UI on display $HELIX_SCREENSHOT_DISPLAY (override with HELIX_SCREENSHOT_DISPLAY env var)"
+else
+    info "Using display $HELIX_SCREENSHOT_DISPLAY from HELIX_SCREENSHOT_DISPLAY env var"
+fi
+
+# Add display argument to extra args
+EXTRA_ARGS="--display $HELIX_SCREENSHOT_DISPLAY $EXTRA_ARGS"
+
+# Check dependencies
+info "Checking dependencies..."
+if ! command -v gtimeout &> /dev/null; then
+    error "gtimeout not found (install with: brew install coreutils)"
+    exit 1
+fi
+if ! command -v magick &> /dev/null; then
+    error "ImageMagick not found (install with: brew install imagemagick)"
     exit 1
 fi
 
+# Build
+info "Building prototype..."
+BUILD_OUTPUT=$(make -j$(sysctl -n hw.ncpu) 2>&1)
+BUILD_STATUS=$?
+
+if [ $BUILD_STATUS -ne 0 ]; then
+    error "Build failed"
+    echo "$BUILD_OUTPUT" | grep -E "(error:|Error)" || echo "$BUILD_OUTPUT"
+    exit 1
+fi
+
+# Show build summary
+echo "$BUILD_OUTPUT" | grep -E "(Compiling|Linking|Build complete|Patch applied)" || true
+success "Build complete"
+
+# Verify binary exists
+if [ ! -f "$BINARY_PATH" ]; then
+    error "Binary not found: $BINARY_PATH"
+    exit 1
+fi
+
+# Clean old screenshots
+rm -f /tmp/ui-screenshot-*.bmp 2>/dev/null || true
+
+# Prepare run command
+RUN_CMD="${BINARY_PATH} $EXTRA_ARGS"
+if [ -n "$PANEL" ]; then
+    RUN_CMD="$RUN_CMD -p ${PANEL}"
+    info "Running ${BINARY} with panel: ${PANEL} (3 second timeout)..."
+else
+    info "Running ${BINARY} (3 second timeout)..."
+fi
+
+# Run and capture output
+RUN_OUTPUT=$(gtimeout 3 "$RUN_CMD" 2>&1 || true)
+
+# Check for errors in output
+if echo "$RUN_OUTPUT" | grep -qi "error"; then
+    warn "Errors detected during run:"
+    echo "$RUN_OUTPUT" | grep -i "error"
+fi
+
+# Show relevant output
+echo "$RUN_OUTPUT" | grep -E "(LVGL initialized|Screenshot saved|Window centered|display)" || true
+
+# Find the most recent screenshot
+info "Looking for screenshot..."
+LATEST_BMP=$(ls -t /tmp/ui-screenshot-*.bmp 2>/dev/null | head -1)
+
+if [ -z "$LATEST_BMP" ]; then
+    error "Screenshot not captured"
+    warn "Make sure the UI runs for at least 2 seconds for auto-screenshot"
+    echo ""
+    echo "Last 10 lines of output:"
+    echo "$RUN_OUTPUT" | tail -10
+    exit 1
+fi
+
+# Rename to requested name
+if [ "$LATEST_BMP" != "$BMP_FILE" ]; then
+    mv "$LATEST_BMP" "$BMP_FILE"
+fi
+
+BMP_SIZE=$(ls -lh "$BMP_FILE" | awk '{print $5}')
+success "Screenshot captured: $BMP_FILE ($BMP_SIZE)"
+
 # Convert to PNG
-echo "Converting to PNG..."
-magick "$BMP_FILE" "$PNG_FILE"
+info "Converting BMP to PNG..."
+if ! magick "$BMP_FILE" "$PNG_FILE" 2>/dev/null; then
+    error "PNG conversion failed"
+    warn "BMP file available at: $BMP_FILE"
+    exit 1
+fi
+
+# Cleanup BMP
+rm -f "$BMP_FILE"
 
 # Show result
-SIZE=$(ls -lh "$PNG_FILE" | awk '{print $5}')
-echo "Screenshot ready: $PNG_FILE ($SIZE)"
-echo "Path: $PNG_FILE"
+PNG_SIZE=$(ls -lh "$PNG_FILE" | awk '{print $5}')
+echo ""
+success "Screenshot ready!"
+echo "  File: $PNG_FILE"
+echo "  Size: $PNG_SIZE"
+echo "  Panel: ${PANEL:-default}"
+echo "  Display: $HELIX_SCREENSHOT_DISPLAY"
+echo ""
+
+# Optional: open in Preview (macOS)
+if [ -n "$HELIX_SCREENSHOT_OPEN" ]; then
+    info "Opening in Preview..."
+    open "$PNG_FILE"
+fi
