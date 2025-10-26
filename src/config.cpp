@@ -150,3 +150,26 @@ void Config::save() {
   std::ofstream o(path);
   o << std::setw(2) << data << std::endl;
 }
+
+bool Config::is_wizard_required() {
+  // Check if moonraker_host is default/empty
+  auto &host = data[json::json_pointer(df() + "moonraker_host")];
+  if (host.is_null() || host.get<std::string>() == "127.0.0.1") {
+    return true;
+  }
+
+  // Check if hardware_map exists
+  auto &hardware_map = data[json::json_pointer(df() + "hardware_map")];
+  if (hardware_map.is_null() || !hardware_map.is_object()) {
+    return true;
+  }
+
+  // Check if required hardware components are mapped
+  auto &bed = hardware_map["heated_bed"];
+  auto &hotend = hardware_map["hotend"];
+  if (bed.is_null() || hotend.is_null()) {
+    return true;
+  }
+
+  return false;
+}

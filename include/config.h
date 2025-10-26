@@ -49,6 +49,9 @@ public:
   // Get config file path
   std::string get_path();
 
+  // Check if first-run wizard is required
+  bool is_wizard_required();
+
   // Singleton accessor
   static Config *get_instance();
 };

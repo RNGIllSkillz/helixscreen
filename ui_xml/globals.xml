@@ -101,8 +101,18 @@
 	<!-- Icon buttons, back buttons -->
 	<px name="button_height_normal" value="56" />
 	<!-- Primary action buttons -->
-	<px name="button_row_height" value="90" />
+	<px name="button_row_height" value="64" />
 	<!-- Row height for button containers -->
+
+	<!-- Wizard-specific dimensions -->
+	<px name="wizard_header_height" value="80" />
+	<!-- Header height for wizard screens -->
+	<px name="wizard_button_width" value="140" />
+	<!-- Width for wizard navigation buttons (Back/Next) -->
+	<px name="wizard_input_height" value="48" />
+	<!-- Input field height for wizard forms -->
+	<px name="wizard_printer_img_height" value="140" />
+	<!-- Printer image height in printer identification screen -->
 
 	<!-- Input field dimensions (text inputs, dropdowns, rollers) -->
 	<px name="input_border_width" value="3" />
@@ -224,6 +234,14 @@
 	<!-- Subtle circular border ring -->
 	<color name="jog_selected_distance" value="0xcc3333" />
 	<!-- Softer red for selected distance -->
+
+	<!-- Step Progress Indicator -->
+	<px name="step_indicator_size" value="24" />
+	<!-- Circle indicator diameter -->
+	<px name="step_connector_width" value="2" />
+	<!-- Line thickness between steps -->
+	<px name="step_spacing" value="16" />
+	<!-- Gap between step items -->
 
 			<!-- ===================================================================== -->
 		<!-- FontAwesome icon constants - AUTO-GENERATED - DO NOT EDIT MANUALLY   -->
