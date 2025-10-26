@@ -19,7 +19,7 @@
  */
 
 #include "ui_step_progress.h"
-#include <stdio.h>
+#include <spdlog/spdlog.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -147,14 +147,14 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
                                    int step_count,
                                    bool horizontal) {
     if (!parent || !steps || step_count <= 0) {
-        LV_LOG_ERROR("Invalid parameters for step progress widget");
+        spdlog::error("Invalid parameters for step progress widget");
         return nullptr;
     }
 
     // Allocate widget data
     step_progress_data_t* data = (step_progress_data_t*)lv_malloc(sizeof(step_progress_data_t));
     if (!data) {
-        LV_LOG_ERROR("Failed to allocate step progress data");
+        spdlog::error("Failed to allocate step progress data");
         return nullptr;
     }
     memset(data, 0, sizeof(step_progress_data_t));
@@ -167,7 +167,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
     data->states = (ui_step_state_t*)lv_malloc(step_count * sizeof(ui_step_state_t));
 
     if (!data->label_buffers || !data->states) {
-        LV_LOG_ERROR("Failed to allocate step data arrays");
+        spdlog::error("Failed to allocate step data arrays");
         if (data->label_buffers) lv_free(data->label_buffers);
         if (data->states) lv_free(data->states);
         lv_free(data);
@@ -299,7 +299,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
     if (!horizontal) {
         lv_obj_update_layout(container);  // Force layout calculation
 
-        LV_LOG_USER("Creating vertical connectors for %d steps", step_count);
+        spdlog::debug("Creating vertical connectors for {} steps", step_count);
 
         for (int i = 0; i < step_count - 1; i++) {
             lv_obj_t* current_step = lv_obj_get_child(container, i);
@@ -315,7 +315,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
                 lv_coord_t connector_y = current_y + 22;  // Start 2px before bottom edge
                 lv_coord_t connector_height = (next_y - connector_y) + 2;  // Extend 2px into next circle
 
-                LV_LOG_USER("Connector %d: current_y=%d, next_y=%d, connector_y=%d, height=%d",
+                spdlog::debug("Connector {}: current_y={}, next_y={}, connector_y={}, height={}",
                            i, current_y, next_y, connector_y, connector_height);
 
                 // Create connector line
@@ -333,7 +333,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
                                              COLOR_COMPLETED : COLOR_PENDING;
                 lv_obj_set_style_bg_color(connector, connector_color, 0);
 
-                LV_LOG_USER("Connector %d created at pos (%d, %d) size (%d, %d)",
+                spdlog::debug("Connector {} created at pos ({}, {}) size ({}, {})",
                            i, lv_obj_get_x(connector), lv_obj_get_y(connector),
                            lv_obj_get_width(connector), lv_obj_get_height(connector));
             }
@@ -352,7 +352,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
                 lv_obj_t* next_indicator = lv_obj_get_child(next_step, 0);
 
                 if (!current_indicator || !next_indicator) {
-                    LV_LOG_WARN("Missing indicator widget for horizontal connector %d", i);
+                    spdlog::warn("Missing indicator widget for horizontal connector {}", i);
                     continue;
                 }
 
@@ -361,7 +361,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
                 lv_obj_t* next_circle = lv_obj_get_child(next_indicator, 0);
 
                 if (!current_circle || !next_circle) {
-                    LV_LOG_WARN("Missing circle widget for horizontal connector %d", i);
+                    spdlog::warn("Missing circle widget for horizontal connector {}", i);
                     continue;
                 }
 
@@ -396,7 +396,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
                                              COLOR_COMPLETED : COLOR_PENDING;
                 lv_obj_set_style_bg_color(connector, connector_color, 0);
 
-                LV_LOG_USER("Horizontal connector %d: circle_centers=(%d, %d), connector pos=(%d, %d) size=(%d, %d)",
+                spdlog::debug("Horizontal connector {}: circle_centers=({}, {}), connector pos=({}, {}) size=({}, {})",
                            i, current_circle_center_x, next_circle_center_x,
                            lv_obj_get_x(connector), lv_obj_get_y(connector),
                            lv_obj_get_width(connector), lv_obj_get_height(connector));
@@ -412,7 +412,7 @@ void ui_step_progress_set_current(lv_obj_t* widget, int step_index) {
 
     step_progress_data_t* data = (step_progress_data_t*)lv_obj_get_user_data(widget);
     if (!data || step_index < 0 || step_index >= data->step_count) {
-        LV_LOG_WARN("Invalid step index: %d", step_index);
+        spdlog::warn("Invalid step index: {}", step_index);
         return;
     }
 
@@ -459,7 +459,7 @@ void ui_step_progress_set_completed(lv_obj_t* widget, int step_index) {
 
     step_progress_data_t* data = (step_progress_data_t*)lv_obj_get_user_data(widget);
     if (!data || step_index < 0 || step_index >= data->step_count) {
-        LV_LOG_WARN("Invalid step index: %d", step_index);
+        spdlog::warn("Invalid step index: {}", step_index);
         return;
     }
 
@@ -477,7 +477,7 @@ void ui_step_progress_set_label(lv_obj_t* widget, int step_index, const char* ne
 
     step_progress_data_t* data = (step_progress_data_t*)lv_obj_get_user_data(widget);
     if (!data || step_index < 0 || step_index >= data->step_count) {
-        LV_LOG_WARN("Invalid step index: %d", step_index);
+        spdlog::warn("Invalid step index: {}", step_index);
         return;
     }
 

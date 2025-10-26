@@ -25,7 +25,7 @@
 #include "ui_nav.h"
 #include "ui_theme.h"
 #include "ui_temp_graph.h"
-#include <stdio.h>
+#include <spdlog/spdlog.h>
 #include <string.h>
 #include <math.h>
 
@@ -120,8 +120,8 @@ void ui_panel_controls_temp_init_subjects() {
     lv_xml_register_subject(NULL, "nozzle_temp_display", &nozzle_display_subject);
     lv_xml_register_subject(NULL, "bed_temp_display", &bed_display_subject);
 
-    printf("[Temp] Subjects initialized: nozzle=%d/%d°C, bed=%d/%d°C\n",
-           nozzle_current, nozzle_target, bed_current, bed_target);
+    spdlog::info("[Temp] Subjects initialized: nozzle={}/{}°C, bed={}/{}°C",
+                 nozzle_current, nozzle_target, bed_current, bed_target);
 }
 
 // Update nozzle display text
@@ -163,7 +163,7 @@ static void nozzle_back_button_cb(lv_event_t* e) {
 // Event handler: Confirm button (nozzle panel)
 static void nozzle_confirm_button_cb(lv_event_t* e) {
     (void)e;
-    printf("[Temp] Nozzle temperature confirmed: %d°C\n", nozzle_target);
+    spdlog::info("[Temp] Nozzle temperature confirmed: {}°C", nozzle_target);
 
     // TODO: Send command to printer (moonraker_set_nozzle_temp(nozzle_target))
 
@@ -191,7 +191,7 @@ static void nozzle_preset_button_cb(lv_event_t* e) {
 
     nozzle_target = temp;
     update_nozzle_display();
-    printf("[Temp] Nozzle target set to %d°C via preset\n", temp);
+    spdlog::debug("[Temp] Nozzle target set to {}°C via preset", temp);
 }
 
 // Callback for nozzle custom temperature input
@@ -199,13 +199,13 @@ static void nozzle_custom_callback(float value, void* user_data) {
     (void)user_data;
     nozzle_target = (int)value;
     update_nozzle_display();
-    printf("[Temp] Nozzle target set to %d°C via custom input\n", nozzle_target);
+    spdlog::debug("[Temp] Nozzle target set to {}°C via custom input", nozzle_target);
 }
 
 // Event handler: Nozzle custom button
 static void nozzle_custom_button_cb(lv_event_t* e) {
     (void)e;
-    printf("[Temp] Opening keypad for nozzle custom temperature\n");
+    spdlog::debug("[Temp] Opening keypad for nozzle custom temperature");
 
     ui_keypad_config_t config = {
         .initial_value = (float)nozzle_target,
@@ -239,7 +239,7 @@ void ui_panel_controls_temp_nozzle_setup(lv_obj_t* panel, lv_obj_t* parent_scree
     nozzle_panel = panel;
     parent_obj = parent_screen;
 
-    printf("[Temp] Setting up nozzle panel event handlers...\n");
+    spdlog::info("[Temp] Setting up nozzle panel event handlers...");
 
     // Create temperature graph widget
     lv_obj_t* graph_container = lv_obj_find_by_name(panel, "graph_container");
@@ -265,7 +265,7 @@ void ui_panel_controls_temp_nozzle_setup(lv_obj_t* panel, lv_obj_t* parent_scree
                 generate_mock_temp_data(temps, point_count, 25.0f, (float)nozzle_target);
                 ui_temp_graph_set_series_data(nozzle_graph, nozzle_series_id, temps, point_count);
 
-                printf("[Temp]   ✓ Temperature graph created with mock data\n");
+                spdlog::debug("[Temp]   ✓ Temperature graph created with mock data");
             }
         }
     }
@@ -281,7 +281,7 @@ void ui_panel_controls_temp_nozzle_setup(lv_obj_t* panel, lv_obj_t* parent_scree
     if (temp_content) {
         lv_coord_t padding = ui_get_header_content_padding(lv_obj_get_height(parent_screen));
         lv_obj_set_style_pad_all(temp_content, padding, 0);
-        printf("[Temp]   ✓ Content padding: %dpx (responsive)\n", padding);
+        spdlog::debug("[Temp]   ✓ Content padding: {}px (responsive)", padding);
     }
 
     // Register resize callback
@@ -291,7 +291,7 @@ void ui_panel_controls_temp_nozzle_setup(lv_obj_t* panel, lv_obj_t* parent_scree
     lv_obj_t* back_btn = lv_obj_find_by_name(panel, "back_button");
     if (back_btn) {
         lv_obj_add_event_cb(back_btn, nozzle_back_button_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[Temp]   ✓ Back button\n");
+        spdlog::debug("[Temp]   ✓ Back button");
     }
 
     // Show and wire confirm button
@@ -300,7 +300,7 @@ void ui_panel_controls_temp_nozzle_setup(lv_obj_t* panel, lv_obj_t* parent_scree
         lv_obj_t* confirm_btn = lv_obj_find_by_name(header, "right_button");
         if (confirm_btn) {
             lv_obj_add_event_cb(confirm_btn, nozzle_confirm_button_cb, LV_EVENT_CLICKED, nullptr);
-            printf("[Temp]   ✓ Confirm button\n");
+            spdlog::debug("[Temp]   ✓ Confirm button");
         }
     }
 
@@ -312,16 +312,16 @@ void ui_panel_controls_temp_nozzle_setup(lv_obj_t* panel, lv_obj_t* parent_scree
             lv_obj_add_event_cb(btn, nozzle_preset_button_cb, LV_EVENT_CLICKED, nullptr);
         }
     }
-    printf("[Temp]   ✓ Preset buttons (4)\n");
+    spdlog::debug("[Temp]   ✓ Preset buttons (4)");
 
     // Custom button
     lv_obj_t* custom_btn = lv_obj_find_by_name(panel, "btn_custom");
     if (custom_btn) {
         lv_obj_add_event_cb(custom_btn, nozzle_custom_button_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[Temp]   ✓ Custom button\n");
+        spdlog::debug("[Temp]   ✓ Custom button");
     }
 
-    printf("[Temp] Nozzle panel setup complete!\n");
+    spdlog::info("[Temp] Nozzle panel setup complete!");
 }
 
 // ============================================================================
@@ -351,7 +351,7 @@ static void bed_back_button_cb(lv_event_t* e) {
 // Event handler: Confirm button (bed panel)
 static void bed_confirm_button_cb(lv_event_t* e) {
     (void)e;
-    printf("[Temp] Bed temperature confirmed: %d°C\n", bed_target);
+    spdlog::info("[Temp] Bed temperature confirmed: {}°C", bed_target);
 
     // TODO: Send command to printer (moonraker_set_bed_temp(bed_target))
 
@@ -379,7 +379,7 @@ static void bed_preset_button_cb(lv_event_t* e) {
 
     bed_target = temp;
     update_bed_display();
-    printf("[Temp] Bed target set to %d°C via preset\n", temp);
+    spdlog::debug("[Temp] Bed target set to {}°C via preset", temp);
 }
 
 // Callback for bed custom temperature input
@@ -387,13 +387,13 @@ static void bed_custom_callback(float value, void* user_data) {
     (void)user_data;
     bed_target = (int)value;
     update_bed_display();
-    printf("[Temp] Bed target set to %d°C via custom input\n", bed_target);
+    spdlog::debug("[Temp] Bed target set to {}°C via custom input", bed_target);
 }
 
 // Event handler: Bed custom button
 static void bed_custom_button_cb(lv_event_t* e) {
     (void)e;
-    printf("[Temp] Opening keypad for bed custom temperature\n");
+    spdlog::debug("[Temp] Opening keypad for bed custom temperature");
 
     ui_keypad_config_t config = {
         .initial_value = (float)bed_target,
@@ -427,7 +427,7 @@ void ui_panel_controls_temp_bed_setup(lv_obj_t* panel, lv_obj_t* parent_screen) 
     bed_panel = panel;
     parent_obj = parent_screen;
 
-    printf("[Temp] Setting up bed panel event handlers...\n");
+    spdlog::info("[Temp] Setting up bed panel event handlers...");
 
     // Create temperature graph widget
     lv_obj_t* graph_container = lv_obj_find_by_name(panel, "graph_container");
@@ -453,7 +453,7 @@ void ui_panel_controls_temp_bed_setup(lv_obj_t* panel, lv_obj_t* parent_screen) 
                 generate_mock_temp_data(temps, point_count, 25.0f, (float)bed_target);
                 ui_temp_graph_set_series_data(bed_graph, bed_series_id, temps, point_count);
 
-                printf("[Temp]   ✓ Temperature graph created with mock data\n");
+                spdlog::debug("[Temp]   ✓ Temperature graph created with mock data");
             }
         }
     }
@@ -469,7 +469,7 @@ void ui_panel_controls_temp_bed_setup(lv_obj_t* panel, lv_obj_t* parent_screen) 
     if (temp_content) {
         lv_coord_t padding = ui_get_header_content_padding(lv_obj_get_height(parent_screen));
         lv_obj_set_style_pad_all(temp_content, padding, 0);
-        printf("[Temp]   ✓ Content padding: %dpx (responsive)\n", padding);
+        spdlog::debug("[Temp]   ✓ Content padding: {}px (responsive)", padding);
     }
 
     // Register resize callback
@@ -479,7 +479,7 @@ void ui_panel_controls_temp_bed_setup(lv_obj_t* panel, lv_obj_t* parent_screen) 
     lv_obj_t* back_btn = lv_obj_find_by_name(panel, "back_button");
     if (back_btn) {
         lv_obj_add_event_cb(back_btn, bed_back_button_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[Temp]   ✓ Back button\n");
+        spdlog::debug("[Temp]   ✓ Back button");
     }
 
     // Show and wire confirm button
@@ -488,7 +488,7 @@ void ui_panel_controls_temp_bed_setup(lv_obj_t* panel, lv_obj_t* parent_screen) 
         lv_obj_t* confirm_btn = lv_obj_find_by_name(header, "right_button");
         if (confirm_btn) {
             lv_obj_add_event_cb(confirm_btn, bed_confirm_button_cb, LV_EVENT_CLICKED, nullptr);
-            printf("[Temp]   ✓ Confirm button\n");
+            spdlog::debug("[Temp]   ✓ Confirm button");
         }
     }
 
@@ -500,16 +500,16 @@ void ui_panel_controls_temp_bed_setup(lv_obj_t* panel, lv_obj_t* parent_screen) 
             lv_obj_add_event_cb(btn, bed_preset_button_cb, LV_EVENT_CLICKED, nullptr);
         }
     }
-    printf("[Temp]   ✓ Preset buttons (4)\n");
+    spdlog::debug("[Temp]   ✓ Preset buttons (4)");
 
     // Custom button
     lv_obj_t* custom_btn = lv_obj_find_by_name(panel, "btn_custom");
     if (custom_btn) {
         lv_obj_add_event_cb(custom_btn, bed_custom_button_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[Temp]   ✓ Custom button\n");
+        spdlog::debug("[Temp]   ✓ Custom button");
     }
 
-    printf("[Temp] Bed panel setup complete!\n");
+    spdlog::info("[Temp] Bed panel setup complete!");
 }
 
 // ============================================================================
@@ -519,13 +519,13 @@ void ui_panel_controls_temp_bed_setup(lv_obj_t* panel, lv_obj_t* parent_screen) 
 void ui_panel_controls_temp_set_nozzle(int current, int target) {
     // Validate temperature ranges using dynamic limits
     if (current < nozzle_min_temp || current > nozzle_max_temp) {
-        printf("[Temp] WARNING: Invalid nozzle current temperature %d°C (valid: %d-%d°C), clamping\n",
-               current, nozzle_min_temp, nozzle_max_temp);
+        spdlog::warn("[Temp] Invalid nozzle current temperature {}°C (valid: {}-{}°C), clamping",
+                     current, nozzle_min_temp, nozzle_max_temp);
         current = (current < nozzle_min_temp) ? nozzle_min_temp : nozzle_max_temp;
     }
     if (target < nozzle_min_temp || target > nozzle_max_temp) {
-        printf("[Temp] WARNING: Invalid nozzle target temperature %d°C (valid: %d-%d°C), clamping\n",
-               target, nozzle_min_temp, nozzle_max_temp);
+        spdlog::warn("[Temp] Invalid nozzle target temperature {}°C (valid: {}-{}°C), clamping",
+                     target, nozzle_min_temp, nozzle_max_temp);
         target = (target < nozzle_min_temp) ? nozzle_min_temp : nozzle_max_temp;
     }
 
@@ -537,13 +537,13 @@ void ui_panel_controls_temp_set_nozzle(int current, int target) {
 void ui_panel_controls_temp_set_bed(int current, int target) {
     // Validate temperature ranges using dynamic limits
     if (current < bed_min_temp || current > bed_max_temp) {
-        printf("[Temp] WARNING: Invalid bed current temperature %d°C (valid: %d-%d°C), clamping\n",
-               current, bed_min_temp, bed_max_temp);
+        spdlog::warn("[Temp] Invalid bed current temperature {}°C (valid: {}-{}°C), clamping",
+                     current, bed_min_temp, bed_max_temp);
         current = (current < bed_min_temp) ? bed_min_temp : bed_max_temp;
     }
     if (target < bed_min_temp || target > bed_max_temp) {
-        printf("[Temp] WARNING: Invalid bed target temperature %d°C (valid: %d-%d°C), clamping\n",
-               target, bed_min_temp, bed_max_temp);
+        spdlog::warn("[Temp] Invalid bed target temperature {}°C (valid: {}-{}°C), clamping",
+                     target, bed_min_temp, bed_max_temp);
         target = (target < bed_min_temp) ? bed_min_temp : bed_max_temp;
     }
 
@@ -563,11 +563,11 @@ int ui_panel_controls_temp_get_bed_target() {
 void ui_panel_controls_temp_set_nozzle_limits(int min_temp, int max_temp) {
     nozzle_min_temp = min_temp;
     nozzle_max_temp = max_temp;
-    printf("[Temp] Nozzle temperature limits updated: %d-%d°C\n", min_temp, max_temp);
+    spdlog::info("[Temp] Nozzle temperature limits updated: {}-{}°C", min_temp, max_temp);
 }
 
 void ui_panel_controls_temp_set_bed_limits(int min_temp, int max_temp) {
     bed_min_temp = min_temp;
     bed_max_temp = max_temp;
-    printf("[Temp] Bed temperature limits updated: %d-%d°C\n", min_temp, max_temp);
+    spdlog::info("[Temp] Bed temperature limits updated: {}-{}°C", min_temp, max_temp);
 }

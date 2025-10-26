@@ -20,7 +20,7 @@
 
 #include "ui_panel_step_test.h"
 #include "ui_step_progress.h"
-#include <stdio.h>
+#include <spdlog/spdlog.h>
 
 // Widget references
 static lv_obj_t* vertical_widget = nullptr;
@@ -61,7 +61,7 @@ static void on_prev_clicked(lv_event_t* e) {
         ui_step_progress_set_current(horizontal_widget, horizontal_step);
     }
 
-    LV_LOG_USER("Previous step: vertical=%d, horizontal=%d", vertical_step, horizontal_step);
+    spdlog::debug("Previous step: vertical={}, horizontal={}", vertical_step, horizontal_step);
 }
 
 static void on_next_clicked(lv_event_t* e) {
@@ -78,7 +78,7 @@ static void on_next_clicked(lv_event_t* e) {
         ui_step_progress_set_current(horizontal_widget, horizontal_step);
     }
 
-    LV_LOG_USER("Next step: vertical=%d, horizontal=%d", vertical_step, horizontal_step);
+    spdlog::debug("Next step: vertical={}, horizontal={}", vertical_step, horizontal_step);
 }
 
 static void on_complete_clicked(lv_event_t* e) {
@@ -91,12 +91,12 @@ static void on_complete_clicked(lv_event_t* e) {
     ui_step_progress_set_current(vertical_widget, vertical_step);
     ui_step_progress_set_current(horizontal_widget, horizontal_step);
 
-    LV_LOG_USER("All steps completed");
+    spdlog::debug("All steps completed");
 }
 
 void ui_panel_step_test_setup(lv_obj_t* panel_root) {
     if (!panel_root) {
-        LV_LOG_ERROR("Cannot setup step test panel: panel_root is null");
+        spdlog::error("Cannot setup step test panel: panel_root is null");
         return;
     }
 
@@ -104,10 +104,12 @@ void ui_panel_step_test_setup(lv_obj_t* panel_root) {
     lv_obj_t* vertical_container = lv_obj_find_by_name(panel_root, "vertical_progress_container");
     lv_obj_t* horizontal_container = lv_obj_find_by_name(panel_root, "horizontal_progress_container");
 
-    LV_LOG_USER("Found containers: vertical=%p, horizontal=%p", vertical_container, horizontal_container);
+    spdlog::debug("Found containers: vertical={}, horizontal={}",
+                  static_cast<void*>(vertical_container),
+                  static_cast<void*>(horizontal_container));
 
     if (!vertical_container || !horizontal_container) {
-        LV_LOG_ERROR("Failed to find progress containers in step test panel");
+        spdlog::error("Failed to find progress containers in step test panel");
         return;
     }
 
@@ -116,7 +118,7 @@ void ui_panel_step_test_setup(lv_obj_t* panel_root) {
     vertical_widget = ui_step_progress_create(vertical_container, vertical_steps,
                                                vertical_step_count, false);
     if (!vertical_widget) {
-        LV_LOG_ERROR("Failed to create vertical progress widget");
+        spdlog::error("Failed to create vertical progress widget");
         return;
     }
 
@@ -124,7 +126,7 @@ void ui_panel_step_test_setup(lv_obj_t* panel_root) {
     horizontal_widget = ui_step_progress_create(horizontal_container, horizontal_steps,
                                                  horizontal_step_count, true);
     if (!horizontal_widget) {
-        LV_LOG_ERROR("Failed to create horizontal progress widget");
+        spdlog::error("Failed to create horizontal progress widget");
         return;
     }
 
@@ -149,5 +151,5 @@ void ui_panel_step_test_setup(lv_obj_t* panel_root) {
         lv_obj_add_event_cb(btn_complete, on_complete_clicked, LV_EVENT_CLICKED, nullptr);
     }
 
-    LV_LOG_USER("Step progress test panel initialized");
+    spdlog::info("Step progress test panel initialized");
 }

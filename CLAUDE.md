@@ -74,6 +74,65 @@ The script handles:
 
 **❌ Avoid:** Reading raw BMPs from `/tmp` and manually running `magick` commands. The screenshot script is the canonical way to capture UI states.
 
+## Logging Policy
+
+**CRITICAL:** All debug, info, warning, and error messages must use **spdlog** for console output.
+
+### Usage
+
+```cpp
+#include <spdlog/spdlog.h>
+
+// Log levels (use appropriately):
+spdlog::trace("Very detailed tracing");           // Function entry/exit, frequent events
+spdlog::debug("Debug information");               // Development/debugging details
+spdlog::info("General information");              // Normal operation events
+spdlog::warn("Warning condition");                // Recoverable issues, fallback behavior
+spdlog::error("Error condition");                 // Failed operations, missing resources
+```
+
+### Formatting
+
+- Use **fmt-style formatting** (modern C++ format): `spdlog::info("Value: {}", val);`
+- **NOT** printf-style: ~~`spdlog::info("Value: %d", val);`~~
+- Enums must be cast: `spdlog::debug("Panel ID: {}", (int)panel_id);`
+- Pointers: `spdlog::debug("Widget: {}", (void*)widget);`
+
+### Best Practices
+
+1. **Choose appropriate log levels:**
+   - `trace()` - Observer callbacks, frequent update loops
+   - `debug()` - Button clicks, panel transitions, internal state changes
+   - `info()` - Initialization complete, major milestones, user actions
+   - `warn()` - Invalid input (with fallback), deprecated behavior
+   - `error()` - Failed resource loading, NULL pointers, invalid state
+
+2. **Add context to messages:**
+   - Include component prefix: `[Temp]`, `[Motion]`, `[Nav]`
+   - Include relevant values: `"Temperature: {}°C", temp`
+   - Use descriptive messages: "Nozzle panel created and initialized"
+
+3. **Do NOT use:**
+   - `printf()` / `fprintf()` - Use spdlog instead
+   - `std::cout` / `std::cerr` - Use spdlog instead
+   - `LV_LOG_*` macros - Use spdlog instead
+
+4. **Note:** `snprintf()` is fine for **formatting strings into buffers** (not logging).
+
+### Example Conversions
+
+```cpp
+// BEFORE:
+printf("[Temp] Temperature set to %d°C\n", temp);
+std::cerr << "Error: file not found" << std::endl;
+LV_LOG_USER("Panel initialized");
+
+// AFTER:
+spdlog::info("[Temp] Temperature set to {}°C", temp);
+spdlog::error("Error: file not found");
+spdlog::info("Panel initialized");
+```
+
 ## Architecture
 
 ```

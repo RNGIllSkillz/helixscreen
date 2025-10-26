@@ -21,9 +21,10 @@
 #include "material_icons.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/others/xml/lv_xml.h"
+#include <spdlog/spdlog.h>
 
 void material_icons_register() {
-    LV_LOG_USER("Registering Material Design icons (59 total)...");
+    spdlog::info("Registering Material Design icons (59 total)...");
 
     // Navigation & Movement
     lv_xml_register_image(NULL, "mat_home", &home);

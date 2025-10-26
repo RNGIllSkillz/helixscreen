@@ -22,7 +22,7 @@
 #include "ui_theme.h"
 #include "ui_fonts.h"
 #include "lvgl/lvgl.h"
-#include <cstdio>
+#include <spdlog/spdlog.h>
 #include <cstdlib>  // for atoi
 #include <vector>
 
@@ -114,7 +114,7 @@ static void nav_button_clicked_cb(lv_event_t* e) {
                 // Hide any visible overlay panel
                 if (!is_main_panel) {
                     lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
-                    LV_LOG_USER("Hiding overlay panel %p (nav button clicked)", child);
+                    spdlog::debug("Hiding overlay panel {} (nav button clicked)", (void*)child);
                 }
             }
         }
@@ -128,14 +128,14 @@ static void nav_button_clicked_cb(lv_event_t* e) {
 
         // Clear panel stack when switching via nav bar
         panel_stack.clear();
-        LV_LOG_USER("Panel stack cleared (nav button clicked)");
+        spdlog::debug("Panel stack cleared (nav button clicked)");
 
         // Show the clicked panel and add it to stack
         lv_obj_t* new_panel = panel_widgets[panel_id];
         if (new_panel) {
             lv_obj_remove_flag(new_panel, LV_OBJ_FLAG_HIDDEN);
             panel_stack.push_back(new_panel);
-            LV_LOG_USER("Showing panel %p (stack depth: %zu)", new_panel, panel_stack.size());
+            spdlog::debug("Showing panel {} (stack depth: {})", (void*)new_panel, panel_stack.size());
         }
 
         // Update active panel state (triggers icon colors, etc.)
@@ -145,11 +145,11 @@ static void nav_button_clicked_cb(lv_event_t* e) {
 
 void ui_nav_init() {
     if (subjects_initialized) {
-        LV_LOG_WARN("Navigation subjects already initialized");
+        spdlog::warn("Navigation subjects already initialized");
         return;
     }
 
-    LV_LOG_USER("Initializing navigation reactive subjects...");
+    spdlog::info("Initializing navigation reactive subjects...");
 
     // Initialize active panel subject (starts at home)
     lv_subject_init_int(&active_panel_subject, UI_PANEL_HOME);
@@ -177,22 +177,22 @@ void ui_nav_init() {
 
     subjects_initialized = true;
 
-    LV_LOG_USER("Navigation subjects initialized successfully");
+    spdlog::info("Navigation subjects initialized successfully");
 }
 
 void ui_nav_set_app_layout(lv_obj_t* app_layout) {
     app_layout_widget = app_layout;
-    LV_LOG_USER("App layout widget registered");
+    spdlog::debug("App layout widget registered");
 }
 
 void ui_nav_wire_events(lv_obj_t* navbar) {
     if (!navbar) {
-        LV_LOG_ERROR("NULL navbar provided to ui_nav_wire_events");
+        spdlog::error("NULL navbar provided to ui_nav_wire_events");
         return;
     }
 
     if (!subjects_initialized) {
-        LV_LOG_ERROR("Navigation subjects not initialized! Call ui_nav_init() first!");
+        spdlog::error("Navigation subjects not initialized! Call ui_nav_init() first!");
         return;
     }
 
@@ -214,8 +214,8 @@ void ui_nav_wire_events(lv_obj_t* navbar) {
         button_size = UI_NAV_BUTTON_SIZE_TINY;
         nav_padding = UI_NAV_PADDING_TINY;
         nav_width = UI_NAV_WIDTH_TINY;
-        LV_LOG_USER("Tiny nav sizing (h=%d): width=%d, buttons=%d, padding=%d, icon_scale=%d",
-                    screen_height, nav_width, button_size, nav_padding, icon_scale);
+        spdlog::debug("Tiny nav sizing (h={}): width={}, buttons={}, padding={}, icon_scale={}",
+                      screen_height, nav_width, button_size, nav_padding, icon_scale);
     } else if (screen_height <= UI_SCREEN_SMALL_H) {
         // Small screens (480px): 60px buttons, 8px padding, 76px width
         // Icons scaled to 60% (64px → 38px)
@@ -223,24 +223,24 @@ void ui_nav_wire_events(lv_obj_t* navbar) {
         button_size = UI_NAV_BUTTON_SIZE_SMALL;
         nav_padding = UI_NAV_PADDING_SMALL;
         nav_width = UI_NAV_WIDTH_SMALL;
-        LV_LOG_USER("Small nav sizing (h=%d): width=%d, buttons=%d, padding=%d",
-                    screen_height, nav_width, button_size, nav_padding);
+        spdlog::debug("Small nav sizing (h={}): width={}, buttons={}, padding={}",
+                      screen_height, nav_width, button_size, nav_padding);
     } else if (screen_height <= UI_SCREEN_MEDIUM_H) {
         // Medium screens (600px): 70px buttons, 12px padding, 94px width
         icon_scale = 192;
         button_size = UI_NAV_BUTTON_SIZE_MEDIUM;
         nav_padding = UI_NAV_PADDING_MEDIUM;
         nav_width = UI_NAV_WIDTH_MEDIUM;
-        LV_LOG_USER("Medium nav sizing (h=%d): width=%d, buttons=%d, padding=%d",
-                    screen_height, nav_width, button_size, nav_padding);
+        spdlog::debug("Medium nav sizing (h={}): width={}, buttons={}, padding={}",
+                      screen_height, nav_width, button_size, nav_padding);
     } else {
         // Large screens (720px+): 70px buttons, 16px padding, 102px width
         icon_scale = 256;
         button_size = UI_NAV_BUTTON_SIZE_LARGE;
         nav_padding = UI_NAV_PADDING_LARGE;
         nav_width = UI_NAV_WIDTH_LARGE;
-        LV_LOG_USER("Large nav sizing (h=%d): width=%d, buttons=%d, padding=%d",
-                    screen_height, nav_width, button_size, nav_padding);
+        spdlog::debug("Large nav sizing (h={}): width={}, buttons={}, padding={}",
+                      screen_height, nav_width, button_size, nav_padding);
     }
 
     // Apply responsive width and padding to navbar container
@@ -257,13 +257,13 @@ void ui_nav_wire_events(lv_obj_t* navbar) {
         lv_obj_t* icon_widget = lv_obj_find_by_name(navbar, icon_names[i]);
 
         if (!btn || !icon_widget) {
-            LV_LOG_ERROR("Failed to find nav button/icon %d: btn=%p, icon=%p", i, btn, icon_widget);
+            spdlog::error("Failed to find nav button/icon {}: btn={}, icon={}", i, (void*)btn, (void*)icon_widget);
             continue;
         }
 
         // All navigation icons are now Material Design images
         if (!lv_obj_check_type(icon_widget, &lv_image_class)) {
-            LV_LOG_ERROR("Nav icon %d is not an image widget!", i);
+            spdlog::error("Nav icon {} is not an image widget!", i);
             continue;
         }
 
@@ -297,7 +297,7 @@ void ui_nav_wire_events(lv_obj_t* navbar) {
 
 void ui_nav_set_active(ui_panel_id_t panel_id) {
     if (panel_id >= UI_PANEL_COUNT) {
-        LV_LOG_ERROR("Invalid panel ID: %d", panel_id);
+        spdlog::error("Invalid panel ID: {}", (int)panel_id);
         return;
     }
 
@@ -316,7 +316,7 @@ ui_panel_id_t ui_nav_get_active() {
 
 void ui_nav_set_panels(lv_obj_t** panels) {
     if (!panels) {
-        LV_LOG_ERROR("NULL panels array provided");
+        spdlog::error("NULL panels array provided");
         return;
     }
 
@@ -339,15 +339,15 @@ void ui_nav_set_panels(lv_obj_t** panels) {
     panel_stack.clear();
     if (panel_widgets[active_panel]) {
         panel_stack.push_back(panel_widgets[active_panel]);
-        LV_LOG_USER("Panel stack initialized with active panel %p", panel_widgets[active_panel]);
+        spdlog::debug("Panel stack initialized with active panel {}", (void*)panel_widgets[active_panel]);
     }
 
-    LV_LOG_USER("Panel widgets registered for show/hide management");
+    spdlog::info("Panel widgets registered for show/hide management");
 }
 
 void ui_nav_push_overlay(lv_obj_t* overlay_panel) {
     if (!overlay_panel) {
-        LV_LOG_ERROR("Cannot push NULL overlay panel");
+        spdlog::error("Cannot push NULL overlay panel");
         return;
     }
 
@@ -355,7 +355,7 @@ void ui_nav_push_overlay(lv_obj_t* overlay_panel) {
     if (!panel_stack.empty()) {
         lv_obj_t* current_top = panel_stack.back();
         lv_obj_add_flag(current_top, LV_OBJ_FLAG_HIDDEN);
-        LV_LOG_USER("Hiding current top panel %p (pushing overlay)", current_top);
+        spdlog::debug("Hiding current top panel {} (pushing overlay)", (void*)current_top);
     }
 
     // Show the new overlay and push it to stack
@@ -363,23 +363,23 @@ void ui_nav_push_overlay(lv_obj_t* overlay_panel) {
     lv_obj_move_foreground(overlay_panel);
     panel_stack.push_back(overlay_panel);
 
-    LV_LOG_USER("Showing overlay panel %p (stack depth: %zu)", overlay_panel, panel_stack.size());
+    spdlog::debug("Showing overlay panel {} (stack depth: {})", (void*)overlay_panel, panel_stack.size());
 }
 
 bool ui_nav_go_back() {
-    LV_LOG_USER("=== ui_nav_go_back() called, stack depth: %zu ===", panel_stack.size());
+    spdlog::debug("=== ui_nav_go_back() called, stack depth: {} ===", panel_stack.size());
 
     // DEFENSIVE: Always hide any overlay panels (not in panel_widgets)
     // This handles cases where panels were shown via command line or other means
     lv_obj_t* screen = lv_screen_active();
     if (screen) {
-        LV_LOG_USER("Scanning %u screen children for overlays to hide", lv_obj_get_child_count(screen));
+        spdlog::debug("Scanning {} screen children for overlays to hide", lv_obj_get_child_count(screen));
         for (uint32_t i = 0; i < lv_obj_get_child_count(screen); i++) {
             lv_obj_t* child = lv_obj_get_child(screen, i);
 
             // Don't hide app_layout (contains navbar + panels)
             if (child == app_layout_widget) {
-                LV_LOG_USER("  Child %u: app_layout (skip)", i);
+                spdlog::trace("  Child {}: app_layout (skip)", i);
                 continue;
             }
 
@@ -395,9 +395,9 @@ bool ui_nav_go_back() {
             // Hide any overlay panel (even if already hidden, for consistency)
             if (!is_main_panel) {
                 lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
-                LV_LOG_USER("  Child %u: %p - HIDING overlay panel", i, child);
+                spdlog::trace("  Child {}: {} - HIDING overlay panel", i, (void*)child);
             } else {
-                LV_LOG_USER("  Child %u: %p - main panel (skip)", i, child);
+                spdlog::trace("  Child {}: {} - main panel (skip)", i, (void*)child);
             }
         }
     }
@@ -405,12 +405,12 @@ bool ui_nav_go_back() {
     // Pop current panel from stack if present
     if (!panel_stack.empty()) {
         panel_stack.pop_back();
-        LV_LOG_USER("Popped panel from stack (remaining depth: %zu)", panel_stack.size());
+        spdlog::debug("Popped panel from stack (remaining depth: {})", panel_stack.size());
     }
 
     // Need at least one panel in stack to show
     if (panel_stack.empty()) {
-        LV_LOG_USER("Panel stack empty after pop, falling back to home panel");
+        spdlog::debug("Panel stack empty after pop, falling back to home panel");
 
         // Hide all main panels
         for (int i = 0; i < UI_PANEL_COUNT; i++) {
@@ -425,11 +425,11 @@ bool ui_nav_go_back() {
             panel_stack.push_back(panel_widgets[UI_PANEL_HOME]);
             active_panel = UI_PANEL_HOME;
             lv_subject_set_int(&active_panel_subject, UI_PANEL_HOME);
-            LV_LOG_USER("Fallback: showing home panel");
+            spdlog::debug("Fallback: showing home panel");
             return true;
         }
 
-        LV_LOG_ERROR("Cannot show home panel - widget not found!");
+        spdlog::error("Cannot show home panel - widget not found!");
         return false;
     }
 
@@ -450,14 +450,14 @@ bool ui_nav_go_back() {
             // Update active panel state
             active_panel = (ui_panel_id_t)i;
             lv_subject_set_int(&active_panel_subject, i);
-            LV_LOG_USER("Updated active panel to %d", i);
+            spdlog::debug("Updated active panel to {}", i);
             break;
         }
     }
 
     lv_obj_remove_flag(previous_panel, LV_OBJ_FLAG_HIDDEN);
-    LV_LOG_USER("Showing previous panel %p (stack depth: %zu, is_main=%d)",
-                previous_panel, panel_stack.size(), is_main_panel);
+    spdlog::debug("Showing previous panel {} (stack depth: {}, is_main={})",
+                  (void*)previous_panel, panel_stack.size(), is_main_panel);
 
     return true;
 }

@@ -23,7 +23,7 @@
 #include "ui_nav.h"
 #include "ui_utils.h"
 #include "ui_theme.h"
-#include <stdio.h>
+#include <spdlog/spdlog.h>
 #include <string.h>
 
 // Temperature subjects (reactive data binding)
@@ -75,7 +75,7 @@ static void update_preset_buttons_visual();
 
 void ui_panel_filament_init_subjects() {
     if (subjects_initialized) {
-        printf("[Filament] WARNING: Subjects already initialized\n");
+        spdlog::warn("[Filament] Subjects already initialized");
         return;
     }
 
@@ -101,7 +101,7 @@ void ui_panel_filament_init_subjects() {
 
     subjects_initialized = true;
 
-    printf("[Filament] Subjects initialized: temp=%d/%d°C, material=%d\n",
+    spdlog::debug("[Filament] Subjects initialized: temp={}/{}°C, material={}",
            nozzle_current, nozzle_target, selected_material);
 }
 
@@ -189,7 +189,7 @@ static void update_safety_state() {
         }
     }
 
-    printf("[Filament] Safety state updated: allowed=%d (temp=%d°C)\n", allowed, nozzle_current);
+    spdlog::debug("[Filament] Safety state updated: allowed={} (temp={}°C)", allowed, nozzle_current);
 }
 
 // Update visual feedback for preset buttons
@@ -232,7 +232,7 @@ static void preset_button_cb(lv_event_t* e) {
     update_temp_display();
     update_status();
 
-    printf("[Filament] Material selected: %d (target=%d°C)\n", material_id, nozzle_target);
+    spdlog::info("[Filament] Material selected: {} (target={}°C)", material_id, nozzle_target);
 
     // TODO: Send command to printer to set temperature
 }
@@ -241,7 +241,7 @@ static void preset_button_cb(lv_event_t* e) {
 static void custom_temp_confirmed_cb(float value, void* user_data) {
     (void)user_data;
 
-    printf("[Filament] Custom temperature confirmed: %d°C\n", (int)value);
+    spdlog::info("[Filament] Custom temperature confirmed: {}°C", static_cast<int>(value));
 
     selected_material = 3;  // Custom
     nozzle_target = (int)value;
@@ -258,7 +258,7 @@ static void custom_temp_confirmed_cb(float value, void* user_data) {
 static void preset_custom_button_cb(lv_event_t* e) {
     (void)e;
 
-    printf("[Filament] Opening custom temperature keypad...\n");
+    spdlog::debug("[Filament] Opening custom temperature keypad");
 
     ui_keypad_config_t config = {
         .initial_value = (float)(nozzle_target > 0 ? nozzle_target : 200),
@@ -280,12 +280,12 @@ static void load_button_cb(lv_event_t* e) {
     (void)e;
 
     if (nozzle_current < MIN_EXTRUSION_TEMP) {
-        printf("[Filament] ✗ Load blocked: nozzle too cold (%d°C < %d°C)\n",
-               nozzle_current, MIN_EXTRUSION_TEMP);
+        spdlog::warn("[Filament] Load blocked: nozzle too cold ({}°C < {}°C)",
+                     nozzle_current, MIN_EXTRUSION_TEMP);
         return;
     }
 
-    printf("[Filament] ✓ Loading filament...\n");
+    spdlog::info("[Filament] Loading filament");
     // TODO: Send LOAD_FILAMENT macro to printer
 }
 
@@ -294,12 +294,12 @@ static void unload_button_cb(lv_event_t* e) {
     (void)e;
 
     if (nozzle_current < MIN_EXTRUSION_TEMP) {
-        printf("[Filament] ✗ Unload blocked: nozzle too cold (%d°C < %d°C)\n",
-               nozzle_current, MIN_EXTRUSION_TEMP);
+        spdlog::warn("[Filament] Unload blocked: nozzle too cold ({}°C < {}°C)",
+                     nozzle_current, MIN_EXTRUSION_TEMP);
         return;
     }
 
-    printf("[Filament] ✓ Unloading filament...\n");
+    spdlog::info("[Filament] Unloading filament");
     // TODO: Send UNLOAD_FILAMENT macro to printer
 }
 
@@ -308,12 +308,12 @@ static void purge_button_cb(lv_event_t* e) {
     (void)e;
 
     if (nozzle_current < MIN_EXTRUSION_TEMP) {
-        printf("[Filament] ✗ Purge blocked: nozzle too cold (%d°C < %d°C)\n",
-               nozzle_current, MIN_EXTRUSION_TEMP);
+        spdlog::warn("[Filament] Purge blocked: nozzle too cold ({}°C < {}°C)",
+                     nozzle_current, MIN_EXTRUSION_TEMP);
         return;
     }
 
-    printf("[Filament] ✓ Purging 10mm...\n");
+    spdlog::info("[Filament] Purging 10mm");
     // TODO: Send extrude command to printer (M83 \n G1 E10 F300)
 }
 
@@ -323,17 +323,17 @@ static void purge_button_cb(lv_event_t* e) {
 
 lv_obj_t* ui_panel_filament_create(lv_obj_t* parent) {
     if (!subjects_initialized) {
-        printf("[Filament] ERROR: Call ui_panel_filament_init_subjects() first!\n");
+        spdlog::error("[Filament] Call ui_panel_filament_init_subjects() first!");
         return nullptr;
     }
 
     filament_panel = (lv_obj_t*)lv_xml_create(parent, "filament_panel", nullptr);
     if (!filament_panel) {
-        printf("[Filament] ERROR: Failed to create filament_panel from XML\n");
+        spdlog::error("[Filament] Failed to create filament_panel from XML");
         return nullptr;
     }
 
-    printf("[Filament] Panel created from XML\n");
+    spdlog::debug("[Filament] Panel created from XML");
     return filament_panel;
 }
 
@@ -341,7 +341,7 @@ void ui_panel_filament_setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     filament_panel = panel;
     parent_obj = parent_screen;
 
-    printf("[Filament] Setting up panel event handlers...\n");
+    spdlog::debug("[Filament] Setting up panel event handlers");
 
     // Find and setup preset buttons
     const char* preset_names[] = {"preset_pla", "preset_petg", "preset_abs", "preset_custom"};
@@ -357,25 +357,25 @@ void ui_panel_filament_setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
             }
         }
     }
-    printf("[Filament]   ✓ Preset buttons (4)\n");
+    spdlog::debug("[Filament] Preset buttons configured (4)");
 
     // Find and setup action buttons
     btn_load = lv_obj_find_by_name(panel, "btn_load");
     if (btn_load) {
         lv_obj_add_event_cb(btn_load, load_button_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[Filament]   ✓ Load button\n");
+        spdlog::debug("[Filament] Load button configured");
     }
 
     btn_unload = lv_obj_find_by_name(panel, "btn_unload");
     if (btn_unload) {
         lv_obj_add_event_cb(btn_unload, unload_button_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[Filament]   ✓ Unload button\n");
+        spdlog::debug("[Filament] Unload button configured");
     }
 
     btn_purge = lv_obj_find_by_name(panel, "btn_purge");
     if (btn_purge) {
         lv_obj_add_event_cb(btn_purge, purge_button_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[Filament]   ✓ Purge button\n");
+        spdlog::debug("[Filament] Purge button configured");
     }
 
     // Find safety warning card
@@ -391,19 +391,19 @@ void ui_panel_filament_setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     update_warning_text();
     update_safety_state();
 
-    printf("[Filament] Panel setup complete!\n");
+    spdlog::info("[Filament] Panel setup complete");
 }
 
 void ui_panel_filament_set_temp(int current, int target) {
     // Validate temperature ranges
     if (current < nozzle_min_temp || current > nozzle_max_temp) {
-        printf("[Filament] WARNING: Invalid current temperature %d°C (valid: %d-%d°C), clamping\n",
-               current, nozzle_min_temp, nozzle_max_temp);
+        spdlog::warn("[Filament] Invalid current temperature {}°C (valid: {}-{}°C), clamping",
+                     current, nozzle_min_temp, nozzle_max_temp);
         current = (current < nozzle_min_temp) ? nozzle_min_temp : nozzle_max_temp;
     }
     if (target < nozzle_min_temp || target > nozzle_max_temp) {
-        printf("[Filament] WARNING: Invalid target temperature %d°C (valid: %d-%d°C), clamping\n",
-               target, nozzle_min_temp, nozzle_max_temp);
+        spdlog::warn("[Filament] Invalid target temperature {}°C (valid: {}-{}°C), clamping",
+                     target, nozzle_min_temp, nozzle_max_temp);
         target = (target < nozzle_min_temp) ? nozzle_min_temp : nozzle_max_temp;
     }
 
@@ -423,7 +423,7 @@ void ui_panel_filament_get_temp(int* current, int* target) {
 
 void ui_panel_filament_set_material(int material_id) {
     if (material_id < 0 || material_id > 3) {
-        printf("[Filament] ERROR: Invalid material ID %d (valid: 0-3)\n", material_id);
+        spdlog::error("[Filament] Invalid material ID {} (valid: 0-3)", material_id);
         return;
     }
 
@@ -435,7 +435,7 @@ void ui_panel_filament_set_material(int material_id) {
     update_temp_display();
     update_status();
 
-    printf("[Filament] Material set: %d (target=%d°C)\n", material_id, nozzle_target);
+    spdlog::info("[Filament] Material set: {} (target={}°C)", material_id, nozzle_target);
 }
 
 int ui_panel_filament_get_material() {
@@ -449,5 +449,5 @@ bool ui_panel_filament_is_extrusion_allowed() {
 void ui_panel_filament_set_limits(int min_temp, int max_temp) {
     nozzle_min_temp = min_temp;
     nozzle_max_temp = max_temp;
-    printf("[Filament] Nozzle temperature limits updated: %d-%d°C\n", min_temp, max_temp);
+    spdlog::info("[Filament] Nozzle temperature limits updated: {}-{}°C", min_temp, max_temp);
 }

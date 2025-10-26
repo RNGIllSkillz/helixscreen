@@ -24,7 +24,7 @@
 #include "ui_panel_controls_temp.h"
 #include "ui_panel_controls_extrusion.h"
 #include "ui_nav.h"
-#include <cstdio>
+#include <spdlog/spdlog.h>
 
 // Panel object references
 static lv_obj_t* controls_panel = nullptr;
@@ -45,12 +45,12 @@ static void card_motors_clicked(lv_event_t* e);
 void ui_panel_controls_init_subjects() {
     // TODO: Initialize subjects for sub-screens
     // For now, no subjects needed at launcher level
-    LV_LOG_USER("Controls panel subjects initialized");
+    spdlog::info("Controls panel subjects initialized");
 }
 
 void ui_panel_controls_wire_events(lv_obj_t* panel_obj, lv_obj_t* screen) {
     if (!panel_obj) {
-        LV_LOG_ERROR("Cannot wire controls panel events: null panel object");
+        spdlog::error("Cannot wire controls panel events: null panel object");
         return;
     }
 
@@ -68,7 +68,7 @@ void ui_panel_controls_wire_events(lv_obj_t* panel_obj, lv_obj_t* screen) {
     // Verify all cards found
     if (!card_motion || !card_nozzle_temp || !card_bed_temp ||
         !card_extrusion || !card_fan || !card_motors) {
-        LV_LOG_ERROR("Failed to find all controls panel launcher cards");
+        spdlog::error("Failed to find all controls panel launcher cards");
         return;
     }
 
@@ -88,7 +88,7 @@ void ui_panel_controls_wire_events(lv_obj_t* panel_obj, lv_obj_t* screen) {
     // card_fan is disabled (Phase 2), don't make clickable
     lv_obj_add_flag(card_motors, LV_OBJ_FLAG_CLICKABLE);
 
-    LV_LOG_USER("Controls panel events wired");
+    spdlog::info("Controls panel events wired");
 }
 
 lv_obj_t* ui_panel_controls_get() {
@@ -105,15 +105,15 @@ void ui_panel_controls_set(lv_obj_t* panel_obj) {
 
 static void card_motion_clicked(lv_event_t* e) {
     (void)e;
-    LV_LOG_USER("Motion card clicked - opening Motion sub-screen");
+    spdlog::debug("Motion card clicked - opening Motion sub-screen");
 
     // Create motion panel on first access
     if (!motion_panel && parent_screen) {
-        LV_LOG_USER("Creating motion panel...");
+        spdlog::debug("Creating motion panel...");
         motion_panel = (lv_obj_t*)lv_xml_create(parent_screen, "motion_panel", nullptr);
 
         if (!motion_panel) {
-            LV_LOG_ERROR("Failed to create motion panel from XML");
+            spdlog::error("Failed to create motion panel from XML");
             return;
         }
 
@@ -122,7 +122,7 @@ static void card_motion_clicked(lv_event_t* e) {
 
         // Initially hidden
         lv_obj_add_flag(motion_panel, LV_OBJ_FLAG_HIDDEN);
-        LV_LOG_USER("Motion panel created and initialized");
+        spdlog::info("Motion panel created and initialized");
     }
 
     // Push motion panel onto navigation history and show it
@@ -133,15 +133,15 @@ static void card_motion_clicked(lv_event_t* e) {
 
 static void card_nozzle_temp_clicked(lv_event_t* e) {
     (void)e;
-    LV_LOG_USER("Nozzle Temp card clicked - opening Nozzle Temperature sub-screen");
+    spdlog::debug("Nozzle Temp card clicked - opening Nozzle Temperature sub-screen");
 
     // Create nozzle temp panel on first access
     if (!nozzle_temp_panel && parent_screen) {
-        LV_LOG_USER("Creating nozzle temperature panel...");
+        spdlog::debug("Creating nozzle temperature panel...");
         nozzle_temp_panel = (lv_obj_t*)lv_xml_create(parent_screen, "nozzle_temp_panel", nullptr);
 
         if (!nozzle_temp_panel) {
-            LV_LOG_ERROR("Failed to create nozzle temp panel from XML");
+            spdlog::error("Failed to create nozzle temp panel from XML");
             return;
         }
 
@@ -150,7 +150,7 @@ static void card_nozzle_temp_clicked(lv_event_t* e) {
 
         // Initially hidden
         lv_obj_add_flag(nozzle_temp_panel, LV_OBJ_FLAG_HIDDEN);
-        LV_LOG_USER("Nozzle temp panel created and initialized");
+        spdlog::info("Nozzle temp panel created and initialized");
     }
 
     // Push nozzle temp panel onto navigation history and show it
@@ -161,15 +161,15 @@ static void card_nozzle_temp_clicked(lv_event_t* e) {
 
 static void card_bed_temp_clicked(lv_event_t* e) {
     (void)e;
-    LV_LOG_USER("Bed Temp card clicked - opening Heatbed Temperature sub-screen");
+    spdlog::debug("Bed Temp card clicked - opening Heatbed Temperature sub-screen");
 
     // Create bed temp panel on first access
     if (!bed_temp_panel && parent_screen) {
-        LV_LOG_USER("Creating bed temperature panel...");
+        spdlog::debug("Creating bed temperature panel...");
         bed_temp_panel = (lv_obj_t*)lv_xml_create(parent_screen, "bed_temp_panel", nullptr);
 
         if (!bed_temp_panel) {
-            LV_LOG_ERROR("Failed to create bed temp panel from XML");
+            spdlog::error("Failed to create bed temp panel from XML");
             return;
         }
 
@@ -178,7 +178,7 @@ static void card_bed_temp_clicked(lv_event_t* e) {
 
         // Initially hidden
         lv_obj_add_flag(bed_temp_panel, LV_OBJ_FLAG_HIDDEN);
-        LV_LOG_USER("Bed temp panel created and initialized");
+        spdlog::info("Bed temp panel created and initialized");
     }
 
     // Push bed temp panel onto navigation history and show it
@@ -189,15 +189,15 @@ static void card_bed_temp_clicked(lv_event_t* e) {
 
 static void card_extrusion_clicked(lv_event_t* e) {
     (void)e;
-    LV_LOG_USER("Extrusion card clicked - opening Extrusion sub-screen");
+    spdlog::debug("Extrusion card clicked - opening Extrusion sub-screen");
 
     // Create extrusion panel on first access
     if (!extrusion_panel && parent_screen) {
-        LV_LOG_USER("Creating extrusion panel...");
+        spdlog::debug("Creating extrusion panel...");
         extrusion_panel = (lv_obj_t*)lv_xml_create(parent_screen, "extrusion_panel", nullptr);
 
         if (!extrusion_panel) {
-            LV_LOG_ERROR("Failed to create extrusion panel from XML");
+            spdlog::error("Failed to create extrusion panel from XML");
             return;
         }
 
@@ -206,7 +206,7 @@ static void card_extrusion_clicked(lv_event_t* e) {
 
         // Initially hidden
         lv_obj_add_flag(extrusion_panel, LV_OBJ_FLAG_HIDDEN);
-        LV_LOG_USER("Extrusion panel created and initialized");
+        spdlog::info("Extrusion panel created and initialized");
     }
 
     // Push extrusion panel onto navigation history and show it
@@ -216,11 +216,11 @@ static void card_extrusion_clicked(lv_event_t* e) {
 }
 
 static void card_fan_clicked(lv_event_t* e) {
-    LV_LOG_USER("Fan card clicked - Phase 2 feature");
+    spdlog::debug("Fan card clicked - Phase 2 feature");
     // TODO: Create and show fan control sub-screen (Phase 2)
 }
 
 static void card_motors_clicked(lv_event_t* e) {
-    LV_LOG_USER("Motors Disable card clicked");
+    spdlog::debug("Motors Disable card clicked");
     // TODO: Show confirmation dialog, then send motors disable command
 }

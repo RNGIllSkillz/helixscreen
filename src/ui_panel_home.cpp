@@ -22,7 +22,7 @@
 #include "ui_nav.h"
 #include "ui_theme.h"
 #include "ui_fonts.h"
-#include <cstdio>
+#include <spdlog/spdlog.h>
 #include <cstring>
 #include <cstdlib>
 
@@ -59,11 +59,11 @@ static void light_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
 
 void ui_panel_home_init_subjects() {
     if (subjects_initialized) {
-        printf("WARNING: Home panel subjects already initialized\n");
+        spdlog::warn("Home panel subjects already initialized");
         return;
     }
 
-    printf("DEBUG: Initializing home panel subjects\n");
+    spdlog::debug("Initializing home panel subjects");
 
     // Initialize subjects with default values
     lv_subject_init_string(&status_subject, status_buffer, NULL, sizeof(status_buffer), "Hasta la vista, misprints!");
@@ -86,13 +86,13 @@ void ui_panel_home_init_subjects() {
     lv_xml_register_event_cb(NULL, "print_card_clicked_cb", print_card_clicked_cb);
 
     subjects_initialized = true;
-    printf("DEBUG: Registered subjects: status_text, temp_text, network_icon, network_label, network_color, light_icon_color\n");
-    printf("DEBUG: Registered event callback: light_toggle_cb at address %p\n", (void*)light_toggle_event_cb);
+    spdlog::debug("Registered subjects: status_text, temp_text, network_icon, network_label, network_color, light_icon_color");
+    spdlog::debug("Registered event callback: light_toggle_cb");
 }
 
 void ui_panel_home_setup_observers(lv_obj_t* panel) {
     if (!subjects_initialized) {
-        printf("ERROR: Subjects not initialized! Call ui_panel_home_init_subjects() first!\n");
+        spdlog::error("Subjects not initialized! Call ui_panel_home_init_subjects() first!");
         return;
     }
 
@@ -104,8 +104,10 @@ void ui_panel_home_setup_observers(lv_obj_t* panel) {
     light_icon_label = lv_obj_find_by_name(home_panel, "light_icon");
 
     if (!network_icon_label || !network_text_label || !light_icon_label) {
-        printf("ERROR: Failed to find named widgets (net_icon=%p, net_label=%p, light=%p)\n",
-               network_icon_label, network_text_label, light_icon_label);
+        spdlog::error("Failed to find named widgets (net_icon={}, net_label={}, light={})",
+                      static_cast<void*>(network_icon_label),
+                      static_cast<void*>(network_text_label),
+                      static_cast<void*>(light_icon_label));
         return;
     }
 
@@ -137,10 +139,10 @@ void ui_panel_home_setup_observers(lv_obj_t* panel) {
         lv_obj_set_width(printer_image, printer_size);
         lv_obj_set_height(printer_image, printer_size);
         lv_image_set_scale(printer_image, zoom_level);  // Actually scale the image
-        LV_LOG_USER("Set printer image: size=%dpx, zoom=%d (%d%%) for screen height %d",
-                    printer_size, zoom_level, (zoom_level * 100) / 256, screen_height);
+        spdlog::debug("Set printer image: size={}px, zoom={} ({}%) for screen height {}",
+                      printer_size, zoom_level, (zoom_level * 100) / 256, screen_height);
     } else {
-        LV_LOG_WARN("Printer image not found - size not adjusted");
+        spdlog::warn("Printer image not found - size not adjusted");
     }
 
     // 2. Set responsive info card icon sizes
@@ -164,12 +166,12 @@ void ui_panel_home_setup_observers(lv_obj_t* panel) {
         lv_obj_t* status_text = lv_obj_find_by_name(home_panel, "status_text_label");
         if (status_text) {
             lv_obj_set_style_text_font(status_text, &lv_font_montserrat_20, 0);  // Smaller font for tiny
-            LV_LOG_USER("Set status text to montserrat_20 for tiny screen");
+            spdlog::debug("Set status text to montserrat_20 for tiny screen");
         }
     }
 
     int icon_size = (info_icon_font == &fa_icons_24) ? 24 : (info_icon_font == &fa_icons_32) ? 32 : 48;
-    LV_LOG_USER("Set info card icons to %dpx for screen height %d", icon_size, screen_height);
+    spdlog::debug("Set info card icons to {}px for screen height {}", icon_size, screen_height);
 
     // Add observers to watch subjects and update widgets
     lv_subject_add_observer(&network_icon_subject, network_observer_cb, nullptr);
@@ -182,31 +184,31 @@ void ui_panel_home_setup_observers(lv_obj_t* panel) {
         lv_color_t initial_color = lv_subject_get_color(&light_icon_color_subject);
         lv_obj_set_style_img_recolor(light_icon_label, initial_color, LV_PART_MAIN);
         lv_obj_set_style_img_recolor_opa(light_icon_label, 255, LV_PART_MAIN);
-        printf("DEBUG: Applied initial light icon color\n");
+        spdlog::debug("Applied initial light icon color");
     }
 
-    printf("DEBUG: Home panel observers set up successfully\n");
+    spdlog::debug("Home panel observers set up successfully");
 }
 
 lv_obj_t* ui_panel_home_create(lv_obj_t* parent) {
-    printf("DEBUG: ui_panel_home_create called\n");
+    spdlog::debug("Creating home panel");
 
     if (!subjects_initialized) {
-        printf("ERROR: Subjects not initialized! Call ui_panel_home_init_subjects() first!\n");
+        spdlog::error("Subjects not initialized! Call ui_panel_home_init_subjects() first!");
         return nullptr;
     }
 
     // Create the XML component (will bind to subjects automatically)
     home_panel = (lv_obj_t*)lv_xml_create(parent, "home_panel", nullptr);
     if (!home_panel) {
-        printf("ERROR: Failed to create home_panel from XML\n");
+        spdlog::error("Failed to create home_panel from XML");
         return nullptr;
     }
 
     // Setup observers
     ui_panel_home_setup_observers(home_panel);
 
-    printf("DEBUG: XML home_panel created successfully with reactive observers\n");
+    spdlog::debug("XML home_panel created successfully with reactive observers");
     return home_panel;
 }
 
@@ -214,13 +216,13 @@ void ui_panel_home_update(const char* status_text, int temp) {
     // Update subjects - all bound widgets update automatically
     if (status_text) {
         lv_subject_copy_string(&status_subject, status_text);
-        printf("DEBUG: Updated status_text subject to: %s\n", status_text);
+        spdlog::debug("Updated status_text subject to: {}", status_text);
     }
 
     char buf[32];
     snprintf(buf, sizeof(buf), "%d °C", temp);
     lv_subject_copy_string(&temp_subject, buf);
-    printf("DEBUG: Updated temp_text subject to: %s\n", buf);
+    spdlog::debug("Updated temp_text subject to: {}", buf);
 }
 
 void ui_panel_home_set_network(network_type_t type) {
@@ -243,7 +245,7 @@ void ui_panel_home_set_network(network_type_t type) {
             lv_subject_copy_string(&network_color_subject, "0x909090");  // Text secondary
             break;
     }
-    printf("DEBUG: Updated network status to type %d\n", type);
+    spdlog::debug("Updated network status to type {}", static_cast<int>(type));
 }
 
 void ui_panel_home_set_light(bool is_on) {
@@ -256,7 +258,7 @@ void ui_panel_home_set_light(bool is_on) {
         // Light is off - show muted gray
         lv_subject_set_color(&light_icon_color_subject, lv_color_hex(0x909090));
     }
-    printf("DEBUG: Updated light state to: %s\n", is_on ? "ON" : "OFF");
+    spdlog::debug("Updated light state to: {}", is_on ? "ON" : "OFF");
 }
 
 bool ui_panel_home_get_light_state() {
@@ -266,25 +268,22 @@ bool ui_panel_home_get_light_state() {
 static void light_toggle_event_cb(lv_event_t* e) {
     (void)e;  // Unused parameter
 
-    printf("====== LIGHT BUTTON CLICKED! ======\n");
+    spdlog::info("Light button clicked");
 
     // Toggle the light state
     ui_panel_home_set_light(!light_on);
 
     // TODO: Add callback to send command to Klipper
-    // For now, just log the state change
-    printf("Light toggled: %s\n", light_on ? "ON" : "OFF");
+    spdlog::debug("Light toggled: {}", light_on ? "ON" : "OFF");
 }
 
 static void print_card_clicked_cb(lv_event_t* e) {
     (void)e;  // Unused parameter
 
-    printf("====== PRINT CARD CLICKED! ======\n");
+    spdlog::info("Print card clicked - navigating to print select panel");
 
     // Navigate to print select panel
     ui_nav_set_active(UI_PANEL_PRINT_SELECT);
-
-    printf("Navigating to print select panel\n");
 }
 
 // Observer callback for network icon/label/color changes
@@ -315,7 +314,7 @@ static void network_observer_cb(lv_observer_t* observer, lv_subject_t* subject) 
         lv_obj_set_style_text_color(network_text_label, lv_color_hex(color), 0);
     }
 
-    printf("DEBUG: Network observer updated widgets\n");
+    spdlog::trace("Network observer updated widgets");
 }
 
 // Observer callback for light icon color changes
@@ -331,5 +330,5 @@ static void light_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     lv_obj_set_style_img_recolor(light_icon_label, color, LV_PART_MAIN);
     lv_obj_set_style_img_recolor_opa(light_icon_label, 255, LV_PART_MAIN);
 
-    printf("DEBUG: Light observer updated icon color\n");
+    spdlog::trace("Light observer updated icon color");
 }

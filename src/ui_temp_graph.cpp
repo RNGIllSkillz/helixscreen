@@ -21,7 +21,7 @@
 #include "ui_temp_graph.h"
 #include "ui_theme.h"
 #include "../lvgl/src/widgets/chart/lv_chart_private.h"
-#include <stdio.h>
+#include <spdlog/spdlog.h>
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
@@ -160,14 +160,14 @@ static void draw_gradient_fill_cb(lv_event_t* e) {
 // Create temperature graph widget
 ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     if (!parent) {
-        printf("[TempGraph] Error: NULL parent\n");
+        spdlog::error("[TempGraph] NULL parent");
         return nullptr;
     }
 
     // Allocate graph structure
     ui_temp_graph_t* graph = (ui_temp_graph_t*)malloc(sizeof(ui_temp_graph_t));
     if (!graph) {
-        printf("[TempGraph] Error: Failed to allocate graph structure\n");
+        spdlog::error("[TempGraph] Failed to allocate graph structure");
         return nullptr;
     }
 
@@ -183,7 +183,7 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     // Create LVGL chart
     graph->chart = lv_chart_create(parent);
     if (!graph->chart) {
-        printf("[TempGraph] Error: Failed to create chart widget\n");
+        spdlog::error("[TempGraph] Failed to create chart widget");
         free(graph);
         return nullptr;
     }
@@ -221,8 +221,8 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
     // Store graph pointer in chart user data for retrieval
     lv_obj_set_user_data(graph->chart, graph);
 
-    printf("[TempGraph] Created: %d points, %.0f-%.0f°C range\n",
-           graph->point_count, graph->min_temp, graph->max_temp);
+    spdlog::info("[TempGraph] Created: {} points, {:.0f}-{:.0f}°C range",
+                 graph->point_count, graph->min_temp, graph->max_temp);
 
     return graph;
 }
@@ -244,7 +244,7 @@ void ui_temp_graph_destroy(ui_temp_graph_t* graph) {
     }
 
     free(graph);
-    printf("[TempGraph] Destroyed\n");
+    spdlog::debug("[TempGraph] Destroyed");
 }
 
 // Get underlying chart widget
@@ -255,12 +255,12 @@ lv_obj_t* ui_temp_graph_get_chart(ui_temp_graph_t* graph) {
 // Add a new temperature series
 int ui_temp_graph_add_series(ui_temp_graph_t* graph, const char* name, lv_color_t color) {
     if (!graph || !name) {
-        printf("[TempGraph] Error: NULL graph or name\n");
+        spdlog::error("[TempGraph] NULL graph or name");
         return -1;
     }
 
     if (graph->series_count >= UI_TEMP_GRAPH_MAX_SERIES) {
-        printf("[TempGraph] Error: Maximum series count (%d) reached\n", UI_TEMP_GRAPH_MAX_SERIES);
+        spdlog::error("[TempGraph] Maximum series count ({}) reached", UI_TEMP_GRAPH_MAX_SERIES);
         return -1;
     }
 
@@ -274,14 +274,14 @@ int ui_temp_graph_add_series(ui_temp_graph_t* graph, const char* name, lv_color_
     }
 
     if (slot == -1) {
-        printf("[TempGraph] Error: No available series slots\n");
+        spdlog::error("[TempGraph] No available series slots");
         return -1;
     }
 
     // Create LVGL chart series
     lv_chart_series_t* ser = lv_chart_add_series(graph->chart, color, LV_CHART_AXIS_PRIMARY_Y);
     if (!ser) {
-        printf("[TempGraph] Error: Failed to create chart series\n");
+        spdlog::error("[TempGraph] Failed to create chart series");
         return -1;
     }
 
@@ -306,8 +306,8 @@ int ui_temp_graph_add_series(ui_temp_graph_t* graph, const char* name, lv_color_
 
     graph->series_count++;
 
-    printf("[TempGraph] Added series %d '%s' (slot %d, color 0x%06X)\n",
-           meta->id, meta->name, slot, lv_color_to_u32(color));
+    spdlog::debug("[TempGraph] Added series {} '{}' (slot {}, color 0x{:06X})",
+                  meta->id, meta->name, slot, lv_color_to_u32(color));
 
     return meta->id;
 }
@@ -316,7 +316,7 @@ int ui_temp_graph_add_series(ui_temp_graph_t* graph, const char* name, lv_color_
 void ui_temp_graph_remove_series(ui_temp_graph_t* graph, int series_id) {
     ui_temp_series_meta_t* meta = find_series(graph, series_id);
     if (!meta) {
-        printf("[TempGraph] Error: Series %d not found\n", series_id);
+        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -335,14 +335,14 @@ void ui_temp_graph_remove_series(ui_temp_graph_t* graph, int series_id) {
 
     graph->series_count--;
 
-    printf("[TempGraph] Removed series %d (%d series remaining)\n", series_id, graph->series_count);
+    spdlog::debug("[TempGraph] Removed series {} ({} series remaining)", series_id, graph->series_count);
 }
 
 // Show or hide a series
 void ui_temp_graph_show_series(ui_temp_graph_t* graph, int series_id, bool visible) {
     ui_temp_series_meta_t* meta = find_series(graph, series_id);
     if (!meta) {
-        printf("[TempGraph] Error: Series %d not found\n", series_id);
+        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -354,14 +354,14 @@ void ui_temp_graph_show_series(ui_temp_graph_t* graph, int series_id, bool visib
     }
 
     lv_obj_invalidate(graph->chart);
-    printf("[TempGraph] Series %d '%s' %s\n", series_id, meta->name, visible ? "shown" : "hidden");
+    spdlog::debug("[TempGraph] Series {} '{}' {}", series_id, meta->name, visible ? "shown" : "hidden");
 }
 
 // Add a single temperature point (push mode)
 void ui_temp_graph_update_series(ui_temp_graph_t* graph, int series_id, float temp) {
     ui_temp_series_meta_t* meta = find_series(graph, series_id);
     if (!meta) {
-        printf("[TempGraph] Error: Series %d not found\n", series_id);
+        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -373,7 +373,7 @@ void ui_temp_graph_update_series(ui_temp_graph_t* graph, int series_id, float te
 void ui_temp_graph_set_series_data(ui_temp_graph_t* graph, int series_id, const float* temps, int count) {
     ui_temp_series_meta_t* meta = find_series(graph, series_id);
     if (!meta || !temps || count <= 0) {
-        printf("[TempGraph] Error: Invalid parameters\n");
+        spdlog::error("[TempGraph] Invalid parameters");
         return;
     }
 
@@ -390,7 +390,7 @@ void ui_temp_graph_set_series_data(ui_temp_graph_t* graph, int series_id, const 
     }
 
     lv_chart_refresh(graph->chart);
-    printf("[TempGraph] Series %d '%s' data set (%d points)\n", series_id, meta->name, points_to_copy);
+    spdlog::debug("[TempGraph] Series {} '{}' data set ({} points)", series_id, meta->name, points_to_copy);
 }
 
 // Clear all data
@@ -408,14 +408,14 @@ void ui_temp_graph_clear(ui_temp_graph_t* graph) {
     }
 
     lv_chart_refresh(graph->chart);
-    printf("[TempGraph] All data cleared\n");
+    spdlog::debug("[TempGraph] All data cleared");
 }
 
 // Clear data for a specific series
 void ui_temp_graph_clear_series(ui_temp_graph_t* graph, int series_id) {
     ui_temp_series_meta_t* meta = find_series(graph, series_id);
     if (!meta) {
-        printf("[TempGraph] Error: Series %d not found\n", series_id);
+        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -425,14 +425,14 @@ void ui_temp_graph_clear_series(ui_temp_graph_t* graph, int series_id) {
     }
 
     lv_chart_refresh(graph->chart);
-    printf("[TempGraph] Series %d '%s' cleared\n", series_id, meta->name);
+    spdlog::debug("[TempGraph] Series {} '{}' cleared", series_id, meta->name);
 }
 
 // Set target temperature and visibility
 void ui_temp_graph_set_series_target(ui_temp_graph_t* graph, int series_id, float target, bool show) {
     ui_temp_series_meta_t* meta = find_series(graph, series_id);
     if (!meta) {
-        printf("[TempGraph] Error: Series %d not found\n", series_id);
+        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -451,14 +451,14 @@ void ui_temp_graph_set_series_target(ui_temp_graph_t* graph, int series_id, floa
         lv_obj_invalidate(graph->chart);
     }
 
-    printf("[TempGraph] Series %d target: %.1f°C (%s)\n", series_id, target, show ? "shown" : "hidden");
+    spdlog::debug("[TempGraph] Series {} target: {:.1f}°C ({})", series_id, target, show ? "shown" : "hidden");
 }
 
 // Show or hide target temperature line
 void ui_temp_graph_show_target(ui_temp_graph_t* graph, int series_id, bool show) {
     ui_temp_series_meta_t* meta = find_series(graph, series_id);
     if (!meta) {
-        printf("[TempGraph] Error: Series %d not found\n", series_id);
+        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -468,7 +468,7 @@ void ui_temp_graph_show_target(ui_temp_graph_t* graph, int series_id, bool show)
 // Set Y-axis temperature range
 void ui_temp_graph_set_temp_range(ui_temp_graph_t* graph, float min, float max) {
     if (!graph || min >= max) {
-        printf("[TempGraph] Error: Invalid temperature range\n");
+        spdlog::error("[TempGraph] Invalid temperature range");
         return;
     }
 
@@ -477,27 +477,27 @@ void ui_temp_graph_set_temp_range(ui_temp_graph_t* graph, float min, float max) 
 
     lv_chart_set_axis_range(graph->chart, LV_CHART_AXIS_PRIMARY_Y, (int32_t)min, (int32_t)max);
 
-    printf("[TempGraph] Temperature range set: %.0f - %.0f°C\n", min, max);
+    spdlog::debug("[TempGraph] Temperature range set: {:.0f} - {:.0f}°C", min, max);
 }
 
 // Set point count
 void ui_temp_graph_set_point_count(ui_temp_graph_t* graph, int count) {
     if (!graph || count <= 0) {
-        printf("[TempGraph] Error: Invalid point count\n");
+        spdlog::error("[TempGraph] Invalid point count");
         return;
     }
 
     graph->point_count = count;
     lv_chart_set_point_count(graph->chart, count);
 
-    printf("[TempGraph] Point count set: %d\n", count);
+    spdlog::debug("[TempGraph] Point count set: {}", count);
 }
 
 // Set gradient opacity for a series
 void ui_temp_graph_set_series_gradient(ui_temp_graph_t* graph, int series_id, lv_opa_t bottom_opa, lv_opa_t top_opa) {
     ui_temp_series_meta_t* meta = find_series(graph, series_id);
     if (!meta) {
-        printf("[TempGraph] Error: Series %d not found\n", series_id);
+        spdlog::error("[TempGraph] Series {} not found", series_id);
         return;
     }
 
@@ -506,6 +506,6 @@ void ui_temp_graph_set_series_gradient(ui_temp_graph_t* graph, int series_id, lv
 
     lv_obj_invalidate(graph->chart);
 
-    printf("[TempGraph] Series %d gradient: bottom=%d%%, top=%d%%\n",
-           series_id, (bottom_opa * 100) / 255, (top_opa * 100) / 255);
+    spdlog::debug("[TempGraph] Series {} gradient: bottom={}%, top={}%",
+                  series_id, (bottom_opa * 100) / 255, (top_opa * 100) / 255);
 }
