@@ -1,25 +1,25 @@
 # Session Handoff Document
 
-**Last Updated:** 2025-10-25
-**Current Focus:** ✅ **Temperature Panel Responsive Layout Complete**
+**Last Updated:** 2025-10-26
+**Current Focus:** ✅ **Home Panel Print Card Navigation Complete**
 
 ---
 
-## What Was Just Accomplished (2025-10-25 Latest Session)
+## What Was Just Accomplished (2025-10-26)
 
-### Temperature Panel Responsive Layout ✅ COMPLETE
-- **Objective:** Widen temperature panels and improve column proportions to match motion panel
-- **Changes:**
-  - Panel width: 68% → 83% (using `#overlay_panel_width_large`)
-  - Column split: 40%/60% → 66%/33% (graph/controls)
-  - Temperature graph now prominently displayed at 2/3 width
-  - Controls column compact at 1/3 width
-- **Files:** `ui_xml/nozzle_temp_panel.xml`, `ui_xml/bed_temp_panel.xml` (4 line changes each)
-- **Result:** Consistent wide layout across all overlay panels (motion, nozzle-temp, bed-temp)
+### Home Panel Print Card Navigation ✅ COMPLETE
+- **Objective:** Enable navigation to print select panel when clicking the Print Files card
+- **Implementation:**
+  - Converted Print Files card from `<lv_obj>` to `<lv_button>` for click handling
+  - Added `print_card_clicked_cb` event handler calling `ui_nav_set_active(UI_PANEL_PRINT_SELECT)`
+  - Registered callback in home panel subject initialization
+  - Maintained card appearance (no shadows, card background color)
+- **Files:** `ui_xml/home_panel.xml`, `src/ui_panel_home.cpp` (+ ui_nav.h include)
+- **Result:** Clicking Print Files card navigates to print select panel
 
 ---
 
-## Previous Session (2025-10-25 Earlier)
+## Previous Session (2025-10-25)
 
 ### Temperature Graph Gradient Rendering Fix ✅ COMPLETE
 - **Objective:** Fix gradient fills to only render under the actual temperature curve, not the entire chart height
