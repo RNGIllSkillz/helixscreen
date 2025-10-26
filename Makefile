@@ -68,7 +68,7 @@ TEST_BIN := $(BIN_DIR)/run_tests
 TEST_SRCS := $(wildcard $(TEST_UNIT_DIR)/*.cpp)
 TEST_OBJS := $(patsubst $(TEST_UNIT_DIR)/%.cpp,$(OBJ_DIR)/tests/%.o,$(TEST_SRCS))
 
-.PHONY: all clean run test test-cards test-print-select
+.PHONY: all clean run test test-cards test-print-select demo compile_commands
 
 all: $(TARGET)
 
@@ -202,4 +202,18 @@ $(MOCK_FILES_OBJ): $(TEST_DIR)/mock_print_files.cpp
 	@mkdir -p $(dir $@)
 	@echo "Compiling $<..."
 	@$(CXX) $(CXXFLAGS) -I$(TEST_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
+
+# Generate compile_commands.json for IDE/LSP support
+compile_commands:
+	@echo "Checking for bear..."
+	@if ! command -v bear >/dev/null 2>&1; then \
+		echo "Error: 'bear' not found. Install with: brew install bear"; \
+		exit 1; \
+	fi
+	@echo "Generating compile_commands.json..."
+	@bear -- $(MAKE) clean
+	@bear -- $(MAKE) -j$(NPROC)
+	@echo "✓ compile_commands.json generated"
+	@echo ""
+	@echo "IDE/LSP integration ready. Restart your editor to pick up changes."
 

@@ -1,291 +1,308 @@
 # HelixScreen LVGL 9 UI Prototype
 
-Modern, declarative XML-based UI for HelixScreen using LVGL 9 with reactive data binding.
+Modern, declarative XML-based touch UI for 3D printer control using LVGL 9 with reactive data binding.
+
+## Overview
+
+This is a prototype UI system for HelixScreen that demonstrates a modern approach to embedded UI development:
+
+- **Declarative XML layouts** separate UI structure from application logic
+- **Reactive data binding** eliminates manual widget management
+- **SDL2 simulator** enables rapid development on desktop before deploying to embedded hardware
+- **Theme system** allows global style changes in a single file
+
+**Key Innovation:** The entire UI is defined in XML files. C++ code only handles initialization and reactive data updates—zero layout or styling logic.
+
+## Quick Start
+
+### Prerequisites
+
+**macOS:**
+```bash
+brew install sdl2 bear imagemagick python3
+```
+
+**Debian/Ubuntu:**
+```bash
+sudo apt install libsdl2-dev bear imagemagick python3 clang make
+```
+
+**Fedora/RHEL/CentOS:**
+```bash
+sudo dnf install SDL2-devel bear ImageMagick python3 clang make
+```
+
+**Dependencies:**
+- **Required:** `clang`, `libsdl2-dev`/`SDL2-devel`, `make`, `python3`
+- **Optional:** `bear` (IDE/LSP support), `imagemagick` (screenshots)
+
+### Build & Run
+
+```bash
+# Build (auto-parallel, uses all CPU cores)
+make
+
+# Run simulator
+./build/bin/helix-ui-proto
+
+# Generate IDE support (one-time setup)
+make compile_commands
+
+# Clean rebuild
+make clean && make
+```
+
+**Controls:**
+- Click navigation icons to switch panels
+- Press **S** to save screenshot
+- Close window to exit
 
 ## Features
 
-- **LVGL 9.3.0** - Latest version with XML support, flex layouts, and enhanced rendering
-- **Declarative XML UI** - Complete UI defined in XML files, separate from application logic
-- **Reactive Data Binding** - Subject-Observer pattern for automatic UI updates
-- **Clickable Navigation** - Icon-based navigation with reactive color highlighting
-- **Hybrid Icons** - Mix FontAwesome fonts and custom PNG images with unified reactive recoloring
-- **SDL2 Display** - Cross-platform simulator for rapid development
-- **FontAwesome 6** - Icon font integration with auto-generated constants
-- **Custom SVG Icons** - Convert SVG to PNG with automatic reactive color support
-- **Theme System** - Global constants in XML for easy theme customization
-- **Platform-Independent Screenshots** - LVGL native snapshot API
-- **Hot-Reload Friendly** - XML changes without recompilation
+### Declarative XML UI System
+
+Complete UI defined in XML files without touching C++ for layout or styling:
+
+```xml
+<!-- Define a panel in XML -->
+<component>
+  <view extends="lv_obj" style_bg_color="#bg_dark" style_pad_all="20">
+    <lv_label text="Nozzle Temperature" style_text_color="#text_primary"/>
+    <lv_label bind_text="temp_text" style_text_font="montserrat_28"/>
+  </view>
+</component>
+```
+
+```cpp
+// C++ is pure logic - zero layout code
+ui_panel_nozzle_init_subjects();
+lv_xml_create(screen, "nozzle_panel", NULL);
+ui_panel_nozzle_update(210);  // All bound widgets update automatically
+```
+
+### Reactive Data Binding
+
+LVGL 9's Subject-Observer pattern enables automatic UI updates:
+
+- **No manual widget searching** - XML bindings handle everything
+- **Type-safe updates** - C++ API prevents runtime errors
+- **One update, multiple widgets** - All bound elements react instantly
+- **Clean separation** - UI structure and business logic are independent
+
+### Global Theme System
+
+Define colors, sizes, and constants in one place (`ui_xml/globals.xml`):
+
+```xml
+<consts>
+  <color name="primary_color" value="0xff4444"/>
+  <color name="bg_dark" value="0x1a1a1a"/>
+  <px name="nav_width" value="102"/>
+</consts>
+```
+
+Reference with `#name` syntax throughout all XML files. Change theme globally by editing one file.
+
+### Hybrid Icon System
+
+Mix FontAwesome fonts and custom PNG icons with unified reactive recoloring:
+
+- **FontAwesome 6** icons auto-generated from C++ constants
+- **Custom SVG icons** converted to PNG with ImageMagick
+- **Reactive colors** - icons change color on selection automatically
+- **Type-agnostic** - system handles fonts and images identically
+
+### Platform-Independent Screenshots
+
+- Press **S** during runtime for timestamped screenshots
+- Uses LVGL's native `lv_snapshot_take()` API
+- Works on any display backend (SDL, framebuffer, DRM)
+- Automated screenshot script for CI/testing
+
+## Architecture
+
+```
+XML Layout (ui_xml/*.xml)
+    ↓ bind_text / bind_value / bind_flag
+Reactive Subjects (lv_subject_t)
+    ↓ lv_subject_set_* / copy_*
+C++ Application Logic (src/*.cpp)
+```
+
+### Component Hierarchy
+
+```
+app_layout.xml
+├── navigation_bar.xml      # 5-button vertical navigation
+└── content_area
+    ├── home_panel.xml       # Print status overview
+    ├── controls_panel.xml   # Motion/temperature/extrusion launcher
+    │   ├── motion_panel.xml
+    │   ├── nozzle_temp_panel.xml
+    │   ├── bed_temp_panel.xml
+    │   └── extrusion_panel.xml
+    ├── print_select_panel.xml
+    ├── filament_panel.xml
+    ├── settings_panel.xml
+    └── advanced_panel.xml
+```
+
+All components reference `globals.xml` for shared constants.
 
 ## Project Structure
 
 ```
 prototype-ui9/
-├── src/
-│   ├── main.cpp                 # Application entry point with subject init
-│   ├── ui_panel_home_xml.cpp    # Home panel C++ wrapper with reactive binding
-│   └── ui_nav.cpp               # Legacy C++ navbar (for reference)
-├── include/
-│   ├── ui_panel_home_xml.h      # Home panel API with subjects
-│   ├── ui_fonts.h               # FontAwesome icon declarations
-│   └── ui_theme.h               # Theme color definitions
-├── ui_xml/
-│   ├── globals.xml              # Global constants (colors, sizes, auto-generated icons)
-│   ├── app_layout.xml           # Root layout: navbar + content
-│   ├── navigation_bar.xml       # Vertical navigation with proper flex layout
-│   └── home_panel.xml           # Home screen with reactive data bindings
+├── src/                    # C++ application logic
+│   ├── main.cpp            # Entry point, subject initialization
+│   ├── ui_nav.cpp          # Navigation state management
+│   ├── ui_panel_*.cpp      # Panel-specific reactive bindings
+│   └── ui_*.cpp            # Shared utilities
+├── include/                # C++ headers
+│   ├── ui_fonts.h          # FontAwesome icon constants
+│   └── ui_*.h              # Panel APIs and utilities
+├── ui_xml/                 # Declarative UI layouts
+│   ├── globals.xml         # Theme constants (colors, sizes, icons)
+│   ├── app_layout.xml      # Root layout structure
+│   └── *_panel.xml         # Individual panel definitions
 ├── assets/
-│   ├── fonts/                   # Custom fonts (FontAwesome 6)
-│   └── images/                  # UI images
-├── docs/
-│   ├── XML_UI_SYSTEM.md         # Complete XML UI system guide
-│   └── QUICK_REFERENCE.md       # Quick reference for common patterns
+│   ├── fonts/              # FontAwesome 6 font files
+│   └── images/             # UI icons and graphics
+├── docs/                   # Detailed documentation
+│   ├── LVGL9_XML_GUIDE.md  # Complete XML system reference
+│   ├── QUICK_REFERENCE.md  # Common patterns and gotchas
+│   └── COPYRIGHT_HEADERS.md
 └── scripts/
-    ├── generate-icon-consts.py  # Auto-generate FontAwesome icon constants
-    └── screenshot.sh            # Build, run, and capture screenshots
+    ├── generate-icon-consts.py  # Auto-generate icon constants
+    └── screenshot.sh            # Automated screenshot tool
 ```
 
-## Building
+## Development Workflow
+
+1. **Edit XML** for layout/styling changes (no recompilation needed)
+2. **Edit C++** for logic/subjects changes → `make`
+3. **Test** with `./build/bin/helix-ui-proto [panel_name]`
+4. **Screenshot** with `./scripts/screenshot.sh` or press **S** in UI
+5. **Commit** with working incremental changes
+
+### Icon Generation
+
+FontAwesome icons are auto-generated to avoid UTF-8 encoding issues:
 
 ```bash
-# Build the prototype
-make
-
-# Clean rebuild
-make clean && make
-
-# Run
-./build/bin/helix-ui-proto
-
-# Quick build + screenshot
-./scripts/screenshot.sh [binary_name] [output_name]
-
-# Controls
-# Click navigation icons to switch panels
-# Press S: Save screenshot
-# Close window to exit
-```
-
-## XML UI System
-
-The entire UI is defined declaratively in XML files, separate from application logic.
-
-### Component Hierarchy
-
-```
-app_layout.xml          # Root: horizontal container with nav + content
-├── navigation_bar.xml  # Left: vertical icon navigation (5 buttons)
-└── home_panel.xml      # Right: printer status with image + info cards
-```
-
-All components reference `globals.xml` for shared theme constants.
-
-### Global Constants
-
-Define shared theme values in `ui_xml/globals.xml`:
-
-```xml
-<component>
-    <consts>
-        <!-- Colors -->
-        <color name="bg_dark" value="0x1a1a1a"/>
-        <color name="primary_color" value="0xff4444"/>
-
-        <!-- Dimensions -->
-        <px name="nav_width" value="102"/>
-        <px name="card_radius" value="8"/>
-    </consts>
-    <view extends="lv_obj"/>
-</component>
-```
-
-Reference constants with `#name` syntax: `style_bg_color="#bg_dark"`
-
-**Key Benefit:** Change theme colors in one file, affects entire UI instantly.
-
-### Component Registration & Usage
-
-Components must be registered before use (order matters - globals first):
-
-```cpp
-// 1. Register fonts and images globally
-lv_xml_register_font(NULL, "fa_icons_64", &fa_icons_64);
-lv_xml_register_image(NULL, "printer_img", "A:/path/to/image.png");
-
-// 2. Register XML components (globals first!)
-lv_xml_component_register_from_file("A:/path/to/globals.xml");
-lv_xml_component_register_from_file("A:/path/to/navigation_bar.xml");
-lv_xml_component_register_from_file("A:/path/to/home_panel.xml");
-lv_xml_component_register_from_file("A:/path/to/app_layout.xml");
-
-// 3. Create entire UI (one line!)
-lv_xml_create(screen, "app_layout", NULL);
-```
-
-The C++ code is now **pure initialization and reactive updates** - zero layout or styling logic!
-
-## Reactive Data Binding
-
-LVGL 9's Subject-Observer pattern enables automatic UI updates without manual widget references:
-
-```cpp
-// 1. Initialize subjects before XML creation
-ui_panel_home_xml_init_subjects();
-
-// 2. Create UI from XML (automatically binds to registered subjects)
-lv_xml_create(screen, "app_layout", NULL);
-
-// 3. Update from anywhere (all bound widgets update automatically)
-ui_panel_home_xml_update("Printing...", 210);
-```
-
-XML bindings:
-```xml
-<!-- Labels automatically update when subjects change -->
-<lv_label bind_text="status_text" style_text_color="#text_primary"/>
-<lv_label bind_text="temp_text" style_text_font="montserrat_28"/>
-```
-
-**Key Benefits:**
-- No manual widget searching/storing
-- Type-safe updates through C++ API
-- One update triggers all bound widgets
-- Clean separation of UI and logic
-
-### Font and Image Registration
-
-Fonts and images must be registered globally before loading XML:
-
-```cpp
-lv_xml_register_font(NULL, "fa_icons_64", &fa_icons_64);
-lv_xml_register_font(NULL, "montserrat_16", &lv_font_montserrat_16);
-lv_xml_register_image(NULL, "image_name", "A:/path/to/image.png");
-```
-
-## FontAwesome Icons
-
-Icons are auto-generated in `globals.xml` to avoid UTF-8 editing issues:
-
-```bash
-# Regenerate icon constants from ui_fonts.h definitions
+# After editing icon definitions in include/ui_fonts.h
 python3 scripts/generate-icon-consts.py
 ```
 
-Icon definitions (`include/ui_fonts.h`):
-- `ICON_HOME` (0xF015) - House
-- `ICON_CONTROLS` (0xF1DE) - Sliders
-- `ICON_FILAMENT` (0xF576) - Fill drip
-- `ICON_SETTINGS` (0xF013) - Gear
-- `ICON_ADVANCED` (0xF142) - Ellipsis vertical
+This updates `ui_xml/globals.xml` with UTF-8 byte sequences for all icons.
 
-Reference in XML:
-```xml
-<lv_label text="#icon_home" style_text_font="fa_icons_64"/>
-```
+### Screenshot Workflow
 
-## Custom PNG Icons with Reactive Recoloring
-
-You can mix custom PNG icons with FontAwesome fonts in the navigation bar. The system automatically detects widget type and applies appropriate reactive styling.
-
-**Convert SVG to PNG:**
 ```bash
-magick -background none -channel RGB -negate source.svg -resize 70x70 output.png
+# Interactive: press S while running
+./build/bin/helix-ui-proto
+
+# Automated: build + run + screenshot
+./scripts/screenshot.sh helix-ui-proto output-name [panel]
+
+# Examples
+./scripts/screenshot.sh helix-ui-proto home-screen home
+./scripts/screenshot.sh helix-ui-proto motion-panel motion
 ```
 
-**Register in main.cpp:**
-```cpp
-lv_xml_register_image(NULL, "filament_spool", "A:/path/to/filament_spool.png");
-```
+Screenshots saved to `/tmp/[output-name].png`
 
-**Use in XML:**
-```xml
-<lv_button>
-    <lv_image src="filament_spool" align="center" style_img_recolor_opa="255"/>
-</lv_button>
-```
+## Key Technical Details
 
-**Key Requirements:**
-- PNG must have **white pixels** on transparent background for recoloring to work
-- Set `style_img_recolor_opa="255"` in XML to enable recoloring
-- Navigation system uses `lv_obj_set_style_img_recolor()` for reactive color changes
+### Subject Initialization Order
 
-## Screenshots
-
-**Interactive Mode:**
-- Press 'S' while running to save a screenshot with unique timestamp
-- Files saved to `/tmp/ui-screenshot-{timestamp}.bmp`
-
-**Automated Mode:**
-```bash
-./scripts/screenshot.sh                    # Default: helix-ui-proto
-./scripts/screenshot.sh helix-ui-proto ui5 # Named: ui-screenshot-ui5.png
-```
-
-**Implementation:**
-- Uses LVGL's native `lv_snapshot_take()` API (platform-independent)
-- Works on any display backend (SDL, framebuffer, DRM, etc.)
-- Custom BMP encoder (~40 lines) for simplicity
-
-## Configuration
-
-Key LVGL settings in `lv_conf.h`:
-- `LV_USE_XML 1` - Enable XML UI support
-- `LV_USE_SNAPSHOT 1` - Enable screenshot API
-- `LV_USE_DRAW_SW_COMPLEX_GRADIENTS 1` - Required by XML parser
-- `LV_FONT_MONTSERRAT_16/20/28 1` - Enable text fonts
-
-## Event Loop & SDL Integration
-
-**CRITICAL**: LVGL's SDL driver handles all event polling internally. Do NOT call `SDL_PollEvent()` manually:
+**Critical:** Initialize subjects BEFORE creating XML:
 
 ```cpp
-// ✓ CORRECT - Let LVGL handle everything
+// 1. Register XML components
+lv_xml_component_register_from_file("A:/ui_xml/globals.xml");
+lv_xml_component_register_from_file("A:/ui_xml/home_panel.xml");
+
+// 2. Initialize subjects
+ui_nav_init();
+ui_panel_home_init_subjects();
+
+// 3. NOW create UI
+lv_xml_create(screen, "app_layout", NULL);
+```
+
+If subjects are created in XML before C++ initialization, they'll have empty/default values.
+
+### Event Loop Integration
+
+**Important:** LVGL's SDL driver handles all event polling internally. Never call `SDL_PollEvent()` manually:
+
+```cpp
+// ✓ CORRECT
 while (lv_display_get_next(NULL)) {
     lv_timer_handler();  // Internally polls SDL events
     SDL_Delay(5);
 }
 
-// ✗ WRONG - Breaks click events and violates display driver abstraction
+// ✗ WRONG - breaks click events
 while (running) {
     SDL_Event event;
-    SDL_PollEvent(&event);  // Drains event queue before LVGL sees it!
+    SDL_PollEvent(&event);  // Drains queue before LVGL sees it
     lv_timer_handler();
 }
 ```
 
-**Why This Matters:**
-- LVGL creates an internal timer (every 5ms) that calls `SDL_PollEvent()`
-- Manual polling consumes events before LVGL's timer runs
-- Result: Mouse clicks never reach LVGL's input system
-- This applies to ALL display drivers (SDL, DRM, framebuffer, etc.)
+This applies to ALL display drivers (SDL, framebuffer, DRM).
 
-**Required Setup:**
-```cpp
-lv_display_t* display = lv_sdl_window_create(1024, 800);
-lv_indev_t* mouse = lv_sdl_mouse_create();  // REQUIRED for clicks!
-```
+### LVGL Configuration
 
-The `lv_sdl_mouse_create()` call is essential - it registers the input device that converts SDL mouse events to LVGL input events.
+Key settings in `lv_conf.h`:
+- `LV_USE_XML 1` - Enable XML UI support
+- `LV_USE_SNAPSHOT 1` - Enable screenshot API
+- `LV_USE_DRAW_SW_COMPLEX_GRADIENTS 1` - Required by XML parser
+- `LV_FONT_MONTSERRAT_16/20/28 1` - Text fonts
 
 ## Documentation
 
-- **[XML UI System Guide](docs/XML_UI_SYSTEM.md)** - Complete guide with examples
-- **[Quick Reference](docs/QUICK_REFERENCE.md)** - Common patterns and gotchas
+- **[LVGL 9 XML Guide](docs/LVGL9_XML_GUIDE.md)** - Complete XML system reference with troubleshooting
+- **[Quick Reference](docs/QUICK_REFERENCE.md)** - Common patterns and code snippets
+- **[CLAUDE.md](CLAUDE.md)** - Project context for AI assistants
+- **[HANDOFF.md](HANDOFF.md)** - Current work status and priorities
+- **[STATUS.md](STATUS.md)** - Development history and changelog
 
-## Notes
+## Current Status
 
-- XML support is experimental in LVGL 9.3.0
-- Uses POSIX filesystem with 'A:' drive letter for file paths
-- All XML files must be UTF-8 encoded
-- Flex layouts: use `style_flex_main_place`/`style_flex_cross_place` (not `flex_align`)
-- Subject initialization must happen before XML creation
-- **Never call `SDL_PollEvent()` manually** - violates display driver abstraction
-- Navigation uses C++ event handlers (`ui_nav.cpp`) with reactive Subject-Observer pattern
+**Completed:**
+- ✅ XML-based declarative UI system
+- ✅ Reactive Subject-Observer data binding
+- ✅ Navigation with back button support and history stack
+- ✅ All major panels implemented (home, controls, motion, temps, extrusion, print select)
+- ✅ Hybrid icon system (FontAwesome + PNG)
+- ✅ Global theme system
+- ✅ Multi-screen responsive layouts (tiny, small, large)
+- ✅ Platform-independent screenshots
 
-## Next Steps
-
-- [x] Implement clickable navigation between panels
-- [ ] Add content to remaining panels (Controls, Filament, Settings, Advanced)
-- [ ] Add animations and transitions
-- [ ] Integrate with Klipper/Moonraker backend
+**Next:**
+- [ ] Integrate Klipper/Moonraker WebSocket backend
 - [ ] Theme variants (light mode)
-- [ ] Integer subjects for numeric displays (progress bars, sliders)
+- [ ] Animations and transitions
+- [ ] Production framebuffer deployment
+
+## Notes & Gotchas
+
+- **XML support is experimental** in LVGL 9.3.0
+- Uses POSIX filesystem with **'A:' drive letter** for file paths
+- All XML files must be **UTF-8 encoded**
+- Flex layouts: use `style_flex_main_place`/`style_flex_cross_place` (not deprecated `flex_align`)
+- Component names come from **filenames**, not `<view name="...">` attributes
+- Always add explicit `name="..."` attributes when instantiating components in XML
+
+## License
+
+GPL v3 - See individual source files for copyright headers.
+
+## Related Projects
+
+- **[GuppyScreen](https://github.com/ballaswag/guppyscreen)** - Parent project (LVGL 8, production)
+- **[LVGL](https://lvgl.io/)** - Light and Versatile Graphics Library
+- **[Klipper](https://www.klipper3d.org/)** - 3D printer firmware

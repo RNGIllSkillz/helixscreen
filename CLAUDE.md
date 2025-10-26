@@ -8,11 +8,43 @@ This is the **LVGL 9 UI Prototype** for HelixScreen - a declarative XML-based to
 
 **Key Innovation:** Complete separation of UI layout (XML) from business logic (C++), similar to modern web frameworks. No manual widget management - all updates happen through reactive subjects.
 
+## Build Requirements
+
+### macOS (Homebrew)
+```bash
+brew install sdl2 bear imagemagick python3
+```
+
+### Debian/Ubuntu (apt)
+```bash
+sudo apt install libsdl2-dev bear imagemagick python3 clang make
+```
+
+### Fedora/RHEL/CentOS (dnf/yum)
+```bash
+sudo dnf install SDL2-devel bear ImageMagick python3 clang make
+# OR on older systems:
+sudo yum install SDL2-devel bear ImageMagick python3 clang make
+```
+
+**Required:**
+- `clang` - C/C++ compiler (C++17 support)
+- `libsdl2-dev` / `SDL2-devel` - SDL2 display simulator
+- `make` - GNU Make build system
+- `python3` - Icon generation scripts
+
+**Optional (for IDE support):**
+- `bear` - Generates `compile_commands.json` for LSP/clangd
+
+**Optional (for screenshots):**
+- `imagemagick` - BMP to PNG conversion in screenshot script
+
 ## Quick Commands
 
 ```bash
 make                          # Incremental build (auto-parallel)
 make clean && make            # Clean rebuild
+make compile_commands         # Generate compile_commands.json for IDE/LSP
 ./build/bin/helix-ui-proto    # Run simulator
 python3 scripts/generate-icon-consts.py  # Regenerate icon constants
 ```
