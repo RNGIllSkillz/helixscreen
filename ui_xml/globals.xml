@@ -96,8 +96,8 @@
 
 	<!-- Button dimensions -->
 	<px name="button_height" value="50" />
-	<px name="button_padding" value="12" />
 	<px name="button_height_small" value="48" />
+	<px name="button_padding" value="12" />
 	<!-- Icon buttons, back buttons -->
 	<px name="button_height_normal" value="56" />
 	<!-- Primary action buttons -->
@@ -117,7 +117,7 @@
 	<!-- Printer image height in printer identification screen -->
 
 	<!-- Input field dimensions (text inputs, dropdowns, rollers) -->
-	<px name="input_border_width" value="3" />
+	<px name="input_border_width" value="1" />
 	<!-- Border width for input fields (prominent for visibility) -->
 
 	<!-- Card styling -->

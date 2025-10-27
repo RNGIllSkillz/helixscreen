@@ -532,8 +532,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Show splash screen
-    show_splash_screen();
+    // Show splash screen (DISABLED for faster dev iteration)
+    // show_splash_screen();
 
     // Create main screen
     lv_obj_t* screen = lv_screen_active();
