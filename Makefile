@@ -122,10 +122,11 @@ LV_CONF := -DLV_CONF_INCLUDE_SIMPLE
 # Test configuration
 TEST_DIR := tests
 TEST_UNIT_DIR := $(TEST_DIR)/unit
-TEST_FRAMEWORK_DIR := $(TEST_DIR)/framework
 TEST_BIN := $(BIN_DIR)/run_tests
 TEST_SRCS := $(wildcard $(TEST_UNIT_DIR)/*.cpp)
 TEST_OBJS := $(patsubst $(TEST_UNIT_DIR)/%.cpp,$(OBJ_DIR)/tests/%.o,$(TEST_SRCS))
+TEST_MAIN_OBJ := $(OBJ_DIR)/tests/test_main.o
+CATCH2_OBJ := $(OBJ_DIR)/tests/catch_amalgamated.o
 
 .PHONY: all clean run test test-cards test-print-select demo compile_commands libhv-build apply-patches help check-deps
 
@@ -347,20 +348,62 @@ $(OBJ_DIR)/lvgl/demos/%.o: $(LVGL_DIR)/demos/%.c
 	$(Q)$(CC) -c $< -o $@ $(LVGL_INC) $(CFLAGS)
 
 # Test targets
-test: $(TEST_BIN)
-	$(ECHO) "$(CYAN)Running unit tests...$(RESET)"
-	$(Q)$(TEST_BIN)
+# New Catch2 v3 tests (wizard validation only for now)
+TEST_WIZARD_BIN := $(BIN_DIR)/test_wizard_validation
+TEST_WIZARD_OBJ := $(OBJ_DIR)/tests/test_wizard_validation.o
 
-$(TEST_BIN): $(TEST_OBJS) $(LVGL_OBJS) $(THORVG_OBJS) $(OBJ_DIR)/ui_nav.o $(OBJ_DIR)/ui_temp_graph.o
+test-wizard: $(TEST_WIZARD_BIN)
+	$(ECHO) "$(CYAN)$(BOLD)Running wizard validation tests...$(RESET)"
+	$(Q)$(TEST_WIZARD_BIN) || { \
+		echo "$(RED)$(BOLD)✗ Tests failed!$(RESET)"; \
+		exit 1; \
+	}
+	$(ECHO) "$(GREEN)$(BOLD)✓ All tests passed!$(RESET)"
+
+$(TEST_WIZARD_BIN): $(TEST_MAIN_OBJ) $(CATCH2_OBJ) $(TEST_WIZARD_OBJ) $(OBJ_DIR)/wizard_validation.o
 	$(Q)mkdir -p $(BIN_DIR)
-	$(ECHO) "$(MAGENTA)[LD]$(RESET) run_tests"
-	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
+	$(ECHO) "$(MAGENTA)$(BOLD)[LD]$(RESET) test_wizard_validation"
+	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ || { \
+		echo "$(RED)$(BOLD)✗ Test linking failed!$(RESET)"; \
+		exit 1; \
+	}
 	$(ECHO) "$(GREEN)✓ Test binary ready$(RESET)"
 
+# Old test framework (to be migrated later)
+test: $(TEST_BIN)
+	$(ECHO) "$(CYAN)$(BOLD)Running unit tests...$(RESET)"
+	$(Q)$(TEST_BIN) || { \
+		echo "$(RED)$(BOLD)✗ Tests failed!$(RESET)"; \
+		exit 1; \
+	}
+	$(ECHO) "$(GREEN)$(BOLD)✓ All tests passed!$(RESET)"
+
+$(TEST_BIN): $(TEST_MAIN_OBJ) $(CATCH2_OBJ) $(TEST_OBJS) $(OBJ_DIR)/wizard_validation.o $(LVGL_OBJS) $(THORVG_OBJS) $(OBJ_DIR)/ui_nav.o $(OBJ_DIR)/ui_temp_graph.o
+	$(Q)mkdir -p $(BIN_DIR)
+	$(ECHO) "$(MAGENTA)$(BOLD)[LD]$(RESET) run_tests"
+	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) || { \
+		echo "$(RED)$(BOLD)✗ Test linking failed!$(RESET)"; \
+		exit 1; \
+	}
+	$(ECHO) "$(GREEN)✓ Test binary ready$(RESET)"
+
+# Compile test main (Catch2 runner)
+$(TEST_MAIN_OBJ): $(TEST_DIR)/test_main.cpp
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(BLUE)[TEST-MAIN]$(RESET) $<"
+	$(Q)$(CXX) $(CXXFLAGS) -I$(TEST_DIR) -c $< -o $@
+
+# Compile Catch2 amalgamated source
+$(CATCH2_OBJ): $(TEST_DIR)/catch_amalgamated.cpp
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(BLUE)[CATCH2]$(RESET) $<"
+	$(Q)$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Compile test sources
 $(OBJ_DIR)/tests/%.o: $(TEST_UNIT_DIR)/%.cpp
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
-	$(Q)$(CXX) $(CXXFLAGS) -I$(TEST_FRAMEWORK_DIR) $(INCLUDES) $(LV_CONF) -c $< -o $@
+	$(Q)$(CXX) $(CXXFLAGS) -I$(TEST_DIR) $(INCLUDES) -c $< -o $@
 
 # Dynamic card instantiation test
 TEST_CARDS_BIN := $(BIN_DIR)/test_dynamic_cards
