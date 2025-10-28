@@ -18,23 +18,26 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "ui_icon_loader.h"
-#include "helix_icon_data.h"
-#include "lvgl/src/drivers/sdl/lv_sdl_window.h"
-#include <spdlog/spdlog.h>
+#ifndef UI_ICON_LOADER_H
+#define UI_ICON_LOADER_H
 
-bool ui_set_window_icon(lv_display_t* disp) {
-    spdlog::debug("[Icon] Setting window icon...");
+#include "lvgl/lvgl.h"
 
-    if (!disp) {
-        spdlog::error("[Icon] Cannot set icon: display is NULL");
-        return false;
-    }
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    // Use embedded icon data from helix_icon_data.h
-    // 64x64 pixels, ARGB8888 format
-    lv_sdl_window_set_icon(disp, (void*)helix_icon_64x64, 64, 64);
+/**
+ * Set the window icon for the LVGL SDL display.
+ * Loads assets/images/helix-icon-64.png and applies it to the window.
+ *
+ * @param disp  The LVGL display (from lv_sdl_window_create)
+ * @return true if icon was loaded successfully, false otherwise
+ */
+bool ui_set_window_icon(lv_display_t* disp);
 
-    spdlog::debug("[Icon] Window icon set (64x64 embedded data)");
-    return true;
+#ifdef __cplusplus
 }
+#endif
+
+#endif  // UI_ICON_LOADER_H
