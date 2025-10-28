@@ -331,6 +331,7 @@ int main(int argc, char** argv) {
     bool screenshot_enabled = false;  // Enable automatic screenshot
     int screenshot_delay_sec = 2;  // Screenshot delay in seconds (default: 2)
     int timeout_sec = 0;  // Auto-quit timeout in seconds (0 = disabled)
+    int verbosity = 0;  // Verbosity level (0=warn, 1=info, 2=debug, 3=trace)
 
     // Parse arguments
     for (int i = 1; i < argc; i++) {
@@ -500,6 +501,16 @@ int main(int argc, char** argv) {
                 printf("Error: --timeout/-t requires a number argument\n");
                 return 1;
             }
+        } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "-vv") == 0 || strcmp(argv[i], "-vvv") == 0) {
+            // Count the number of 'v' characters for verbosity level
+            const char* p = argv[i];
+            while (*p == '-') p++;  // Skip leading dashes
+            while (*p == 'v') {
+                verbosity++;
+                p++;
+            }
+        } else if (strcmp(argv[i], "--verbose") == 0) {
+            verbosity++;
         } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             printf("Usage: %s [options]\n", argv[0]);
             printf("Options:\n");
@@ -513,6 +524,7 @@ int main(int argc, char** argv) {
             printf("  -y, --y-pos <n>      Y coordinate for window position\n");
             printf("  --screenshot [sec]   Take screenshot after delay (default: 2 seconds)\n");
             printf("  -t, --timeout <sec>  Auto-quit after specified seconds (1-3600)\n");
+            printf("  -v, --verbose        Increase verbosity (-v=info, -vv=debug, -vvv=trace)\n");
             printf("  -h, --help           Show this help message\n");
             printf("\nAvailable panels:\n");
             printf("  home, controls, motion, nozzle-temp, bed-temp, extrusion,\n");
@@ -558,6 +570,22 @@ int main(int argc, char** argv) {
                 return 1;
             }
         }
+    }
+
+    // Set spdlog log level based on verbosity flags
+    switch (verbosity) {
+        case 0:
+            spdlog::set_level(spdlog::level::warn);  // Default: warnings and errors only
+            break;
+        case 1:
+            spdlog::set_level(spdlog::level::info);  // -v: general information
+            break;
+        case 2:
+            spdlog::set_level(spdlog::level::debug);  // -vv: debug information
+            break;
+        default:  // 3 or more
+            spdlog::set_level(spdlog::level::trace);  // -vvv: trace everything
+            break;
     }
 
     printf("HelixScreen UI Prototype\n");

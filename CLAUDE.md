@@ -155,6 +155,28 @@ spdlog::warn("Warning condition");                // Recoverable issues, fallbac
 spdlog::error("Error condition");                 // Failed operations, missing resources
 ```
 
+### Default Log Level & Verbosity Control
+
+**Default Level:** `warn` (shows only warnings and errors)
+
+To increase verbosity, use command-line flags:
+```bash
+# Default (warn): Only warnings and errors
+./build/bin/helix-ui-proto
+
+# Info level: General information + warnings + errors
+./build/bin/helix-ui-proto -v
+./build/bin/helix-ui-proto --verbose
+
+# Debug level: Detailed debugging + info + warnings + errors
+./build/bin/helix-ui-proto -vv
+
+# Trace level: Everything (very verbose)
+./build/bin/helix-ui-proto -vvv
+```
+
+**Tip:** For development and debugging, use `-v` or `-vv` to see initialization messages, state changes, and connection events. Use `-vvv` only when diagnosing complex issues (produces very verbose output).
+
 ### Formatting
 
 - Use **fmt-style formatting** (modern C++ format): `spdlog::info("Value: {}", val);`
