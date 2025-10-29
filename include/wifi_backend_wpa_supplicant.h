@@ -23,6 +23,8 @@
 #include <string>
 #include <functional>
 #include <map>
+#include <vector>
+#include "wifi_backend.h"  // Base class
 
 #ifndef __APPLE__
 // ============================================================================
@@ -32,6 +34,7 @@
 #include "hv/hloop.h"
 #include "hv/EventLoop.h"
 #include "hv/EventLoopThread.h"
+#include <mutex>
 
 // Forward declaration - avoid including wpa_ctrl.h in header
 struct wpa_ctrl;
@@ -51,7 +54,7 @@ struct wpa_ctrl;
  *
  * Usage:
  * @code
- *   WifiBackendWpa backend;
+ *   WifiBackendWpaSupplicant backend;
  *   backend.register_callback("scan", [](const std::string& event) {
  *       // Handle scan complete events
  *   });
@@ -60,59 +63,62 @@ struct wpa_ctrl;
  *   backend.stop();   // Clean shutdown
  * @endcode
  */
-class WifiBackendWpa : private hv::EventLoopThread {
+class WifiBackendWpaSupplicant : public WifiBackend, private hv::EventLoopThread {
 public:
     /**
      * @brief Construct WiFi backend
      *
      * Does NOT connect to wpa_supplicant. Call start() to initialize.
      */
-    WifiBackendWpa();
+    WifiBackendWpaSupplicant();
 
     /**
      * @brief Destructor - ensures clean shutdown
      */
-    ~WifiBackendWpa();
+    ~WifiBackendWpaSupplicant();
+
+    // ========================================================================
+    // WifiBackend Interface Implementation
+    // ========================================================================
 
     /**
-     * @brief Start wpa_supplicant connection and event loop
+     * @brief Initialize and start wpa_supplicant backend
      *
      * Discovers wpa_supplicant socket, establishes dual connections
      * (control + monitor), and starts libhv event loop thread.
      *
-     * Socket discovery order:
-     * 1. /run/wpa_supplicant/wlan0 (modern systemd)
-     * 2. /var/run/wpa_supplicant/wlan0 (older systems)
-     * 3. Auto-detect first non-P2P socket in directory
-     *
-     * Thread-safe: Can be called multiple times (idempotent if already running)
+     * @return true if initialization succeeded
      */
-    void start();
+    bool start() override;
 
     /**
-     * @brief Stop event loop and disconnect from wpa_supplicant
+     * @brief Stop wpa_supplicant backend
      *
      * Blocks until event loop thread terminates.
      */
-    void stop();
+    void stop() override;
 
     /**
-     * @brief Register callback for wpa_supplicant events
+     * @brief Check if backend is running
      *
-     * Events are broadcast to ALL registered callbacks asynchronously
-     * from the libhv event loop thread. Ensure thread safety in handlers.
-     *
-     * Common event prefixes:
-     * - "CTRL-EVENT-SCAN-RESULTS" - Scan complete
-     * - "CTRL-EVENT-CONNECTED" - Network connected
-     * - "CTRL-EVENT-DISCONNECTED" - Network disconnected
-     * - "WPS-" - WPS events
-     *
-     * @param name Identifier for this callback (for future removal/replacement)
-     * @param callback Handler function receiving event string
+     * @return true if event loop is active
      */
-    void register_callback(const std::string& name,
-                          std::function<void(const std::string&)> callback);
+    bool is_running() const override;
+
+    /**
+     * @brief Register event callback
+     *
+     * Translates standard event names to wpa_supplicant-specific events:
+     * - "SCAN_COMPLETE" → "CTRL-EVENT-SCAN-RESULTS"
+     * - "CONNECTED" → "CTRL-EVENT-CONNECTED"
+     * - "DISCONNECTED" → "CTRL-EVENT-DISCONNECTED"
+     * - "AUTH_FAILED" → "CTRL-EVENT-SSID-TEMP-DISABLED"
+     *
+     * @param name Standard event name
+     * @param callback Handler function
+     */
+    void register_event_callback(const std::string& name,
+                                std::function<void(const std::string&)> callback) override;
 
     /**
      * @brief Send synchronous command to wpa_supplicant
@@ -133,6 +139,17 @@ public:
      */
     std::string send_command(const std::string& cmd);
 
+    // ========================================================================
+    // Clean Abstraction API - Hides wpa_supplicant ugliness
+    // ========================================================================
+
+    bool trigger_scan() override;
+    std::vector<WiFiNetwork> get_scan_results() override;
+    bool connect_network(const std::string& ssid, const std::string& password) override;
+    bool disconnect_network() override;
+    ConnectionStatus get_status() override;
+
+
 private:
     /**
      * @brief Initialize wpa_supplicant connection (runs in event loop thread)
@@ -141,6 +158,14 @@ private:
      * Discovers socket, opens connections, registers I/O callbacks.
      */
     void init_wpa();
+
+    /**
+     * @brief Cleanup wpa_supplicant connections
+     *
+     * Closes both control and monitor connections, detaches from events.
+     * Called from destructor to prevent resource leaks.
+     */
+    void cleanup_wpa();
 
     /**
      * @brief Handle incoming wpa_supplicant events
@@ -165,30 +190,18 @@ private:
      */
     static void _handle_wpa_events(hio_t* io, void* data, int readbyte);
 
-    struct wpa_ctrl* conn;  ///< Control connection for sending commands
+    // Helper methods for clean API (encapsulate wpa_supplicant ugliness)
+    std::vector<WiFiNetwork> parse_scan_results(const std::string& raw);
+    std::vector<std::string> split_by_tabs(const std::string& str);
+    int dbm_to_percentage(int dbm);
+    std::string detect_security_type(const std::string& flags, bool& is_secured);
+
+    struct wpa_ctrl* conn;      ///< Control connection for sending commands
+    struct wpa_ctrl* mon_conn;  ///< Monitor connection for receiving events (FIXED LEAK)
+
+    // Thread safety for callbacks (accessed from multiple threads)
+    std::mutex callbacks_mutex_;  ///< Protects callbacks map from race conditions
     std::map<std::string, std::function<void(const std::string&)>> callbacks;  ///< Registered event handlers
-};
-
-#else
-// ============================================================================
-// macOS Stub Implementation: Mock mode for simulator testing
-// ============================================================================
-
-/**
- * @brief Stub WiFi backend for macOS simulator
- *
- * Provides no-op implementations. All operations log at debug level
- * and return empty/default values.
- */
-class WifiBackendWpa {
-public:
-    WifiBackendWpa() = default;
-    ~WifiBackendWpa() = default;
-
-    void start() {}
-    void stop() {}
-    void register_callback(const std::string&, std::function<void(const std::string&)>) {}
-    std::string send_command(const std::string&) { return ""; }
 };
 
 #endif // __APPLE__

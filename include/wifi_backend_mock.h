@@ -1,0 +1,103 @@
+/*
+ * Copyright (C) 2025 356C LLC
+ * Author: Preston Brown <pbrown@brown-house.net>
+ *
+ * This file is part of HelixScreen.
+ *
+ * HelixScreen is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HelixScreen is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "wifi_backend.h"
+#include "lvgl/lvgl.h"
+#include <map>
+#include <random>
+
+/**
+ * @brief Mock WiFi backend for simulator and testing
+ *
+ * Provides fake WiFi functionality with realistic behavior:
+ * - Static list of mock networks with varying signal strength
+ * - Simulated scan delays
+ * - Simulated connection delays with success/failure scenarios
+ * - Random signal strength variations for realism
+ * - LVGL timer integration for async events
+ *
+ * Perfect for:
+ * - macOS/simulator development
+ * - UI testing without real WiFi hardware
+ * - Automated testing scenarios
+ */
+class WifiBackendMock : public WifiBackend {
+public:
+    WifiBackendMock();
+    ~WifiBackendMock();
+
+    // ========================================================================
+    // WifiBackend Interface Implementation
+    // ========================================================================
+
+    bool start() override;
+    void stop() override;
+    bool is_running() const override;
+
+    void register_event_callback(const std::string& name,
+                                std::function<void(const std::string&)> callback) override;
+
+    bool trigger_scan() override;
+    std::vector<WiFiNetwork> get_scan_results() override;
+    bool connect_network(const std::string& ssid, const std::string& password) override;
+    bool disconnect_network() override;
+    ConnectionStatus get_status() override;
+
+private:
+    // ========================================================================
+    // Internal State
+    // ========================================================================
+
+    bool running_;
+    bool connected_;
+    std::string connected_ssid_;
+    std::string connected_ip_;
+    int connected_signal_;
+
+    // Event system
+    std::map<std::string, std::function<void(const std::string&)>> callbacks_;
+
+    // LVGL timers for async simulation
+    lv_timer_t* scan_timer_;
+    lv_timer_t* connect_timer_;
+
+    // Mock networks (realistic variety)
+    std::vector<WiFiNetwork> mock_networks_;
+    std::mt19937 rng_;  // Random number generator for signal variations
+
+    // ========================================================================
+    // Internal Helpers
+    // ========================================================================
+
+    void init_mock_networks();
+    void vary_signal_strengths();  // Add realism with signal variations
+    void fire_event(const std::string& event_name, const std::string& data = "");
+
+    // LVGL timer callbacks (must be static)
+    static void scan_timer_callback(lv_timer_t* timer);
+    static void connect_timer_callback(lv_timer_t* timer);
+
+    // Connection simulation state
+    std::string connecting_ssid_;
+    std::string connecting_password_;
+    std::function<void(bool, const std::string&)> connect_callback_;
+};

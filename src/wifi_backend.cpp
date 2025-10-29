@@ -1,0 +1,39 @@
+/*
+ * Copyright (C) 2025 356C LLC
+ * Author: Preston Brown <pbrown@brown-house.net>
+ *
+ * This file is part of HelixScreen.
+ *
+ * HelixScreen is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HelixScreen is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "wifi_backend.h"
+#include "wifi_backend_mock.h"
+#include "spdlog/spdlog.h"
+
+#ifndef __APPLE__
+#include "wifi_backend_wpa_supplicant.h"
+#endif
+
+std::unique_ptr<WifiBackend> WifiBackend::create() {
+#ifdef __APPLE__
+    // macOS: Always use mock backend (no wpa_supplicant)
+    spdlog::info("[WifiBackend] Creating mock backend for macOS simulator");
+    return std::make_unique<WifiBackendMock>();
+#else
+    // Linux: Use wpa_supplicant backend, fallback to mock if unavailable
+    spdlog::debug("[WifiBackend] Creating wpa_supplicant backend for Linux");
+    return std::make_unique<WifiBackendWpaSupplicant>();
+#endif
+}

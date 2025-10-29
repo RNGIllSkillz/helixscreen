@@ -23,62 +23,47 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <memory>
+#include "wifi_backend.h"
+#include "lvgl/lvgl.h"
 
 /**
- * @brief WiFi network information
- */
-struct WiFiNetwork {
-    std::string ssid;           ///< Network name (SSID)
-    int signal_strength;        ///< Signal strength (0-100 percentage)
-    bool is_secured;            ///< True if network requires password
-    std::string security_type;  ///< Security type ("WPA2", "WPA3", "WEP", "Open")
-
-    WiFiNetwork() : signal_strength(0), is_secured(false) {}
-
-    WiFiNetwork(const std::string& ssid_, int strength, bool secured, const std::string& security = "")
-        : ssid(ssid_), signal_strength(strength), is_secured(secured), security_type(security) {}
-};
-
-/**
- * @brief WiFi Manager - Platform-abstracted WiFi operations
+ * @brief WiFi Manager - Clean interface using backend system
  *
  * Provides network scanning, connection management, and status monitoring.
- * Implementation is platform-specific:
- * - Linux: Uses NetworkManager (nmcli) for real WiFi operations
- * - macOS: Mock implementation for simulator testing
+ * Uses pluggable backend system:
+ * - Linux: WifiBackendWpaSupplicant for real wpa_supplicant integration
+ * - macOS: WifiBackendMock for simulator testing
+ *
+ * Key improvements over old implementation:
+ * - No platform ifdefs in manager code
+ * - Event-driven architecture with proper callbacks
+ * - Thread-safe communication between backend and UI
+ * - Cleaner separation between WiFi operations and UI timer management
  */
-namespace WiFiManager {
+class WiFiManager {
+public:
     /**
-     * @brief Check if WiFi hardware is available
+     * @brief Initialize WiFi manager with appropriate backend
      *
-     * Linux: Checks /sys/class/net for wireless interfaces
-     * macOS: Always returns true (mock mode)
-     *
-     * @return true if WiFi hardware detected
+     * Automatically selects platform-appropriate backend and starts it.
      */
-    bool has_hardware();
+    WiFiManager();
 
     /**
-     * @brief Check if WiFi is currently enabled
-     *
-     * @return true if WiFi radio is enabled
+     * @brief Destructor - ensures clean shutdown
      */
-    bool is_enabled();
+    ~WiFiManager();
 
-    /**
-     * @brief Enable or disable WiFi radio
-     *
-     * @param enabled true to enable, false to disable
-     * @return true on success
-     */
-    bool set_enabled(bool enabled);
+    // ========================================================================
+    // Network Scanning
+    // ========================================================================
 
     /**
      * @brief Perform a single network scan (synchronous)
      *
-     * Scans for available networks and returns results immediately.
-     * This function is synchronous and does not use timers.
-     * Useful for testing and one-off scans.
+     * Triggers scan and returns results immediately.
+     * Uses backend's get_scan_results() after triggering scan.
      *
      * @return Vector of discovered WiFi networks
      */
@@ -88,7 +73,7 @@ namespace WiFiManager {
      * @brief Start periodic network scanning
      *
      * Scans for available networks and invokes callback with results.
-     * Scanning continues automatically every 5-10 seconds until stop_scan() called.
+     * Scanning continues automatically every 7 seconds until stop_scan() called.
      *
      * @param on_networks_updated Callback invoked with scan results
      */
@@ -100,6 +85,10 @@ namespace WiFiManager {
      * Cancels auto-refresh timer and any pending scan operations.
      */
     void stop_scan();
+
+    // ========================================================================
+    // Connection Management
+    // ========================================================================
 
     /**
      * @brief Connect to WiFi network
@@ -119,6 +108,10 @@ namespace WiFiManager {
      * @brief Disconnect from current network
      */
     void disconnect();
+
+    // ========================================================================
+    // Status Queries
+    // ========================================================================
 
     /**
      * @brief Check if connected to any network
@@ -142,6 +135,42 @@ namespace WiFiManager {
     std::string get_ip_address();
 
     /**
+     * @brief Get signal strength of connected network
+     *
+     * @return Signal strength 0-100%, or 0 if not connected
+     */
+    int get_signal_strength();
+
+    // ========================================================================
+    // Hardware Detection (Legacy Compatibility)
+    // ========================================================================
+
+    /**
+     * @brief Check if WiFi hardware is available
+     *
+     * Always returns true - backend creation handles hardware availability.
+     * Kept for compatibility with existing UI code.
+     *
+     * @return true if WiFi backend is available
+     */
+    bool has_hardware();
+
+    /**
+     * @brief Check if WiFi is currently enabled
+     *
+     * @return true if backend is running
+     */
+    bool is_enabled();
+
+    /**
+     * @brief Enable or disable WiFi radio
+     *
+     * @param enabled true to enable, false to disable
+     * @return true on success
+     */
+    bool set_enabled(bool enabled);
+
+    /**
      * @brief Check if Ethernet hardware is present
      *
      * Linux: Checks for eth*, en*, or similar wired interfaces
@@ -157,4 +186,23 @@ namespace WiFiManager {
      * @return IP address if connected, empty string if not connected or no Ethernet
      */
     std::string get_ethernet_ip();
-}
+
+private:
+    std::unique_ptr<WifiBackend> backend_;
+
+    // Scanning state
+    lv_timer_t* scan_timer_;
+    std::function<void(const std::vector<WiFiNetwork>&)> scan_callback_;
+
+    // Connection state
+    std::function<void(bool, const std::string&)> connect_callback_;
+
+    // Event handling
+    void handle_scan_complete(const std::string& event_data);
+    void handle_connected(const std::string& event_data);
+    void handle_disconnected(const std::string& event_data);
+    void handle_auth_failed(const std::string& event_data);
+
+    // Timer callbacks (must be static for LVGL)
+    static void scan_timer_callback(lv_timer_t* timer);
+};

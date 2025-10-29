@@ -39,6 +39,9 @@ static Config* config_instance = nullptr;
 static MoonrakerClient* mr_client_instance = nullptr;
 static std::function<void()> completion_callback;
 
+// WiFi manager instance
+static std::unique_ptr<WiFiManager> wifi_manager = nullptr;
+
 // Subjects for reactive UI updates
 static lv_subject_t wizard_title;
 static char wizard_title_buffer[64];
@@ -192,6 +195,12 @@ void ui_wizard_init_subjects() {
                            sizeof(ethernet_status_buffer), "Checking...");
     lv_xml_register_subject(nullptr, "ethernet_status", &ethernet_status);
 
+    // Initialize WiFi manager
+    if (!wifi_manager) {
+        wifi_manager = std::make_unique<WiFiManager>();
+        spdlog::info("WiFi manager initialized for wizard");
+    }
+
     subjects_initialized = true;
     spdlog::info("Wizard subjects initialized");
 }
@@ -257,7 +266,7 @@ void ui_wizard_goto_step(WizardStep step) {
     // Stop wifi scanning when leaving wifi setup screen
     if (current_step == WizardStep::WIFI_SETUP && step != WizardStep::WIFI_SETUP) {
         spdlog::debug("[Wizard] Leaving WiFi setup screen, stopping scan");
-        WiFiManager::stop_scan();
+        if (wifi_manager) wifi_manager->stop_scan();
     }
 
     current_step = step;
@@ -277,7 +286,7 @@ void ui_wizard_goto_step(WizardStep step) {
     switch (step) {
         case WizardStep::WIFI_SETUP:
             // Check if WiFi hardware is available
-            if (!WiFiManager::has_hardware()) {
+            if (!(wifi_manager && wifi_manager->has_hardware())) {
                 spdlog::info("[Wizard] No WiFi hardware detected, skipping WiFi setup");
                 ui_wizard_goto_step(WizardStep::CONNECTION);
                 return;
@@ -287,8 +296,8 @@ void ui_wizard_goto_step(WizardStep step) {
                 wifi_setup_screen = (lv_obj_t*)lv_xml_create(wizard_content_area, "wizard_wifi_setup", nullptr);
                 if (wifi_setup_screen) {
                     // Check Ethernet status and update subject
-                    if (WiFiManager::has_ethernet()) {
-                        std::string eth_ip = WiFiManager::get_ethernet_ip();
+                    if (wifi_manager && wifi_manager->has_ethernet()) {
+                        std::string eth_ip = wifi_manager->get_ethernet_ip();
                         if (!eth_ip.empty()) {
                             std::string status = "Connected: " + eth_ip;
                             lv_subject_copy_string(&ethernet_status, status.c_str());
@@ -763,8 +772,8 @@ static void populate_network_list(const std::vector<WiFiNetwork>& networks) {
 
         // Show connected indicator if this is the currently connected network
         if (connected_icon) {
-            bool is_connected = WiFiManager::is_connected() &&
-                              WiFiManager::get_connected_ssid() == network.ssid;
+            bool is_connected = wifi_manager && wifi_manager->is_connected() &&
+                              wifi_manager->get_connected_ssid() == network.ssid;
             if (is_connected) {
                 lv_obj_remove_flag(connected_icon, LV_OBJ_FLAG_HIDDEN);
             } else {
@@ -796,7 +805,7 @@ static void on_network_item_clicked(lv_event_t* e) {
     } else {
         // Connect directly to open network
         spdlog::info("[WiFi] Connecting to open network: {}", info.ssid);
-        WiFiManager::connect(info.ssid, "", on_wifi_connection_complete);
+        wifi_manager->connect(info.ssid, "", on_wifi_connection_complete);
     }
 }
 
@@ -810,7 +819,7 @@ static void wifi_scan_delay_callback(lv_timer_t* timer) {
     }
 
     spdlog::info("[WiFi] Starting network scan after delay");
-    WiFiManager::start_scan(populate_network_list);
+    wifi_manager->start_scan(populate_network_list);
 }
 
 static void on_wifi_toggle_changed(lv_event_t* e) {
@@ -821,7 +830,7 @@ static void on_wifi_toggle_changed(lv_event_t* e) {
 
     if (enabled) {
         // Enable WiFi and start scanning after 3-second delay
-        WiFiManager::set_enabled(true);
+        wifi_manager->set_enabled(true);
         lv_subject_copy_string(&wifi_status, "Scanning for networks...");
 
         // Un-dim network list container
@@ -842,8 +851,8 @@ static void on_wifi_toggle_changed(lv_event_t* e) {
         lv_timer_set_repeat_count(wifi_scan_delay_timer, 1);  // One-shot timer
     } else {
         // Disable WiFi and stop scanning
-        WiFiManager::set_enabled(false);
-        WiFiManager::stop_scan();
+        wifi_manager->set_enabled(false);
+        if (wifi_manager) wifi_manager->stop_scan();
 
         // Cancel delay timer if it's running
         if (wifi_scan_delay_timer) {
@@ -1574,7 +1583,7 @@ static void on_modal_connect_clicked(lv_event_t* e) {
     // TODO: Show connecting spinner/status
 
     // Attempt connection
-    WiFiManager::connect(ssid, password, on_wifi_connection_complete);
+    wifi_manager->connect(ssid, password, on_wifi_connection_complete);
 }
 
 static void on_wifi_connection_complete(bool success, const std::string& error) {
@@ -1585,10 +1594,10 @@ static void on_wifi_connection_complete(bool success, const std::string& error) 
         hide_wifi_password_modal();
 
         // Update WiFi status subject
-        std::string status = "Connected: " + WiFiManager::get_connected_ssid();
+        std::string status = "Connected: " + wifi_manager->get_connected_ssid();
         lv_subject_copy_string(&wifi_status, status.c_str());
 
-        spdlog::info("[WiFi] Successfully connected to: {}", WiFiManager::get_connected_ssid());
+        spdlog::info("[WiFi] Successfully connected to: {}", wifi_manager->get_connected_ssid());
     } else {
         // Show error in modal
         if (modal_status_label) {

@@ -27,241 +27,211 @@
 #include <cstring>
 #include <algorithm>
 
-// Platform detection
-#ifdef __APPLE__
-#define WIFI_MOCK_MODE 1
-#else
-#define WIFI_MOCK_MODE 0
-#endif
-
-namespace WiFiManager {
-
-// Internal state
-static bool wifi_enabled = false;
-static bool wifi_connected = false;
-static std::string connected_ssid;
-static std::string connected_ip;
-static lv_timer_t* scan_timer = nullptr;
-static std::function<void(const std::vector<WiFiNetwork>&)> scan_callback;
-
-// Mock network list (for simulator) - ~10 networks with varying signal/encryption
-// Signal strength ranges: 0-39 (weak), 40-69 (medium), 70-100 (strong)
-static std::vector<WiFiNetwork> mock_networks = {
-    WiFiNetwork("HomeNetwork-5G", 92, true, "WPA2"),      // Strong, encrypted
-    WiFiNetwork("Office-Main", 78, true, "WPA2"),         // Strong, encrypted
-    WiFiNetwork("Printers-WiFi", 85, true, "WPA2"),       // Strong, encrypted
-    WiFiNetwork("CoffeeShop_Free", 68, false, "Open"),    // Medium, open
-    WiFiNetwork("IoT-Devices", 55, true, "WPA"),          // Medium, encrypted
-    WiFiNetwork("Guest-Access", 48, false, "Open"),       // Medium, open
-    WiFiNetwork("Neighbor-Network", 38, true, "WPA3"),    // Weak, encrypted
-    WiFiNetwork("Public-Hotspot", 25, false, "Open"),     // Weak, open
-    WiFiNetwork("SmartHome-Net", 32, true, "WPA3"),       // Weak, encrypted
-    WiFiNetwork("Distant-Router", 18, true, "WPA2")       // Weak, encrypted
-};
-
 // ============================================================================
-// Hardware Detection
+// Constructor / Destructor
 // ============================================================================
 
-bool has_hardware() {
-#if WIFI_MOCK_MODE
-    // macOS simulator: always report WiFi available for testing
-    spdlog::debug("[WiFi] Mock mode: WiFi hardware detected");
-    return true;
-#else
-    // Linux: Check for WiFi interfaces in /sys/class/net
-    DIR* dir = opendir("/sys/class/net");
-    if (!dir) {
-        spdlog::warn("[WiFi] Cannot access /sys/class/net");
-        return false;
+WiFiManager::WiFiManager()
+    : scan_timer_(nullptr)
+{
+    spdlog::info("[WiFiManager] Initializing with backend system");
+
+    // Create platform-appropriate backend
+    backend_ = WifiBackend::create();
+    if (!backend_) {
+        spdlog::error("[WiFiManager] Failed to create WiFi backend");
+        return;
     }
 
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        if (entry->d_name[0] == '.') continue;
+    // Register event callbacks
+    backend_->register_event_callback("SCAN_COMPLETE",
+        [this](const std::string& data) { handle_scan_complete(data); });
+    backend_->register_event_callback("CONNECTED",
+        [this](const std::string& data) { handle_connected(data); });
+    backend_->register_event_callback("DISCONNECTED",
+        [this](const std::string& data) { handle_disconnected(data); });
+    backend_->register_event_callback("AUTH_FAILED",
+        [this](const std::string& data) { handle_auth_failed(data); });
 
-        std::string wireless_path = std::string("/sys/class/net/") +
-                                   entry->d_name + "/wireless";
-        struct stat st;
-        if (stat(wireless_path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
-            spdlog::info("[WiFi] WiFi hardware detected: {}", entry->d_name);
-            closedir(dir);
-            return true;
-        }
+    // Start backend
+    if (!backend_->start()) {
+        spdlog::error("[WiFiManager] Failed to start WiFi backend");
+    } else {
+        spdlog::info("[WiFiManager] WiFi backend started successfully");
     }
-    closedir(dir);
-    spdlog::info("[WiFi] No WiFi hardware detected");
-    return false;
-#endif
 }
 
-// ============================================================================
-// WiFi State Management
-// ============================================================================
+WiFiManager::~WiFiManager() {
+    spdlog::debug("[WiFiManager] Destructor called");
 
-bool is_enabled() {
-    return wifi_enabled;
-}
+    // Clean up scanning
+    stop_scan();
 
-bool set_enabled(bool enabled) {
-#if WIFI_MOCK_MODE
-    wifi_enabled = enabled;
-    spdlog::info("[WiFi] Mock: WiFi {}", enabled ? "enabled" : "disabled");
-    return true;
-#else
-    // TODO: Linux implementation using nmcli radio wifi on/off
-    wifi_enabled = enabled;
-    spdlog::warn("[WiFi] Linux set_enabled not yet implemented");
-    return false;
-#endif
+    // Stop backend
+    if (backend_) {
+        backend_->stop();
+    }
 }
 
 // ============================================================================
 // Network Scanning
 // ============================================================================
 
-// Internal: Perform network scan and return results (timer-independent)
-static std::vector<WiFiNetwork> perform_scan() {
-#if WIFI_MOCK_MODE
-    // Mock: Return static network list with slight randomization in signal strength
-    std::vector<WiFiNetwork> networks = mock_networks;
-    for (auto& net : networks) {
-        // Vary signal strength by ±5% for realism
-        int variation = (rand() % 11) - 5;  // -5 to +5
-        net.signal_strength = std::max(0, std::min(100, net.signal_strength + variation));
+std::vector<WiFiNetwork> WiFiManager::scan_once() {
+    if (!backend_) {
+        spdlog::warn("[WiFiManager] No backend available for scan");
+        return {};
     }
 
-    spdlog::debug("[WiFi] Mock scan: {} networks found", networks.size());
-    return networks;
-#else
-    // TODO: Linux implementation using nmcli device wifi list
-    spdlog::warn("[WiFi] Linux scan not yet implemented");
-    return std::vector<WiFiNetwork>();
-#endif
+    spdlog::debug("[WiFiManager] Performing single scan");
+
+    // Trigger scan and wait briefly for results
+    if (!backend_->trigger_scan()) {
+        spdlog::warn("[WiFiManager] Failed to trigger scan");
+        return {};
+    }
+
+    // For synchronous scan, we need to get existing results
+    // Note: This may not include the just-triggered scan results immediately
+    return backend_->get_scan_results();
 }
 
-static void scan_timer_callback(lv_timer_t* timer) {
-    (void)timer;
-
-    if (!scan_callback) {
-        spdlog::warn("[WiFi] Scan callback not set");
+void WiFiManager::start_scan(std::function<void(const std::vector<WiFiNetwork>&)> on_networks_updated) {
+    if (!backend_) {
+        spdlog::error("[WiFiManager] No backend available for scanning");
         return;
     }
 
-    std::vector<WiFiNetwork> networks = perform_scan();
-    scan_callback(networks);
-}
-
-std::vector<WiFiNetwork> scan_once() {
-    spdlog::debug("[WiFi] Performing single scan (synchronous)");
-    return perform_scan();
-}
-
-void start_scan(std::function<void(const std::vector<WiFiNetwork>&)> on_networks_updated) {
-    scan_callback = on_networks_updated;
+    scan_callback_ = on_networks_updated;
 
     // Stop existing timer if running
-    if (scan_timer) {
-        lv_timer_delete(scan_timer);
-        scan_timer = nullptr;
-    }
+    stop_scan();
 
-    spdlog::info("[WiFi] Starting periodic network scan (every 7 seconds)");
+    spdlog::info("[WiFiManager] Starting periodic network scan (every 7 seconds)");
 
-    // Create timer for periodic scanning (7 second interval)
-    scan_timer = lv_timer_create(scan_timer_callback, 7000, nullptr);
+    // Create timer for periodic scanning
+    scan_timer_ = lv_timer_create(scan_timer_callback, 7000, this);
 
     // Trigger immediate scan
-    scan_timer_callback(nullptr);
+    backend_->trigger_scan();
 }
 
-void stop_scan() {
-    if (scan_timer) {
-        lv_timer_delete(scan_timer);
-        scan_timer = nullptr;
-        spdlog::info("[WiFi] Stopped network scanning");
+void WiFiManager::stop_scan() {
+    if (scan_timer_) {
+        lv_timer_delete(scan_timer_);
+        scan_timer_ = nullptr;
+        spdlog::info("[WiFiManager] Stopped network scanning");
     }
-    scan_callback = nullptr;
+    scan_callback_ = nullptr;
+}
+
+void WiFiManager::scan_timer_callback(lv_timer_t* timer) {
+    WiFiManager* manager = static_cast<WiFiManager*>(lv_timer_get_user_data(timer));
+    if (manager && manager->backend_) {
+        // Trigger scan - results will arrive via SCAN_COMPLETE event
+        manager->backend_->trigger_scan();
+    }
 }
 
 // ============================================================================
 // Connection Management
 // ============================================================================
 
-// Connection state for async callback
-static std::function<void(bool, const std::string&)> connect_callback;
-static std::string connecting_ssid;
-static std::string connecting_password;
-
-static void connect_timer_callback(lv_timer_t* timer) {
-    (void)timer;
-
-#if WIFI_MOCK_MODE
-    // Mock: Always succeed after delay
-    wifi_connected = true;
-    connected_ssid = connecting_ssid;
-    connected_ip = "192.168.1.42";  // Mock IP
-    spdlog::info("[WiFi] Mock: Connected to \"{}\"", connecting_ssid);
-
-    if (connect_callback) {
-        connect_callback(true, "");
-        connect_callback = nullptr;
+void WiFiManager::connect(const std::string& ssid,
+                         const std::string& password,
+                         std::function<void(bool success, const std::string& error)> on_complete) {
+    if (!backend_) {
+        spdlog::error("[WiFiManager] No backend available for connection");
+        if (on_complete) {
+            on_complete(false, "No WiFi backend available");
+        }
+        return;
     }
-#else
-    // TODO: Linux implementation using nmcli device wifi connect
-    spdlog::warn("[WiFi] Linux connect not yet implemented");
-    if (connect_callback) {
-        connect_callback(false, "Not implemented");
-        connect_callback = nullptr;
+
+    spdlog::info("[WiFiManager] Connecting to '{}'", ssid);
+
+    connect_callback_ = on_complete;
+
+    // Use backend's connect method
+    if (!backend_->connect_network(ssid, password)) {
+        spdlog::error("[WiFiManager] Backend failed to initiate connection");
+        if (connect_callback_) {
+            connect_callback_(false, "Failed to start connection");
+            connect_callback_ = nullptr;
+        }
     }
-#endif
+    // Success/failure will be reported via CONNECTED/AUTH_FAILED events
 }
 
-void connect(const std::string& ssid,
-            const std::string& password,
-            std::function<void(bool success, const std::string& error)> on_complete) {
+void WiFiManager::disconnect() {
+    if (!backend_) {
+        spdlog::warn("[WiFiManager] No backend available for disconnect");
+        return;
+    }
 
-    spdlog::info("[WiFi] Connecting to \"{}\"...", ssid);
-
-    // Store connection parameters and callback
-    connecting_ssid = ssid;
-    connecting_password = password;
-    connect_callback = on_complete;
-
-    // Simulate connection delay (2 seconds)
-    lv_timer_t* timer = lv_timer_create(connect_timer_callback, 2000, nullptr);
-    lv_timer_set_repeat_count(timer, 1);  // One-shot timer
-}
-
-void disconnect() {
-    wifi_connected = false;
-    connected_ssid.clear();
-    connected_ip.clear();
-    spdlog::info("[WiFi] Disconnected");
+    spdlog::info("[WiFiManager] Disconnecting");
+    backend_->disconnect_network();
 }
 
 // ============================================================================
 // Status Queries
 // ============================================================================
 
-bool is_connected() {
-    return wifi_connected;
+bool WiFiManager::is_connected() {
+    if (!backend_) return false;
+
+    WifiBackend::ConnectionStatus status = backend_->get_status();
+    return status.connected;
 }
 
-std::string get_connected_ssid() {
-    return connected_ssid;
+std::string WiFiManager::get_connected_ssid() {
+    if (!backend_) return "";
+
+    WifiBackend::ConnectionStatus status = backend_->get_status();
+    return status.ssid;
 }
 
-std::string get_ip_address() {
-    return connected_ip;
+std::string WiFiManager::get_ip_address() {
+    if (!backend_) return "";
+
+    WifiBackend::ConnectionStatus status = backend_->get_status();
+    return status.ip_address;
+}
+
+int WiFiManager::get_signal_strength() {
+    if (!backend_) return 0;
+
+    WifiBackend::ConnectionStatus status = backend_->get_status();
+    return status.signal_strength;
 }
 
 // ============================================================================
-// Ethernet Detection
+// Hardware Detection (Legacy Compatibility)
 // ============================================================================
 
-bool has_ethernet() {
-#if WIFI_MOCK_MODE
+bool WiFiManager::has_hardware() {
+    // Backend creation handles hardware availability
+    return (backend_ != nullptr);
+}
+
+bool WiFiManager::is_enabled() {
+    if (!backend_) return false;
+    return backend_->is_running();
+}
+
+bool WiFiManager::set_enabled(bool enabled) {
+    if (!backend_) return false;
+
+    if (enabled) {
+        return backend_->start();
+    } else {
+        backend_->stop();
+        return true;
+    }
+}
+
+bool WiFiManager::has_ethernet() {
+#ifdef __APPLE__
     // macOS simulator: always report Ethernet available
     spdlog::debug("[Ethernet] Mock mode: Ethernet detected");
     return true;
@@ -294,8 +264,8 @@ bool has_ethernet() {
 #endif
 }
 
-std::string get_ethernet_ip() {
-#if WIFI_MOCK_MODE
+std::string WiFiManager::get_ethernet_ip() {
+#ifdef __APPLE__
     // macOS simulator: return mock Ethernet IP
     return "192.168.1.150";
 #else
@@ -306,4 +276,50 @@ std::string get_ethernet_ip() {
 #endif
 }
 
-} // namespace WiFiManager
+// ============================================================================
+// Event Handling
+// ============================================================================
+
+void WiFiManager::handle_scan_complete(const std::string& event_data) {
+    (void)event_data;  // Unused for now
+
+    spdlog::debug("[WiFiManager] Scan complete event received");
+
+    if (scan_callback_) {
+        std::vector<WiFiNetwork> networks = backend_->get_scan_results();
+        scan_callback_(networks);
+    }
+}
+
+void WiFiManager::handle_connected(const std::string& event_data) {
+    (void)event_data;  // Could parse IP address from event data
+
+    spdlog::info("[WiFiManager] Connected event received");
+
+    if (connect_callback_) {
+        connect_callback_(true, "");
+        connect_callback_ = nullptr;
+    }
+}
+
+void WiFiManager::handle_disconnected(const std::string& event_data) {
+    (void)event_data;  // Could parse reason from event data
+
+    spdlog::info("[WiFiManager] Disconnected event received");
+
+    if (connect_callback_) {
+        connect_callback_(false, "Disconnected");
+        connect_callback_ = nullptr;
+    }
+}
+
+void WiFiManager::handle_auth_failed(const std::string& event_data) {
+    (void)event_data;  // Could parse specific error from event data
+
+    spdlog::warn("[WiFiManager] Authentication failed event received");
+
+    if (connect_callback_) {
+        connect_callback_(false, "Authentication failed");
+        connect_callback_ = nullptr;
+    }
+}
