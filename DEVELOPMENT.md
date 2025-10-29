@@ -135,28 +135,68 @@ Command-line binaries (like our development build) require manual permission gra
 
 ### Grant Location Permission for Development
 
-**Option 1: System Settings GUI (Recommended)**
+**Option 1: Grant Permission to Terminal.app (Easiest)**
+
+Command-line apps inherit permissions from their parent process:
 
 1. Open **System Settings** → **Privacy & Security** → **Location Services**
-2. Ensure "Location Services" is enabled at the top
-3. Click the **(+)** button at the bottom of the app list
-4. Navigate to: `/Users/YOUR_USERNAME/code/guppyscreen/prototype-ui9/build/bin/helix-ui-proto`
-5. Click "Open" to add the binary
-6. Toggle the switch next to "helix-ui-proto" to **ON**
+2. Find **Terminal** (or your terminal app) in the list
+3. Toggle it **ON**
+4. Restart your terminal
+5. Run the app - it will now have location access through Terminal
 
-**Option 2: TCC Database (Advanced)**
+**Option 2: TCC Database Direct Modification (Advanced)**
 
-Directly add permission to the TCC database:
+Add permission directly via Terminal with Full Disk Access:
 
 ```bash
-# Add location permission for the binary
-sqlite3 ~/Library/Application\ Support/com.apple.TCC/TCC.db \
-  "INSERT OR REPLACE INTO access VALUES('kTCCServiceLocation','$(pwd)/build/bin/helix-ui-proto',0,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1687910400);"
+# First: Grant Terminal.app "Full Disk Access" in System Settings
+# Settings → Privacy & Security → Full Disk Access → Enable Terminal
 
-# Restart the binary to pick up new permission
+# Get absolute path to binary
+BINARY_PATH="$(cd $(dirname $0) && pwd)/build/bin/helix-ui-proto"
+
+# Add location permission (macOS 15+ format)
+sudo sqlite3 ~/Library/Application\ Support/com.apple.TCC/TCC.db \
+  "INSERT OR REPLACE INTO access VALUES('kTCCServiceLocation','$BINARY_PATH',0,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,$(date +%s));"
+
+# Kill TCC daemon to reload permissions
+sudo killall tccd
 ```
 
-**Note:** You may need to grant Terminal.app "Full Disk Access" in System Settings for the `sqlite3` command to work.
+**Option 3: Create Minimal App Bundle (Most Proper)**
+
+This makes macOS treat it as a real app that can request permissions:
+
+```bash
+# Create app bundle structure
+mkdir -p HelixUI.app/Contents/MacOS
+mkdir -p HelixUI.app/Contents/Resources
+
+# Copy binary
+cp build/bin/helix-ui-proto HelixUI.app/Contents/MacOS/
+
+# Create Info.plist
+cat > HelixUI.app/Contents/Info.plist <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>helix-ui-proto</string>
+    <key>CFBundleIdentifier</key>
+    <string>net.356c.helixui</string>
+    <key>CFBundleName</key>
+    <string>HelixUI</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>HelixScreen needs WiFi access for printer connectivity</string>
+</dict>
+</plist>
+EOF
+
+# Run from bundle - will trigger permission prompt
+open HelixUI.app
+```
 
 ### Verify Permission Status
 
