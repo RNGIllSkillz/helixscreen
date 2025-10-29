@@ -329,7 +329,7 @@ TEST_CASE_METHOD(Fixture, "Test", "[macos]") { ... }
 
 ## Known Limitations & Workarounds
 
-### 1. Multiple Fixture Instances Cause Segfaults
+### 1. Multiple Fixture Instances Cause Segfaults 🚨 CRITICAL
 
 **Problem:** Creating multiple LVGL UI instances in sequence causes crashes.
 
@@ -339,6 +339,13 @@ TEST_CASE_METHOD(Fixture, "Test", "[macos]") { ... }
 - Error: "Segmentation violation signal"
 
 **Root Cause:** Incomplete LVGL object hierarchy cleanup between tests.
+
+**Current Status (2025-10-27):**
+- WiFi wizard UI tests: 10 tests written, only 1 passing
+- 9 tests disabled with `[.disabled]` tag
+- First test runs successfully (9 assertions pass)
+- Second test crashes during `WizardWiFiUIFixture()` construction
+- Location: `tests/unit/test_wizard_wifi_ui.cpp`
 
 **Workaround:**
 ```cpp
@@ -351,9 +358,11 @@ TEST_CASE_METHOD(Fixture, "Test 2", "[.disabled]") { ... }
 ```
 
 **Proper Fix (TODO):**
-1. Ensure all LVGL objects deleted before display deletion
-2. Verify subject cleanup in `init_subjects()` functions
-3. Add explicit `lv_obj_clean()` calls in fixture destructor
+1. Investigate wizard cleanup in `~WizardWiFiUIFixture()` destructor
+2. Ensure all LVGL objects deleted before display deletion
+3. Verify subject cleanup in `ui_wizard_init_subjects()`
+4. Add explicit `lv_obj_clean()` calls in fixture destructor
+5. Test with simpler fixtures first to isolate the issue
 
 ### 2. Virtual Input Events Don't Trigger ui_switch
 
