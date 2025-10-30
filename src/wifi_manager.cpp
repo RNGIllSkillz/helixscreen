@@ -276,52 +276,6 @@ bool WiFiManager::set_enabled(bool enabled) {
     }
 }
 
-bool WiFiManager::has_ethernet() {
-#ifdef __APPLE__
-    // macOS simulator: always report Ethernet available
-    spdlog::debug("[Ethernet] Mock mode: Ethernet detected");
-    return true;
-#else
-    // Linux: Check for Ethernet interfaces (eth*, en*, eno*, ens*)
-    DIR* dir = opendir("/sys/class/net");
-    if (!dir) {
-        spdlog::warn("[Ethernet] Cannot access /sys/class/net");
-        return false;
-    }
-
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        if (entry->d_name[0] == '.') continue;
-
-        std::string iface = entry->d_name;
-        // Match common Ethernet interface names
-        if (iface.compare(0, 3, "eth") == 0 ||  // eth0, eth1, etc.
-            iface.compare(0, 2, "en") == 0 ||   // enp*, eno*, ens*
-            iface == "end0") {  // Some systems use end0
-
-            spdlog::info("[Ethernet] Ethernet interface detected: {}", iface);
-            closedir(dir);
-            return true;
-        }
-    }
-    closedir(dir);
-    spdlog::info("[Ethernet] No Ethernet interface detected");
-    return false;
-#endif
-}
-
-std::string WiFiManager::get_ethernet_ip() {
-#ifdef __APPLE__
-    // macOS simulator: return mock Ethernet IP
-    return "192.168.1.150";
-#else
-    // TODO: Linux implementation
-    // For now, return empty (implementation deferred for simplicity)
-    spdlog::warn("[Ethernet] IP detection not yet implemented on Linux");
-    return "";
-#endif
-}
-
 // ============================================================================
 // Event Handling
 // ============================================================================

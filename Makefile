@@ -130,7 +130,7 @@ SDL2_LIBS := $(shell sdl2-config --libs)
 
 # libhv (WebSocket client for Moonraker) - symlinked from parent repo submodule
 LIBHV_DIR := libhv
-LIBHV_INC := -I$(LIBHV_DIR)/include -I$(LIBHV_DIR)/cpputil
+LIBHV_INC := -I$(LIBHV_DIR)/include -I$(LIBHV_DIR)/cpputil -I$(LIBHV_DIR)
 LIBHV_LIB := $(LIBHV_DIR)/lib/libhv.a
 
 # spdlog (logging library) - symlinked from parent repo submodule

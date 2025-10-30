@@ -1,6 +1,6 @@
 # Project Status & Documentation Guide
 
-**Last Updated:** 2025-10-28
+**Last Updated:** 2025-10-30
 
 This project uses **git history** and **focused documentation** instead of maintaining a development journal.
 
@@ -87,6 +87,34 @@ This section captures **non-obvious design choices** that aren't clear from code
 - See docs/MEMORY_ANALYSIS.md for detailed profiling data
 
 **When to reconsider:** If running on <256 MB RAM hardware or supporting 50+ panels.
+
+### Pluggable Backend Architecture (2025-10-30)
+
+**Decision:** Platform-specific functionality (WiFi, Ethernet) uses abstract backend interfaces with factory pattern.
+
+**Pattern:**
+```
+Manager (high-level API)
+  ↓ uses
+Backend (abstract interface)
+  ↓ implemented by
+Platform-specific backends (macOS, Linux, Mock)
+```
+
+**Rationale:**
+- No platform `#ifdef` clutter in manager code
+- All platform backends compile on all platforms (factory selects at runtime)
+- Easy to add new platforms without modifying existing code
+- Mock backends enable testing without hardware
+- Consistent pattern across WiFi, Ethernet, future features
+
+**Implementation:**
+- **WiFi:** WiFiManager → WifiBackend → {WifiBackendMacOS, WifiBackendWpaSupplicant, WifiBackendMock}
+- **Ethernet:** EthernetManager → EthernetBackend → {EthernetBackendMacOS, EthernetBackendLinux, EthernetBackendMock}
+
+**Why compile unused backends?** No complexity cost. Factory method handles selection. Unused code never executes.
+
+**Known issue:** Occasional exit crashes with Ethernet backend (under investigation).
 
 ---
 

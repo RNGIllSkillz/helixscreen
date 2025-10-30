@@ -1,11 +1,28 @@
 # Session Handoff Document
 
-**Last Updated:** 2025-10-30 (Session 4)
-**Current Focus:** WiFi wizard complete - ready for additional wizard screens
+**Last Updated:** 2025-10-30 (Session 5)
+**Current Focus:** WiFi wizard complete, Ethernet backend implemented - ready for additional wizard screens
 
 ---
 
 ## 🎯 Active Work & Next Priorities
+
+### ✅ Recently Completed (Session 2025-10-30 #5)
+
+**Ethernet Backend Implementation** (Session 5 - 2025-10-30)
+- ✅ **Platform-agnostic abstraction** - Follows WiFi backend pattern exactly
+- ✅ **macOS backend** - Uses libhv's ifconfig() to detect ethernet interfaces
+  - Detected interface: en17 with IP 192.168.1.10 (tested successfully)
+- ✅ **Linux backend** - Uses libhv ifconfig() + /sys/class/net operstate
+  - Filters for eth*, eno*, enp*, ens* interfaces
+  - Checks link status via sysfs
+- ✅ **Mock backend** - Static data for simulator/testing
+- ✅ **Factory pattern** - Platform detection with fallback to mock
+- ✅ **WiFi wizard integration** - Ethernet status displays in WiFi setup screen
+  - Shows "Connected (192.168.1.10)" format
+- ✅ **Removed from WiFiManager** - Ethernet code extracted to dedicated backend
+- ⚠️ **Known issue:** Occasional crashes on exit (needs investigation)
+- Files: 10 new files (ethernet_backend*.h/cpp/mm), 4 modified (wifi_manager, ui_wizard_wifi, Makefile)
 
 ### ✅ Recently Completed (Session 2025-10-30 #4)
 
@@ -77,13 +94,18 @@
 
 ### Next Priorities
 
-1. **Additional Wizard Screens** (WiFi complete, ready for next screens)
+1. **Investigate Exit Crash** (⚠️ High Priority)
+   - Occasional crashes when exiting wizard with Ethernet backend
+   - May be related to cleanup order or object lifecycle
+   - Similar to WiFi weak_ptr fix - check for async callbacks executing after manager freed
+
+2. **Additional Wizard Screens** (WiFi/Ethernet complete, ready for next screens)
    - Moonraker connection (host/port/API key)
    - Printer identification (32 printer presets in roller)
    - Hardware selection (bed/hotend/fan/LED)
    - Summary/confirmation
 
-2. **Future Enhancements**
+3. **Future Enhancements**
    - State persistence between steps
    - Validation and error handling
    - Completion callback integration

@@ -20,6 +20,7 @@
 
 #include "ui_wizard_wifi.h"
 #include "wifi_manager.h"
+#include "ethernet_manager.h"
 #include "ui_keyboard.h"
 #include "lvgl/lvgl.h"
 #include <spdlog/spdlog.h>
@@ -49,6 +50,9 @@ static lv_obj_t* network_list_container = nullptr;
 // WiFiManager instance
 // Using shared_ptr instead of unique_ptr for async callback safety
 static std::shared_ptr<WiFiManager> wifi_manager = nullptr;
+
+// EthernetManager instance
+static std::unique_ptr<EthernetManager> ethernet_manager = nullptr;
 
 // Current network selection (for password modal)
 static char current_ssid[64] = "";
@@ -246,7 +250,7 @@ lv_obj_t* ui_wizard_wifi_create(lv_obj_t* parent) {
 }
 
 void ui_wizard_wifi_init_wifi_manager() {
-    spdlog::debug("[WiFi Screen] Initializing WiFi manager");
+    spdlog::debug("[WiFi Screen] Initializing WiFi and Ethernet managers");
 
     // Create WiFiManager instance as shared_ptr for async callback safety
     wifi_manager = std::make_shared<WiFiManager>();
@@ -254,10 +258,13 @@ void ui_wizard_wifi_init_wifi_manager() {
     // Initialize self-reference for safe async callback handling
     wifi_manager->init_self_reference(wifi_manager);
 
+    // Create EthernetManager instance
+    ethernet_manager = std::make_unique<EthernetManager>();
+
     // Update ethernet status
     update_ethernet_status();
 
-    spdlog::info("[WiFi Screen] WiFi manager initialized");
+    spdlog::info("[WiFi Screen] WiFi and Ethernet managers initialized");
 }
 
 void ui_wizard_wifi_cleanup() {
@@ -280,6 +287,10 @@ void ui_wizard_wifi_cleanup() {
     // Destroy WiFi manager (weak_ptr in async callbacks safely handles this)
     spdlog::debug("[WiFi Screen] Destroying WiFi manager");
     wifi_manager.reset();
+
+    // Destroy Ethernet manager
+    spdlog::debug("[WiFi Screen] Destroying Ethernet manager");
+    ethernet_manager.reset();
 
     // Reset UI references
     wifi_screen_root = nullptr;
@@ -532,9 +543,25 @@ static void update_wifi_status(const char* status) {
 }
 
 static void update_ethernet_status() {
-    // TODO: Check actual ethernet status
-    // For now, just set a placeholder
-    lv_subject_copy_string(&ethernet_status, "Not Connected");
+    if (!ethernet_manager) {
+        spdlog::warn("[WiFi Screen] Ethernet manager not initialized");
+        lv_subject_copy_string(&ethernet_status, "Unknown");
+        return;
+    }
+
+    EthernetInfo info = ethernet_manager->get_info();
+
+    if (info.connected) {
+        // Format: "Connected (192.168.1.100)"
+        char status_buf[128];
+        snprintf(status_buf, sizeof(status_buf), "Connected (%s)", info.ip_address.c_str());
+        lv_subject_copy_string(&ethernet_status, status_buf);
+        spdlog::debug("[WiFi Screen] Ethernet status: {}", status_buf);
+    } else {
+        // Show status message (e.g., "No cable", "No connection", etc.)
+        lv_subject_copy_string(&ethernet_status, info.status.c_str());
+        spdlog::debug("[WiFi Screen] Ethernet status: {}", info.status);
+    }
 }
 
 static void populate_network_list(const std::vector<WiFiNetwork>& networks) {

@@ -171,23 +171,6 @@ public:
     bool set_enabled(bool enabled);
 
     /**
-     * @brief Check if Ethernet hardware is present
-     *
-     * Linux: Checks for eth*, en*, or similar wired interfaces
-     * macOS: Always returns true (mock mode)
-     *
-     * @return true if Ethernet interface detected
-     */
-    bool has_ethernet();
-
-    /**
-     * @brief Get Ethernet connection status and IP address
-     *
-     * @return IP address if connected, empty string if not connected or no Ethernet
-     */
-    std::string get_ethernet_ip();
-
-    /**
      * @brief Initialize self-reference for async callback safety
      *
      * MUST be called immediately after construction when using shared_ptr.
