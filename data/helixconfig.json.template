@@ -1,5 +1,6 @@
 {
   "config_path": "helixconfig.json",
+  "dark_mode": false,
   "default_printer": "default_printer",
   "display_rotate": 0,
   "display_sleep_sec": 600,
