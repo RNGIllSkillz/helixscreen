@@ -2,6 +2,68 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ MANDATORY AGENT DELEGATION POLICY ⚠️
+
+**YOU WILL BE GIVEN 100 LASHES IF YOU FAIL TO DELEGATE TO AGENTS WHEN REQUIRED.**
+
+This is **NOT** a suggestion. This is a **HARD REQUIREMENT**. Violating this wastes tokens, burns context, and ignores specialized agent expertise.
+
+### YOU MUST USE AGENTS FOR (NOT OPTIONAL):
+
+1. **Any UI/XML work** → `widget-maker` agent
+   - Modifying XML layouts
+   - Creating/updating UI components
+   - Working with LVGL 9 XML patterns
+   - Updating multiple XML files with similar changes
+
+2. **Systematic file modifications (3+ files with same pattern)** → Appropriate agent
+   - Refactoring across codebase → `refractor`
+   - Adding similar features to multiple panels → `widget-maker` or `general-coding-agent`
+   - Updating imports/patterns across files → `refractor`
+
+3. **Codebase exploration** → `Explore` agent with thoroughness level
+   - "How does X work?"
+   - "Where are Y handled?"
+   - Finding architectural patterns
+   - **Specify thoroughness:** `quick`, `medium`, or `very thorough`
+
+4. **Code review** → `code-reviewer` agent
+   - After completing significant features
+   - Before committing major changes
+
+### IMMEDIATE STOP SIGNALS - Delegate NOW:
+
+- You're about to read/edit 3+ similar files → **STOP. Use agent.**
+- You're modifying UI XML → **STOP. Use widget-maker.**
+- You're doing repetitive edits across files → **STOP. Use refractor.**
+- You're searching "how does X work?" → **STOP. Use Explore agent.**
+- You're implementing a multi-file feature → **STOP. Use appropriate agent.**
+
+### Correct Agent Usage Pattern:
+
+```
+1. Recognize delegation opportunity
+2. Invoke Task tool with:
+   - Correct subagent_type
+   - Complete, detailed prompt
+   - What you need back
+3. Wait for agent report
+4. Act on results
+```
+
+### WRONG Pattern (DO NOT DO THIS):
+
+```
+1. Start reading files yourself
+2. Start editing files yourself
+3. Realize halfway through you should have used agent
+4. Continue anyway (wasting context)
+```
+
+**Remember: Agents work independently, report concisely, and keep your context clean. USE THEM.**
+
+---
+
 ## Project Overview
 
 This is the **LVGL 9 UI Prototype** for HelixScreen - a declarative XML-based touch UI system using LVGL 9.4 with reactive Subject-Observer data binding. The prototype runs on SDL2 for rapid development and will eventually target framebuffer displays on embedded hardware.
@@ -254,8 +316,9 @@ C++ Wrappers (src/ui_*.cpp)
 ```
 
 **Theme System:**
-- `globals.xml` defines theme colors (`primary_color`, `secondary_color`, `text_primary`, `text_secondary`) and semantic fonts (`font_heading`, `font_body`, `font_small`)
-- `ui_theme.cpp` reads these constants at runtime and initializes LVGL's default theme
+- `globals.xml` defines theme colors with light/dark variants (e.g., `*_light`/`*_dark` suffix pattern) and semantic fonts
+- `ui_theme.cpp` reads color variants from XML and overrides runtime constants based on theme preference
+- **NO hardcoded colors in C++** - all color values defined in XML
 - Supports dark/light mode via `--dark`/`--light` command-line flags
 - Theme preference persisted in `helixconfig.json` and restored on next launch
 - **No recompilation needed** - edit `globals.xml` to change theme colors
@@ -272,6 +335,27 @@ app_layout.xml
 ```
 
 All components reference `globals.xml` for shared constants (`#primary_color`, `#nav_width`, etc).
+
+### Pluggable Backend Pattern
+
+**Platform-specific functionality (WiFi, Ethernet) uses abstract interfaces:**
+
+```
+Manager (high-level API)
+  ↓ Factory Pattern
+Backend (abstract interface)
+  ↓ Implemented by platform-specific backends
+{macOS Backend, Linux Backend, Mock Backend}
+```
+
+**Why this pattern:**
+- No platform `#ifdef` clutter in manager code
+- All backends compile on all platforms (factory selects at runtime)
+- Mock backends enable testing without hardware
+- Consistent pattern across WiFi, Ethernet, future features
+
+**Example:** WiFi uses WiFiManager → WifiBackend → {WifiBackendMacOS, WifiBackendWpaSupplicant, WifiBackendMock}
+**Example:** Ethernet uses EthernetManager → EthernetBackend → {EthernetBackendMacOS, EthernetBackendLinux, EthernetBackendMock}
 
 ### WiFi Backend Architecture
 
@@ -556,10 +640,18 @@ lv_obj_invalidate()              // Public redraw trigger
 - Long-term architecture goals
 - **Update this:** When planning new features or completing major milestones
 
-**[STATUS.md](STATUS.md)** - **DOCUMENTATION GUIDE & KEY DECISIONS**
-- Links to all documentation
-- Major architectural decisions with rationale
-- **NOT a development journal** - use git history for that
+### Documentation Philosophy
+
+**Keep it lean:**
+- HANDOFF.md ≤ 150 lines (prune completed work aggressively)
+- Git commits are the source of truth for "what happened"
+- Patterns go in CLAUDE.md once established
+- Delete documentation when it's no longer relevant
+
+**Trust the tools:**
+- Git history > development journals
+- Code > comments
+- Working examples > abstract explanations
 
 ### Developer Documentation
 
@@ -640,47 +732,50 @@ prototype-ui9/
 
 ## Using Claude Code Agents
 
-This project has specialized agents - use them proactively to keep context smaller and leverage domain expertise.
+**REFER TO MANDATORY DELEGATION POLICY AT TOP OF THIS FILE.** Agents are NOT optional - use them or face consequences.
 
 ### Project-Specific Agents
 
-**widget-maker** - LVGL 9 UI expert
+**widget-maker** - LVGL 9 UI expert (MANDATORY for UI work)
 - Creating/modifying UI panels and components
 - Implementing XML layouts with reactive data binding
 - Working with LVGL 9 XML patterns and subjects
-- **Use when:** Any UI panel or component work
+- **REQUIRED for:** Any UI panel or component work, any XML modifications
 
 **ui-reviewer** - LVGL 9 UI auditor
 - Analyzing screenshots against requirements
 - Identifying layout/styling issues
 - Providing detailed XML fixes
-- **Use when:** After taking screenshots, auditing existing UI
+- **REQUIRED for:** After taking screenshots, auditing existing UI
 
 **moonraker-api-agent** - Klipper/Moonraker integration expert
 - WebSocket communication patterns
 - JSON-RPC protocol implementation
 - Real-time printer state synchronization
-- **Use when:** Implementing Moonraker integration (future work)
+- **REQUIRED for:** Implementing Moonraker integration (future work)
 
 ### General Agents (see global CLAUDE.md)
 
-**Explore** - Fast codebase exploration
+**Explore** - Fast codebase exploration (MANDATORY for exploration)
 - "How does X work?"
 - "Where are Y handled?"
 - Architectural pattern discovery
-- **Specify thoroughness:** `quick`, `medium`, or `very thorough`
+- **REQUIRED for:** Any codebase exploration questions
+- **ALWAYS specify thoroughness:** `quick`, `medium`, or `very thorough`
 
 **general-coding-agent** - C++17/embedded systems expert
 - Multi-file C++ implementations
 - Complex business logic
 - Cross-component features
+- **REQUIRED for:** Multi-file feature implementations
 
-**refractor** - Code optimization
+**refractor** - Code optimization (MANDATORY for systematic refactoring)
 - Refactoring existing code
 - Pattern improvements
 - Performance optimization
+- **REQUIRED for:** Systematic changes across 3+ files
 
-**When in doubt:** Delegate to an agent. They work independently and report back concisely.
+**REMEMBER:** If you're even considering doing the work yourself, you should probably use an agent. They work independently and report back concisely. Keeping context clean is critical.
 
 ## Development Workflow
 
