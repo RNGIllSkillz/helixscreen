@@ -81,7 +81,7 @@ static bool parse_size(const char* size_str, IconSize* out_size) {
         return true;
     }
 
-    LV_LOG_WARN("Invalid icon size '%s', using default 'xl'", size_str);
+    spdlog::warn("Invalid icon size '{}', using default 'xl'", size_str);
     *out_size = SIZE_XL;
     return false;
 }
@@ -104,7 +104,7 @@ static IconVariant parse_variant(const char* variant_str) {
         return IconVariant::NONE;
     }
 
-    LV_LOG_WARN("Invalid icon variant '%s', using default 'none'", variant_str);
+    spdlog::warn("Invalid icon variant '{}', using default 'none'", variant_str);
     return IconVariant::NONE;
 }
 
@@ -241,7 +241,7 @@ static void ui_icon_xml_apply(lv_xml_parser_state_t* state, const char** attrs) 
  */
 void ui_icon_register_widget() {
     lv_xml_register_widget("icon", ui_icon_xml_create, ui_icon_xml_apply);
-    LV_LOG_USER("Icon widget registered with XML system");
+    spdlog::info("Icon widget registered with XML system");
 }
 
 // Public API implementations

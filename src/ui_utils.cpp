@@ -20,6 +20,7 @@
 
 #include "ui_utils.h"
 #include "ui_theme.h"
+#include <spdlog/spdlog.h>
 #include <cstdio>
 #include <ctime>
 #include <vector>
@@ -126,7 +127,7 @@ static constexpr uint32_t RESIZE_DEBOUNCE_MS = 250;
 static void resize_timer_cb(lv_timer_t* timer) {
     (void)timer;
 
-    LV_LOG_USER("Resize debounce complete, calling %zu registered callbacks", resize_callbacks.size());
+    spdlog::debug("Resize debounce complete, calling {} registered callbacks", resize_callbacks.size());
 
     // Call all registered callbacks
     for (auto callback : resize_callbacks) {
@@ -151,7 +152,7 @@ static void resize_event_cb(lv_event_t* e) {
         lv_coord_t width = lv_obj_get_width(screen);
         lv_coord_t height = lv_obj_get_height(screen);
 
-        LV_LOG_USER("Screen size changed to %dx%d, resetting debounce timer", width, height);
+        spdlog::debug("Screen size changed to {}x{}, resetting debounce timer", width, height);
 
         // Reset or create debounce timer
         if (resize_debounce_timer) {
@@ -165,24 +166,24 @@ static void resize_event_cb(lv_event_t* e) {
 
 void ui_resize_handler_init(lv_obj_t* screen) {
     if (!screen) {
-        LV_LOG_ERROR("Cannot init resize handler: screen is null");
+        spdlog::error("Cannot init resize handler: screen is null");
         return;
     }
 
     // Add SIZE_CHANGED event listener to screen
     lv_obj_add_event_cb(screen, resize_event_cb, LV_EVENT_SIZE_CHANGED, nullptr);
 
-    LV_LOG_USER("Resize handler initialized on screen");
+    spdlog::info("Resize handler initialized on screen");
 }
 
 void ui_resize_handler_register(ui_resize_callback_t callback) {
     if (!callback) {
-        LV_LOG_WARN("Attempted to register null resize callback");
+        spdlog::warn("Attempted to register null resize callback");
         return;
     }
 
     resize_callbacks.push_back(callback);
-    LV_LOG_USER("Registered resize callback (%zu total)", resize_callbacks.size());
+    spdlog::debug("Registered resize callback ({} total)", resize_callbacks.size());
 }
 
 // ============================================================================
@@ -191,7 +192,7 @@ void ui_resize_handler_register(ui_resize_callback_t callback) {
 
 bool ui_image_scale_to_cover(lv_obj_t* image_widget, lv_coord_t target_width, lv_coord_t target_height) {
     if (!image_widget) {
-        LV_LOG_ERROR("Cannot scale image: widget is null");
+        spdlog::error("Cannot scale image: widget is null");
         return false;
     }
 
@@ -200,7 +201,8 @@ bool ui_image_scale_to_cover(lv_obj_t* image_widget, lv_coord_t target_width, lv
     lv_result_t res = lv_image_decoder_get_info(lv_image_get_src(image_widget), &header);
 
     if (res != LV_RESULT_OK || header.w == 0 || header.h == 0) {
-        LV_LOG_WARN("Cannot get image info for scaling (res=%d, w=%d, h=%d)", res, header.w, header.h);
+        int w = header.w, h = header.h;  // Copy bitfields for formatting
+        spdlog::warn("Cannot get image info for scaling (res={}, w={}, h={})", static_cast<int>(res), w, h);
         return false;
     }
 
@@ -215,8 +217,9 @@ bool ui_image_scale_to_cover(lv_obj_t* image_widget, lv_coord_t target_width, lv
     lv_image_set_scale(image_widget, zoom);
     lv_image_set_inner_align(image_widget, LV_IMAGE_ALIGN_CENTER);
 
-    LV_LOG_USER("Image scale (cover): img=%dx%d, target=%dx%d, zoom=%d (%.1f%%)",
-               header.w, header.h, target_width, target_height, zoom, scale * 100);
+    int img_w = header.w, img_h = header.h;  // Copy bitfields for formatting
+    spdlog::debug("Image scale (cover): img={}x{}, target={}x{}, zoom={} ({:.1f}%)",
+               img_w, img_h, target_width, target_height, zoom, scale * 100);
 
     return true;
 }
@@ -224,7 +227,7 @@ bool ui_image_scale_to_cover(lv_obj_t* image_widget, lv_coord_t target_width, lv
 bool ui_image_scale_to_contain(lv_obj_t* image_widget, lv_coord_t target_width, lv_coord_t target_height,
                                 lv_image_align_t align) {
     if (!image_widget) {
-        LV_LOG_ERROR("Cannot scale image: widget is null");
+        spdlog::error("Cannot scale image: widget is null");
         return false;
     }
 
@@ -233,7 +236,8 @@ bool ui_image_scale_to_contain(lv_obj_t* image_widget, lv_coord_t target_width, 
     lv_result_t res = lv_image_decoder_get_info(lv_image_get_src(image_widget), &header);
 
     if (res != LV_RESULT_OK || header.w == 0 || header.h == 0) {
-        LV_LOG_WARN("Cannot get image info for scaling (res=%d, w=%d, h=%d)", res, header.w, header.h);
+        int w = header.w, h = header.h;  // Copy bitfields for formatting
+        spdlog::warn("Cannot get image info for scaling (res={}, w={}, h={})", static_cast<int>(res), w, h);
         return false;
     }
 
@@ -248,8 +252,9 @@ bool ui_image_scale_to_contain(lv_obj_t* image_widget, lv_coord_t target_width, 
     lv_image_set_scale(image_widget, zoom);
     lv_image_set_inner_align(image_widget, align);
 
-    LV_LOG_USER("Image scale (contain): img=%dx%d, target=%dx%d, zoom=%d (%.1f%%)",
-               header.w, header.h, target_width, target_height, zoom, scale * 100);
+    int img_w = header.w, img_h = header.h;  // Copy bitfields for formatting
+    spdlog::debug("Image scale (contain): img={}x{}, target={}x{}, zoom={} ({:.1f}%)",
+               img_w, img_h, target_width, target_height, zoom, scale * 100);
 
     return true;
 }

@@ -25,6 +25,7 @@
 #include "ui_theme.h"
 #include "ui_nav.h"
 #include "lvgl/src/others/xml/lv_xml.h"
+#include <spdlog/spdlog.h>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -72,7 +73,7 @@ struct CardDimensions {
 
 static CardDimensions calculate_card_dimensions(lv_obj_t* container) {
     if (!container) {
-        LV_LOG_ERROR("Cannot calculate dimensions: container is null");
+        spdlog::error("Cannot calculate dimensions: container is null");
         CardDimensions dims = {4, 2, CARD_MIN_WIDTH, CARD_DEFAULT_HEIGHT};
         return dims;
     }
@@ -83,7 +84,7 @@ static CardDimensions calculate_card_dimensions(lv_obj_t* container) {
     // Calculate available height from parent panel dimensions
     lv_obj_t* panel_root = lv_obj_get_parent(container);
     if (!panel_root) {
-        LV_LOG_ERROR("Cannot find panel root");
+        spdlog::error("Cannot find panel root");
         CardDimensions dims = {4, 2, CARD_MIN_WIDTH, CARD_DEFAULT_HEIGHT};
         return dims;
     }
@@ -104,7 +105,7 @@ static CardDimensions calculate_card_dimensions(lv_obj_t* container) {
     lv_coord_t container_actual_height = lv_obj_get_height(container);
     lv_coord_t available_height = panel_height - top_bar_height - container_padding - panel_gap;
 
-    LV_LOG_USER("Heights: panel=%d, top_bar=%d, container_actual=%d, container_padding=%d, panel_gap=%d, available=%d",
+    spdlog::info("Heights: panel={}, top_bar={}, container_actual={}, container_padding={}, panel_gap={}, available={}",
                panel_height, top_bar_height, container_actual_height, container_padding, panel_gap, available_height);
 
     CardDimensions dims;
@@ -129,7 +130,7 @@ static CardDimensions calculate_card_dimensions(lv_obj_t* container) {
             dims.num_columns = cols;
             dims.card_width = card_width;
 
-            LV_LOG_USER("Calculated card layout: %d rows × %d columns, card=%dx%d",
+            spdlog::info("Calculated card layout: {} rows × {} columns, card={}x{}",
                        dims.num_rows, dims.num_columns, dims.card_width, dims.card_height);
             return dims;
         }
@@ -140,7 +141,7 @@ static CardDimensions calculate_card_dimensions(lv_obj_t* container) {
     if (dims.num_columns < 1) dims.num_columns = 1;  // Safety: always at least 1 column
     dims.card_width = CARD_MIN_WIDTH;
 
-    LV_LOG_WARN("No optimal card layout found, using fallback: %d columns", dims.num_columns);
+    spdlog::warn("No optimal card layout found, using fallback: {} columns", dims.num_columns);
     return dims;
 }
 
@@ -202,7 +203,7 @@ static void on_resize() {
     // CRITICAL: Don't run resize logic until panel is fully initialized (prevents segfault)
     if (!panel_initialized) return;
 
-    LV_LOG_USER("Print select panel handling resize event");
+    spdlog::info("Print select panel handling resize event");
 
     // Only recalculate card view dimensions if currently in card view mode
     if (current_view_mode == PrintSelectViewMode::CARD && card_view_container) {
@@ -244,7 +245,7 @@ void ui_panel_print_select_init_subjects() {
     lv_subject_init_int(&detail_view_visible_subject, 0);
     lv_xml_register_subject(nullptr, "detail_view_visible", &detail_view_visible_subject);
 
-    LV_LOG_USER("Print select panel subjects initialized");
+    spdlog::info("Print select panel subjects initialized");
 }
 
 // ============================================================================
@@ -252,7 +253,7 @@ void ui_panel_print_select_init_subjects() {
 // ============================================================================
 void ui_panel_print_select_setup(lv_obj_t* panel_root, lv_obj_t* parent_screen) {
     if (!panel_root) {
-        LV_LOG_ERROR("Cannot setup print select panel: panel_root is null");
+        spdlog::error("Cannot setup print select panel: panel_root is null");
         return;
     }
 
@@ -269,7 +270,7 @@ void ui_panel_print_select_setup(lv_obj_t* panel_root, lv_obj_t* parent_screen) 
 
     if (!card_view_container || !list_view_container || !list_rows_container ||
         !empty_state_container || !view_toggle_btn || !view_toggle_icon) {
-        LV_LOG_ERROR("Failed to find required widgets in print select panel");
+        spdlog::error("Failed to find required widgets in print select panel");
         return;
     }
 
@@ -308,7 +309,7 @@ void ui_panel_print_select_setup(lv_obj_t* panel_root, lv_obj_t* parent_screen) 
     // Mark panel as fully initialized (enables resize callbacks)
     panel_initialized = true;
 
-    LV_LOG_USER("Print select panel setup complete");
+    spdlog::info("Print select panel setup complete");
 }
 
 // ============================================================================
@@ -326,7 +327,7 @@ void ui_panel_print_select_toggle_view() {
         if (grid_icon) {
             lv_image_set_src(view_toggle_icon, grid_icon);
         }
-        LV_LOG_USER("Switched to list view");
+        spdlog::debug("Switched to list view");
     } else {
         // Switch to card view
         current_view_mode = PrintSelectViewMode::CARD;
@@ -338,7 +339,7 @@ void ui_panel_print_select_toggle_view() {
         if (list_icon) {
             lv_image_set_src(view_toggle_icon, list_icon);
         }
-        LV_LOG_USER("Switched to card view");
+        spdlog::debug("Switched to card view");
     }
 
     update_empty_state();
@@ -399,7 +400,7 @@ void ui_panel_print_select_sort_by(PrintSelectSortColumn column) {
         populate_list_view();
     }
 
-    LV_LOG_USER("Sorted by column %d, direction %d", (int)column, (int)current_sort_direction);
+    spdlog::debug("Sorted by column {}, direction {}", (int)column, (int)current_sort_direction);
 }
 
 static void update_sort_indicators() {
@@ -445,7 +446,7 @@ static void update_sort_indicators() {
 // ============================================================================
 void ui_panel_print_select_populate_test_data(lv_obj_t* panel_root) {
     if (!panel_root) {
-        LV_LOG_ERROR("Cannot populate: panel_root is null");
+        spdlog::error("Cannot populate: panel_root is null");
         return;
     }
 
@@ -502,7 +503,7 @@ void ui_panel_print_select_populate_test_data(lv_obj_t* panel_root) {
     // Update empty state
     update_empty_state();
 
-    LV_LOG_USER("Populated print select panel with %d test files", (int)file_list.size());
+    spdlog::info("Populated print select panel with {} test files", (int)file_list.size());
 }
 
 static void populate_card_view() {
@@ -584,8 +585,9 @@ static void populate_card_view() {
                     lv_image_set_scale(thumbnail, zoom);
                     lv_image_set_inner_align(thumbnail, LV_IMAGE_ALIGN_CENTER);
 
-                    LV_LOG_USER("Thumbnail scale: img=%dx%d, card=%dx%d, zoom=%d (%.1f%%)",
-                               header.w, header.h, dims.card_width, dims.card_height, zoom, scale * 100);
+                    int img_w = header.w, img_h = header.h;  // Copy bitfields for formatting
+                    spdlog::debug("Thumbnail scale: img={}x{}, card={}x{}, zoom={} ({:.1f}%)",
+                               img_w, img_h, dims.card_width, dims.card_height, zoom, scale * 100);
                 }
             }
 
@@ -655,7 +657,7 @@ void ui_panel_print_select_set_file(const char* filename, const char* thumbnail_
     lv_subject_copy_string(&selected_print_time_subject, print_time);
     lv_subject_copy_string(&selected_filament_weight_subject, filament_weight);
 
-    LV_LOG_USER("Selected file: %s", filename);
+    spdlog::info("Selected file: %s", filename);
 }
 
 // ============================================================================
@@ -667,7 +669,7 @@ static void scale_detail_images() {
     // Find thumbnail section to get target dimensions
     lv_obj_t* thumbnail_section = lv_obj_find_by_name(detail_view_widget, "thumbnail_section");
     if (!thumbnail_section) {
-        LV_LOG_WARN("Thumbnail section not found in detail view, cannot scale images");
+        spdlog::warn("Thumbnail section not found in detail view, cannot scale images");
         return;
     }
 
@@ -677,7 +679,7 @@ static void scale_detail_images() {
     lv_coord_t section_width = lv_obj_get_content_width(thumbnail_section);
     lv_coord_t section_height = lv_obj_get_content_height(thumbnail_section);
 
-    LV_LOG_USER("Detail view thumbnail section: %dx%d", section_width, section_height);
+    spdlog::debug("Detail view thumbnail section: %dx%d", section_width, section_height);
 
     // Scale gradient background to cover the entire section
     lv_obj_t* gradient_bg = lv_obj_find_by_name(detail_view_widget, "gradient_background");
@@ -712,12 +714,12 @@ void ui_panel_print_select_hide_detail_view() {
 
 static void create_detail_view() {
     if (!parent_screen_widget) {
-        LV_LOG_ERROR("Cannot create detail view: parent_screen_widget is null");
+        spdlog::error("Cannot create detail view: parent_screen_widget is null");
         return;
     }
 
     if (detail_view_widget) {
-        LV_LOG_WARN("Detail view already exists");
+        spdlog::error("Detail view already exists");
         return;
     }
 
@@ -725,7 +727,7 @@ static void create_detail_view() {
     detail_view_widget = (lv_obj_t*)lv_xml_create(parent_screen_widget, "print_file_detail", nullptr);
 
     if (!detail_view_widget) {
-        LV_LOG_ERROR("Failed to create detail view from XML");
+        spdlog::error("Failed to create detail view from XML");
         return;
     }
 
@@ -739,7 +741,7 @@ static void create_detail_view() {
     if (content_container) {
         lv_coord_t padding = ui_get_header_content_padding(lv_obj_get_height(parent_screen_widget));
         lv_obj_set_style_pad_all(content_container, padding, 0);
-        LV_LOG_USER("[PrintSelect] Detail view content padding: %dpx (responsive)", padding);
+        spdlog::debug("[PrintSelect] Detail view content padding: %dpx (responsive)", padding);
     }
 
     lv_obj_add_flag(detail_view_widget, LV_OBJ_FLAG_HIDDEN);
@@ -792,9 +794,9 @@ static void create_detail_view() {
                 // Start mock print (250 layers, 3 hours = 10800 seconds)
                 ui_panel_print_status_start_mock_print(filename, 250, 10800);
 
-                LV_LOG_USER("Started mock print for: %s", filename);
+                spdlog::info("Started mock print for: %s", filename);
             } else {
-                LV_LOG_WARN("Print status panel not set - cannot start print");
+                spdlog::error("Print status panel not set - cannot start print");
             }
         }, LV_EVENT_CLICKED, nullptr);
     }
@@ -808,7 +810,7 @@ static void create_detail_view() {
         }
     }, LV_EVENT_CLICKED, nullptr);
 
-    LV_LOG_USER("Detail view created");
+    spdlog::debug("Detail view created");
 }
 
 // ============================================================================
@@ -816,7 +818,7 @@ static void create_detail_view() {
 // ============================================================================
 void ui_panel_print_select_show_delete_confirmation() {
     if (!confirmation_dialog_widget) {
-        LV_LOG_ERROR("Confirmation dialog not created");
+        spdlog::error("Confirmation dialog not created");
         return;
     }
 
@@ -831,7 +833,7 @@ void ui_panel_print_select_show_delete_confirmation() {
 
     lv_obj_remove_flag(confirmation_dialog_widget, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_foreground(confirmation_dialog_widget);
-    LV_LOG_USER("Delete confirmation dialog shown");
+    spdlog::info("Delete confirmation dialog shown");
 }
 
 static void hide_delete_confirmation() {
@@ -842,12 +844,12 @@ static void hide_delete_confirmation() {
 
 static void create_confirmation_dialog() {
     if (!parent_screen_widget) {
-        LV_LOG_ERROR("Cannot create confirmation dialog: parent_screen_widget is null");
+        spdlog::error("Cannot create confirmation dialog: parent_screen_widget is null");
         return;
     }
 
     if (confirmation_dialog_widget) {
-        LV_LOG_WARN("Confirmation dialog already exists");
+        spdlog::error("Confirmation dialog already exists");
         return;
     }
 
@@ -861,7 +863,7 @@ static void create_confirmation_dialog() {
     confirmation_dialog_widget = (lv_obj_t*)lv_xml_create(parent_screen_widget, "confirmation_dialog", attrs);
 
     if (!confirmation_dialog_widget) {
-        LV_LOG_ERROR("Failed to create confirmation dialog from XML");
+        spdlog::error("Failed to create confirmation dialog from XML");
         return;
     }
 
@@ -882,7 +884,7 @@ static void create_confirmation_dialog() {
         lv_obj_add_event_cb(confirm_btn, [](lv_event_t* e) {
             (void)e;
             // TODO: Implement actual delete functionality
-            LV_LOG_USER("File deleted (placeholder action)");
+            spdlog::info("File deleted (placeholder action)");
             hide_delete_confirmation();
             ui_panel_print_select_hide_detail_view();
         }, LV_EVENT_CLICKED, nullptr);
@@ -897,7 +899,7 @@ static void create_confirmation_dialog() {
         }
     }, LV_EVENT_CLICKED, nullptr);
 
-    LV_LOG_USER("Confirmation dialog created");
+    spdlog::debug("Confirmation dialog created");
 }
 
 // ============================================================================
@@ -944,5 +946,5 @@ static void attach_row_click_handler(lv_obj_t* row, const PrintFileData& file_da
 // ============================================================================
 void ui_panel_print_select_set_print_status_panel(lv_obj_t* panel) {
     print_status_panel_widget = panel;
-    LV_LOG_USER("Print status panel reference set");
+    spdlog::debug("Print status panel reference set");
 }

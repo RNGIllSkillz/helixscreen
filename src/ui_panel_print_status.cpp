@@ -22,6 +22,7 @@
 #include "ui_component_header_bar.h"
 #include "ui_utils.h"
 #include "ui_nav.h"
+#include <spdlog/spdlog.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -114,7 +115,7 @@ void ui_panel_print_status_init_subjects() {
     lv_xml_register_subject(NULL, "print_flow_text", &flow_subject);
     lv_xml_register_subject(NULL, "pause_button_text", &pause_button_subject);
 
-    printf("[PrintStatus] Subjects initialized\n");
+    spdlog::debug("[PrintStatus] Subjects initialized");
 }
 
 // Format seconds to "Xh YYm" format
@@ -176,7 +177,7 @@ static void update_all_displays() {
 // Event handler: Back button (from header_bar component)
 static void back_button_cb(lv_event_t* e) {
     (void)e;
-    printf("[PrintStatus] Back button clicked\n");
+    spdlog::debug("[PrintStatus] Back button clicked");
 
     // Use navigation history to go back to previous panel
     if (!ui_nav_go_back()) {
@@ -197,21 +198,21 @@ static void back_button_cb(lv_event_t* e) {
 // Event handler: Nozzle temperature card
 static void nozzle_temp_card_cb(lv_event_t* e) {
     (void)e;
-    printf("[PrintStatus] Nozzle temp card clicked\n");
+    spdlog::debug("[PrintStatus] Nozzle temp card clicked");
     // TODO: Show nozzle temperature adjustment panel
 }
 
 // Event handler: Bed temperature card
 static void bed_temp_card_cb(lv_event_t* e) {
     (void)e;
-    printf("[PrintStatus] Bed temp card clicked\n");
+    spdlog::debug("[PrintStatus] Bed temp card clicked");
     // TODO: Show bed temperature adjustment panel
 }
 
 // Event handler: Light toggle button
 static void light_button_cb(lv_event_t* e) {
     (void)e;
-    printf("[PrintStatus] Light button clicked\n");
+    spdlog::debug("[PrintStatus] Light button clicked");
     // TODO: Toggle printer LED/light on/off
 }
 
@@ -220,11 +221,11 @@ static void pause_button_cb(lv_event_t* e) {
     (void)e;
 
     if (current_state == PRINT_STATE_PRINTING) {
-        printf("[PrintStatus] Pausing print...\n");
+        spdlog::info("[PrintStatus] Pausing print...");
         ui_panel_print_status_set_state(PRINT_STATE_PAUSED);
         // TODO: Send pause command to printer
     } else if (current_state == PRINT_STATE_PAUSED) {
-        printf("[PrintStatus] Resuming print...\n");
+        spdlog::info("[PrintStatus] Resuming print...\n");
         ui_panel_print_status_set_state(PRINT_STATE_PRINTING);
         // TODO: Send resume command to printer
     }
@@ -233,14 +234,14 @@ static void pause_button_cb(lv_event_t* e) {
 // Event handler: Tune button
 static void tune_button_cb(lv_event_t* e) {
     (void)e;
-    printf("[PrintStatus] Tune button clicked (not yet implemented)\n");
+    spdlog::info("[PrintStatus] Tune button clicked (not yet implemented)\n");
     // TODO: Open tuning overlay with speed/flow/temp adjustments
 }
 
 // Event handler: Cancel button
 static void cancel_button_cb(lv_event_t* e) {
     (void)e;
-    printf("[PrintStatus] Cancel button clicked\n");
+    spdlog::info("[PrintStatus] Cancel button clicked\n");
     // TODO: Show confirmation dialog, then cancel print
     ui_panel_print_status_set_state(PRINT_STATE_CANCELLED);
     ui_panel_print_status_stop_mock_print();
@@ -256,7 +257,7 @@ static void scale_thumbnail_images() {
     // Find thumbnail section to get target dimensions
     lv_obj_t* thumbnail_section = lv_obj_find_by_name(print_status_panel, "thumbnail_section");
     if (!thumbnail_section) {
-        LV_LOG_WARN("Thumbnail section not found, cannot scale images");
+        spdlog::warn("Thumbnail section not found, cannot scale images");
         return;
     }
 
@@ -281,7 +282,7 @@ static void scale_thumbnail_images() {
 // ============================================================================
 
 static void on_resize() {
-    LV_LOG_USER("Print status panel handling resize event");
+    spdlog::debug("Print status panel handling resize event");
 
     // Update content padding
     if (print_status_panel && parent_obj) {
@@ -319,7 +320,7 @@ void ui_panel_print_status_setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     if (content_container) {
         lv_coord_t padding = ui_get_header_content_padding(lv_obj_get_height(parent_screen));
         lv_obj_set_style_pad_all(content_container, padding, 0);
-        printf("[PrintStatus]   ✓ Content padding: %dpx (responsive)\n", padding);
+        spdlog::debug("[PrintStatus]   ✓ Content padding: %dpx (responsive)", padding);
     }
 
     // Force layout calculation before scaling images (flex layout needs this)
@@ -331,69 +332,69 @@ void ui_panel_print_status_setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // Register resize callback for responsive thumbnail scaling
     ui_resize_handler_register(on_resize);
 
-    printf("[PrintStatus] Setting up panel event handlers...\n");
+    spdlog::debug("[PrintStatus] Setting up panel event handlers...");
 
     // Back button (from header_bar component)
     lv_obj_t* back_btn = lv_obj_find_by_name(panel, "back_button");
     if (back_btn) {
         lv_obj_add_event_cb(back_btn, back_button_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[PrintStatus]   ✓ Back button\n");
+        spdlog::debug("[PrintStatus]   ✓ Back button");
     } else {
-        printf("[PrintStatus]   ✗ Back button NOT FOUND\n");
+        spdlog::error("[PrintStatus]   ✗ Back button NOT FOUND");
     }
 
     // Nozzle temperature card (clickable)
     lv_obj_t* nozzle_card = lv_obj_find_by_name(panel, "nozzle_temp_card");
     if (nozzle_card) {
         lv_obj_add_event_cb(nozzle_card, nozzle_temp_card_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[PrintStatus]   ✓ Nozzle temp card\n");
+        spdlog::debug("[PrintStatus]   ✓ Nozzle temp card");
     } else {
-        printf("[PrintStatus]   ✗ Nozzle temp card NOT FOUND\n");
+        spdlog::error("[PrintStatus]   ✗ Nozzle temp card NOT FOUND");
     }
 
     // Bed temperature card (clickable)
     lv_obj_t* bed_card = lv_obj_find_by_name(panel, "bed_temp_card");
     if (bed_card) {
         lv_obj_add_event_cb(bed_card, bed_temp_card_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[PrintStatus]   ✓ Bed temp card\n");
+        spdlog::debug("[PrintStatus]   ✓ Bed temp card");
     } else {
-        printf("[PrintStatus]   ✗ Bed temp card NOT FOUND\n");
+        spdlog::error("[PrintStatus]   ✗ Bed temp card NOT FOUND");
     }
 
     // Light button
     lv_obj_t* light_btn = lv_obj_find_by_name(panel, "btn_light");
     if (light_btn) {
         lv_obj_add_event_cb(light_btn, light_button_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[PrintStatus]   ✓ Light button\n");
+        spdlog::debug("[PrintStatus]   ✓ Light button");
     } else {
-        printf("[PrintStatus]   ✗ Light button NOT FOUND\n");
+        spdlog::error("[PrintStatus]   ✗ Light button NOT FOUND\n");
     }
 
     // Pause button
     lv_obj_t* pause_btn = lv_obj_find_by_name(panel, "btn_pause");
     if (pause_btn) {
         lv_obj_add_event_cb(pause_btn, pause_button_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[PrintStatus]   ✓ Pause button\n");
+        spdlog::debug("[PrintStatus]   ✓ Pause button");
     } else {
-        printf("[PrintStatus]   ✗ Pause button NOT FOUND\n");
+        spdlog::error("[PrintStatus]   ✗ Pause button NOT FOUND");
     }
 
     // Tune button
     lv_obj_t* tune_btn = lv_obj_find_by_name(panel, "btn_tune");
     if (tune_btn) {
         lv_obj_add_event_cb(tune_btn, tune_button_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[PrintStatus]   ✓ Tune button\n");
+        spdlog::debug("[PrintStatus]   ✓ Tune button");
     } else {
-        printf("[PrintStatus]   ✗ Tune button NOT FOUND\n");
+        spdlog::error("[PrintStatus]   ✗ Tune button NOT FOUND");
     }
 
     // Cancel button
     lv_obj_t* cancel_btn = lv_obj_find_by_name(panel, "btn_cancel");
     if (cancel_btn) {
         lv_obj_add_event_cb(cancel_btn, cancel_button_cb, LV_EVENT_CLICKED, nullptr);
-        printf("[PrintStatus]   ✓ Cancel button\n");
+        spdlog::debug("[PrintStatus]   ✓ Cancel button");
     } else {
-        printf("[PrintStatus]   ✗ Cancel button NOT FOUND\n");
+        spdlog::error("[PrintStatus]   ✗ Cancel button NOT FOUND");
     }
 
     // Get progress bar widget for direct updates
@@ -401,12 +402,12 @@ void ui_panel_print_status_setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     if (progress_bar) {
         lv_bar_set_range(progress_bar, 0, 100);
         lv_bar_set_value(progress_bar, 0, LV_ANIM_OFF);
-        printf("[PrintStatus]   ✓ Progress bar\n");
+        spdlog::debug("[PrintStatus]   ✓ Progress bar");
     } else {
-        printf("[PrintStatus]   ✗ Progress bar NOT FOUND\n");
+        spdlog::error("[PrintStatus]   ✗ Progress bar NOT FOUND");
     }
 
-    printf("[PrintStatus] Panel setup complete!\n");
+    spdlog::info("[PrintStatus] Panel setup complete!");
 }
 
 void ui_panel_print_status_set_filename(const char* filename) {
@@ -450,7 +451,7 @@ void ui_panel_print_status_set_speeds(int speed_pct, int flow_pct) {
 void ui_panel_print_status_set_state(print_state_t state) {
     current_state = state;
     update_all_displays();
-    printf("[PrintStatus] State changed to: %d\n", state);
+    spdlog::debug("[PrintStatus] State changed to: %d", state);
 }
 
 // ============================================================================
@@ -471,13 +472,13 @@ void ui_panel_print_status_start_mock_print(const char* filename, int layers, in
     ui_panel_print_status_set_speeds(100, 100);
     ui_panel_print_status_set_state(PRINT_STATE_PRINTING);
 
-    printf("[PrintStatus] Mock print started: %s (%d layers, %d seconds)\n",
+    spdlog::info("[PrintStatus] Mock print started: %s (%d layers, %d seconds)",
            filename, layers, duration_secs);
 }
 
 void ui_panel_print_status_stop_mock_print() {
     mock_active = false;
-    printf("[PrintStatus] Mock print stopped\n");
+    spdlog::info("[PrintStatus] Mock print stopped");
 }
 
 void ui_panel_print_status_tick_mock_print() {
@@ -487,7 +488,7 @@ void ui_panel_print_status_tick_mock_print() {
         // Print complete
         ui_panel_print_status_set_state(PRINT_STATE_COMPLETE);
         ui_panel_print_status_stop_mock_print();
-        printf("[PrintStatus] Mock print complete!\n");
+        spdlog::info("[PrintStatus] Mock print complete!");
         return;
     }
 

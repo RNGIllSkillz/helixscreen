@@ -126,5 +126,5 @@ void material_icons_register() {
     lv_xml_register_image(NULL, "mat_wifi_strength_4_lock", &wifi_strength_4_lock);
     spdlog::debug("WiFi icons registered (13 total)");
 
-    LV_LOG_USER("Material Design icons registered successfully");
+    spdlog::info("Material Design icons registered successfully");
 }

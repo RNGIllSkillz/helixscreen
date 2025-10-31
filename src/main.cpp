@@ -94,7 +94,7 @@ static bool init_lvgl() {
     // LVGL's SDL driver handles window creation internally
     display = lv_sdl_window_create(SCREEN_WIDTH, SCREEN_HEIGHT);
     if (!display) {
-        LV_LOG_ERROR("Failed to create LVGL SDL display");
+        spdlog::error("Failed to create LVGL SDL display");
         lv_deinit();  // Clean up partial LVGL state
         return false;
     }
@@ -102,12 +102,12 @@ static bool init_lvgl() {
     // Create mouse input device
     indev_mouse = lv_sdl_mouse_create();
     if (!indev_mouse) {
-        LV_LOG_ERROR("Failed to create LVGL SDL mouse input");
+        spdlog::error("Failed to create LVGL SDL mouse input");
         lv_deinit();  // Clean up partial LVGL state
         return false;
     }
 
-    LV_LOG_USER("LVGL initialized: %dx%d", SCREEN_WIDTH, SCREEN_HEIGHT);
+    spdlog::info("LVGL initialized: {}x{}", SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // Initialize SVG decoder for loading .svg files
     lv_svg_decoder_init();
@@ -253,15 +253,15 @@ static void save_screenshot() {
     lv_draw_buf_t* snapshot = lv_snapshot_take(screen, LV_COLOR_FORMAT_ARGB8888);
 
     if (!snapshot) {
-        LV_LOG_ERROR("Failed to take screenshot");
+        spdlog::error("Failed to take screenshot");
         return;
     }
 
     // Write BMP file
     if (write_bmp(filename, snapshot->data, snapshot->header.w, snapshot->header.h)) {
-        LV_LOG_USER("Screenshot saved: %s", filename);
+        spdlog::info("Screenshot saved: {}", filename);
     } else {
-        LV_LOG_ERROR("Failed to save screenshot");
+        spdlog::error("Failed to save screenshot");
     }
 
     // Free snapshot buffer
@@ -657,7 +657,7 @@ int main(int argc, char** argv) {
     }
 
     // Register fonts and images for XML (must be done BEFORE globals.xml for theme init)
-    LV_LOG_USER("Registering fonts and images...");
+    spdlog::debug("Registering fonts and images...");
     lv_xml_register_font(NULL, "fa_icons_64", &fa_icons_64);
     lv_xml_register_font(NULL, "fa_icons_48", &fa_icons_48);
     lv_xml_register_font(NULL, "fa_icons_32", &fa_icons_32);
@@ -686,7 +686,7 @@ int main(int argc, char** argv) {
                           "A:assets/images/large-extruder-icon.svg");
 
     // Register XML components (globals first to make constants available)
-    LV_LOG_USER("Registering XML components...");
+    spdlog::debug("Registering XML components...");
     lv_xml_register_component_from_file("A:ui_xml/globals.xml");
 
     // Initialize LVGL theme from globals.xml constants (after fonts and globals are registered)
@@ -696,18 +696,8 @@ int main(int argc, char** argv) {
     config->set<bool>("/dark_mode", dark_mode);
     config->save();
 
-    // Apply theme background color to screen (read theme-specific variant from XML)
-    const char* app_bg_light = lv_xml_get_const(NULL, "app_bg_color_light");
-    const char* app_bg_dark = lv_xml_get_const(NULL, "app_bg_color_dark");
-    const char* app_bg_str = dark_mode ? app_bg_dark : app_bg_light;
-
-    if (app_bg_str) {
-        lv_color_t app_bg = ui_theme_parse_color(app_bg_str);
-        lv_obj_set_style_bg_color(screen, app_bg, LV_PART_MAIN);
-        spdlog::debug("[Main] Set screen background to {} ({} mode)", app_bg_str, dark_mode ? "dark" : "light");
-    } else {
-        spdlog::warn("[Main] Failed to read app background color from XML");
-    }
+    // Apply theme background color to screen
+    ui_theme_apply_bg_color(screen, "app_bg_color", LV_PART_MAIN);
 
     // Register Material Design icons (64x64, scalable)
     material_icons_register();
@@ -725,7 +715,7 @@ int main(int argc, char** argv) {
     SDL_Delay(100);
 
     // Register remaining XML components (globals already registered for theme init)
-    LV_LOG_USER("Registering remaining XML components...");
+    spdlog::debug("Registering remaining XML components...");
 
     // Register responsive constants (AFTER globals, BEFORE components that use them)
     ui_switch_register_responsive_constants();
@@ -770,7 +760,7 @@ int main(int argc, char** argv) {
     lv_xml_register_component_from_file("A:ui_xml/wizard_summary.xml");
 
     // Initialize reactive subjects BEFORE creating XML
-    LV_LOG_USER("Initializing reactive subjects...");
+    spdlog::debug("Initializing reactive subjects...");
     ui_nav_init();  // Navigation system (icon colors, active panel)
     ui_panel_home_init_subjects();  // Home panel data bindings
     ui_panel_print_select_init_subjects();  // Print select panel (none yet)
@@ -848,12 +838,12 @@ int main(int argc, char** argv) {
         // Wire print status panel to print select (for launching prints)
         ui_panel_print_select_set_print_status_panel(overlay_panels.print_status);
 
-        LV_LOG_USER("Print status panel created and wired to print select");
+        spdlog::debug("Print status panel created and wired to print select");
     } else {
-        LV_LOG_ERROR("Failed to create print status panel");
+        spdlog::error("Failed to create print status panel");
     }
 
-    LV_LOG_USER("XML UI created successfully with reactive navigation");
+    spdlog::info("XML UI created successfully with reactive navigation");
 
     // Auto-select home panel if not specified
     if (initial_panel == -1) {
@@ -863,7 +853,7 @@ int main(int argc, char** argv) {
     // Switch to initial panel (if different from default HOME)
     if (initial_panel != UI_PANEL_HOME) {
         ui_nav_set_active((ui_panel_id_t)initial_panel);
-        printf("Switched to panel %d\n", initial_panel);
+        spdlog::debug("Switched to panel %d\n", initial_panel);
     }
 
     // Force a few render cycles to ensure panel switch and layout complete
@@ -879,7 +869,7 @@ int main(int argc, char** argv) {
 
     // Special case: Show keypad for testing
     if (show_keypad) {
-        printf("Auto-opening numeric keypad for testing...\n");
+        spdlog::debug("Auto-opening numeric keypad for testing...\n");
         ui_keypad_config_t config = {
             .initial_value = 210.0f,
             .min_value = 0.0f,
@@ -896,7 +886,7 @@ int main(int argc, char** argv) {
 
     // Special case: Show motion panel if requested
     if (show_motion) {
-        printf("Creating and showing motion sub-screen...\n");
+        spdlog::debug("Creating and showing motion sub-screen...\n");
 
         // Create motion panel (tracked for cleanup)
         overlay_panels.motion = (lv_obj_t*)lv_xml_create(screen, "motion_panel", nullptr);
@@ -909,13 +899,13 @@ int main(int argc, char** argv) {
             // Set mock position data
             ui_panel_motion_set_position(120.5f, 105.2f, 15.8f);
 
-            printf("Motion panel displayed\n");
+            spdlog::debug("Motion panel displayed\n");
         }
     }
 
     // Special case: Show nozzle temp panel if requested
     if (show_nozzle_temp) {
-        printf("Creating and showing nozzle temperature sub-screen...\n");
+        spdlog::debug("Creating and showing nozzle temperature sub-screen...\n");
 
         // Create nozzle temp panel (tracked for cleanup)
         overlay_panels.nozzle_temp = (lv_obj_t*)lv_xml_create(screen, "nozzle_temp_panel", nullptr);
@@ -928,13 +918,13 @@ int main(int argc, char** argv) {
             // Set mock temperature data
             ui_panel_controls_temp_set_nozzle(25, 0);
 
-            printf("Nozzle temp panel displayed\n");
+            spdlog::debug("Nozzle temp panel displayed\n");
         }
     }
 
     // Special case: Show bed temp panel if requested
     if (show_bed_temp) {
-        printf("Creating and showing bed temperature sub-screen...\n");
+        spdlog::debug("Creating and showing bed temperature sub-screen...\n");
 
         // Create bed temp panel (tracked for cleanup)
         overlay_panels.bed_temp = (lv_obj_t*)lv_xml_create(screen, "bed_temp_panel", nullptr);
@@ -947,13 +937,13 @@ int main(int argc, char** argv) {
             // Set mock temperature data
             ui_panel_controls_temp_set_bed(25, 0);
 
-            printf("Bed temp panel displayed\n");
+            spdlog::debug("Bed temp panel displayed\n");
         }
     }
 
     // Special case: Show extrusion panel if requested
     if (show_extrusion) {
-        printf("Creating and showing extrusion sub-screen...\n");
+        spdlog::debug("Creating and showing extrusion sub-screen...\n");
 
         // Create extrusion panel (tracked for cleanup)
         overlay_panels.extrusion = (lv_obj_t*)lv_xml_create(screen, "extrusion_panel", nullptr);
@@ -966,13 +956,13 @@ int main(int argc, char** argv) {
             // Set mock temperature data (nozzle at room temp)
             ui_panel_controls_extrusion_set_temp(25, 0);
 
-            printf("Extrusion panel displayed\n");
+            spdlog::debug("Extrusion panel displayed\n");
         }
     }
 
     // Special case: Show print status screen if requested
     if (show_print_status) {
-        printf("Showing print status screen...\n");
+        spdlog::debug("Showing print status screen...\n");
 
         // Use already-created print status panel (no duplicate creation)
         if (overlay_panels.print_status) {
@@ -987,7 +977,7 @@ int main(int argc, char** argv) {
             // Start mock print simulation (3-hour print, 250 layers)
             ui_panel_print_status_start_mock_print("awesome_benchy.gcode", 250, 10800);
 
-            printf("Print status panel displayed with mock print running\n");
+            spdlog::debug("Print status panel displayed with mock print running\n");
         } else {
             spdlog::error("Print status panel not created - cannot show");
         }
@@ -995,7 +985,7 @@ int main(int argc, char** argv) {
 
     // Special case: Show file detail view if requested
     if (show_file_detail) {
-        printf("Showing print file detail view...\n");
+        spdlog::debug("Showing print file detail view...\n");
 
         // Set file data for the first test file
         ui_panel_print_select_set_file("Benchy.gcode",
@@ -1005,12 +995,12 @@ int main(int argc, char** argv) {
         // Show detail view
         ui_panel_print_select_show_detail_view();
 
-        printf("File detail view displayed\n");
+        spdlog::debug("File detail view displayed\n");
     }
 
     // Special case: Show step progress widget test panel
     if (show_step_test) {
-        printf("Creating and showing step progress test panel...\n");
+        spdlog::debug("Creating and showing step progress test panel...\n");
 
         // Create step test panel (standalone, not part of app_layout)
         lv_obj_t* step_test_panel = (lv_obj_t*)lv_xml_create(screen, "step_progress_test", nullptr);
@@ -1020,15 +1010,15 @@ int main(int argc, char** argv) {
             // Hide app_layout to show only the test panel
             lv_obj_add_flag(app_layout, LV_OBJ_FLAG_HIDDEN);
 
-            printf("Step progress test panel displayed\n");
+            spdlog::debug("Step progress test panel displayed\n");
         } else {
-            LV_LOG_ERROR("Failed to create step progress test panel");
+            spdlog::error("Failed to create step progress test panel");
         }
     }
 
     // Special case: Show test/development panel
     if (show_test_panel) {
-        printf("Creating and showing test panel...\n");
+        spdlog::debug("Creating and showing test panel...\n");
 
         // Create test panel (standalone, not part of app_layout)
         lv_obj_t* test_panel = (lv_obj_t*)lv_xml_create(screen, "test_panel", nullptr);
@@ -1038,14 +1028,14 @@ int main(int argc, char** argv) {
             // Hide app_layout to show only the test panel
             lv_obj_add_flag(app_layout, LV_OBJ_FLAG_HIDDEN);
 
-            printf("Test panel displayed\n");
+            spdlog::debug("Test panel displayed\n");
         } else {
-            LV_LOG_ERROR("Failed to create test panel");
+            spdlog::error("Failed to create test panel");
         }
     }
 
     // Initialize Moonraker connection
-    LV_LOG_USER("Initializing Moonraker client...");
+    spdlog::info("Initializing Moonraker client...");
     MoonrakerClient moonraker_client;
 
     // Initialize global keyboard BEFORE wizard (required for textarea registration)
@@ -1063,7 +1053,7 @@ int main(int argc, char** argv) {
         lv_obj_t* wizard = ui_wizard_create(screen);
 
         if (wizard) {
-            spdlog::info("Wizard created successfully");
+            spdlog::debug("Wizard created successfully");
 
             // Set initial step (screen loader sets appropriate title)
             int initial_step = (wizard_step >= 1) ? wizard_step : 1;
@@ -1137,7 +1127,7 @@ int main(int argc, char** argv) {
         SDL_Keymod modifiers = SDL_GetModState();
         const Uint8* keyboard_state = SDL_GetKeyboardState(NULL);
         if ((modifiers & KMOD_GUI) && keyboard_state[SDL_SCANCODE_Q]) {
-            LV_LOG_USER("Cmd+Q/Win+Q pressed - exiting...");
+            spdlog::info("Cmd+Q/Win+Q pressed - exiting...");
             break;
         }
 
@@ -1183,7 +1173,7 @@ int main(int argc, char** argv) {
     }
 
     // Cleanup
-    LV_LOG_USER("Shutting down...");
+    spdlog::info("Shutting down...");
     lv_deinit();  // LVGL handles SDL cleanup internally
 
     return 0;

@@ -22,6 +22,7 @@
 #include "ui_fonts.h"
 #include "ui_theme.h"
 #include "lvgl/src/others/xml/lv_xml.h"
+#include <spdlog/spdlog.h>
 #include <cstdio>
 #include <cstring>
 #include <cmath>
@@ -54,12 +55,12 @@ static void wire_button_events();
 // ============================================================================
 void ui_keypad_init(lv_obj_t* parent) {
 	if (!parent) {
-		LV_LOG_ERROR("Cannot init keypad: parent is null");
+		spdlog::error("Cannot init keypad: parent is null");
 		return;
 	}
 
 	if (keypad_widget) {
-		LV_LOG_WARN("Keypad already initialized");
+		spdlog::error("Keypad already initialized");
 		return;
 	}
 
@@ -78,7 +79,7 @@ void ui_keypad_init(lv_obj_t* parent) {
 	keypad_widget = (lv_obj_t*)lv_xml_create(parent, "numeric_keypad_modal", attrs);
 
 	if (!keypad_widget) {
-		LV_LOG_ERROR("Failed to create keypad from XML");
+		spdlog::error("Failed to create keypad from XML");
 		return;
 	}
 
@@ -87,12 +88,12 @@ void ui_keypad_init(lv_obj_t* parent) {
 	title_label = lv_obj_find_by_name(keypad_widget, "keypad_title");
 
 	if (!input_display_label) {
-		LV_LOG_ERROR("Failed to find input display label");
+		spdlog::error("Keypad Failed to find input display label");
 		return;
 	}
 
 	if (!title_label) {
-		LV_LOG_ERROR("Failed to find title label");
+		spdlog::error("Keypad Failed to find title label");
 		return;
 	}
 
@@ -106,7 +107,7 @@ void ui_keypad_init(lv_obj_t* parent) {
 	// Wire up button events
 	wire_button_events();
 
-	LV_LOG_USER("Numeric keypad initialized");
+	spdlog::debug("Numeric keypad initialized");
 }
 
 // ============================================================================
@@ -114,7 +115,7 @@ void ui_keypad_init(lv_obj_t* parent) {
 // ============================================================================
 void ui_keypad_show(const ui_keypad_config_t* config) {
 	if (!keypad_widget || !config) {
-		LV_LOG_ERROR("Cannot show keypad: not initialized or invalid config");
+		spdlog::debug("Cannot show keypad: not initialized or invalid config");
 		return;
 	}
 
@@ -144,7 +145,7 @@ void ui_keypad_show(const ui_keypad_config_t* config) {
 	lv_obj_remove_flag(keypad_widget, LV_OBJ_FLAG_HIDDEN);
 	lv_obj_move_foreground(keypad_widget);
 
-	LV_LOG_USER("Keypad shown: initial=%.2f, min=%.2f, max=%.2f",
+	spdlog::info("Keypad shown: initial=%.2f, min=%.2f, max=%.2f",
 				config->initial_value, config->min_value, config->max_value);
 }
 
@@ -165,9 +166,9 @@ bool ui_keypad_is_visible() {
 static void update_display() {
 	if (input_display_label) {
 		lv_label_set_text(input_display_label, input_buffer);
-		LV_LOG_USER("Display updated: '%s'", input_buffer);
+		spdlog::debug("Display updated: '%s'", input_buffer);
 	} else {
-		LV_LOG_ERROR("input_display_label is NULL!");
+		spdlog::error("input_display_label is NULL!");
 	}
 }
 
@@ -220,7 +221,7 @@ static void handle_backspace() {
 static void handle_esc() {
 	// Cancel - hide without invoking callback
 	ui_keypad_hide();
-	LV_LOG_USER("Keypad cancelled");
+	spdlog::info("Keypad cancelled");
 }
 
 static void handle_ok() {
@@ -241,7 +242,7 @@ static void handle_ok() {
 	// Invoke callback
 	if (current_config.callback) {
 		current_config.callback(value, current_config.user_data);
-		LV_LOG_USER("Keypad confirmed: %.2f", value);
+		spdlog::info("Keypad confirmed: %.2f", value);
 	}
 }
 
@@ -251,7 +252,7 @@ static void handle_ok() {
 static void wire_button_events() {
 	if (!keypad_widget) return;
 
-	LV_LOG_USER("=== WIRING KEYPAD BUTTON EVENTS ===");
+	spdlog::debug("=== WIRING KEYPAD BUTTON EVENTS ===");
 
 	// Number buttons (0-9) - using user_data to pass digit value
 	const char* digit_names[] = {"btn_0", "btn_1", "btn_2", "btn_3", "btn_4",
@@ -259,7 +260,7 @@ static void wire_button_events() {
 	for (int i = 0; i < 10; i++) {
 		lv_obj_t* btn = lv_obj_find_by_name(keypad_widget, digit_names[i]);
 		if (btn) {
-			LV_LOG_USER("Found button: %s", digit_names[i]);
+			spdlog::debug("Found button: %s", digit_names[i]);
 			// Pass digit as user_data (store as pointer value)
 			lv_obj_add_event_cb(btn, [](lv_event_t* e) {
 				// Extract digit from user_data
@@ -267,7 +268,7 @@ static void wire_button_events() {
 				append_digit('0' + digit);
 			}, LV_EVENT_CLICKED, (void*)(intptr_t)i);
 		} else {
-			LV_LOG_ERROR("BUTTON NOT FOUND: %s", digit_names[i]);
+			spdlog::error("BUTTON NOT FOUND: %s", digit_names[i]);
 		}
 	}
 
@@ -278,9 +279,9 @@ static void wire_button_events() {
 			(void)e;
 			handle_backspace();
 		}, LV_EVENT_CLICKED, nullptr);
-		LV_LOG_USER("Found backspace button");
+		spdlog::debug("Found backspace button");
 	} else {
-		LV_LOG_ERROR("Backspace button NOT FOUND");
+		spdlog::error("Backspace button NOT FOUND");
 	}
 
 	// OK button (now in header)
@@ -290,9 +291,9 @@ static void wire_button_events() {
 			(void)e;
 			handle_ok();
 		}, LV_EVENT_CLICKED, nullptr);
-		LV_LOG_USER("Found OK button");
+		spdlog::debug("Found OK button");
 	} else {
-		LV_LOG_ERROR("OK button NOT FOUND");
+		spdlog::error("OK button NOT FOUND");
 	}
 
 	// Back button (cancel like ESC)
@@ -302,9 +303,9 @@ static void wire_button_events() {
 			(void)e;
 			handle_esc();
 		}, LV_EVENT_CLICKED, nullptr);
-		LV_LOG_USER("Found back button");
+		spdlog::debug("Found back button");
 	} else {
-		LV_LOG_ERROR("Back button NOT FOUND");
+		spdlog::error("Back button NOT FOUND");
 	}
 
 	// Backdrop click to cancel
