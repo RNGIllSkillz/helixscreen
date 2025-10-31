@@ -181,10 +181,10 @@ void ui_wizard_wifi_register_responsive_constants() {
         card_height = "140";
         ethernet_height = "120";
         toggle_height = "64";  // size="medium" switch (56px) + breathing room
-        title_font = "montserrat_24";
+        title_font = lv_xml_get_const(NULL, "font_heading");
         status_font = "montserrat_16";
-        help_font = "montserrat_18";
-        network_title_font = "montserrat_18";
+        help_font = lv_xml_get_const(NULL, "font_body");
+        network_title_font = lv_xml_get_const(NULL, "font_body");
         network_item_height = "100";
         network_icon_size = "32";
         spdlog::info("[WiFi Screen] Size: LARGE ({}px)", width);

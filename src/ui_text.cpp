@@ -26,6 +26,7 @@
 #include "lvgl/src/others/xml/lv_xml_parser.h"
 #include "lvgl/src/others/xml/lv_xml_utils.h"
 #include "lvgl/src/others/xml/parsers/lv_xml_obj_parser.h"
+#include "lvgl/src/others/xml/parsers/lv_xml_label_parser.h"
 #include <spdlog/spdlog.h>
 
 /**
@@ -79,8 +80,8 @@ static void* ui_text_heading_create(lv_xml_parser_state_t* state, const char** a
  * Delegates to standard label parser (inherits all label attributes)
  */
 static void ui_text_heading_apply(lv_xml_parser_state_t* state, const char** attrs) {
-    // Apply common lv_obj properties (width, height, align, text, etc.)
-    lv_xml_obj_apply(state, attrs);
+    // Apply label properties (text, long_mode, etc.) and base object properties
+    lv_xml_label_apply(state, attrs);
 }
 
 /**
@@ -100,8 +101,8 @@ static void* ui_text_body_create(lv_xml_parser_state_t* state, const char** attr
  * Delegates to standard label parser (inherits all label attributes)
  */
 static void ui_text_body_apply(lv_xml_parser_state_t* state, const char** attrs) {
-    // Apply common lv_obj properties (width, height, align, text, etc.)
-    lv_xml_obj_apply(state, attrs);
+    // Apply label properties (text, long_mode, etc.) and base object properties
+    lv_xml_label_apply(state, attrs);
 }
 
 /**
@@ -121,8 +122,8 @@ static void* ui_text_small_create(lv_xml_parser_state_t* state, const char** att
  * Delegates to standard label parser (inherits all label attributes)
  */
 static void ui_text_small_apply(lv_xml_parser_state_t* state, const char** attrs) {
-    // Apply common lv_obj properties (width, height, align, text, etc.)
-    lv_xml_obj_apply(state, attrs);
+    // Apply label properties (text, long_mode, etc.) and base object properties
+    lv_xml_label_apply(state, attrs);
 }
 
 void ui_text_init() {

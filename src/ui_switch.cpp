@@ -308,7 +308,7 @@ void ui_switch_register_responsive_constants()
         row_height = "84";
         row_height_large = "104";
         label_font = "montserrat_20";
-        label_large_font = "montserrat_24";
+        label_large_font = lv_xml_get_const(NULL, "font_heading");
 
         // Large variant
         switch_height_large = "56";

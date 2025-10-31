@@ -112,7 +112,7 @@ void ui_wizard_register_responsive_constants() {
         header_height = "48";  // Increased for better text fit
         button_width = "160";
         header_font = "montserrat_20";
-        title_font = "montserrat_24";
+        title_font = lv_xml_get_const(NULL, "font_heading");
         spdlog::info("[Wizard] Screen size: LARGE ({}px)", width);
     }
 
