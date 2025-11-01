@@ -75,51 +75,52 @@ void ui_wizard_init_subjects() {
 void ui_wizard_register_responsive_constants() {
     spdlog::debug("[Wizard] Registering responsive constants");
 
-    // Detect screen size
-    int width = lv_display_get_horizontal_resolution(lv_display_get_default());
+    // Use custom breakpoints optimized for our hardware: max(hor_res, ver_res)
+    lv_display_t* display = lv_display_get_default();
+    int32_t hor_res = lv_display_get_horizontal_resolution(display);
+    int32_t ver_res = lv_display_get_vertical_resolution(display);
+    int32_t greater_res = LV_MAX(hor_res, ver_res);
 
-    // Calculate responsive values
-    const char* padding_value;
-    const char* gap_value;
+    // Calculate wizard-specific responsive values
+    // Note: padding_normal, padding_small, gap_normal are now provided by ui_theme_register_responsive_padding()
     const char* list_item_padding;
     const char* header_height;
     const char* button_width;
     const char* header_font;
     const char* title_font;
+    const char* size_label;
 
-    if (width < 600) {  // TINY (480x320)
-        padding_value = "6";
-        gap_value = "4";
+    if (greater_res <= UI_BREAKPOINT_SMALL_MAX) {  // ≤480: 480x320
         list_item_padding = "4";
-        header_height = "32";  // Increased for better text fit
+        header_height = "32";
         button_width = "110";
         header_font = "montserrat_14";
         title_font = "montserrat_16";
-        spdlog::info("[Wizard] Screen size: TINY ({}px)", width);
-    } else if (width < 900) {  // SMALL (800x480)
-        padding_value = "12";
-        gap_value = "8";
+        size_label = "SMALL";
+    } else if (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) {  // 481-800: 800x480
         list_item_padding = "6";
-        header_height = "42";  // Increased for better text fit
+        header_height = "42";
         button_width = "140";
         header_font = "montserrat_16";
         title_font = "montserrat_20";
-        spdlog::info("[Wizard] Screen size: SMALL ({}px)", width);
-    } else {  // LARGE (1024x600+)
-        padding_value = "20";
-        gap_value = "12";
+        size_label = "MEDIUM";
+    } else {  // >800: 1024x600+
         list_item_padding = "8";
-        header_height = "48";  // Increased for better text fit
+        header_height = "48";
         button_width = "160";
         header_font = "montserrat_20";
         title_font = lv_xml_get_const(NULL, "font_heading");
-        spdlog::info("[Wizard] Screen size: LARGE ({}px)", width);
+        size_label = "LARGE";
     }
 
-    // Get globals scope
-    lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
+    spdlog::info("[Wizard] Screen size: {} (greater_res={}px)", size_label, greater_res);
 
-    // Register constants BEFORE creating wizard
+    // Get globals scope and read centralized padding constants
+    lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
+    const char* padding_value = lv_xml_get_const(NULL, "padding_normal");
+    const char* gap_value = lv_xml_get_const(NULL, "gap_normal");
+
+    // Register wizard-specific constants BEFORE creating wizard
     lv_xml_register_const(scope, "wizard_padding", padding_value);
     lv_xml_register_const(scope, "wizard_gap", gap_value);
     lv_xml_register_const(scope, "list_item_padding", list_item_padding);

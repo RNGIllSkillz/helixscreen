@@ -26,13 +26,32 @@
 	<px name="nav_button_size" value="70" />
 
 	<px name="card_radius" value="8" />
-	
-	<px name="padding_normal" value="20" />
-	<px name="padding_medium" value="12" />
-	<!-- Medium padding/gap for buttons and flex items -->
-	<px name="padding_small" value="10" />
-	<px name="padding_tiny" value="6" />
-	<!-- Minimal padding for very small screens -->
+
+	<!-- Responsive padding size variants (~80% of LVGL defaults)
+	     Runtime selects appropriate variant via ui_theme_register_responsive_padding()
+	     based on max(width, height): SMALL (≤480px), MEDIUM (481-800px), LARGE (>800px)
+	     Target hardware: 480x320 (SMALL), 800x480 (MEDIUM), 1024x600+ (LARGE) -->
+
+	<!-- padding_normal variants (container padding) -->
+	<px name="padding_normal_small" value="12" />
+	<px name="padding_normal_medium" value="16" />
+	<px name="padding_normal_large" value="20" />
+	<px name="padding_normal" value="20" />  <!-- Default, overridden at runtime -->
+
+	<!-- padding_small variants (compact padding) -->
+	<px name="padding_small_small" value="8" />
+	<px name="padding_small_medium" value="10" />
+	<px name="padding_small_large" value="12" />
+	<px name="padding_small" value="10" />  <!-- Default, overridden at runtime -->
+
+	<!-- padding_tiny variants (minimal padding) -->
+	<px name="padding_tiny_small" value="2" />
+	<px name="padding_tiny_medium" value="4" />
+	<px name="padding_tiny_large" value="6" />
+	<px name="padding_tiny" value="6" />  <!-- Default, overridden at runtime -->
+
+	<!-- Non-responsive padding (static across all screen sizes) -->
+	<px name="padding_medium" value="12" />  <!-- Medium padding for buttons/flex items -->
 	
 	<px name="printer_img_size" value="400" />
 	<px name="accent_bar_width" value="4" />
@@ -128,19 +147,22 @@
 	<!-- Title bottom padding (was 8px) -->
 
 	<!-- Spacing and gaps -->
-	<px name="gap_normal" value="12" />
-	<!-- Standard gap between flex items -->
-	<px name="gap_large" value="16" />
-	<!-- Larger gap for major sections -->
-	<px name="gap_small" value="8" />
-	<!-- Compact gap for tight layouts -->
-	<px name="gap_tiny" value="6" />
-	<!-- Very tight gap for dense info -->
+
+	<!-- gap_normal variants (flex gap) -->
+	<px name="gap_normal_small" value="8" />
+	<px name="gap_normal_medium" value="10" />
+	<px name="gap_normal_large" value="12" />
+	<px name="gap_normal" value="12" />  <!-- Default, overridden at runtime -->
+
+	<!-- Non-responsive gaps (static across all screen sizes) -->
+	<px name="gap_large" value="16" />   <!-- Larger gap for major sections -->
+	<px name="gap_small" value="8" />    <!-- Compact gap for tight layouts -->
+	<px name="gap_tiny" value="6" />     <!-- Very tight gap for dense info -->
 
 	<!-- Typography - 3 semantic font sizes for design system consistency -->
-	<string name="font_heading" value="montserrat_20" />
+	<string name="font_heading" value="montserrat_24" />
 	<string name="font_body" value="montserrat_16" />
-	<string name="font_small" value="montserrat_10" />
+	<string name="font_small" value="montserrat_12" />
 
 	<!-- Theme colors -->
 	<color name="primary_color" value="#FF4444" />

@@ -265,6 +265,7 @@ help:
 
 # Include modular makefiles
 include mk/deps.mk
+include mk/patches.mk
 include mk/tests.mk
 include mk/fonts.mk
 include mk/rules.mk

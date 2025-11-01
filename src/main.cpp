@@ -363,6 +363,7 @@ static void register_fonts_and_images() {
     lv_xml_register_font(NULL, "montserrat_14", &lv_font_montserrat_14);
     lv_xml_register_font(NULL, "montserrat_16", &lv_font_montserrat_16);
     lv_xml_register_font(NULL, "montserrat_20", &lv_font_montserrat_20);
+    lv_xml_register_font(NULL, "montserrat_24", &lv_font_montserrat_24);
     lv_xml_register_font(NULL, "montserrat_28", &lv_font_montserrat_28);
     lv_xml_register_image(NULL, "A:assets/images/printer_400.png",
                           "A:assets/images/printer_400.png");

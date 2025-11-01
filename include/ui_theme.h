@@ -39,7 +39,13 @@
 // Calculate nav width based on actual screen
 #define UI_NAV_WIDTH(screen_w) ((screen_w) / 10)
 
-// Screen size targets
+// Responsive breakpoints (based on max(width, height))
+// Optimized for our target hardware: 480x320, 800x480, 1024x600, 1280x720
+#define UI_BREAKPOINT_SMALL_MAX   480  // 480x320 and below → SMALL
+#define UI_BREAKPOINT_MEDIUM_MAX  800  // 481-800: 800x480, up to 800x600 → MEDIUM
+                                        // >800: 1024x600, 1280x720+ → LARGE
+
+// Screen size targets (reference only, use breakpoints above for logic)
 #define UI_SCREEN_LARGE_W      1280
 #define UI_SCREEN_LARGE_H      720
 #define UI_SCREEN_MEDIUM_W     1024
@@ -97,6 +103,7 @@ extern const lv_font_t lv_font_montserrat_28;
 
 // Theme initialization and control
 void ui_theme_init(lv_display_t* display, bool use_dark_mode);
+void ui_theme_register_responsive_padding(lv_display_t* display);
 void ui_theme_toggle_dark_mode();
 bool ui_theme_is_dark_mode();
 lv_color_t ui_theme_parse_color(const char* hex_str);

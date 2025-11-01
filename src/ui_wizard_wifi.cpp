@@ -19,6 +19,7 @@
  */
 
 #include "ui_wizard_wifi.h"
+#include "ui_theme.h"
 #include "wifi_manager.h"
 #include "ethernet_manager.h"
 #include "ui_keyboard.h"
@@ -141,54 +142,48 @@ void ui_wizard_wifi_register_callbacks() {
 void ui_wizard_wifi_register_responsive_constants() {
     spdlog::debug("[WiFi Screen] Registering responsive constants");
 
-    // Detect screen size
-    int width = lv_display_get_horizontal_resolution(lv_display_get_default());
+    // Use custom breakpoints optimized for our hardware: max(hor_res, ver_res)
+    lv_display_t* display = lv_display_get_default();
+    int32_t hor_res = lv_display_get_horizontal_resolution(display);
+    int32_t ver_res = lv_display_get_vertical_resolution(display);
+    int32_t greater_res = LV_MAX(hor_res, ver_res);
 
     // Calculate responsive values
     const char* card_height;
     const char* ethernet_height;
     const char* toggle_height;
-    const char* title_font;
-    const char* status_font;
-    const char* help_font;
     const char* network_title_font;
     const char* network_item_height;
     const char* network_icon_size;
+    const char* size_label;
 
-    if (width < 600) {  // TINY (480x320)
+    if (greater_res <= UI_BREAKPOINT_SMALL_MAX) {  // ≤480: 480x320
         card_height = "80";
         ethernet_height = "70";
-        toggle_height = "32";  // size="medium" at TINY: 24px + 2*2px pad = 28px
-        title_font = "montserrat_14";
-        status_font = "montserrat_12";
-        help_font = "montserrat_12";
+        toggle_height = "32";  // size="medium" switch + minimal padding
         network_title_font = "montserrat_14";
         network_item_height = "60";
         network_icon_size = "20";
-        spdlog::info("[WiFi Screen] Size: TINY ({}px)", width);
-    } else if (width < 900) {  // SMALL (800x480)
+        size_label = "SMALL";
+    } else if (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) {  // 481-800: 800x480
         card_height = "120";
         ethernet_height = "100";
-        toggle_height = "48";  // size="medium" at SMALL: 40px + 2*3px pad = 46px
-        title_font = "montserrat_20";
-        status_font = "montserrat_14";
-        help_font = "montserrat_16";
+        toggle_height = "48";  // size="medium" switch + moderate padding
         network_title_font = "montserrat_16";
         network_item_height = "80";
         network_icon_size = "24";
-        spdlog::info("[WiFi Screen] Size: SMALL ({}px)", width);
-    } else {  // LARGE (1024x600+)
+        size_label = "MEDIUM";
+    } else {  // >800: 1024x600+
         card_height = "140";
         ethernet_height = "120";
-        toggle_height = "64";  // size="medium" switch (56px) + breathing room
-        title_font = lv_xml_get_const(NULL, "font_heading");
-        status_font = "montserrat_16";
-        help_font = lv_xml_get_const(NULL, "font_body");
+        toggle_height = "64";  // size="medium" switch + comfortable padding
         network_title_font = lv_xml_get_const(NULL, "font_body");
         network_item_height = "100";
         network_icon_size = "32";
-        spdlog::info("[WiFi Screen] Size: LARGE ({}px)", width);
+        size_label = "LARGE";
     }
+
+    spdlog::info("[WiFi Screen] Screen size: {} (greater_res={}px)", size_label, greater_res);
 
     // Get globals scope
     lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
@@ -197,9 +192,6 @@ void ui_wizard_wifi_register_responsive_constants() {
     lv_xml_register_const(scope, "wifi_card_height", card_height);
     lv_xml_register_const(scope, "wifi_ethernet_height", ethernet_height);
     lv_xml_register_const(scope, "wifi_toggle_height", toggle_height);
-    lv_xml_register_const(scope, "wifi_title_font", title_font);
-    lv_xml_register_const(scope, "wifi_status_font", status_font);
-    lv_xml_register_const(scope, "wifi_help_font", help_font);
     lv_xml_register_const(scope, "wifi_network_title_font", network_title_font);
     lv_xml_register_const(scope, "network_item_height", network_item_height);
     lv_xml_register_const(scope, "network_icon_size", network_icon_size);

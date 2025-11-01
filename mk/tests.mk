@@ -160,3 +160,22 @@ $(TEST_SIZE_CONTENT_OBJ): test_size_content.cpp
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
 	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@
+
+# Responsive theme and breakpoint test
+TEST_RESPONSIVE_THEME_BIN := $(BIN_DIR)/test_responsive_theme
+TEST_RESPONSIVE_THEME_OBJ := $(OBJ_DIR)/test_responsive_theme.o
+
+test-responsive-theme: $(TEST_RESPONSIVE_THEME_BIN)
+	$(ECHO) "$(CYAN)Running responsive theme and breakpoint tests...$(RESET)"
+	$(Q)$(TEST_RESPONSIVE_THEME_BIN)
+
+$(TEST_RESPONSIVE_THEME_BIN): $(TEST_RESPONSIVE_THEME_OBJ) $(LVGL_OBJS) $(THORVG_OBJS) $(OBJ_DIR)/ui_theme.o
+	$(Q)mkdir -p $(BIN_DIR)
+	$(ECHO) "$(MAGENTA)[LD]$(RESET) test_responsive_theme"
+	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
+	$(ECHO) "$(GREEN)✓ Responsive theme test binary ready$(RESET)"
+
+$(TEST_RESPONSIVE_THEME_OBJ): $(SRC_DIR)/test_responsive_theme.cpp
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
+	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@

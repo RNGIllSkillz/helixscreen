@@ -50,26 +50,30 @@ static SwitchSizePreset SIZE_LARGE;
  * Called once at startup from ui_switch_register()
  */
 static void ui_switch_init_size_presets() {
-    int width = lv_display_get_horizontal_resolution(lv_display_get_default());
+    // Use custom breakpoints optimized for our hardware: max(hor_res, ver_res)
+    lv_display_t* display = lv_display_get_default();
+    int32_t hor_res = lv_display_get_horizontal_resolution(display);
+    int32_t ver_res = lv_display_get_vertical_resolution(display);
+    int32_t greater_res = LV_MAX(hor_res, ver_res);
 
-    if (width < 600) {  // TINY screen (480x320)
+    if (greater_res <= UI_BREAKPOINT_SMALL_MAX) {  // ≤480: 480x320
         SIZE_TINY   = {32, 16, 1};
         SIZE_SMALL  = {40, 20, 1};
         SIZE_MEDIUM = {48, 24, 2};
         SIZE_LARGE  = {56, 28, 2};
-        spdlog::debug("[Switch] Initialized TINY screen presets ({}px wide)", width);
-    } else if (width < 900) {  // SMALL screen (800x480)
+        spdlog::debug("[Switch] Initialized SMALL screen presets (greater_res={}px)", greater_res);
+    } else if (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) {  // 481-800: 800x480
         SIZE_TINY   = {48, 24, 2};
         SIZE_SMALL  = {64, 32, 2};
         SIZE_MEDIUM = {80, 40, 3};
         SIZE_LARGE  = {88, 44, 3};
-        spdlog::debug("[Switch] Initialized SMALL screen presets ({}px wide)", width);
-    } else {  // LARGE screen (1024x600+)
+        spdlog::debug("[Switch] Initialized MEDIUM screen presets (greater_res={}px)", greater_res);
+    } else {  // >800: 1024x600+
         SIZE_TINY   = {64, 32, 2};
         SIZE_SMALL  = {88, 40, 3};
         SIZE_MEDIUM = {112, 48, 4};
         SIZE_LARGE  = {128, 56, 4};
-        spdlog::debug("[Switch] Initialized LARGE screen presets ({}px wide)", width);
+        spdlog::debug("[Switch] Initialized LARGE screen presets (greater_res={}px)", greater_res);
     }
 }
 
@@ -274,18 +278,20 @@ void ui_switch_register_responsive_constants()
 {
     spdlog::debug("[Switch] Registering responsive constants");
 
-    // Detect screen size
-    int width = lv_display_get_horizontal_resolution(lv_display_get_default());
-    int height = lv_display_get_vertical_resolution(lv_display_get_default());
+    // Use custom breakpoints optimized for our hardware: max(hor_res, ver_res)
+    lv_display_t* display = lv_display_get_default();
+    int32_t hor_res = lv_display_get_horizontal_resolution(display);
+    int32_t ver_res = lv_display_get_vertical_resolution(display);
+    int32_t greater_res = LV_MAX(hor_res, ver_res);
 
     // Switch sizing strategy:
     // - Knob is square (width = height of switch)
     // - Knob padding (style_pad_knob_all) adds visual spacing inside switch
     // - Width = ~2x height to allow knob to slide
     // - Row height calculation CRITICAL:
-    //   * XML uses style_pad_all="#padding_normal" (20px in globals.xml)
+    //   * XML uses style_pad_all="#padding_normal" (responsive: 12/16/20px)
     //   * Total row height = switch_height + (2 * container_padding)
-    //   * Container padding is 20px, so add 40px to switch height minimum
+    //   * Container padding varies by screen size via ui_theme_register_responsive_padding()
 
     const char* switch_width;
     const char* switch_height;
@@ -298,11 +304,9 @@ void ui_switch_register_responsive_constants()
     const char* switch_width_large;
     const char* switch_height_large;
     const char* knob_pad_large;
+    const char* size_label;
 
-    if (width < 600) {  // TINY (480x320)
-        // Switch: 20px height, 40px width (2:1 ratio)
-        // Knob: 1px padding (minimal visual spacing)
-        // Row: 20 + (2 * 20) = 60px
+    if (greater_res <= UI_BREAKPOINT_SMALL_MAX) {  // ≤480: 480x320
         switch_height = "20";
         switch_width = "40";
         knob_pad = "1";
@@ -315,18 +319,16 @@ void ui_switch_register_responsive_constants()
         switch_height_large = "28";
         switch_width_large = "56";
         knob_pad_large = "2";
+        size_label = "SMALL";
 
-        spdlog::info("[Switch] Screen: TINY ({}x{}), switch: {}x{}, row: {}px",
-                     width, height, switch_width, switch_height, row_height);
-    } else if (width < 900) {  // SMALL (800x480)
-        // Switch: 32px height, 64px width
-        // Knob: 2px padding
-        // Row: 32 + (2 * 20) = 72px
-        switch_height = "32";
-        switch_width = "64";
+        spdlog::debug("[Switch] Screen: SMALL (greater_res={}px), switch: {}x{}, row: {}px",
+                     greater_res, switch_width, switch_height, row_height);
+    } else if (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) {  // 481-800: 800x480
+        switch_height = "28";
+        switch_width = "56";
         knob_pad = "2";
-        row_height = "72";
-        row_height_large = "88";
+        row_height = "64";
+        row_height_large = "72";
         label_font = "montserrat_16";
         label_large_font = "montserrat_20";
 
@@ -334,10 +336,11 @@ void ui_switch_register_responsive_constants()
         switch_height_large = "44";
         switch_width_large = "88";
         knob_pad_large = "3";
+        size_label = "MEDIUM";
 
-        spdlog::info("[Switch] Screen: SMALL ({}x{}), switch: {}x{}, row: {}px",
-                     width, height, switch_width, switch_height, row_height);
-    } else {  // LARGE (1024x600+)
+        spdlog::debug("[Switch] Screen: MEDIUM (greater_res={}px), switch: {}x{}, row: {}px",
+                     greater_res, switch_width, switch_height, row_height);
+    } else {  // >800: 1024x600+
         // Switch: 44px height, 88px width
         // Knob: 3px padding
         // Row: 44 + (2 * 20) = 84px
@@ -353,9 +356,10 @@ void ui_switch_register_responsive_constants()
         switch_height_large = "56";
         switch_width_large = "112";
         knob_pad_large = "4";
+        size_label = "LARGE";
 
-        spdlog::info("[Switch] Screen: LARGE ({}x{}), switch: {}x{}, row: {}px",
-                     width, height, switch_width, switch_height, row_height);
+        spdlog::info("[Switch] Screen: LARGE (greater_res={}px), switch: {}x{}, row: {}px",
+                     greater_res, switch_width, switch_height, row_height);
     }
 
     // Get globals scope for constant registration

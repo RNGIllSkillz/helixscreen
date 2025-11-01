@@ -41,20 +41,18 @@
 				style_bg_opa="0"
 				style_radius="0"
 				style_border_width="0"
-				style_pad_all="0"
-				style_pad_gap="#gap_normal"
+		        style_pad_all="0"
+		        style_pad_gap="#gap_normal"
 				flex_flow="column"
 				style_flex_main_place="start"
 				style_flex_cross_place="start">
 
 			<!-- Help text -->
 			<text_body text="Connect to WiFi network (optional)"
-			           width="100%"
-			           style_margin_bottom="4"/>
+			           width="100%"/>
 
 			<text_small text="Configure WiFi now or skip to use Ethernet/localhost"
-			            width="100%"
-			            style_margin_bottom="12"/>
+			            width="100%"/>
 
 			<!-- Two-column row: WiFi/Ethernet (left) and Network List (right) -->
 			<lv_obj width="100%"
@@ -67,8 +65,8 @@
 			        style_flex_main_place="start"
 			        style_flex_cross_place="start">
 
-				<!-- LEFT COLUMN: WiFi and Ethernet Cards (30%) -->
-				<lv_obj flex_grow="3"
+				<!-- LEFT COLUMN: WiFi and Ethernet Cards (40%) -->
+				<lv_obj flex_grow="4"
 				        height="100%"
 				        scrollable="true"
 				        scroll_dir="VER"
@@ -82,12 +80,8 @@
 
 					<!-- WiFi Card -->
 					<ui_card width="100%"
-					         height="#wifi_card_height"
+					         flex_grow="!"
 					         scrollable="false"
-					         style_bg_opa="255"
-					         style_radius="12"
-					         style_pad_all="#padding_normal"
-					         style_pad_gap="#gap_small"
 					         flex_flow="column"
 					         style_flex_main_place="start"
 					         style_flex_cross_place="center">
@@ -106,29 +100,27 @@
 						        style_flex_cross_place="center">
 
 							<lv_label text="WiFi"
-							          style_text_font="#wifi_title_font"
 							          style_text_color="#text_primary"/>
 
 							<!-- WiFi toggle: wired to wifi_enabled subject via C++ event handler -->
 							<ui_switch name="wifi_toggle"
-							           size="medium">
+							           size="small">
 								<!-- Bind checked state to wifi_enabled subject (bidirectional) -->
 								<event_cb trigger="value_changed" callback="on_wifi_toggle_changed"/>
 							</ui_switch>
 						</lv_obj>
 
 						<!-- WiFi Status label -->
-						<lv_label name="wifi_status"
+						<text_small name="wifi_status"
 						          bind_text="wifi_status"
 						          width="100%"
-						          style_text_font="#wifi_status_font"
-						         						          style_text_align="center"
+   						          style_text_align="center"
 						          style_pad_top="#gap_small"/>
 					</ui_card>
 
 					<!-- Ethernet Status Card -->
 					<ui_card width="100%"
-					         height="#wifi_ethernet_height"
+					         flex_grow="1"
 					         style_bg_opa="255"
 					         style_radius="12"
 					         style_pad_all="#padding_normal"
@@ -137,21 +129,19 @@
 					         style_flex_cross_place="start">
 
 						<lv_label text="Ethernet"
-						          style_text_font="#wifi_title_font"
-						         						          style_pad_bottom="#gap_small"/>
+   						          style_pad_bottom="#gap_small"/>
 
 						<!-- Ethernet Status label -->
-						<lv_label name="ethernet_status"
+						<text_small name="ethernet_status"
 						          bind_text="ethernet_status"
 						          width="100%"
-						          style_text_font="#wifi_status_font"
-						         						          style_text_align="left"/>
+						          style_text_align="left"/>
 					</ui_card>
 				</lv_obj>
 
-				<!-- RIGHT COLUMN: Network List (70%) -->
+				<!-- RIGHT COLUMN: Network List (60%) -->
 				<!-- State-driven styling: automatically dims to 50% opacity when disabled -->
-				<ui_card flex_grow="7"
+				<ui_card flex_grow="6"
 				         height="100%"
 				         name="network_list_container"
 				         style_bg_opa="255"
@@ -173,30 +163,28 @@
 					<!-- Title -->
 					<lv_label text="Available Networks"
 					          width="100%"
-					          style_text_font="#wifi_network_title_font"
-					         					          style_pad_bottom="#gap_small"/>
+					          style_text_font="#font_heading"
+					          style_pad_bottom="#gap_small"/>
 
 					<!-- Scanning indicator (shown when wifi_scanning == 1) -->
 					<lv_label name="network_list_scanning"
 					          text="Scanning for networks..."
 					          width="100%"
-					          style_text_font="#wifi_status_font"
-					         					          style_text_align="center"
+   					          style_text_align="center"
 					          style_pad_top="#padding_normal">
 						<!-- Show only when scanning (hide when wifi_scanning == 0) -->
 						<lv_obj-bind_flag_if_eq subject="wifi_scanning" flag="hidden" ref_value="0"/>
 					</lv_label>
 
 					<!-- Placeholder shown when WiFi is disabled (wifi_enabled == 0) -->
-					<lv_label name="network_list_placeholder"
+					<text_body name="network_list_placeholder"
 					          text="Enable WiFi to scan for networks"
 					          width="100%"
-					          style_text_font="#wifi_status_font"
-					         					          style_text_align="center"
+   					          style_text_align="center"
 					          style_pad_top="#padding_normal">
 						<!-- Show placeholder only when WiFi is disabled (hidden when enabled) -->
 						<lv_obj-bind_flag_if_eq subject="wifi_enabled" flag="hidden" ref_value="1"/>
-					</lv_label>
+					</text_body>
 
 					<!-- Network list populated dynamically from C++ -->
 				</ui_card>

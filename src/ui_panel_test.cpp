@@ -19,6 +19,7 @@
  */
 
 #include "ui_panel_test.h"
+#include "ui_theme.h"
 #include <spdlog/spdlog.h>
 #include <cstdio>
 
@@ -28,26 +29,28 @@ void ui_panel_test_setup(lv_obj_t* test_panel) {
         return;
     }
 
-    // Get screen dimensions
-    int width = lv_display_get_horizontal_resolution(lv_display_get_default());
-    int height = lv_display_get_vertical_resolution(lv_display_get_default());
+    // Get screen dimensions using custom breakpoints optimized for our hardware
+    lv_display_t* display = lv_display_get_default();
+    int32_t hor_res = lv_display_get_horizontal_resolution(display);
+    int32_t ver_res = lv_display_get_vertical_resolution(display);
+    int32_t greater_res = LV_MAX(hor_res, ver_res);
 
     // Determine screen size category
     const char* size_category;
     int switch_width, switch_height;
     int row_height;
 
-    if (width < 600) {
-        size_category = "TINY";
+    if (greater_res <= UI_BREAKPOINT_SMALL_MAX) {  // ≤480: 480x320
+        size_category = "SMALL";
         switch_width = 36;
         switch_height = 18;
         row_height = 26;
-    } else if (width < 900) {
-        size_category = "SMALL";
+    } else if (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) {  // 481-800: 800x480
+        size_category = "MEDIUM";
         switch_width = 64;
         switch_height = 32;
         row_height = 40;
-    } else {
+    } else {  // >800: 1024x600+
         size_category = "LARGE";
         switch_width = 88;
         switch_height = 44;
@@ -63,8 +66,8 @@ void ui_panel_test_setup(lv_obj_t* test_panel) {
     char buffer[128];
 
     if (screen_size_label) {
-        snprintf(buffer, sizeof(buffer), "Screen Size: %s (%dx%d)",
-                 size_category, width, height);
+        snprintf(buffer, sizeof(buffer), "Screen Size: %s (%dx%d, max=%d)",
+                 size_category, hor_res, ver_res, greater_res);
         lv_label_set_text(screen_size_label, buffer);
     }
 
@@ -80,6 +83,6 @@ void ui_panel_test_setup(lv_obj_t* test_panel) {
         lv_label_set_text(row_height_label, buffer);
     }
 
-    spdlog::info("[Test Panel] Setup complete: {} ({}x{}), switch={}x{}, row={}px",
-                 size_category, width, height, switch_width, switch_height, row_height);
+    spdlog::info("[Test Panel] Setup complete: {} ({}x{}, max={}), switch={}x{}, row={}px",
+                 size_category, hor_res, ver_res, greater_res, switch_width, switch_height, row_height);
 }

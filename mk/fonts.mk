@@ -2,22 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # HelixScreen UI Prototype - Font & Icon Generation Module
-# Handles font generation, Material Design icons, and LVGL patches
-
-# Apply LVGL patches if not already applied
-apply-patches:
-	$(ECHO) "$(CYAN)Checking LVGL patches...$(RESET)"
-	$(Q)if git -C $(LVGL_DIR) diff --quiet src/drivers/sdl/lv_sdl_window.c 2>/dev/null; then \
-		echo "$(YELLOW)→ Applying LVGL SDL window position patch...$(RESET)"; \
-		if git -C $(LVGL_DIR) apply --check ../patches/lvgl_sdl_window_position.patch 2>/dev/null; then \
-			git -C $(LVGL_DIR) apply ../patches/lvgl_sdl_window_position.patch && \
-			echo "$(GREEN)✓ Patch applied successfully$(RESET)"; \
-		else \
-			echo "$(YELLOW)⚠ Cannot apply patch (already applied or conflicts)$(RESET)"; \
-		fi \
-	else \
-		echo "$(GREEN)✓ LVGL SDL window position patch already applied$(RESET)"; \
-	fi
+# Handles font generation and Material Design icons
 
 # Generate fonts if package.json is newer than stamp file
 # Use stamp file pattern to avoid regenerating multiple times in parallel

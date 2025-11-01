@@ -38,6 +38,68 @@ lv_color_t ui_theme_parse_color(const char* hex_str) {
     return lv_color_hex(hex);
 }
 
+void ui_theme_register_responsive_padding(lv_display_t* display) {
+    // Use custom breakpoints optimized for our hardware: max(hor_res, ver_res)
+    int32_t hor_res = lv_display_get_horizontal_resolution(display);
+    int32_t ver_res = lv_display_get_vertical_resolution(display);
+    int32_t greater_res = LV_MAX(hor_res, ver_res);
+
+    // Determine size suffix for variant lookup (using centralized breakpoints)
+    const char* size_suffix;
+    const char* size_label;
+
+    if (greater_res <= UI_BREAKPOINT_SMALL_MAX) {  // ≤480: 480x320
+        size_suffix = "_small";
+        size_label = "SMALL";
+    } else if (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) {  // 481-800: 800x480, up to 800x600
+        size_suffix = "_medium";
+        size_label = "MEDIUM";
+    } else {  // >800: 1024x600, 1280x720+
+        size_suffix = "_large";
+        size_label = "LARGE";
+    }
+
+    // Read size-specific variants from XML
+    char variant_name[64];
+
+    snprintf(variant_name, sizeof(variant_name), "padding_normal%s", size_suffix);
+    const char* padding_normal = lv_xml_get_const(NULL, variant_name);
+
+    snprintf(variant_name, sizeof(variant_name), "padding_small%s", size_suffix);
+    const char* padding_small = lv_xml_get_const(NULL, variant_name);
+
+    snprintf(variant_name, sizeof(variant_name), "padding_tiny%s", size_suffix);
+    const char* padding_tiny = lv_xml_get_const(NULL, variant_name);
+
+    snprintf(variant_name, sizeof(variant_name), "gap_normal%s", size_suffix);
+    const char* gap_normal = lv_xml_get_const(NULL, variant_name);
+
+    // Validate that variants were found
+    if (!padding_normal || !padding_small || !padding_tiny || !gap_normal) {
+        spdlog::error("[Theme] Failed to read padding variants for size: {} (normal={}, small={}, tiny={}, gap={})",
+                      size_label,
+                      padding_normal ? "found" : "NULL",
+                      padding_small ? "found" : "NULL",
+                      padding_tiny ? "found" : "NULL",
+                      gap_normal ? "found" : "NULL");
+        return;
+    }
+
+    // Register active constants (override defaults in globals scope)
+    lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
+    if (scope) {
+        lv_xml_register_const(scope, "padding_normal", padding_normal);
+        lv_xml_register_const(scope, "padding_small", padding_small);
+        lv_xml_register_const(scope, "padding_tiny", padding_tiny);
+        lv_xml_register_const(scope, "gap_normal", gap_normal);
+
+        spdlog::info("[Theme] Responsive padding: {} ({}px) - normal={}, small={}, tiny={}, gap={}",
+                     size_label, greater_res, padding_normal, padding_small, padding_tiny, gap_normal);
+    } else {
+        spdlog::warn("[Theme] Failed to get globals scope for padding constants");
+    }
+}
+
 void ui_theme_init(lv_display_t* display, bool use_dark_mode_param) {
     theme_display = display;
     use_dark_mode = use_dark_mode_param;
@@ -111,6 +173,9 @@ void ui_theme_init(lv_display_t* display, bool use_dark_mode_param) {
         lv_display_set_theme(display, current_theme);
         spdlog::info("[Theme] Initialized: {} mode, primary={}, secondary={}, base_font={}",
                      use_dark_mode ? "dark" : "light", primary_str, secondary_str, font_body_name);
+
+        // Register responsive padding constants AFTER theme init
+        ui_theme_register_responsive_padding(display);
     } else {
         spdlog::error("[Theme] Failed to initialize default theme");
     }
