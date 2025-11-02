@@ -21,6 +21,36 @@
 <component>
 	<!-- Local Constants -->
 	<consts>
+		<!-- Step progress widget colors (theme-aware) -->
+		<!-- Pending state (not yet started) -->
+		<const name="step_pending_light" value="#A0A0A0"/>
+		<const name="step_pending_dark" value="#808080"/>
+
+		<!-- Active state (currently in progress) - uses global primary_color -->
+		<const name="step_active_light" value="#FF4444"/>
+		<const name="step_active_dark" value="#FF4444"/>
+
+		<!-- Completed state (finished) -->
+		<const name="step_completed_light" value="#4CAF50"/>
+		<const name="step_completed_dark" value="#4CAF50"/>
+
+		<!-- Number text color for pending steps -->
+		<const name="step_number_pending_light" value="#FFFFFF"/>
+		<const name="step_number_pending_dark" value="#000000"/>
+
+		<!-- Number/checkmark text color for active/completed steps -->
+		<const name="step_number_active_light" value="#FFFFFF"/>
+		<const name="step_number_active_dark" value="#FFFFFF"/>
+
+		<!-- Label text color for active steps -->
+		<const name="step_label_active_light" value="#000000"/>
+		<const name="step_label_active_dark" value="#FFFFFF"/>
+
+		<!-- Label text color for pending/completed steps -->
+		<const name="step_label_inactive_light" value="#666666"/>
+		<const name="step_label_inactive_dark" value="#CCCCCC"/>
+
+		<!-- Legacy success color for test buttons -->
 		<color name="success_color" value="#00FF00"/>
 	</consts>
 

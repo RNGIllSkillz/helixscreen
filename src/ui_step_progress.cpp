@@ -32,10 +32,52 @@ typedef struct {
     bool horizontal;
 } step_progress_data_t;
 
-// Color constants matching globals.xml
-static const lv_color_t COLOR_PENDING = lv_color_hex(0x808080);    // Lighter gray for better contrast
-static const lv_color_t COLOR_ACTIVE = lv_color_hex(0xff4444);     // primary_color
-static const lv_color_t COLOR_COMPLETED = lv_color_hex(0x4caf50);  // success_color
+// Theme-aware color variables (loaded from component scope or defaults)
+static lv_color_t color_pending;
+static lv_color_t color_active;
+static lv_color_t color_completed;
+static lv_color_t color_number_pending;
+static lv_color_t color_number_active;
+static lv_color_t color_label_active;
+static lv_color_t color_label_inactive;
+
+// Initialize colors from component scope
+static void init_step_progress_colors(const char* scope_name) {
+    lv_xml_component_scope_t* scope = scope_name ? lv_xml_component_get_scope(scope_name) : nullptr;
+    bool use_dark_mode = ui_theme_is_dark_mode();
+
+    if (scope) {
+        // Read theme-aware colors from component scope
+        const char* pending = lv_xml_get_const(scope, use_dark_mode ? "step_pending_dark" : "step_pending_light");
+        const char* active = lv_xml_get_const(scope, use_dark_mode ? "step_active_dark" : "step_active_light");
+        const char* completed = lv_xml_get_const(scope, use_dark_mode ? "step_completed_dark" : "step_completed_light");
+        const char* num_pending = lv_xml_get_const(scope, use_dark_mode ? "step_number_pending_dark" : "step_number_pending_light");
+        const char* num_active = lv_xml_get_const(scope, use_dark_mode ? "step_number_active_dark" : "step_number_active_light");
+        const char* lbl_active = lv_xml_get_const(scope, use_dark_mode ? "step_label_active_dark" : "step_label_active_light");
+        const char* lbl_inactive = lv_xml_get_const(scope, use_dark_mode ? "step_label_inactive_dark" : "step_label_inactive_light");
+
+        color_pending = ui_theme_parse_color(pending ? pending : "#808080");
+        color_active = ui_theme_parse_color(active ? active : "#FF4444");
+        color_completed = ui_theme_parse_color(completed ? completed : "#4CAF50");
+        color_number_pending = ui_theme_parse_color(num_pending ? num_pending : (use_dark_mode ? "#000000" : "#FFFFFF"));
+        color_number_active = ui_theme_parse_color(num_active ? num_active : "#FFFFFF");
+        color_label_active = ui_theme_parse_color(lbl_active ? lbl_active : (use_dark_mode ? "#FFFFFF" : "#000000"));
+        color_label_inactive = ui_theme_parse_color(lbl_inactive ? lbl_inactive : (use_dark_mode ? "#CCCCCC" : "#666666"));
+
+        spdlog::debug("[StepProgress] Colors loaded from scope '{}' for {} mode", scope_name, use_dark_mode ? "dark" : "light");
+    } else {
+        // Fallback to hardcoded defaults
+        color_pending = lv_color_hex(0x808080);
+        color_active = lv_color_hex(0xFF4444);
+        color_completed = lv_color_hex(0x4CAF50);
+        color_number_pending = use_dark_mode ? lv_color_hex(0x000000) : lv_color_hex(0xFFFFFF);
+        color_number_active = lv_color_hex(0xFFFFFF);
+        color_label_active = use_dark_mode ? lv_color_hex(0xFFFFFF) : lv_color_hex(0x000000);
+        color_label_inactive = use_dark_mode ? lv_color_hex(0xCCCCCC) : lv_color_hex(0x666666);
+
+        spdlog::debug("[StepProgress] Using fallback colors for {} mode", use_dark_mode ? "dark" : "light");
+    }
+}
 
 /**
  * Apply state-based styling to a step item's indicator and label
@@ -59,19 +101,19 @@ static void apply_step_styling(lv_obj_t* step_item, ui_step_state_t state) {
 
     switch (state) {
         case UI_STEP_STATE_PENDING:
-            color = COLOR_PENDING;
+            color = color_pending;
             fill_opa = LV_OPA_COVER;  // Filled gray circle
             break;
         case UI_STEP_STATE_ACTIVE:
-            color = COLOR_ACTIVE;
+            color = color_active;
             fill_opa = LV_OPA_COVER;  // Filled red circle
             break;
         case UI_STEP_STATE_COMPLETED:
-            color = COLOR_COMPLETED;
+            color = color_completed;
             fill_opa = LV_OPA_COVER;  // Fully filled circle (255)
             break;
         default:
-            color = COLOR_PENDING;
+            color = color_pending;
             fill_opa = LV_OPA_COVER;
             break;
     }
@@ -92,9 +134,9 @@ static void apply_step_styling(lv_obj_t* step_item, ui_step_state_t state) {
         // Pending/Active: show step number, hide checkmark
         if (step_number) {
             lv_obj_clear_flag(step_number, LV_OBJ_FLAG_HIDDEN);
-            // Black numbers for PENDING (gray circles), white for ACTIVE (red circles)
+            // Use theme-aware number colors
             lv_color_t number_color = (state == UI_STEP_STATE_PENDING) ?
-                                      lv_color_hex(0x000000) : lv_color_hex(0xffffff);
+                                      color_number_pending : color_number_active;
             lv_obj_set_style_text_color(step_number, number_color, 0);
         }
         if (checkmark) lv_obj_add_flag(checkmark, LV_OBJ_FLAG_HIDDEN);
@@ -112,10 +154,10 @@ static void apply_step_styling(lv_obj_t* step_item, ui_step_state_t state) {
     if (label) {
         if (state == UI_STEP_STATE_ACTIVE) {
             lv_obj_set_style_text_font(label, UI_FONT_HEADING, 0);  // Larger
-            lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);  // Bright white
+            lv_obj_set_style_text_color(label, color_label_active, 0);  // Theme-aware active color
         } else {
             lv_obj_set_style_text_font(label, UI_FONT_BODY, 0);  // Normal size
-            lv_obj_set_style_text_color(label, lv_color_hex(0xcccccc), 0);  // Dimmed gray
+            lv_obj_set_style_text_color(label, color_label_inactive, 0);  // Theme-aware inactive color
         }
     }
 }
@@ -146,11 +188,15 @@ static void step_progress_delete_cb(lv_event_t* e) {
 lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
                                    const ui_step_t* steps,
                                    int step_count,
-                                   bool horizontal) {
+                                   bool horizontal,
+                                   const char* scope_name) {
     if (!parent || !steps || step_count <= 0) {
         spdlog::error("Invalid parameters for step progress widget");
         return nullptr;
     }
+
+    // Initialize theme-aware colors from component scope
+    init_step_progress_colors(scope_name);
 
     // Allocate widget data
     step_progress_data_t* data = (step_progress_data_t*)lv_malloc(sizeof(step_progress_data_t));
@@ -259,14 +305,14 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
         lv_label_set_text(step_number, num_buf);
         lv_obj_align(step_number, LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_style_text_font(step_number, UI_FONT_BODY, 0);
-        lv_obj_set_style_text_color(step_number, lv_color_hex(0xffffff), 0);
+        lv_obj_set_style_text_color(step_number, color_number_active, 0);  // Theme-aware, will be updated by apply_step_styling()
 
         // Create checkmark label (shown for COMPLETED state)
         lv_obj_t* checkmark = lv_label_create(circle);
         lv_label_set_text(checkmark, LV_SYMBOL_OK);  // LVGL built-in checkmark symbol
         lv_obj_align(checkmark, LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_style_text_font(checkmark, UI_FONT_BODY, 0);
-        lv_obj_set_style_text_color(checkmark, lv_color_hex(0xffffff), 0);
+        lv_obj_set_style_text_color(checkmark, color_number_active, 0);  // Theme-aware checkmark color
         lv_obj_add_flag(checkmark, LV_OBJ_FLAG_HIDDEN);  // Hidden by default
 
         // Vertical connectors will be created dynamically after layout
@@ -274,7 +320,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
         // Create step label
         lv_obj_t* label = lv_label_create(step_item);
         lv_label_set_text(label, data->label_buffers[i]);
-        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
+        lv_obj_set_style_text_color(label, color_label_inactive, 0);  // Theme-aware, will be updated by apply_step_styling()
         if (horizontal) {
             // Horizontal: label below circle, centered
             lv_obj_set_width(label, LV_SIZE_CONTENT);  // Auto-size to text
@@ -331,7 +377,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
                 lv_obj_add_flag(connector, LV_OBJ_FLAG_IGNORE_LAYOUT);  // Don't let flex move this
                 // Connector color: green only for COMPLETED steps, gray for all others
                 lv_color_t connector_color = (steps[i].state == UI_STEP_STATE_COMPLETED) ?
-                                             COLOR_COMPLETED : COLOR_PENDING;
+                                             color_completed : color_pending;
                 lv_obj_set_style_bg_color(connector, connector_color, 0);
 
                 spdlog::debug("Connector {} created at pos ({}, {}) size ({}, {})",
@@ -394,7 +440,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
 
                 // Connector color: green only for COMPLETED steps, gray for all others
                 lv_color_t connector_color = (steps[i].state == UI_STEP_STATE_COMPLETED) ?
-                                             COLOR_COMPLETED : COLOR_PENDING;
+                                             color_completed : color_pending;
                 lv_obj_set_style_bg_color(connector, connector_color, 0);
 
                 spdlog::debug("Horizontal connector {}: circle_centers=({}, {}), connector pos=({}, {}) size=({}, {})",
@@ -448,7 +494,7 @@ void ui_step_progress_set_current(lv_obj_t* widget, int step_index) {
         else if (data->horizontal && connector_index < data->step_count - 1) {
             // Connector N connects FROM step N (using step N's state for color)
             lv_color_t connector_color = (data->states[connector_index] == UI_STEP_STATE_COMPLETED) ?
-                                         COLOR_COMPLETED : COLOR_PENDING;
+                                         color_completed : color_pending;
             lv_obj_set_style_bg_color(child, connector_color, 0);
             connector_index++;
         }

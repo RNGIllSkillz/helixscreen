@@ -46,12 +46,14 @@ typedef struct {
  * @param steps Array of step definitions
  * @param step_count Number of steps
  * @param horizontal true for horizontal layout, false for vertical (default)
+ * @param scope_name Component scope name for loading theme colors (e.g., "step_progress_test"), or nullptr for defaults
  * @return Created widget (flex container with step items)
  */
 lv_obj_t* ui_step_progress_create(lv_obj_t* parent,
                                    const ui_step_t* steps,
                                    int step_count,
-                                   bool horizontal);
+                                   bool horizontal,
+                                   const char* scope_name = nullptr);
 
 /**
  * Update the current active step (automatically sets previous steps to completed)

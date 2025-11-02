@@ -114,17 +114,17 @@ void ui_panel_step_test_setup(lv_obj_t* panel_root) {
     }
 
 
-    // Create vertical progress widget
+    // Create vertical progress widget with theme colors from step_progress_test scope
     vertical_widget = ui_step_progress_create(vertical_container, vertical_steps,
-                                               vertical_step_count, false);
+                                               vertical_step_count, false, "step_progress_test");
     if (!vertical_widget) {
         spdlog::error("Failed to create vertical progress widget");
         return;
     }
 
-    // Create horizontal progress widget
+    // Create horizontal progress widget with theme colors from step_progress_test scope
     horizontal_widget = ui_step_progress_create(horizontal_container, horizontal_steps,
-                                                 horizontal_step_count, true);
+                                                 horizontal_step_count, true, "step_progress_test");
     if (!horizontal_widget) {
         spdlog::error("Failed to create horizontal progress widget");
         return;
