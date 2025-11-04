@@ -234,8 +234,8 @@ lv_obj_t* ui_wizard_create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Apply theme-aware background color to wizard container
-    ui_theme_apply_bg_color(wizard_root, "app_bg_color", LV_PART_MAIN);
+    // Background color applied automatically by LVGL theme (uses theme->color_card)
+    // No explicit styling needed - theme patching in ui_theme.cpp handles this
 
     // Update layout to ensure SIZE_CONTENT calculates correctly
     lv_obj_update_layout(wizard_root);

@@ -73,7 +73,10 @@
         <const name="wifi_network_title_font" value="montserrat_16"/> <!-- SMALL=14/MEDIUM=16/LARGE=font_body -->
     </consts>
 
-    <view name="wizard_container" extends="lv_obj" width="100%" height="100%">
+    <view name="wizard_container" extends="lv_obj" 
+          style_bg_color="#app_bg_color" 
+          width="100%" 
+          height="100%">
 
         <!-- Root: Vertical stack (header, content, footer) -->
         <!-- Background color applied from C++ (theme-aware: light/dark variants) -->
@@ -82,7 +85,7 @@
                 flex_flow="column"
                 style_flex_main_place="space_between"
                 style_pad_all="0"
-                style_bg_opa="255"
+                style_bg_color="#app_bg_color"
                 style_border_width="0">
 
             <!-- ==================== HEADER ==================== -->
