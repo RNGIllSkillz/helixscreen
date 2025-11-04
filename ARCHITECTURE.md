@@ -117,6 +117,85 @@ Theme preference saved to `helixconfig.json` and restored on next launch:
 }
 ```
 
+## ⚠️ CRITICAL: Reactive-First Principle - "The HelixScreen Way"
+
+**ALL UI control MUST be reactive via subjects. Direct widget manipulation is an anti-pattern.**
+
+### ✅ The Correct Way: Reactive UI Control
+
+Control UI elements by updating subjects in C++, binding to them in XML:
+
+```cpp
+// C++ - Pure data updates, zero widget manipulation
+lv_subject_t connection_test_passed;
+lv_subject_init_int(&connection_test_passed, 0);  // Button starts disabled
+
+// Later: Update subject when connection succeeds
+lv_subject_set_int(&connection_test_passed, 1);  // Button becomes enabled automatically
+```
+
+```xml
+<!-- XML - Reactive bindings control UI state -->
+<lv_button name="next_button">
+  <!-- Button automatically updates when subject changes -->
+  <lv_obj-bind_flag_if_eq subject="connection_test_passed" flag="clickable" ref_value="0" negate="true"/>
+  <lv_obj-bind_flag_if_eq subject="connection_test_passed" flag="user_1" ref_value="0"/>
+</lv_button>
+<lv_style selector="LV_STATE_USER_1" style_opa="128"/>  <!-- Disabled style -->
+```
+
+**Benefits:**
+- ✅ UI automatically stays in sync with application state
+- ✅ Zero manual widget searching/updating
+- ✅ Testable - can verify subject values without UI
+- ✅ Reusable - multiple widgets can bind to same subject
+
+###  ❌ ANTI-PATTERN: Direct Widget Manipulation
+
+**DO NOT** search for widgets by name/ID and manipulate them from C++:
+
+```cpp
+// ❌ WRONG - Direct widget manipulation (ANTI-PATTERN)
+lv_obj_t* button = lv_obj_find_by_name(screen, "next_button");
+lv_obj_add_state(button, LV_STATE_DISABLED);      // Manual state management
+lv_obj_set_style_opa(button, 128, 0);              // Manual styling
+
+// ❌ WRONG - Searching for labels to update text
+lv_obj_t* label = lv_obj_find_by_name(panel, "temp_display");
+lv_label_set_text(label, "210°C");                 // Manual text update
+```
+
+**Why this is wrong:**
+- ❌ Couples C++ code to specific widget names/structure
+- ❌ Breaks if XML layout changes
+- ❌ Difficult to test (requires UI to exist)
+- ❌ Fragile - easy to forget updates, cause inconsistent state
+- ❌ Violates separation of concerns
+
+### Reactive Patterns for Common UI Tasks
+
+| UI Task | ❌ Anti-Pattern | ✅ Reactive Way |
+|---------|----------------|----------------|
+| Update text | `lv_label_set_text(label, "...")` | `bind_text` in XML, `lv_subject_set_string()` in C++ |
+| Enable/disable | `lv_obj_add_state(obj, DISABLED)` | `bind_flag_if_eq` in XML, update subject in C++ |
+| Show/hide | `lv_obj_add_flag(obj, HIDDEN)` | `bind_flag_if_eq` for `hidden` flag |
+| Update value | `lv_slider_set_value(slider, val)` | `bind_value` in XML, `lv_subject_set_int()` in C++ |
+| Visual feedback | Manual style changes | `bind_flag_if_eq` + conditional styles |
+
+### When Direct Access IS Acceptable
+
+The ONLY acceptable use of `lv_obj_find_by_name()` is during **initialization** for special cases:
+
+```cpp
+// ✅ OK - One-time initialization during panel setup
+void ui_panel_init() {
+    lv_obj_t* dropdown = lv_obj_find_by_name(panel, "hardware_dropdown");
+    ui_dropdown_populate(dropdown, get_available_hardware());  // One-time setup
+}
+```
+
+**After initialization, ALL updates must be reactive.**
+
 ## Component Hierarchy
 
 ```

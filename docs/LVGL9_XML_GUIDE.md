@@ -63,6 +63,41 @@ LVGL 9's XML system enables declarative UI development with reactive data bindin
 - Type-safe at runtime through subject system
 - Theme-able with global constants
 
+### ⚠️ CRITICAL: Reactive Data Binding is Mandatory
+
+**ALL UI updates MUST use reactive data binding. Direct widget manipulation from C++ is an anti-pattern.**
+
+```xml
+<!-- ✅ CORRECT - Reactive binding in XML -->
+<lv_label bind_text="status_message"/>
+<lv_button>
+  <lv_obj-bind_flag_if_eq subject="connection_ready" flag="clickable" ref_value="1"/>
+</lv_button>
+```
+
+```cpp
+// ✅ CORRECT - Update subjects in C++
+lv_subject_set_string(&status_message, "Connected");
+lv_subject_set_int(&connection_ready, 1);
+// UI updates automatically - zero widget manipulation
+```
+
+```cpp
+// ❌ WRONG - Direct widget manipulation (DO NOT DO THIS)
+lv_obj_t* label = lv_obj_find_by_name(screen, "status_label");
+lv_label_set_text(label, "Connected");  // ANTI-PATTERN
+```
+
+**Why reactive bindings are mandatory:**
+- ✅ Complete separation of UI and logic
+- ✅ UI automatically stays synchronized with state
+- ✅ Testable without UI present
+- ✅ Multiple widgets can react to same data change
+- ❌ Direct manipulation breaks on XML layout changes
+- ❌ Creates tight coupling between C++ and widget names
+
+**See ARCHITECTURE.md "Reactive-First Principle" for complete guide.**
+
 ---
 
 ## Project Structure

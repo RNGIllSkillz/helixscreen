@@ -1,7 +1,7 @@
 # Session Handoff Document
 
-**Last Updated:** 2025-11-02
-**Current Focus:** Phase 2 complete - wizard hardware selection fully dynamic
+**Last Updated:** 2025-11-03
+**Current Focus:** Wizard connection screen (step 2) near completion, needs polish
 
 ---
 
@@ -13,54 +13,55 @@
    - Wizard triggers `discover_printer()` after successful connection
    - Connection stays alive for hardware selection steps 4-7
 
-2. **Phase 2: Dynamic Dropdown Population** - ✅ COMPLETE (Just Finished)
+2. **Phase 2: Dynamic Dropdown Population** - ✅ COMPLETE
    - All 4 wizard hardware screens use dynamic dropdowns from MoonrakerClient
    - Hardware filtering: bed (by "bed"), hotend (by "extruder"/"hotend"), fans (separated by type), LEDs (all)
-   - Fixed critical layout bug: `height="LV_SIZE_CONTENT"` → `flex_grow="1"` (LV_SIZE_CONTENT fails with nested flex children)
-   - Fixed dropdown name mismatches (led_main_dropdown, part_cooling_fan_dropdown)
-   - Updated config template with all wizard fields
+   - Fixed critical layout bug: `height="LV_SIZE_CONTENT"` → `flex_grow="1"`
 
-3. **Phase 4.1: Mock Backend** - ✅ COMPLETE
-   - `MoonrakerClientMock` with 7 printer profiles (Voron, K1, FlashForge, etc.)
-   - Factory pattern in main.cpp:759-766
+3. **Phase 2.5: Connection Screen Reactive UI** - ✅ SUBSTANTIALLY COMPLETE
+   - Reactive Next button control via connection_test_passed subject
+   - Split connection_status into icon (checkmark/xmark) and text subjects
+   - Virtual keyboard integration with auto-show on textarea focus
+   - Config prefilling for IP/port from previous sessions
+   - Disabled button styling (50% opacity when connection_test_passed=0)
+
+4. **Phase 3: Mock Backend** - ✅ COMPLETE
+   - `MoonrakerClientMock` with 7 printer profiles, factory pattern in main.cpp
 
 ### What Works Now
 
+- ✅ Wizard connection screen (step 2) with reactive Next button control
+- ✅ Virtual keyboard with screen slide animation and auto-show on focus
 - ✅ Wizard hardware selection (steps 4-7) dynamically populated from discovered hardware
-- ✅ Proper hardware filtering logic for all component types
 - ✅ Mock backend testing (`--test` flag)
-- ✅ Config persistence for wizard selections
+- ✅ Config persistence for all wizard fields
 
 ### What Needs Work
 
-- ❌ Wizard steps 1-3 and 8 (WiFi, connection, printer ID, summary) need implementation
-- ❌ Real printer testing (only tested with mock backend so far)
+- ⚠️ Wizard steps 1-2 need polish and refinement (basic functionality complete)
+- ❌ Wizard steps 3 and 8 (printer ID, summary) need implementation
+- ❌ Real printer testing with connection screen (only tested with mock backend)
 - ❌ Printer auto-detection via mDNS (future enhancement)
 
 ---
 
-## 🚀 NEXT PRIORITY: Phase 3 - Real Printer Testing
+## 🚀 NEXT PRIORITIES
 
-**Goal:** Test wizard hardware discovery with live Moonraker connection
+### 1. Polish Wizard Connection Screen (Step 2)
+- Improve error messaging and user feedback
+- Add timeout handling for connection attempts
+- Test with real printer (no `--test` flag)
+- Refine layout and visual feedback
 
-**Tasks:**
-1. Test with real printer connection (no `--test` flag)
-2. Verify hardware filtering works correctly with various printer configs
-3. Test edge cases:
-   - No heated bed
-   - Multiple extruders
-   - Custom fan configurations
-   - No LEDs
-4. Fix any issues discovered during real testing
+### 2. Implement Printer Identification (Step 3)
+- Allow user to name their printer
+- Store printer name in config
+- Validate input (non-empty, reasonable length)
 
-**Testing Command:**
-```bash
-# Real printer (edit helixconfig.json first with printer IP)
-./build/bin/helix-ui-proto --wizard --wizard-step 4
-
-# Mock testing
-./build/bin/helix-ui-proto --test --wizard --wizard-step 4
-```
+### 3. Real Printer End-to-End Testing
+- Test full wizard flow with live Moonraker connection
+- Verify hardware discovery and selection with various printer configs
+- Test edge cases (no bed, multiple extruders, custom fans, no LEDs)
 
 ---
 
@@ -89,13 +90,12 @@
 ### Pattern #1: Dynamic Dropdown Population
 
 ```cpp
-// Store items in module scope for event callback mapping
+// Store items for event callback mapping
 static std::vector<std::string> hardware_items;
 
-// Build dropdown options (LVGL format: newline-separated)
+// Build options (newline-separated), filter hardware, add "None"
 hardware_items.clear();
 std::string options_str;
-
 for (const auto& item : client->get_heaters()) {
     if (item.find("bed") != std::string::npos) {
         hardware_items.push_back(item);
@@ -103,21 +103,16 @@ for (const auto& item : client->get_heaters()) {
         options_str += item;
     }
 }
-
-// Always add "None" option
 hardware_items.push_back("None");
 if (!options_str.empty()) options_str += "\n";
 options_str += "None";
 
-// Update dropdown
 lv_dropdown_set_options(dropdown, options_str.c_str());
 
-// Event callback uses vector for mapping
-static void on_dropdown_changed(lv_event_t* e) {
-    int index = lv_dropdown_get_selected(dropdown);
-    if (index < hardware_items.size()) {
-        config->set("/printer/component", hardware_items[index]);
-    }
+// Event callback
+static void on_changed(lv_event_t* e) {
+    int idx = lv_dropdown_get_selected(dropdown);
+    if (idx < hardware_items.size()) config->set("/printer/component", hardware_items[idx]);
 }
 ```
 
@@ -136,20 +131,38 @@ const auto& fans = client->get_fans();
 const auto& leds = client->get_leds();
 ```
 
+### Pattern #3: Reactive Button Control via Subjects
+
+Control button state (enabled/disabled, styled) reactively using subjects and bind_flag_if_eq.
+
+```cpp
+// C++ - Initialize subject to control button state
+lv_subject_t connection_test_passed;
+lv_subject_init_int(&connection_test_passed, 0);  // 0 = disabled
+```
+
+```xml
+<!-- XML - Bind button clickable flag and style to subject -->
+<lv_button name="wizard_next_button">
+  <!-- Disable clickable when connection_test_passed == 0 -->
+  <lv_obj-bind_flag_if_eq subject="connection_test_passed" flag="clickable" ref_value="0" negate="true"/>
+  <!-- Apply disabled style when connection_test_passed == 0 -->
+  <lv_obj-bind_flag_if_eq subject="connection_test_passed" flag="user_1" ref_value="0"/>
+</lv_button>
+
+<!-- Define disabled style -->
+<lv_style selector="LV_STATE_USER_1" style_opa="128"/>  <!-- 50% opacity -->
+```
+
+```cpp
+// C++ - Update subject to enable button
+lv_subject_set_int(&connection_test_passed, 1);  // Button becomes enabled
+```
+
+**Why:** Fully reactive UI - no manual button state management. Button automatically updates when subject changes.
+
 ---
 
-## 🔧 Known Issues
+**Reference:** See `docs/MOONRAKER_HARDWARE_DISCOVERY_PLAN.md` for implementation plan
 
-### LVGL XML String Constants
-**Issue:** Changed all `<str>` tags to `<string>` in globals.xml during debugging
-**Status:** Both work - tag name inside `<consts>` doesn't matter, LVGL processes all tags
-**Location:** ui_xml/globals.xml
-
----
-
-## 📚 Reference Documents
-
-- **Implementation Plan:** `docs/MOONRAKER_HARDWARE_DISCOVERY_PLAN.md`
-- **API Docs:** `include/moonraker_client.h` (Doxygen documented)
-
-**Next Session:** Test with real printer, implement remaining wizard steps
+**Next Session:** Polish connection screen (step 2), implement printer ID (step 3)
