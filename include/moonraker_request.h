@@ -35,9 +35,9 @@ using json = nlohmann::json;
  * Stores request metadata for timeout tracking and callback management.
  */
 struct PendingRequest {
-    uint32_t id;                                    // JSON-RPC request ID
+    uint64_t id;                                    // JSON-RPC request ID
     std::string method;                             // Method name for logging
-    std::function<void(json&)> success_callback;   // Success callback
+    std::function<void(json)> success_callback;    // Success callback (pass-by-value for thread safety)
     std::function<void(const MoonrakerError&)> error_callback;  // Error callback (optional)
     std::chrono::steady_clock::time_point timestamp;  // When request was sent
     uint32_t timeout_ms;                           // Timeout in milliseconds

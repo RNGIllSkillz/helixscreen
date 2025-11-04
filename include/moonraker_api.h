@@ -29,6 +29,32 @@
 #include <vector>
 
 /**
+ * @brief Safety limits for G-code generation and validation
+ *
+ * These limits protect against dangerous operations:
+ * - Temperature limits prevent heater damage or fire hazards
+ * - Position/distance limits prevent mechanical collisions
+ * - Feedrate limits prevent motor stalling or mechanical stress
+ *
+ * Priority order:
+ * 1. Explicitly configured values (via set_safety_limits())
+ * 2. Auto-detected from printer.cfg (via update_safety_limits_from_printer())
+ * 3. Conservative fallback defaults
+ */
+struct SafetyLimits {
+    double max_temperature_celsius = 400.0;
+    double min_temperature_celsius = 0.0;
+    double max_fan_speed_percent = 100.0;
+    double min_fan_speed_percent = 0.0;
+    double max_feedrate_mm_min = 50000.0;
+    double min_feedrate_mm_min = 0.0;
+    double max_relative_distance_mm = 1000.0;
+    double min_relative_distance_mm = -1000.0;
+    double max_absolute_position_mm = 1000.0;
+    double min_absolute_position_mm = 0.0;
+};
+
+/**
  * @brief File information structure
  */
 struct FileInfo {
@@ -359,9 +385,55 @@ public:
     void get_print_state(StringCallback on_result,
                         ErrorCallback on_error);
 
+    // ========================================================================
+    // Safety Limits Configuration
+    // ========================================================================
+
+    /**
+     * @brief Set safety limits explicitly (overrides auto-detection)
+     *
+     * When called, prevents update_safety_limits_from_printer() from modifying limits.
+     * Use this to enforce project-specific constraints regardless of printer configuration.
+     *
+     * @param limits Safety limits to apply
+     */
+    void set_safety_limits(const SafetyLimits& limits) {
+        safety_limits_ = limits;
+        limits_explicitly_set_ = true;
+    }
+
+    /**
+     * @brief Get current safety limits
+     *
+     * @return Current safety limits (explicit, auto-detected, or defaults)
+     */
+    const SafetyLimits& get_safety_limits() const {
+        return safety_limits_;
+    }
+
+    /**
+     * @brief Update safety limits from printer configuration via Moonraker API
+     *
+     * Queries printer.objects.query for configfile.settings and extracts:
+     * - max_velocity → max_feedrate_mm_min
+     * - stepper_* position_min/max → absolute position limits
+     * - extruder/heater_* min_temp/max_temp → temperature limits
+     *
+     * Only updates limits if set_safety_limits() has NOT been called (explicit config takes priority).
+     * Fallback to defaults if Moonraker query fails or values unavailable.
+     *
+     * @param on_success Success callback
+     * @param on_error Error callback
+     */
+    void update_safety_limits_from_printer(SuccessCallback on_success,
+                                           ErrorCallback on_error);
+
 private:
     MoonrakerClient& client_;
     PrinterState& state_;
+
+    SafetyLimits safety_limits_;
+    bool limits_explicitly_set_ = false;
 
     /**
      * @brief Parse file list response from server.files.list

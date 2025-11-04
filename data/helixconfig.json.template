@@ -23,7 +23,20 @@
       "moonraker_reconnect_max_delay_ms": 2000,
       "moonraker_reconnect_min_delay_ms": 200,
       "moonraker_request_timeout_ms": 30000,
-      "moonraker_timeout_check_interval_ms": 2000
+      "moonraker_timeout_check_interval_ms": 2000,
+      "safety_limits": {
+        "max_temperature_celsius": 400.0,
+        "min_temperature_celsius": 0.0,
+        "max_fan_speed_percent": 100.0,
+        "min_fan_speed_percent": 0.0,
+        "max_feedrate_mm_min": 50000.0,
+        "min_feedrate_mm_min": 0.0,
+        "max_relative_distance_mm": 1000.0,
+        "min_relative_distance_mm": -1000.0,
+        "max_absolute_position_mm": 1000.0,
+        "min_absolute_position_mm": 0.0,
+        "_comment": "Safety limits for G-code generation. Explicit values override Moonraker auto-detection. Defaults are conservative for most FDM printers. High-temp printers may need max_temperature_celsius > 400. Leave unset to auto-detect from printer.cfg via Moonraker."
+      }
     }
   },
   "network": {

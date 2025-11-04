@@ -36,6 +36,9 @@ MoonrakerClient::MoonrakerClient(EventLoopPtr loop)
 }
 
 MoonrakerClient::~MoonrakerClient() {
+  // Cleanup any pending requests before destruction
+  spdlog::debug("MoonrakerClient destructor: {} pending requests", pending_requests_.size());
+  cleanup_pending_requests();
 }
 
 void MoonrakerClient::set_connection_state(ConnectionState new_state) {
@@ -61,7 +64,13 @@ void MoonrakerClient::set_connection_state(ConnectionState new_state) {
 
     // Invoke state change callback if set
     if (state_change_callback_) {
-      state_change_callback_(old_state, new_state);
+      try {
+        state_change_callback_(old_state, new_state);
+      } catch (const std::exception& e) {
+        spdlog::error("State change callback threw exception: {}", e.what());
+      } catch (...) {
+        spdlog::error("State change callback threw unknown exception");
+      }
     }
   }
 }
@@ -94,10 +103,10 @@ int MoonrakerClient::connect(const char* url,
 
     // Handle responses with request IDs (one-time callbacks)
     if (j.contains("id")) {
-      uint32_t id = j["id"].get<uint32_t>();
+      uint64_t id = j["id"].get<uint64_t>();
 
       // Copy callbacks out before invoking to avoid deadlock
-      std::function<void(json&)> success_cb;
+      std::function<void(json)> success_cb;
       std::function<void(const MoonrakerError&)> error_cb;
       std::string method_name;
       bool has_error = false;
@@ -215,18 +224,18 @@ int MoonrakerClient::connect(const char* url,
   return open(url, headers);
 }
 
-void MoonrakerClient::register_notify_update(std::function<void(json&)> cb) {
+void MoonrakerClient::register_notify_update(std::function<void(json)> cb) {
   notify_callbacks_.push_back(cb);
 }
 
 void MoonrakerClient::register_method_callback(const std::string& method,
                                                 const std::string& handler_name,
-                                                std::function<void(json&)> cb) {
+                                                std::function<void(json)> cb) {
   auto it = method_callbacks_.find(method);
   if (it == method_callbacks_.end()) {
     spdlog::debug("Registering new method callback: {} (handler: {})",
                   method, handler_name);
-    std::map<std::string, std::function<void(json&)>> handlers;
+    std::map<std::string, std::function<void(json)>> handlers;
     handlers.insert({handler_name, cb});
     method_callbacks_.insert({method, handlers});
   } else {
@@ -264,17 +273,17 @@ int MoonrakerClient::send_jsonrpc(const std::string& method, const json& params)
 
 int MoonrakerClient::send_jsonrpc(const std::string& method,
                                    const json& params,
-                                   std::function<void(json&)> cb) {
+                                   std::function<void(json)> cb) {
   // Forward to new overload with null error callback
   return send_jsonrpc(method, params, cb, nullptr, 0);
 }
 
 int MoonrakerClient::send_jsonrpc(const std::string& method,
                                    const json& params,
-                                   std::function<void(json&)> success_cb,
+                                   std::function<void(json)> success_cb,
                                    std::function<void(const MoonrakerError&)> error_cb,
                                    uint32_t timeout_ms) {
-  uint32_t id = request_id_;
+  uint64_t id = request_id_;
 
   // Create pending request
   PendingRequest request;
@@ -294,10 +303,13 @@ int MoonrakerClient::send_jsonrpc(const std::string& method,
       return -1;
     }
     pending_requests_.insert({id, request});
+    spdlog::debug("Registered request {} for method {}, total pending: {}", id, method, pending_requests_.size());
   }
 
   // Send the request
-  return send_jsonrpc(method, params);
+  int result = send_jsonrpc(method, params);
+  spdlog::debug("send_jsonrpc({}) returned {}", method, result);
+  return result;
 }
 
 int MoonrakerClient::gcode_script(const std::string& gcode) {
@@ -309,7 +321,7 @@ void MoonrakerClient::discover_printer(std::function<void()> on_complete) {
   spdlog::info("Starting printer auto-discovery");
 
   // Step 1: Query available printer objects (no params required)
-  send_jsonrpc("printer.objects.list", json(), [this, on_complete](json& response) {
+  send_jsonrpc("printer.objects.list", json(), [this, on_complete](json response) {
     // Debug: Log raw response
     spdlog::debug("printer.objects.list response: {}", response.dump());
 
@@ -327,7 +339,7 @@ void MoonrakerClient::discover_printer(std::function<void()> on_complete) {
     parse_objects(objects);
 
     // Step 2: Get server information
-    send_jsonrpc("server.info", {}, [this, on_complete](json& info_response) {
+    send_jsonrpc("server.info", {}, [this, on_complete](json info_response) {
       if (info_response.contains("result")) {
         const json& result = info_response["result"];
         std::string klippy_version = result.value("klippy_version", "unknown");
@@ -343,7 +355,7 @@ void MoonrakerClient::discover_printer(std::function<void()> on_complete) {
       }
 
       // Step 3: Get printer information
-      send_jsonrpc("printer.info", {}, [this, on_complete](json& printer_response) {
+      send_jsonrpc("printer.info", {}, [this, on_complete](json printer_response) {
         if (printer_response.contains("result")) {
           const json& result = printer_response["result"];
           std::string hostname = result.value("hostname", "unknown");
@@ -391,7 +403,7 @@ void MoonrakerClient::discover_printer(std::function<void()> on_complete) {
         json subscribe_params = {{"objects", subscription_objects}};
 
         send_jsonrpc("printer.objects.subscribe", subscribe_params,
-                     [on_complete, subscription_objects](json& sub_response) {
+                     [on_complete, subscription_objects](json sub_response) {
           if (sub_response.contains("result")) {
             spdlog::info("Subscription complete: {} objects subscribed",
                          subscription_objects.size());
@@ -486,47 +498,91 @@ void MoonrakerClient::parse_objects(const json& objects) {
 }
 
 void MoonrakerClient::check_request_timeouts() {
-  std::lock_guard<std::mutex> lock(requests_mutex_);
+  // Two-phase pattern: collect callbacks under lock, invoke outside lock
+  // This prevents deadlock if callback tries to send new request
+  std::vector<std::function<void()>> timed_out_callbacks;
 
-  std::vector<uint32_t> timed_out_ids;
+  // Phase 1: Find timed out requests and copy callbacks (under lock)
+  {
+    std::lock_guard<std::mutex> lock(requests_mutex_);
+    std::vector<uint64_t> timed_out_ids;
 
-  // Find timed out requests
-  for (auto& [id, request] : pending_requests_) {
-    if (request.is_timed_out()) {
-      timed_out_ids.push_back(id);
+    for (auto& [id, request] : pending_requests_) {
+      if (request.is_timed_out()) {
+        spdlog::warn("Request {} ({}) timed out after {}ms",
+                     id, request.method, request.get_elapsed_ms());
 
-      spdlog::warn("Request {} ({}) timed out after {}ms",
-                   id, request.method, request.get_elapsed_ms());
+        // Capture callback in lambda if present
+        if (request.error_callback) {
+          MoonrakerError error = MoonrakerError::timeout(request.method, request.timeout_ms);
+          std::string method_name = request.method;
+          timed_out_callbacks.push_back(
+            [cb = request.error_callback, error, method_name]() {
+              try {
+                cb(error);
+              } catch (const std::exception& e) {
+                spdlog::error("Timeout error callback for {} threw exception: {}", method_name, e.what());
+              } catch (...) {
+                spdlog::error("Timeout error callback for {} threw unknown exception", method_name);
+              }
+            }
+          );
+        }
 
-      // Invoke error callback if set
-      if (request.error_callback) {
-        MoonrakerError error = MoonrakerError::timeout(request.method, request.timeout_ms);
-        request.error_callback(error);
+        timed_out_ids.push_back(id);
       }
     }
-  }
 
-  // Remove timed out requests
-  for (uint32_t id : timed_out_ids) {
-    pending_requests_.erase(id);
+    // Remove timed out requests while still holding lock
+    for (uint64_t id : timed_out_ids) {
+      pending_requests_.erase(id);
+    }
+  }  // Lock released here
+
+  // Phase 2: Invoke callbacks outside lock (safe - callbacks can call send_jsonrpc)
+  for (auto& callback : timed_out_callbacks) {
+    callback();
   }
 }
 
 void MoonrakerClient::cleanup_pending_requests() {
-  std::lock_guard<std::mutex> lock(requests_mutex_);
+  // Two-phase pattern: collect callbacks under lock, invoke outside lock
+  // This prevents deadlock if callback tries to send new request
+  std::vector<std::function<void()>> cleanup_callbacks;
 
-  if (!pending_requests_.empty()) {
-    spdlog::debug("Cleaning up {} pending requests due to disconnect",
-                  pending_requests_.size());
+  // Phase 1: Copy callbacks and clear map (under lock)
+  {
+    std::lock_guard<std::mutex> lock(requests_mutex_);
 
-    // Invoke error callbacks for all pending requests
-    for (auto& [id, request] : pending_requests_) {
-      if (request.error_callback) {
-        MoonrakerError error = MoonrakerError::connection_lost(request.method);
-        request.error_callback(error);
+    if (!pending_requests_.empty()) {
+      spdlog::debug("Cleaning up {} pending requests due to disconnect",
+                    pending_requests_.size());
+
+      // Capture callbacks in lambdas
+      for (auto& [id, request] : pending_requests_) {
+        if (request.error_callback) {
+          MoonrakerError error = MoonrakerError::connection_lost(request.method);
+          std::string method_name = request.method;
+          cleanup_callbacks.push_back(
+            [cb = request.error_callback, error, method_name]() {
+              try {
+                cb(error);
+              } catch (const std::exception& e) {
+                spdlog::error("Cleanup error callback for {} threw exception: {}", method_name, e.what());
+              } catch (...) {
+                spdlog::error("Cleanup error callback for {} threw unknown exception", method_name);
+              }
+            }
+          );
+        }
       }
-    }
 
-    pending_requests_.clear();
+      pending_requests_.clear();
+    }
+  }  // Lock released here
+
+  // Phase 2: Invoke callbacks outside lock (safe - callbacks can call send_jsonrpc)
+  for (auto& callback : cleanup_callbacks) {
+    callback();
   }
 }

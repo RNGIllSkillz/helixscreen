@@ -815,7 +815,7 @@ static void initialize_moonraker_client(Config* config) {
     // Register notification callback to queue updates for main thread
     // CRITICAL: Moonraker callbacks run on background thread, but LVGL is NOT thread-safe
     // Queue notifications here, process on main thread in event loop
-    moonraker_client->register_notify_update([](json& notification) {
+    moonraker_client->register_notify_update([](json notification) {
         std::lock_guard<std::mutex> lock(notification_mutex);
         notification_queue.push(notification);
     });

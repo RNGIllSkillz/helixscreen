@@ -79,7 +79,7 @@ public:
    *
    * @param cb Callback function receiving parsed JSON notification
    */
-  void register_notify_update(std::function<void(json&)> cb);
+  void register_notify_update(std::function<void(json)> cb);
 
   /**
    * @brief Register persistent callback for specific notification methods
@@ -93,7 +93,7 @@ public:
    */
   void register_method_callback(const std::string& method,
                                  const std::string& handler_name,
-                                 std::function<void(json&)> cb);
+                                 std::function<void(json)> cb);
 
   /**
    * @brief Send JSON-RPC request without parameters
@@ -124,7 +124,7 @@ public:
    */
   int send_jsonrpc(const std::string& method,
                    const json& params,
-                   std::function<void(json&)> cb);
+                   std::function<void(json)> cb);
 
   /**
    * @brief Send JSON-RPC request with success and error callbacks
@@ -138,7 +138,7 @@ public:
    */
   int send_jsonrpc(const std::string& method,
                    const json& params,
-                   std::function<void(json&)> success_cb,
+                   std::function<void(json)> success_cb,
                    std::function<void(const MoonrakerError&)> error_cb,
                    uint32_t timeout_ms = 0);
 
@@ -279,15 +279,15 @@ protected:
 
 private:
   // Pending requests keyed by request ID
-  std::map<uint32_t, PendingRequest> pending_requests_;
+  std::map<uint64_t, PendingRequest> pending_requests_;
   std::mutex requests_mutex_;  // Protect pending_requests_ map
 
   // Persistent notify_status_update callbacks
-  std::vector<std::function<void(json&)>> notify_callbacks_;
+  std::vector<std::function<void(json)>> notify_callbacks_;
 
   // Persistent method-specific callbacks
   // method_name : { handler_name : callback }
-  std::map<std::string, std::map<std::string, std::function<void(json&)>>> method_callbacks_;
+  std::map<std::string, std::map<std::string, std::function<void(json)>>> method_callbacks_;
 
   // Auto-incrementing JSON-RPC request ID
   std::atomic_uint64_t request_id_;
