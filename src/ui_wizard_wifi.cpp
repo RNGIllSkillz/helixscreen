@@ -172,7 +172,7 @@ static void init_wifi_item_colors() {
         // Fallback to defaults if scope not found
         wifi_item_bg_color = lv_color_hex(0x262626);
         wifi_item_text_color = lv_color_hex(0xE3E3E3);
-        spdlog::warn("[WiFi] Failed to get wifi_network_item component scope, using defaults");
+        spdlog::warn("[WiFi] wifi_network_item component not registered yet - using hardcoded default colors (bg=#262626, text=#E3E3E3). Call init_wifi_item_colors() after component registration for theme support.");
     }
 }
 
@@ -226,9 +226,6 @@ void ui_wizard_wifi_init_subjects() {
     lv_xml_register_subject(nullptr, "wifi_status", &wifi_status);
     lv_xml_register_subject(nullptr, "ethernet_status", &ethernet_status);
     lv_xml_register_subject(nullptr, "wifi_scanning", &wifi_scanning);
-
-    // Initialize theme-aware colors for WiFi network items
-    init_wifi_item_colors();
 
     spdlog::info("[WiFi Screen] Subjects initialized");
 }
@@ -308,6 +305,9 @@ void ui_wizard_wifi_register_responsive_constants() {
     // 5. Register to wizard_wifi_setup scope (for network_list_container)
     lv_xml_component_scope_t* wifi_setup_scope = lv_xml_component_get_scope("wizard_wifi_setup");
     register_wifi_constants_to_scope(wifi_setup_scope, constants);
+
+    // 6. Initialize theme-aware colors now that wifi_network_item component is registered
+    init_wifi_item_colors();
 
     spdlog::info("[WiFi Screen] Registered 3 constants to wifi_network_item and wizard_wifi_setup scopes ({})",
                  size_label);

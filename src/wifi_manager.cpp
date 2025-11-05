@@ -44,6 +44,13 @@ WiFiManager::WiFiManager()
         return;
     }
 
+    // Check backend status immediately after creation
+    if (backend_->is_running()) {
+        spdlog::info("[WiFiManager] WiFi backend initialized and running");
+    } else {
+        spdlog::warn("[WiFiManager] WiFi backend created but not running (may need permissions)");
+    }
+
     // Register event callbacks
     backend_->register_event_callback("SCAN_COMPLETE",
         [this](const std::string& data) { handle_scan_complete(data); });
@@ -53,13 +60,6 @@ WiFiManager::WiFiManager()
         [this](const std::string& data) { handle_disconnected(data); });
     backend_->register_event_callback("AUTH_FAILED",
         [this](const std::string& data) { handle_auth_failed(data); });
-
-    // Backend is already started by factory - just log the result
-    if (backend_->is_running()) {
-        spdlog::info("[WiFiManager] WiFi backend initialized and running");
-    } else {
-        spdlog::warn("[WiFiManager] WiFi backend created but not running (may need permissions)");
-    }
 }
 
 void WiFiManager::init_self_reference(std::shared_ptr<WiFiManager> self) {
