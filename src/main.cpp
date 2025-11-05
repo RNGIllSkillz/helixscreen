@@ -597,7 +597,8 @@ static void show_splash_screen() {
     // Get the active screen
     lv_obj_t* screen = lv_screen_active();
 
-    // Theme handles background color
+    // Apply theme background color (app_bg_color runtime constant set by ui_theme_init)
+    ui_theme_apply_bg_color(screen, "app_bg_color", LV_PART_MAIN);
 
     // Disable scrollbars on screen
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
@@ -961,11 +962,6 @@ int main(int argc, char** argv) {
         spdlog::info("Display DPI: {} (from LV_DPI_DEF)", lv_display_get_dpi(display));
     }
 
-    // Show splash screen (skip if requested via --skip-splash or --test)
-    if (!g_runtime_config.should_skip_splash()) {
-        show_splash_screen();
-    }
-
     // Create main screen
     lv_obj_t* screen = lv_screen_active();
 
@@ -999,6 +995,12 @@ int main(int argc, char** argv) {
 
     // Apply theme background color to screen
     ui_theme_apply_bg_color(screen, "app_bg_color", LV_PART_MAIN);
+
+    // Show splash screen AFTER theme init (skip if requested via --skip-splash or --test)
+    // Theme must be initialized first so app_bg_color runtime constant is available
+    if (!g_runtime_config.should_skip_splash()) {
+        show_splash_screen();
+    }
 
     // Register Material Design icons (64x64, scalable)
     material_icons_register();
