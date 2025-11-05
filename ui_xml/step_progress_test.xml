@@ -73,7 +73,7 @@
 		        width="90%"
 		        height="380"
 		       		        style_pad_all="#padding_card"
-		        style_radius="#card_radius"
+		        style_radius="#border_radius"
 		        style_border_width="0"
 		        flex_flow="column"
 		        style_flex_main_place="start"
@@ -96,7 +96,7 @@
 		        width="100%"
 		        height="180"
 		       		        style_pad_all="#padding_card"
-		        style_radius="#card_radius"
+		        style_radius="#border_radius"
 		        style_border_width="0"
 		        style_pad_top="20"
 		        flex_flow="column"
@@ -129,7 +129,7 @@
 			<lv_button name="btn_prev"
 			           width="140"
 			           height="#button_height_normal"
-			           style_radius="#card_radius">
+			           style_radius="#border_radius">
 				<lv_label text="Previous" align="center"/>
 			</lv_button>
 
@@ -137,7 +137,7 @@
 			           width="140"
 			           height="#button_height_normal"
 			           style_bg_color="#primary_color"
-			           style_radius="#card_radius">
+			           style_radius="#border_radius">
 				<lv_label text="Next" align="center"/>
 			</lv_button>
 
@@ -145,7 +145,7 @@
 			           width="140"
 			           height="#button_height_normal"
 			           style_bg_color="#success_color"
-			           style_radius="#card_radius">
+			           style_radius="#border_radius">
 				<lv_label text="Complete" align="center"/>
 			</lv_button>
 		</lv_obj>

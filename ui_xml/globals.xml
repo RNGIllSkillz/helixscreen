@@ -25,7 +25,7 @@
 	<px name="nav_padding" value="16" />
 	<px name="nav_button_size" value="70" />
 
-	<px name="card_radius" value="8" />
+	<px name="border_radius" value="8" />
 
 	<!-- Responsive padding size variants (~80% of LVGL defaults)
 	     Runtime selects appropriate variant via ui_theme_register_responsive_padding()
@@ -120,8 +120,8 @@
 	<!-- Border width for input fields (prominent for visibility) -->
 
 	<!-- Card styling -->
-	<px name="card_radius_large" value="12" />
-	<!-- Larger radius for prominent cards -->
+	<px name="border_radius_large" value="12" />
+	<!-- Larger radius for prominent cards/buttons -->
 	<px name="padding_card" value="16" />
 	<!-- Standard internal card padding -->
 	<px name="padding_card_emphasis" value="20" />

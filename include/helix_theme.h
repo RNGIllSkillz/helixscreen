@@ -48,14 +48,16 @@ extern "C" {
  * @param screen_bg Screen background color (from globals.xml variant)
  * @param card_bg Card background color (from globals.xml variant)
  * @param theme_grey Grey color for buttons (from globals.xml variant)
+ * @param border_radius Border radius for buttons/cards (from globals.xml)
  * @return Initialized theme, or NULL on failure
  *
  * Example usage:
  * @code
  *   lv_color_t primary = ui_theme_parse_color("#FF4444");
  *   lv_color_t screen_bg = ui_theme_get_color("app_bg_color");
+ *   int32_t border_radius = atoi(lv_xml_get_const(NULL, "border_radius"));
  *   lv_theme_t* theme = helix_theme_init(
- *       display, primary, secondary, true, font, screen_bg, card_bg, grey
+ *       display, primary, secondary, true, font, screen_bg, card_bg, grey, border_radius
  *   );
  *   lv_display_set_theme(display, theme);
  * @endcode
@@ -68,7 +70,8 @@ lv_theme_t* helix_theme_init(
     const lv_font_t* base_font,
     lv_color_t screen_bg,
     lv_color_t card_bg,
-    lv_color_t theme_grey
+    lv_color_t theme_grey,
+    int32_t border_radius
 );
 
 #ifdef __cplusplus

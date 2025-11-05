@@ -106,8 +106,7 @@
             <!-- Progress indicator: "Step 2 of 7" -->
             <lv_label name="wizard_progress"
                       bind_text="wizard_progress"
-                      style_text_font="#wizard_header_font"
-                      style_text_color="#text_secondary"/>
+                      style_text_font="#wizard_header_font"/>
         </lv_obj>
 
         <!-- ==================== CONTENT ==================== -->

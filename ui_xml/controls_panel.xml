@@ -39,7 +39,7 @@
 				         flex_flow="column"
 				         flex_main_place="center"
 				         flex_cross_place="center"
-				         style_radius="#card_radius_large"
+				         style_radius="#border_radius_large"
 				         style_pad_all="#launcher_card_padding">
 
 					<!-- Icon -->
@@ -62,7 +62,7 @@
 				         flex_flow="column"
 				         flex_main_place="center"
 				         flex_cross_place="center"
-				         style_radius="#card_radius_large"
+				         style_radius="#border_radius_large"
 				         style_pad_all="#launcher_card_padding">
 
 					<!-- Icon -->
@@ -85,7 +85,7 @@
 				         flex_flow="column"
 				         flex_main_place="center"
 				         flex_cross_place="center"
-				         style_radius="#card_radius_large"
+				         style_radius="#border_radius_large"
 				         style_pad_all="#launcher_card_padding">
 
 					<!-- Icon -->
@@ -108,7 +108,7 @@
 				         flex_flow="column"
 				         flex_main_place="center"
 				         flex_cross_place="center"
-				         style_radius="#card_radius_large"
+				         style_radius="#border_radius_large"
 				         style_pad_all="#launcher_card_padding">
 
 					<!-- Icon -->
@@ -131,7 +131,7 @@
 				         flex_flow="column"
 				         flex_main_place="center"
 				         flex_cross_place="center"
-				         style_radius="#card_radius_large"
+				         style_radius="#border_radius_large"
 				         style_pad_all="#launcher_card_padding"
 				         style_opa="128">  <!-- Disabled appearance -->
 
@@ -155,7 +155,7 @@
 				         flex_flow="column"
 				         flex_main_place="center"
 				         flex_cross_place="center"
-				         style_radius="#card_radius_large"
+				         style_radius="#border_radius_large"
 				         style_pad_all="#launcher_card_padding">
 
 					<!-- Icon -->

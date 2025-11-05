@@ -191,6 +191,14 @@ void ui_theme_init(lv_display_t* display, bool use_dark_mode_param) {
     lv_color_t card_bg = ui_theme_parse_color(card_bg_str);
     lv_color_t theme_grey = ui_theme_parse_color(theme_grey_str);
 
+    // Read border radius from globals.xml
+    const char* border_radius_str = lv_xml_get_const(NULL, "border_radius");
+    if (!border_radius_str) {
+        spdlog::error("[Theme] Failed to read border_radius from globals.xml");
+        return;
+    }
+    int32_t border_radius = atoi(border_radius_str);
+
     // Initialize custom HelixScreen theme (wraps LVGL default theme)
     current_theme = helix_theme_init(
         display,
@@ -200,7 +208,8 @@ void ui_theme_init(lv_display_t* display, bool use_dark_mode_param) {
         base_font,
         screen_bg,
         card_bg,
-        theme_grey
+        theme_grey,
+        border_radius
     );
 
     if (current_theme) {

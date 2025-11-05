@@ -111,7 +111,7 @@
 						        style_flex_cross_place="center">
 
 							<lv_label text="WiFi"
-							          style_text_color="#text_primary"/>
+							          />
 
 							<!-- WiFi toggle: wired to wifi_enabled subject via C++ event handler -->
 							<ui_switch name="wifi_toggle"

@@ -53,7 +53,7 @@
 			         flex_grow="2"
 			         height="100%"
 			         style_pad_all="0"
-			         style_radius="#card_radius"
+			         style_radius="#border_radius"
 			         scrollable="false">
 
 				<!-- Gradient background -->

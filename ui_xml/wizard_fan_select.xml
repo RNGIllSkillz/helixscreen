@@ -59,7 +59,7 @@
 			             style_text_font="montserrat_20"
 			             style_border_width="#input_border_width"
 			            			             style_border_opa="100%"
-			             style_radius="#card_radius"
+			             style_radius="#border_radius"
 			             style_pad_all="#padding_card"/>
 
 			<!-- Part cooling fan selection -->
@@ -75,7 +75,7 @@
 			             style_text_font="montserrat_20"
 			             style_border_width="#input_border_width"
 			            			             style_border_opa="100%"
-			             style_radius="#card_radius"
+			             style_radius="#border_radius"
 			             style_pad_all="#padding_card"/>
 		</ui_card>
 
