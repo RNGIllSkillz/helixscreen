@@ -101,8 +101,8 @@
 	<!-- Wizard-specific dimensions -->
 	<px name="wizard_button_width" value="140" />
 	<!-- Width for wizard navigation buttons (Back/Next) -->
-	<px name="wizard_input_height" value="48" />
-	<!-- Input field height for wizard forms -->
+	<px name="input_height" value="48" />
+	<!-- Standard height for all input fields (textareas, dropdowns, etc.) -->
 	<px name="wizard_printer_img_height" value="140" />
 	<!-- Printer image height in printer identification screen -->
 
