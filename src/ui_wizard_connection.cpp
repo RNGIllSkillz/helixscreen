@@ -192,6 +192,10 @@ static void on_test_connection_clicked(lv_event_t* e) {
         return;
     }
 
+    // Disconnect any previous connection attempt to ensure clean state
+    // This prevents libhv internal state conflicts when rapidly retrying
+    client->disconnect();
+
     // Store IP/port for potential config save (before async callback)
     static std::string saved_ip;
     static std::string saved_port;
@@ -206,10 +210,6 @@ static void on_test_connection_clicked(lv_event_t* e) {
     lv_subject_copy_string(&connection_status_text, "Testing connection...");
 
     spdlog::debug("[Wizard Connection] Starting connection test to {}:{}", ip, port_str);
-
-    // Disable automatic reconnection for wizard testing - we want manual control
-    // (MoonrakerClient enables auto-reconnect by default, which interferes with retries)
-    client->setReconnect(nullptr);
 
     // Set shorter timeout for wizard testing (5 seconds)
     client->set_connection_timeout(5000);
@@ -302,6 +302,10 @@ static void on_test_connection_clicked(lv_event_t* e) {
             }
         }
     );
+
+    // Disable automatic reconnection for wizard testing - we want manual control
+    // Must be called AFTER connect() since connect() sets reconnect settings
+    client->setReconnect(nullptr);
 
     if (result != 0) {
         spdlog::error("[Wizard Connection] Failed to initiate connection: {}", result);
