@@ -199,11 +199,15 @@ void ui_theme_init(lv_display_t* display, bool use_dark_mode_param) {
     }
     int32_t border_radius = atoi(border_radius_str);
 
+    // Parse text primary color for theme-aware button text
+    lv_color_t text_primary_color = ui_theme_parse_color(selected_text);
+
     // Initialize custom HelixScreen theme (wraps LVGL default theme)
     current_theme = helix_theme_init(
         display,
         primary_color,
         secondary_color,
+        text_primary_color,
         use_dark_mode,
         base_font,
         screen_bg,
