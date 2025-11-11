@@ -159,17 +159,21 @@ check-deps:
 			fi; \
 		fi; \
 	fi; \
-	if [ ! -f "$(LIBHV_LIB)" ]; then \
+	if pkg-config --exists libhv 2>/dev/null; then \
+		echo "$(GREEN)✓ libhv:$(RESET) Using system version $$(pkg-config --modversion libhv 2>/dev/null || echo 'unknown')"; \
+	elif [ ! -f "$(LIBHV_DIR)/lib/libhv.a" ]; then \
 		echo "$(YELLOW)⚠ libhv not built$(RESET)"; WARN=1; \
 		echo "  Run: $(YELLOW)make libhv-build$(RESET)"; \
 	else \
-		echo "$(GREEN)✓ libhv found:$(RESET) $(LIBHV_LIB)"; \
+		echo "$(GREEN)✓ libhv:$(RESET) Using submodule version"; \
 	fi; \
-	if [ ! -d "$(SPDLOG_DIR)/include" ]; then \
+	if [ -d "/usr/include/spdlog" ] || [ -d "/usr/local/include/spdlog" ] || [ -d "/opt/homebrew/include/spdlog" ]; then \
+		echo "$(GREEN)✓ spdlog:$(RESET) Using system version (header-only)"; \
+	elif [ ! -d "$(SPDLOG_DIR)/include" ]; then \
 		echo "$(RED)✗ spdlog not found$(RESET) (submodule)"; ERROR=1; \
 		echo "  Run: $(YELLOW)git submodule update --init --recursive$(RESET)"; \
 	else \
-		echo "$(GREEN)✓ spdlog found:$(RESET) $(SPDLOG_DIR)"; \
+		echo "$(GREEN)✓ spdlog:$(RESET) Using submodule version (header-only)"; \
 	fi; \
 	if [ ! -d "$(LVGL_DIR)/src" ]; then \
 		echo "$(RED)✗ LVGL not found$(RESET) (submodule)"; ERROR=1; \

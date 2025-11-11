@@ -160,14 +160,32 @@ else
     SDL2_LIBS := $(SDL2_LIB)
 endif
 
-# libhv (WebSocket client for Moonraker) - symlinked from parent repo submodule
-LIBHV_DIR := libhv
-LIBHV_INC := -I$(LIBHV_DIR)/include -I$(LIBHV_DIR)/cpputil -I$(LIBHV_DIR)
-LIBHV_LIB := $(LIBHV_DIR)/lib/libhv.a
+# libhv (WebSocket client for Moonraker) - Use system version if available, otherwise build from submodule
+LIBHV_PKG_CONFIG := $(shell pkg-config --exists libhv 2>/dev/null && echo "yes")
+ifeq ($(LIBHV_PKG_CONFIG),yes)
+    # System libhv found via pkg-config
+    LIBHV_INC := $(shell pkg-config --cflags libhv)
+    LIBHV_LIBS := $(shell pkg-config --libs libhv)
+    LIBHV_LIB :=
+else
+    # No system libhv - build from submodule
+    LIBHV_DIR := libhv
+    LIBHV_INC := -I$(LIBHV_DIR)/include -I$(LIBHV_DIR)/cpputil -I$(LIBHV_DIR)
+    LIBHV_LIB := $(LIBHV_DIR)/lib/libhv.a
+    LIBHV_LIBS :=
+endif
 
-# spdlog (logging library) - symlinked from parent repo submodule
-SPDLOG_DIR := spdlog
-SPDLOG_INC := -I$(SPDLOG_DIR)/include
+# spdlog (logging library) - Use system version if available, otherwise use submodule
+SPDLOG_SYSTEM_PATHS := /usr/include/spdlog /usr/local/include/spdlog /opt/homebrew/include/spdlog
+SPDLOG_SYSTEM_AVAILABLE := $(firstword $(wildcard $(SPDLOG_SYSTEM_PATHS)))
+ifneq ($(SPDLOG_SYSTEM_AVAILABLE),)
+    # System spdlog found - use it (header-only library)
+    SPDLOG_INC := -I$(dir $(SPDLOG_SYSTEM_AVAILABLE))
+else
+    # No system spdlog - use submodule
+    SPDLOG_DIR := spdlog
+    SPDLOG_INC := -I$(SPDLOG_DIR)/include
+endif
 
 # wpa_supplicant (WiFi control via wpa_ctrl interface)
 WPA_DIR := wpa_supplicant
@@ -189,13 +207,13 @@ ifeq ($(UNAME_S),Darwin)
 
     CFLAGS += $(MACOS_DEPLOYMENT_TARGET)
     CXXFLAGS += $(MACOS_DEPLOYMENT_TARGET)
-    LDFLAGS := $(SDL2_LIBS) -lm -lpthread -framework Foundation -framework CoreFoundation -framework Security -framework CoreWLAN -framework CoreLocation -framework Cocoa -framework IOKit -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework Carbon -framework CoreAudio -framework Metal -liconv
+    LDFLAGS := $(SDL2_LIBS) $(LIBHV_LIBS) -lm -lpthread -framework Foundation -framework CoreFoundation -framework Security -framework CoreWLAN -framework CoreLocation -framework Cocoa -framework IOKit -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework Carbon -framework CoreAudio -framework Metal -liconv
     PLATFORM := macOS
     WPA_DEPS :=
 else
     # Linux - Include libwpa_client.a for WiFi control
     NPROC := $(shell nproc 2>/dev/null || echo 4)
-    LDFLAGS := $(SDL2_LIBS) $(WPA_CLIENT_LIB) -lm -lpthread -ldl
+    LDFLAGS := $(SDL2_LIBS) $(LIBHV_LIBS) $(WPA_CLIENT_LIB) -lm -lpthread -ldl
     PLATFORM := Linux
     WPA_DEPS := $(WPA_CLIENT_LIB)
 endif
