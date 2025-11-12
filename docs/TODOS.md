@@ -105,8 +105,8 @@ These are **NOT** required for production but would improve robustness:
 - ✅ 28 test scenarios across 6 priority areas
 
 ### Documentation:
-- ✅ MOONRAKER_AUDIT_SUMMARY.md - Complete audit report
-- ✅ MOONRAKER_CLIENT_TEST_RESULTS.md - Test results and evidence
+- ✅ docs/audits/MOONRAKER_AUDIT_SUMMARY.md - Complete audit report
+- ✅ docs/audits/MOONRAKER_CLIENT_TEST_RESULTS.md - Test results and evidence
 
 ---
 
