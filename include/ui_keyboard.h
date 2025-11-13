@@ -29,8 +29,12 @@
  * @brief Global keyboard management for HelixScreen
  *
  * Provides a single shared keyboard instance that automatically shows/hides
- * when textareas receive focus. This avoids creating multiple keyboard instances
- * and provides consistent keyboard behavior across the application.
+ * when textareas receive focus. The keyboard features:
+ * - Number row always visible (1-0)
+ * - Shift key for uppercase/lowercase
+ * - ?123/ABC buttons for symbol mode switching
+ * - Long-press keys for alternative characters (e.g., hold 'a' for '@')
+ * - Backspace positioned above Enter key
  *
  * Usage:
  * 1. Call ui_keyboard_init() once at application startup
@@ -103,30 +107,12 @@ void ui_keyboard_set_mode(lv_keyboard_mode_t mode);
 void ui_keyboard_set_position(lv_align_t align, int32_t x_ofs, int32_t y_ofs);
 
 /**
- * @brief Enable/disable number row on text keyboards
+ * @brief Register textarea with optional password field marking
  *
- * When enabled, adds a top row with numbers 1-0 to text keyboards (like Android).
- * This slightly reduces key height but provides quick access to numbers without
- * switching modes. Setting is persisted to helixconfig.json.
- *
- * @param enable true to show number row, false for standard layout
- */
-void ui_keyboard_set_number_row(bool enable);
-
-/**
- * @brief Get current number row state
- *
- * @return true if number row is enabled, false otherwise
- */
-bool ui_keyboard_get_number_row();
-
-/**
- * @brief Register textarea with context-aware keyboard behavior
- *
- * Enhanced version of ui_keyboard_register_textarea() that automatically
- * enables number row for password fields and numeric-heavy inputs.
+ * Enhanced version of ui_keyboard_register_textarea() that allows marking
+ * textareas as password fields for any future context-aware behavior.
  *
  * @param textarea The textarea widget to register
- * @param is_password true if this is a password field (auto-enable number row)
+ * @param is_password true if this is a password field
  */
 void ui_keyboard_register_textarea_ex(lv_obj_t* textarea, bool is_password);

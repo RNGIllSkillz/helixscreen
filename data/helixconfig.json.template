@@ -5,7 +5,6 @@
   "display_rotate": 0,
   "display_sleep_sec": 600,
   "log_path": "/tmp/helixscreen.log",
-  "keyboard_number_row": true,
   "printers": {
     "default_printer": {
       "default_macros": {

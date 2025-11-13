@@ -23,15 +23,122 @@
 
 #include "ui_keyboard.h"
 
+#include "ui_theme.h"
+
 #include "config.h"
 
 #include <spdlog/spdlog.h>
 
+#include <cstring>
+
+// Keyboard mode enum
+enum KeyboardMode {
+    MODE_ALPHA_LC,       // Lowercase alphabet
+    MODE_ALPHA_UC,       // Uppercase alphabet
+    MODE_NUMBERS_SYMBOLS // Numbers and symbols
+};
+
 // Global keyboard instance
 static lv_obj_t* g_keyboard = NULL;
-static bool g_number_row_enabled = false;
-static bool g_number_row_user_preference = true; // User's saved preference
-static lv_obj_t* g_context_textarea = NULL;      // Currently focused textarea
+static lv_obj_t* g_context_textarea = NULL; // Currently focused textarea
+
+// Keyboard state
+static KeyboardMode g_mode = MODE_ALPHA_LC;
+
+//=============================================================================
+// LONG-PRESS ALTERNATIVE CHARACTER SYSTEM
+//=============================================================================
+
+// Alternative character mapping (iOS-style)
+// Maps base character to alternative character(s)
+struct AltCharMapping {
+    char base_char;
+    const char* alternatives; // NULL-terminated string of alternatives
+};
+
+// Alternative character mapping table (from iOS keyboard screenshot)
+static const AltCharMapping g_alt_char_map[] = {
+    // Number row
+    {'1', "%"},
+    {'4', "="},
+    {'5', "["},
+    {'6', "]"},
+    {'7', "<"},
+    {'8', ">"},
+    {'9', "{"},
+    {'0', "}"},
+    // Top row (Q-P)
+    {'Q', "%"},
+    {'q', "%"},
+    {'W', "\\"},
+    {'w', "\\"},
+    {'E', "|"},
+    {'e', "|"},
+    {'R', "="},
+    {'r', "="},
+    {'T', "["},
+    {'t', "["},
+    {'Y', "]"},
+    {'y', "]"},
+    {'U', "<"},
+    {'u', "<"},
+    {'I', ">"},
+    {'i', ">"},
+    {'O', "{"},
+    {'o', "{"},
+    {'P', "}"},
+    {'p', "}"},
+    // Middle row (A-L)
+    {'A', "@"},
+    {'a', "@"},
+    {'S', "#"},
+    {'s', "#"},
+    {'D', "$"},
+    {'d', "$"},
+    {'F', "-"},
+    {'f', "-"},
+    {'G', "&"},
+    {'g', "&"},
+    {'H', "-"},
+    {'h', "-"},
+    {'J', "+"},
+    {'j', "+"},
+    {'K', "("},
+    {'k', "("},
+    {'L', ")"},
+    {'l', ")"},
+    // Bottom row (Z-M)
+    {'Z', "*"},
+    {'z', "*"},
+    {'X', "\""},
+    {'x', "\""},
+    {'C', "'"},
+    {'c', "'"},
+    {'V', ":"},
+    {'v', ":"},
+    {'B', ";"},
+    {'b', ";"},
+    {'N', "!"},
+    {'n', "!"},
+    {'M', "?"},
+    {'m', "?"},
+    {0, NULL} // Sentinel
+};
+
+// Long-press state machine
+enum LongPressState { LP_IDLE, LP_PRESSED, LP_LONG_DETECTED, LP_ALT_SELECTED };
+
+// Long-press state tracking
+static LongPressState g_longpress_state = LP_IDLE;
+static lv_obj_t* g_overlay = NULL;        // Alternative character overlay widget
+static uint32_t g_pressed_btn_id = 0;     // Currently pressed button ID
+static const char* g_pressed_char = NULL; // Currently pressed character
+static const char* g_alternatives = NULL; // Alternative chars for pressed key
+static lv_point_t g_press_point;          // Initial press coordinates
+
+// Forward declarations for long-press event handlers
+static void longpress_event_handler(lv_event_t* e);
+static void overlay_cleanup();
 
 //=============================================================================
 // IMPROVED KEYBOARD LAYOUTS
@@ -43,161 +150,123 @@ static lv_obj_t* g_context_textarea = NULL;      // Currently focused textarea
      LV_BUTTONMATRIX_CTRL_CHECKED)
 #define LV_KB_BTN(width) static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_POPOVER | (width))
 
-// Lowercase with number row (Android-style)
-static const char* const kb_map_lc_numrow[] = {"1",
-                                               "2",
-                                               "3",
-                                               "4",
-                                               "5",
-                                               "6",
-                                               "7",
-                                               "8",
-                                               "9",
-                                               "0",
-                                               LV_SYMBOL_BACKSPACE,
-                                               "\n",
-                                               "q",
-                                               "w",
-                                               "e",
-                                               "r",
-                                               "t",
-                                               "y",
-                                               "u",
-                                               "i",
-                                               "o",
-                                               "p",
-                                               "\n",
-                                               "a",
-                                               "s",
-                                               "d",
-                                               "f",
-                                               "g",
-                                               "h",
-                                               "j",
-                                               "k",
-                                               "l",
-                                               LV_SYMBOL_NEW_LINE,
-                                               "\n",
-                                               "ABC",
-                                               "z",
-                                               "x",
-                                               "c",
-                                               "v",
-                                               "b",
-                                               "n",
-                                               "m",
-                                               ".",
-                                               ",",
-                                               "1#",
-                                               "\n",
-                                               LV_SYMBOL_KEYBOARD,
-                                               LV_SYMBOL_LEFT,
-                                               " ",
-                                               LV_SYMBOL_RIGHT,
-                                               LV_SYMBOL_OK,
-                                               ""};
+//=============================================================================
+// KEYBOARD LAYOUTS
+//=============================================================================
+// Keyboard characteristics:
+// - Number row with digits 1-0 (no backspace on row 1)
+// - Dedicated shift key on row 4 (left side)
+// - Simplified bottom row: [?123] [SPACE] [.] [ENTER]
+// - Backspace positioned above Enter key (row 4, right side)
+// - Long-press keys for alternative characters (e.g., hold 'a' for '@')
+// - Mode switching: ?123 for symbols, ABC to return, Shift for uppercase
 
-static const lv_buttonmatrix_ctrl_t kb_ctrl_lc_numrow[] = {
-    // Row 1: Numbers 1-0 + backspace
-    LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3),
-    LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3),
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 7),
-    // Row 2: q-p
+// Lowercase alphabet
+static const char* const kb_map_alpha_lc[] = {
+    // Row 1: Numbers 1-0 (no backspace on this row)
+    "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "\n",
+    // Row 2: q-p (10 letters)
+    "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "\n",
+    // Row 3: a-l (9 letters, no Enter yet)
+    "a", "s", "d", "f", "g", "h", "j", "k", "l", "\n",
+    // Row 4: [SHIFT] z-m [BACKSPACE] - shift on left, backspace on right (above Enter)
+    LV_SYMBOL_UP, "z", "x", "c", "v", "b", "n", "m", LV_SYMBOL_BACKSPACE, "\n",
+    // Row 5: [?123] [SPACE-wide] [.] [ENTER]
+    "?123", " ", ".", LV_SYMBOL_NEW_LINE, ""};
+
+static const lv_buttonmatrix_ctrl_t kb_ctrl_alpha_lc[] = {
+    // Row 1: Numbers 1-0 (equal width, no backspace)
     LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
     LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
-    // Row 3: a-l + enter
-    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
-    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 8),
-    // Row 4: shift + z-m + period/comma + special
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 5), LV_KB_BTN(3),
-    LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3),
-    LV_KB_BTN(3), LV_KB_BTN(3),
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 5),
-    // Row 5: keyboard/left/space/right/ok
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 2),
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 2),
-    static_cast<lv_buttonmatrix_ctrl_t>(6),
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 2),
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 2)};
-
-// Uppercase with number row
-static const char* const kb_map_uc_numrow[] = {"1",
-                                               "2",
-                                               "3",
-                                               "4",
-                                               "5",
-                                               "6",
-                                               "7",
-                                               "8",
-                                               "9",
-                                               "0",
-                                               LV_SYMBOL_BACKSPACE,
-                                               "\n",
-                                               "Q",
-                                               "W",
-                                               "E",
-                                               "R",
-                                               "T",
-                                               "Y",
-                                               "U",
-                                               "I",
-                                               "O",
-                                               "P",
-                                               "\n",
-                                               "A",
-                                               "S",
-                                               "D",
-                                               "F",
-                                               "G",
-                                               "H",
-                                               "J",
-                                               "K",
-                                               "L",
-                                               LV_SYMBOL_NEW_LINE,
-                                               "\n",
-                                               "abc",
-                                               "Z",
-                                               "X",
-                                               "C",
-                                               "V",
-                                               "B",
-                                               "N",
-                                               "M",
-                                               ".",
-                                               ",",
-                                               "1#",
-                                               "\n",
-                                               LV_SYMBOL_KEYBOARD,
-                                               LV_SYMBOL_LEFT,
-                                               " ",
-                                               LV_SYMBOL_RIGHT,
-                                               LV_SYMBOL_OK,
-                                               ""};
-
-static const lv_buttonmatrix_ctrl_t kb_ctrl_uc_numrow[] = {
-    // Row 1: Numbers 1-0 + backspace
-    LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3),
-    LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3),
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 7),
-    // Row 2: Q-P
+    // Row 2: q-p (equal width)
     LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
     LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
-    // Row 3: A-L + enter
+    // Row 3: a-l (equal width, slightly wider than rows 1-2)
     LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
     LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 8),
-    // Row 4: shift + Z-M + period/comma + special
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 5), LV_KB_BTN(3),
-    LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3), LV_KB_BTN(3),
-    LV_KB_BTN(3), LV_KB_BTN(3),
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 5),
-    // Row 5: keyboard/left/space/right/ok
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 2),
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 2),
-    static_cast<lv_buttonmatrix_ctrl_t>(6),
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 2),
-    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 2)};
+    // Row 4: Shift (wide) + z-m (regular) + Backspace (wide)
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 6), // Shift
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    LV_KB_BTN(4),
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 6), // Backspace
+    // Row 5: ?123 (mode switch) + Space (very wide) + . + Enter
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 4), // ?123
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_POPOVER | 18), // Space (very wide)
+    LV_KB_BTN(3),                                                           // Period
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 5)  // Enter
+};
+
+// Uppercase alphabet
+static const char* const kb_map_alpha_uc[] = {
+    // Row 1: Numbers 1-0 (no backspace on this row)
+    "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "\n",
+    // Row 2: Q-P (10 letters, uppercase)
+    "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "\n",
+    // Row 3: A-L (9 letters, uppercase)
+    "A", "S", "D", "F", "G", "H", "J", "K", "L", "\n",
+    // Row 4: [SHIFT] Z-M [BACKSPACE]
+    LV_SYMBOL_UP, "Z", "X", "C", "V", "B", "N", "M", LV_SYMBOL_BACKSPACE, "\n",
+    // Row 5: [?123] [SPACE-wide] [.] [ENTER]
+    "?123", " ", ".", LV_SYMBOL_NEW_LINE, ""};
+
+static const lv_buttonmatrix_ctrl_t kb_ctrl_alpha_uc[] = {
+    // Row 1: Numbers 1-0 (equal width, no backspace)
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    // Row 2: Q-P (equal width)
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    // Row 3: A-L (equal width)
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    // Row 4: Shift (wide) + Z-M (regular) + Backspace (wide)
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 6), // Shift (active)
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    LV_KB_BTN(4),
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 6), // Backspace
+    // Row 5: ?123 (mode switch) + Space (very wide) + . + Enter
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 4), // ?123
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_POPOVER | 18), // Space (very wide)
+    LV_KB_BTN(3),                                                           // Period
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 5)  // Enter
+};
+
+// Numbers and symbols layout
+// Provides common punctuation and symbols with [ABC] button to return to alpha mode
+static const char* const kb_map_numbers_symbols[] = {
+    // Row 1: Special characters and numbers
+    "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "\n",
+    // Row 2: More symbols
+    "-", "/", ":", ";", "(", ")", "$", "&", "@", "\"", "\n",
+    // Row 3: Additional punctuation
+    ".", ",", "?", "!", "'", "\"", "+", "=", "_", "\n",
+    // Row 4: [#+=] (symbols page 2) + misc + [BACKSPACE]
+    "#+=", "[", "]", "{", "}", "|", "\\", "<", ">", LV_SYMBOL_BACKSPACE, "\n",
+    // Row 5: [ABC] (back to alpha) + [SPACE-wide] + [.] + [ENTER]
+    "ABC", " ", ".", LV_SYMBOL_NEW_LINE, ""};
+
+static const lv_buttonmatrix_ctrl_t kb_ctrl_numbers_symbols[] = {
+    // Row 1: Special chars and numbers (equal width)
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    // Row 2: More symbols (equal width)
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    // Row 3: Punctuation (equal width)
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    // Row 4: Mode switch + brackets/symbols + Backspace
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS |
+                                        5), // #+= (future: more symbols)
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    LV_KB_BTN(4), LV_KB_BTN(4),
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 5), // Backspace
+    // Row 5: ABC (back to alpha) + Space (very wide) + . + Enter
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 4), // ABC
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_POPOVER | 18), // Space (very wide)
+    LV_KB_BTN(3),                                                           // Period
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 5)  // Enter
+};
 
 // Improved numeric keyboard with PERIOD (critical for IPs and decimals)
 static const char* const kb_map_num_improved[] = {
@@ -225,7 +294,7 @@ static const lv_buttonmatrix_ctrl_t kb_ctrl_num_improved[] = {
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 1)};
 
 /**
- * @brief Textarea focus event callback - handles auto show/hide with context-aware behavior
+ * @brief Textarea focus event callback - handles auto show/hide
  */
 static void textarea_focus_event_cb(lv_event_t* e) {
     lv_event_code_t code = lv_event_get_code(e);
@@ -233,44 +302,296 @@ static void textarea_focus_event_cb(lv_event_t* e) {
 
     if (code == LV_EVENT_FOCUSED) {
         spdlog::debug("[Keyboard] Textarea focused: {}", (void*)textarea);
-
-        // Check if this is a password field (stored in user_data by register_textarea_ex)
-        bool is_password = (lv_obj_get_user_data(textarea) == (void*)1);
-
-        if (is_password && !g_number_row_user_preference) {
-            // Temporarily enable number row for password fields (even if user disabled it)
-            spdlog::debug("[Keyboard] Auto-enabling number row for password field");
-            g_number_row_enabled = true;
-            lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_TEXT_LOWER, kb_map_lc_numrow,
-                                kb_ctrl_lc_numrow);
-            lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_TEXT_UPPER, kb_map_uc_numrow,
-                                kb_ctrl_uc_numrow);
-        }
-
         g_context_textarea = textarea;
         ui_keyboard_show(textarea);
     } else if (code == LV_EVENT_DEFOCUSED) {
         spdlog::debug("[Keyboard] Textarea defocused: {}", (void*)textarea);
-
-        // Restore user preference when leaving password field
-        bool was_password = (lv_obj_get_user_data(textarea) == (void*)1);
-        if (was_password && !g_number_row_user_preference && g_number_row_enabled) {
-            spdlog::debug("[Keyboard] Restoring number row to user preference");
-            g_number_row_enabled = g_number_row_user_preference;
-            lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_TEXT_LOWER, NULL, NULL);
-            lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_TEXT_UPPER, NULL, NULL);
-        }
-
         g_context_textarea = NULL;
         ui_keyboard_hide();
     }
 }
 
 /**
- * @brief Keyboard event callback - handles ready/cancel events
+ * @brief Check if a point is within an area
+ * @param area Area to check
+ * @param point Point to test
+ * @return true if point is inside area, false otherwise
+ */
+static bool point_in_area(const lv_area_t* area, const lv_point_t* point) {
+    return (point->x >= area->x1 && point->x <= area->x2 && point->y >= area->y1 &&
+            point->y <= area->y2);
+}
+
+/**
+ * @brief Find alternative characters for a given base character
+ * @param base_char Character to look up (e.g., 'a', 'Q', '1')
+ * @return Alternative characters string, or NULL if no alternatives exist
+ */
+static const char* find_alternatives(char base_char) {
+    for (size_t i = 0; g_alt_char_map[i].alternatives != NULL; i++) {
+        if (g_alt_char_map[i].base_char == base_char) {
+            return g_alt_char_map[i].alternatives;
+        }
+    }
+    return NULL;
+}
+
+/**
+ * @brief Clean up overlay widget and reset state
+ */
+static void overlay_cleanup() {
+    if (g_overlay != NULL) {
+        lv_obj_delete(g_overlay);
+        g_overlay = NULL;
+    }
+    g_alternatives = NULL;
+    g_pressed_char = NULL;
+    g_pressed_btn_id = 0;
+}
+
+/**
+ * @brief Create and show the alternative character overlay
+ * @param key_area Coordinates of the pressed key button
+ * @param alternatives String of alternative characters to display
+ */
+static void show_overlay(const lv_area_t* key_area, const char* alternatives) {
+    if (!alternatives || !alternatives[0]) {
+        spdlog::debug("[LongPress] No alternatives to display");
+        return;
+    }
+
+    // Clean up any existing overlay
+    overlay_cleanup();
+
+    // Create overlay container (positioned above the key)
+    g_overlay = lv_obj_create(lv_screen_active());
+
+    // Calculate overlay size based on number of alternatives
+    size_t alt_count = strlen(alternatives);
+    const int32_t char_width = 50;  // Width per character
+    const int32_t char_height = 60; // Height of overlay
+    const int32_t padding = 8;
+    int32_t overlay_width = (alt_count * char_width) + (padding * 2);
+    int32_t overlay_height = char_height;
+
+    lv_obj_set_size(g_overlay, overlay_width, overlay_height);
+
+    // Style the overlay using theme colors
+    const char* card_bg_str =
+        lv_xml_get_const(NULL, ui_theme_is_dark_mode() ? "card_bg_dark" : "card_bg_light");
+    if (card_bg_str) {
+        lv_obj_set_style_bg_color(g_overlay, ui_theme_parse_color(card_bg_str), LV_PART_MAIN);
+    }
+    lv_obj_set_style_bg_opa(g_overlay, LV_OPA_90, LV_PART_MAIN);
+    lv_obj_set_style_border_width(g_overlay, 2, LV_PART_MAIN);
+
+    const char* border_color_str = lv_xml_get_const(NULL, "secondary_color");
+    if (border_color_str) {
+        lv_obj_set_style_border_color(g_overlay, ui_theme_parse_color(border_color_str),
+                                      LV_PART_MAIN);
+    }
+
+    lv_obj_set_style_radius(g_overlay, 8, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(g_overlay, 10, LV_PART_MAIN);
+    lv_obj_set_style_shadow_opa(g_overlay, LV_OPA_30, LV_PART_MAIN);
+
+    // Use flexbox for laying out alternative characters
+    lv_obj_set_flex_flow(g_overlay, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_flex_main_place(g_overlay, LV_FLEX_ALIGN_SPACE_EVENLY, LV_PART_MAIN);
+    lv_obj_set_style_flex_cross_place(g_overlay, LV_FLEX_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(g_overlay, padding, LV_PART_MAIN);
+
+    // Create labels for each alternative character
+    const char* text_color_str = lv_xml_get_const(
+        NULL, ui_theme_is_dark_mode() ? "text_primary_dark" : "text_primary_light");
+    lv_color_t text_color =
+        text_color_str ? ui_theme_parse_color(text_color_str) : lv_color_hex(0x000000);
+
+    for (size_t i = 0; i < alt_count; i++) {
+        lv_obj_t* label = lv_label_create(g_overlay);
+        char char_str[2] = {alternatives[i], '\0'};
+        lv_label_set_text(label, char_str);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_20, LV_PART_MAIN);
+        lv_obj_set_style_text_color(label, text_color, LV_PART_MAIN);
+
+        // Store the character in user_data for hit detection
+        lv_obj_set_user_data(label, (void*)(uintptr_t)alternatives[i]);
+    }
+
+    // Position overlay above the pressed key (centered horizontally)
+    int32_t key_center_x = (key_area->x1 + key_area->x2) / 2;
+    int32_t overlay_x = key_center_x - (overlay_width / 2);
+    int32_t overlay_y = key_area->y1 - overlay_height - 10; // 10px gap above key
+
+    // Handle screen edge cases
+    lv_obj_t* screen = lv_screen_active();
+    int32_t screen_width = lv_obj_get_width(screen);
+
+    // Clamp X position to screen bounds
+    if (overlay_x < 0) {
+        overlay_x = 0;
+    } else if (overlay_x + overlay_width > screen_width) {
+        overlay_x = screen_width - overlay_width;
+    }
+
+    // If overlay would go off top of screen, show below key instead
+    if (overlay_y < 0) {
+        overlay_y = key_area->y2 + 10;
+    }
+
+    lv_obj_set_pos(g_overlay, overlay_x, overlay_y);
+
+    // Move overlay to foreground to ensure it appears above everything (keyboard, modals, etc.)
+    lv_obj_move_foreground(g_overlay);
+
+    spdlog::info("[LongPress] Showing overlay with {} alternatives at ({}, {})", alt_count,
+                 overlay_x, overlay_y);
+}
+
+/**
+ * @brief Long-press event handler for keyboard
+ * Intercepts PRESSED, LONG_PRESSED, and RELEASED events to manage overlay
+ */
+static void longpress_event_handler(lv_event_t* e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t* keyboard = lv_event_get_target_obj(e);
+
+    if (code == LV_EVENT_PRESSED) {
+        // Track initial press
+        g_longpress_state = LP_PRESSED;
+
+        // Get pressed button info
+        uint32_t btn_id = lv_buttonmatrix_get_selected_button(keyboard);
+        const char* btn_text = lv_buttonmatrix_get_button_text(keyboard, btn_id);
+
+        g_pressed_btn_id = btn_id;
+        g_pressed_char = btn_text;
+
+        // Get press coordinates
+        lv_indev_t* indev = lv_indev_active();
+        if (indev) {
+            lv_indev_get_point(indev, &g_press_point);
+        }
+
+        // Look up alternatives for this character (single char only)
+        if (btn_text && btn_text[0] && !btn_text[1]) {
+            g_alternatives = find_alternatives(btn_text[0]);
+            if (g_alternatives) {
+                spdlog::debug("[LongPress] PRESSED '{}' - has alternatives: '{}'", btn_text[0],
+                              g_alternatives);
+            }
+        }
+
+    } else if (code == LV_EVENT_LONG_PRESSED) {
+        // Long press detected - show overlay if alternatives exist
+        if (g_longpress_state == LP_PRESSED && g_alternatives != NULL) {
+            g_longpress_state = LP_LONG_DETECTED;
+
+            // Get keyboard coordinates (use press point to approximate button location)
+            lv_area_t kb_area;
+            lv_obj_get_coords(keyboard, &kb_area);
+
+            // Create approximate button area based on press point
+            // For overlay positioning, we just need rough location above the key
+            lv_area_t btn_area;
+            btn_area.x1 = g_press_point.x - 25; // Approximate button bounds
+            btn_area.x2 = g_press_point.x + 25;
+            btn_area.y1 = g_press_point.y - 25;
+            btn_area.y2 = g_press_point.y + 25;
+
+            // Show overlay
+            show_overlay(&btn_area, g_alternatives);
+
+            spdlog::info("[LongPress] LONG_PRESSED detected for '{}' - overlay shown",
+                         g_pressed_char ? g_pressed_char : "?");
+        }
+
+    } else if (code == LV_EVENT_RELEASED) {
+        // Handle release
+        if (g_longpress_state == LP_LONG_DETECTED && g_overlay != NULL) {
+            // Long-press was active - check if user selected an alternative
+            lv_indev_t* indev = lv_indev_active();
+            lv_point_t release_point;
+
+            if (indev) {
+                lv_indev_get_point(indev, &release_point);
+
+                // Hit test against overlay labels
+                uint32_t child_count = lv_obj_get_child_count(g_overlay);
+                char selected_char = 0;
+
+                for (uint32_t i = 0; i < child_count; i++) {
+                    lv_obj_t* label = lv_obj_get_child(g_overlay, i);
+                    lv_area_t label_area;
+                    lv_obj_get_coords(label, &label_area);
+
+                    if (point_in_area(&label_area, &release_point)) {
+                        // User released on this alternative character
+                        selected_char = (char)(uintptr_t)lv_obj_get_user_data(label);
+                        break;
+                    }
+                }
+
+                if (selected_char != 0 && g_context_textarea != NULL) {
+                    // Insert the alternative character
+                    char str[2] = {selected_char, '\0'};
+                    lv_textarea_add_text(g_context_textarea, str);
+                    spdlog::info("[LongPress] Inserted alternative character: '{}'", selected_char);
+                } else {
+                    spdlog::debug("[LongPress] Released outside overlay - no character inserted");
+                }
+            }
+
+            // Clean up overlay
+            overlay_cleanup();
+            g_longpress_state = LP_IDLE;
+
+        } else if (g_longpress_state == LP_PRESSED) {
+            // Normal short press - let LVGL's keyboard handle it normally
+            spdlog::debug("[LongPress] Short press - normal input");
+            g_longpress_state = LP_IDLE;
+            overlay_cleanup();
+        }
+    }
+}
+
+/**
+ * @brief Apply keyboard mode to the keyboard widget
+ * Updates the keyboard map based on current mode
+ */
+static void apply_keyboard_mode() {
+    if (g_keyboard == NULL) {
+        return;
+    }
+
+    switch (g_mode) {
+    case MODE_ALPHA_LC:
+        lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_TEXT_LOWER, kb_map_alpha_lc,
+                            kb_ctrl_alpha_lc);
+        lv_keyboard_set_mode(g_keyboard, LV_KEYBOARD_MODE_TEXT_LOWER);
+        spdlog::debug("[Keyboard] Switched to alpha lowercase");
+        break;
+    case MODE_ALPHA_UC:
+        lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_TEXT_UPPER, kb_map_alpha_uc,
+                            kb_ctrl_alpha_uc);
+        lv_keyboard_set_mode(g_keyboard, LV_KEYBOARD_MODE_TEXT_UPPER);
+        spdlog::debug("[Keyboard] Switched to alpha uppercase");
+        break;
+    case MODE_NUMBERS_SYMBOLS:
+        lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_SPECIAL, kb_map_numbers_symbols,
+                            kb_ctrl_numbers_symbols);
+        lv_keyboard_set_mode(g_keyboard, LV_KEYBOARD_MODE_SPECIAL);
+        spdlog::debug("[Keyboard] Switched to numbers/symbols");
+        break;
+    }
+}
+
+/**
+ * @brief Keyboard event callback - handles ready/cancel events and mode switching
  */
 static void keyboard_event_cb(lv_event_t* e) {
     lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t* keyboard = lv_event_get_target_obj(e);
 
     if (code == LV_EVENT_READY) {
         spdlog::info("[Keyboard] OK pressed - input confirmed");
@@ -278,6 +599,35 @@ static void keyboard_event_cb(lv_event_t* e) {
     } else if (code == LV_EVENT_CANCEL) {
         spdlog::info("[Keyboard] Cancel pressed");
         ui_keyboard_hide();
+    } else if (code == LV_EVENT_VALUE_CHANGED) {
+        // Check if a mode-switching button was pressed
+        uint32_t btn_id = lv_buttonmatrix_get_selected_button(keyboard);
+        const char* btn_text = lv_buttonmatrix_get_button_text(keyboard, btn_id);
+
+        if (btn_text && strcmp(btn_text, "?123") == 0) {
+            // Switch from alpha mode to numbers/symbols
+            g_mode = MODE_NUMBERS_SYMBOLS;
+            apply_keyboard_mode();
+            spdlog::info("[Keyboard] Mode switch: ?123 -> numbers/symbols");
+        } else if (btn_text && strcmp(btn_text, "ABC") == 0) {
+            // Switch from numbers/symbols to alpha lowercase
+            g_mode = MODE_ALPHA_LC;
+            apply_keyboard_mode();
+            spdlog::info("[Keyboard] Mode switch: ABC -> alpha lowercase");
+        } else if (btn_text && strcmp(btn_text, LV_SYMBOL_UP) == 0) {
+            // Toggle uppercase/lowercase
+            if (g_mode == MODE_ALPHA_LC) {
+                g_mode = MODE_ALPHA_UC;
+            } else if (g_mode == MODE_ALPHA_UC) {
+                g_mode = MODE_ALPHA_LC;
+            }
+            apply_keyboard_mode();
+            spdlog::info("[Keyboard] Mode switch: Shift -> {}",
+                         g_mode == MODE_ALPHA_UC ? "uppercase" : "lowercase");
+        } else if (btn_text && strcmp(btn_text, LV_SYMBOL_NEW_LINE) == 0) {
+            // Enter key - emit ready event (handled above)
+            lv_obj_send_event(keyboard, LV_EVENT_READY, NULL);
+        }
     }
 }
 
@@ -295,27 +645,17 @@ void ui_keyboard_init(lv_obj_t* parent) {
     // Set initial mode (lowercase text)
     lv_keyboard_set_mode(g_keyboard, LV_KEYBOARD_MODE_TEXT_LOWER);
 
-    // Enable pop-overs (iOS/Android-style key feedback)
+    // Enable pop-overs (key feedback on press)
     lv_keyboard_set_popovers(g_keyboard, true);
 
     // Apply improved numeric keyboard layout (adds period key for IPs/decimals)
     lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_NUMBER, kb_map_num_improved,
                         kb_ctrl_num_improved);
 
-    // Load number row preference from config (defaults to true)
-    Config* config = Config::get_instance();
-    g_number_row_user_preference = config->get("/keyboard_number_row", true);
-    g_number_row_enabled = g_number_row_user_preference;
-
-    if (g_number_row_enabled) {
-        lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_TEXT_LOWER, kb_map_lc_numrow,
-                            kb_ctrl_lc_numrow);
-        lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_TEXT_UPPER, kb_map_uc_numrow,
-                            kb_ctrl_uc_numrow);
-        spdlog::info("[Keyboard] Number row enabled (from config)");
-    } else {
-        spdlog::info("[Keyboard] Number row disabled (from config)");
-    }
+    // Apply keyboard layouts
+    spdlog::info("[Keyboard] Using keyboard with long-press alternatives");
+    g_mode = MODE_ALPHA_LC;
+    apply_keyboard_mode();
 
     // Apply styling - theme handles colors, set opacity for transparency
     lv_obj_set_style_bg_opa(g_keyboard, LV_OPA_80, LV_PART_MAIN); // 80% opacity = 20% transparent
@@ -328,11 +668,17 @@ void ui_keyboard_init(lv_obj_t* parent) {
     // Start hidden
     lv_obj_add_flag(g_keyboard, LV_OBJ_FLAG_HIDDEN);
 
-    // Add event handlers for ready and cancel events
+    // Add event handlers for ready, cancel, and value changed events
     lv_obj_add_event_cb(g_keyboard, keyboard_event_cb, LV_EVENT_READY, NULL);
     lv_obj_add_event_cb(g_keyboard, keyboard_event_cb, LV_EVENT_CANCEL, NULL);
+    lv_obj_add_event_cb(g_keyboard, keyboard_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
-    spdlog::info("[Keyboard] Initialization complete");
+    // Add long-press event handlers for alternative character system
+    lv_obj_add_event_cb(g_keyboard, longpress_event_handler, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(g_keyboard, longpress_event_handler, LV_EVENT_LONG_PRESSED, NULL);
+    lv_obj_add_event_cb(g_keyboard, longpress_event_handler, LV_EVENT_RELEASED, NULL);
+
+    spdlog::info("[Keyboard] Initialization complete (with long-press alternatives)");
 }
 
 void ui_keyboard_register_textarea(lv_obj_t* textarea) {
@@ -382,11 +728,18 @@ void ui_keyboard_show(lv_obj_t* textarea) {
 
     spdlog::debug("[Keyboard] Showing keyboard for textarea: {}", (void*)textarea);
 
+    // Reset keyboard to lowercase mode on each show
+    g_mode = MODE_ALPHA_LC;
+    apply_keyboard_mode();
+
     // Assign textarea to keyboard (standard LVGL API)
     lv_keyboard_set_textarea(g_keyboard, textarea);
 
     // Show keyboard
     lv_obj_remove_flag(g_keyboard, LV_OBJ_FLAG_HIDDEN);
+
+    // Move keyboard to foreground to ensure it appears above modals
+    lv_obj_move_foreground(g_keyboard);
 
     // Force layout update to get accurate positions
     lv_obj_update_layout(screen);
@@ -464,6 +817,10 @@ void ui_keyboard_hide() {
 
     spdlog::debug("[Keyboard] Hiding keyboard");
 
+    // Clean up any active long-press overlay
+    overlay_cleanup();
+    g_longpress_state = LP_IDLE;
+
     // Clear keyboard assignment
     lv_keyboard_set_textarea(g_keyboard, NULL);
 
@@ -527,51 +884,6 @@ void ui_keyboard_set_position(lv_align_t align, int32_t x_ofs, int32_t y_ofs) {
     lv_obj_align(g_keyboard, align, x_ofs, y_ofs);
 }
 
-void ui_keyboard_set_number_row(bool enable) {
-    if (g_keyboard == NULL) {
-        spdlog::error("[Keyboard] Not initialized - call ui_keyboard_init() first");
-        return;
-    }
-
-    if (g_number_row_enabled == enable) {
-        return; // No change needed
-    }
-
-    g_number_row_enabled = enable;
-    g_number_row_user_preference = enable; // Update user preference
-    spdlog::info("[Keyboard] Number row {} (user preference)", enable ? "enabled" : "disabled");
-
-    // Apply custom layouts for text modes with number row
-    if (enable) {
-        // Set custom maps with number row for text modes
-        lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_TEXT_LOWER, kb_map_lc_numrow,
-                            kb_ctrl_lc_numrow);
-        lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_TEXT_UPPER, kb_map_uc_numrow,
-                            kb_ctrl_uc_numrow);
-    } else {
-        // Restore default LVGL layouts (pass NULL to reset)
-        lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_TEXT_LOWER, NULL, NULL);
-        lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_TEXT_UPPER, NULL, NULL);
-    }
-
-    // Always apply improved numeric keyboard (with period key)
-    lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_NUMBER, kb_map_num_improved,
-                        kb_ctrl_num_improved);
-
-    // Save preference to config
-    Config* config = Config::get_instance();
-    config->set("/keyboard_number_row", enable);
-    config->save();
-
-    // Refresh display if currently visible
-    lv_keyboard_mode_t current_mode = lv_keyboard_get_mode(g_keyboard);
-    lv_keyboard_set_mode(g_keyboard, current_mode);
-}
-
-bool ui_keyboard_get_number_row() {
-    return g_number_row_enabled;
-}
-
 void ui_keyboard_register_textarea_ex(lv_obj_t* textarea, bool is_password) {
     if (g_keyboard == NULL) {
         spdlog::error("[Keyboard] Not initialized - call ui_keyboard_init() first");
@@ -585,9 +897,6 @@ void ui_keyboard_register_textarea_ex(lv_obj_t* textarea, bool is_password) {
 
     spdlog::debug("[Keyboard] Registering textarea: {} (password: {})", (void*)textarea,
                   is_password);
-
-    // Store password flag in user data (lv_obj doesn't have built-in password type tracking)
-    lv_obj_set_user_data(textarea, is_password ? (void*)1 : (void*)0);
 
     // Use standard registration which adds focus/defocus handlers
     ui_keyboard_register_textarea(textarea);

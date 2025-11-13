@@ -107,6 +107,17 @@ The UI supports dark and light themes:
 
 Theme preference is saved to `helixconfig.json` and persists across launches unless overridden by command-line flags.
 
+### Keyboard
+
+The on-screen keyboard features:
+- Number row always visible (1-0)
+- QWERTY layout with backspace on row 4 (right of M, above Enter)
+- Long-press keys for alternative characters (e.g., hold 'a' for '@', '1' for '%')
+- Mode switching: ?123 for symbols, ABC to return, Shift for uppercase
+- Visual key feedback on press (pop-overs)
+
+No configuration needed - the keyboard is always enabled and ready to use.
+
 ### Build System Features
 
 - **Auto-parallel builds** - Detects CPU cores automatically
