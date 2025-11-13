@@ -32,7 +32,7 @@
 
 #include "app_globals.h"
 #include "config.h"
-#include "lvgl/src/others/xml/lv_xml.h"
+#include "lvgl/src/xml/lv_xml.h"
 #include "moonraker_api.h"
 
 #include <spdlog/spdlog.h>

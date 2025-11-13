@@ -23,11 +23,11 @@ GCodeRenderer::GCodeRenderer() {
     // Load colors from theme
     // Note: ui_theme_parse_color requires theme to be initialized
     // If called before theme init, will use fallback colors
-    color_extrusion_ = ui_theme_parse_color(lv_xml_get_const("primary"));
-    color_travel_ = ui_theme_parse_color(lv_xml_get_const("secondary_light"));
-    color_object_boundary_ = ui_theme_parse_color(lv_xml_get_const("accent"));
-    color_highlighted_ = ui_theme_parse_color(lv_xml_get_const("success"));
-    color_excluded_ = ui_theme_parse_color(lv_xml_get_const("text_disabled"));
+    color_extrusion_ = ui_theme_parse_color(lv_xml_get_const(NULL, "primary"));
+    color_travel_ = ui_theme_parse_color(lv_xml_get_const(NULL, "secondary_light"));
+    color_object_boundary_ = ui_theme_parse_color(lv_xml_get_const(NULL, "accent"));
+    color_highlighted_ = ui_theme_parse_color(lv_xml_get_const(NULL, "success"));
+    color_excluded_ = ui_theme_parse_color(lv_xml_get_const(NULL, "text_disabled"));
 }
 
 void GCodeRenderer::set_viewport_size(int width, int height) {
@@ -281,10 +281,14 @@ void GCodeRenderer::draw_line(lv_layer_t *layer,
                               const glm::vec2 &p1,
                               const glm::vec2 &p2,
                               const lv_draw_line_dsc_t &dsc) {
-    lv_point_precise_t point1 = {p1.x, p1.y};
-    lv_point_precise_t point2 = {p2.x, p2.y};
+    // LVGL 9.4 API: points are now embedded in the descriptor
+    lv_draw_line_dsc_t dsc_copy = dsc;
+    dsc_copy.p1.x = p1.x;
+    dsc_copy.p1.y = p1.y;
+    dsc_copy.p2.x = p2.x;
+    dsc_copy.p2.y = p2.y;
 
-    lv_draw_line(layer, &dsc, &point1, &point2);
+    lv_draw_line(layer, &dsc_copy);
 }
 
 std::optional<std::string> GCodeRenderer::pick_object(

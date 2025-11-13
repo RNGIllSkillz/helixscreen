@@ -99,8 +99,8 @@ static void on_clear(lv_event_t* e) {
 // ==============================================
 
 lv_obj_t* ui_panel_gcode_test_create(lv_obj_t* parent) {
-    // Load XML component
-    panel_root = lv_xml_create(parent, "A:/ui_xml/gcode_test_panel.xml", nullptr);
+    // Load XML component (use registered component name, not file path)
+    panel_root = (lv_obj_t*)lv_xml_create(parent, "gcode_test_panel", nullptr);
     if (!panel_root) {
         spdlog::error("[GCodeTest] Failed to load XML component");
         return nullptr;

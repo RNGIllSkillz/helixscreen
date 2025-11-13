@@ -13,6 +13,7 @@
 #include "gcode_camera.h"
 
 #include <algorithm>
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/transform.hpp>
 #include <spdlog/spdlog.h>

@@ -218,7 +218,7 @@ WPA_CLIENT_LIB := $(WPA_DIR)/wpa_supplicant/libwpa_client.a
 WPA_INC := -I$(WPA_DIR)/src/common -I$(WPA_DIR)/src/utils
 
 # Include paths
-INCLUDES := -I. -I$(INC_DIR) $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(WPA_INC) $(SDL2_INC)
+INCLUDES := -I. -I$(INC_DIR) $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(WPA_INC) $(SDL2_INC) -Iglm
 
 # Common linker flags (used by both macOS and Linux)
 LDFLAGS_COMMON := $(SDL2_LIBS) $(LIBHV_LIBS) $(FMT_LIBS) -lm -lpthread

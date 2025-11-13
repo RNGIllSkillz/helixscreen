@@ -51,7 +51,7 @@
 #include "config.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/libs/svg/lv_svg_decoder.h"
-#include "lvgl/src/others/xml/lv_xml.h"
+#include "lvgl/src/xml/lv_xml.h"
 #include "material_icons.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
@@ -1152,9 +1152,8 @@ int main(int argc, char** argv) {
     // Create G-code test panel if requested (for G-code 3D viewer testing)
     if (show_gcode_test) {
         spdlog::info("Creating G-code test panel");
-        lv_obj_t* gcode_test = (lv_obj_t*)lv_xml_create(screen, "gcode_test_panel", nullptr);
+        lv_obj_t* gcode_test = ui_panel_gcode_test_create(screen);
         if (gcode_test) {
-            ui_panel_gcode_test_setup(gcode_test);
             spdlog::debug("G-code test panel created successfully");
         } else {
             spdlog::error("Failed to create G-code test panel");

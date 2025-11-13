@@ -26,7 +26,7 @@
 #include "ui_fonts.h"
 #include "ui_theme.h"
 
-#include "lvgl/src/others/xml/lv_xml.h"
+#include "lvgl/src/xml/lv_xml.h"
 
 #include <spdlog/spdlog.h>
 
