@@ -89,21 +89,21 @@
 **Documentation:** See `docs/GCODE_VISUALIZATION.md` for complete design
 
 **Tasks:**
-- [ ] Implement `GCodeParser` (streaming parser)
-  - [ ] Parse G0/G1 movement commands (X, Y, Z, E coordinates)
-  - [ ] Detect layer boundaries (Z-axis changes)
-  - [ ] Build layer-indexed data structure
-  - [ ] Write unit tests with sample G-code files
-- [ ] Implement `GCodeRenderer` (3D-to-2D projection)
-  - [ ] Orthographic projection matrix math
-  - [ ] Line drawing via LVGL canvas
-  - [ ] Color coding (blue=extrusion, gray=travel)
-  - [ ] Basic frustum culling for performance
-- [ ] Implement `GCodeCamera` (view management)
-  - [ ] Fixed isometric view (no interaction yet)
-  - [ ] View and projection matrices (GLM)
-  - [ ] Fit-to-bounds auto-framing
-- [ ] Create `ui_gcode_viewer` widget
+- [x] Implement `GCodeParser` (streaming parser)
+  - [x] Parse G0/G1 movement commands (X, Y, Z, E coordinates)
+  - [x] Detect layer boundaries (Z-axis changes)
+  - [x] Build layer-indexed data structure
+  - [x] Write unit tests with sample G-code files
+- [x] Implement `GCodeRenderer` (3D-to-2D projection)
+  - [x] Orthographic projection matrix math
+  - [x] Line drawing via LVGL canvas
+  - [x] Color coding (blue=extrusion, gray=travel)
+  - [x] Basic frustum culling for performance
+- [x] Implement `GCodeCamera` (view management)
+  - [x] Fixed isometric view (no interaction yet)
+  - [x] View and projection matrices (GLM)
+  - [x] Fit-to-bounds auto-framing
+- [ ] Create `ui_gcode_viewer` widget ⏳ IN PROGRESS
   - [ ] Custom LVGL widget with canvas
   - [ ] Custom draw event callback
   - [ ] Integration with renderer
@@ -113,6 +113,8 @@
   - [ ] Fetch G-code file from Moonraker HTTP API
   - [ ] Parse and render in full-screen overlay
   - [ ] Test with small/medium/large files
+
+**Progress:** Core infrastructure complete (Parser, Camera, Renderer). Now implementing LVGL widget integration.
 
 **Success Criteria:**
 - Display G-code files in 3D wireframe view
