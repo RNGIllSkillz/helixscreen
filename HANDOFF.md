@@ -9,21 +9,30 @@
 
 ### Just Completed (This Session)
 
-**Bed Mesh UI Fixes & Reactive Bindings:**
+**Bed Mesh Grid Lines Implementation:**
+- ✅ Wireframe grid overlay on mesh surface
+- ✅ Dark gray (80,80,80) lines with 60% opacity
+- ✅ LVGL 9.4 layer-based drawing (lv_canvas_init_layer/finish_layer)
+- ✅ Coordinate system matches mesh quads exactly (Y-inversion, Z-centering)
+- ✅ Horizontal and vertical lines connecting mesh vertices
+- ✅ Bounds checking with -10px margin for partially visible lines
+- ✅ Defensive checks for invalid canvas dimensions during flex layout
+
+**Bed Mesh UI Fixes & Reactive Bindings (Earlier):**
 - ✅ Fixed reactive label bindings (nullptr prev buffer - wizard pattern)
 - ✅ Info labels now show real mesh data: "7x7 points", "Z: -0.300 to 0.288 mm"
 - ✅ Fixed mesh positioning (dynamic canvas buffer reallocation on SIZE_CHANGED)
-- ✅ Mesh now uses full available canvas space (624x223px responsive)
+- ✅ Mesh now uses full available canvas space (responsive)
 - ✅ Removed frontend test data fallback - all data from Moonraker (mock or real)
 - ✅ XML refactored with theme constants (#padding_*, #card_bg)
-- ✅ Panel properly centered, no clipping
 
 **Commits:**
+- `dc2742e` - feat(bed_mesh): implement wireframe grid lines over mesh surface
 - `e97b141` - refactor(bed_mesh): remove frontend fallback, use theme constants
 - `e196b48` - fix(bed_mesh): dynamic canvas buffer and manual label updates
 - `6ebf122` - fix(bed_mesh): reactive bindings now working with nullptr prev buffer
 
-**Key Fix:** `lv_subject_init_string(&subj, buf, nullptr, ...)` - using nullptr for prev_buf parameter (not separate buffer) matches wizard pattern and allows proper observer notifications.
+**Key Pattern:** Grid coordinates must match quad generation: Y-inversion `((rows-1-row) - rows/2.0)` and Z-centering `(mesh[row][col] - z_center)` for proper alignment.
 
 ### Recently Completed (Previous Sessions)
 
@@ -72,6 +81,7 @@
 **Bed Mesh Visualization:**
 - ✅ Settings panel → Bed Mesh card → Visualization panel
 - ✅ Gradient mesh rendering (heat-map colors)
+- ✅ Wireframe grid lines overlay (dark gray, 60% opacity, aligned to mesh)
 - ✅ Moonraker integration (fetches real bed mesh data, mock provides 7x7 dome)
 - ✅ Reactive subjects update info labels ("7x7 points", "Z: -0.300 to 0.288 mm")
 - ✅ Widget encapsulation (proper lifecycle management)
@@ -82,36 +92,37 @@
 
 ### 🚨 What's MISSING (Critical UI Features)
 
-**Bed Mesh - Gradient mesh works, but UI needs enhancement:**
+**Bed Mesh - Core visualization complete, additional features pending:**
 
-❌ **Grid Lines** - Not implemented
-   - Reference grid over mesh surface (XY plane)
-   - Should show mesh cell boundaries
+✅ **Grid Lines** - COMPLETE
+   - Wireframe grid overlay on mesh surface
+   - Dark gray lines with 60% opacity
+   - Properly aligned with mesh geometry (Y-inversion, Z-centering)
+   - Uses LVGL 9.4 layer-based drawing API
+
+✅ **Info Labels** - COMPLETE
+   - Reactive bindings for mesh dimensions ("7x7 points")
+   - Reactive Z range display ("Z: -0.300 to 0.288 mm")
+   - Proper subject/observer pattern with nullptr prev_buf
+
+✅ **Rotation Sliders** - COMPLETE
+   - Tilt slider (-85° to -10°, default -45°)
+   - Spin slider (0° to 360°, default 45°)
+   - Live mesh rotation on slider value change
+   - Labels show current angles
 
 ❌ **Axis Labels** - Not implemented
    - X/Y/Z axis indicators
    - Dimension labels (bed size, probe spacing)
 
-❌ **Info Labels** - Partially implemented
-   - XML has `mesh_dimensions_label` and `mesh_z_range_label` with reactive bindings
-   - **NEED TO VERIFY:** Are they actually visible? Correct positioning?
-   - May need styling, positioning, or visibility fixes
-
-❌ **Rotation Sliders** - Partially implemented
-   - XML has `rotation_x_slider` and `rotation_z_slider`
-   - XML has `rotation_x_label` and `rotation_y_label`
-   - Wired to C++ callbacks (rotation_x_slider_cb, rotation_z_slider_cb)
-   - **NEED TO VERIFY:** Are they visible and functional?
-   - May need default values, styling, or layout fixes
-
 ❌ **Mesh Profile Selector** - Not implemented
    - Dropdown to switch between mesh profiles (default, adaptive, etc.)
    - Should show available profiles from Moonraker
 
-❌ **Mesh Statistics** - Not implemented
-   - Min/Max Z values (implemented in backend, not displayed)
-   - Mesh variance/deviation
-   - Probe count/density
+❌ **Mesh Statistics** - Partially implemented
+   - Min/Max Z values (computed in backend, displayed in Z range label)
+   - Mesh variance/deviation - NOT IMPLEMENTED
+   - Probe count (shown in dimensions label)
 
 ---
 
@@ -121,36 +132,27 @@
 
 **Goal:** Match feature parity with GuppyScreen bed mesh visualization
 
-**Tasks:**
+**Completed:**
+- ✅ Rotation sliders (Tilt/Spin) - visible and functional
+- ✅ Info labels (dimensions, Z range) - visible with reactive bindings
+- ✅ Grid lines - wireframe overlay properly aligned
 
-1. **Verify & Fix Existing UI Elements**
-   - [ ] Check if rotation sliders are visible and functional
-   - [ ] Check if info labels (dimensions, Z range) are visible
-   - [ ] Fix positioning/styling if elements are off-screen or hidden
-   - [ ] Test rotation slider interaction (does mesh rotate?)
+**Remaining Tasks:**
 
-2. **Implement Grid Lines** (in renderer)
-   - [ ] Add grid rendering to bed_mesh_renderer.cpp
-   - [ ] Draw XY plane grid at Z=0 or mesh_min_z
-   - [ ] Grid spacing based on mesh dimensions
-   - [ ] Grid lines in contrasting color (white/light gray)
-
-3. **Implement Axis Labels** (in renderer or XML)
+1. **Implement Axis Labels** (in renderer or XML)
    - [ ] Add X/Y/Z axis indicators
    - [ ] Label bed dimensions (min/max X, min/max Y)
    - [ ] Show probe spacing if available
 
-4. **Add Mesh Profile Selector** (XML + C++)
+2. **Add Mesh Profile Selector** (XML + C++)
    - [ ] Add dropdown to bed_mesh_panel.xml
    - [ ] Populate from client->get_bed_mesh_profiles()
    - [ ] Wire onChange to load selected profile
    - [ ] Show active profile name
 
-5. **Add Mesh Statistics Display** (XML + reactive bindings)
-   - [ ] Min/Max Z (already computed, need display)
+3. **Add Mesh Statistics Display** (XML + reactive bindings)
    - [ ] Mesh variance/deviation
-   - [ ] Probe count (already available)
-   - [ ] Use reactive subjects for auto-update
+   - [ ] Additional metadata (probe algorithm, timing, etc.)
 
 **Reference Implementation:**
 - GuppyScreen: `panels/bed_mesh_panel.py` (grid, axes, labels)
