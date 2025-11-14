@@ -24,6 +24,7 @@
 #include "ui_bed_mesh.h"
 #include "ui_card.h"
 #include "ui_component_header_bar.h"
+#include "ui_gcode_viewer.h"
 #include "ui_component_keypad.h"
 #include "ui_fonts.h"
 #include "ui_icon.h"
@@ -36,6 +37,7 @@
 #include "ui_panel_filament.h"
 #include "ui_panel_home.h"
 #include "ui_panel_motion.h"
+#include "ui_panel_gcode_test.h"
 #include "ui_panel_print_select.h"
 #include "ui_panel_print_status.h"
 #include "ui_panel_settings.h"
@@ -51,7 +53,7 @@
 #include "config.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/libs/svg/lv_svg_decoder.h"
-#include "lvgl/src/others/xml/lv_xml.h"
+#include "lvgl/src/xml/lv_xml.h"
 #include "material_icons.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
@@ -133,9 +135,9 @@ static bool parse_command_line_args(int argc, char** argv, int& initial_panel, b
                                     bool& show_nozzle_temp, bool& show_bed_temp,
                                     bool& show_extrusion, bool& show_print_status,
                                     bool& show_file_detail, bool& show_keypad, bool& show_keyboard,
-                                    bool& show_step_test, bool& show_test_panel, bool& force_wizard,
-                                    int& wizard_step, bool& panel_requested, int& display_num,
-                                    int& x_pos, int& y_pos, bool& screenshot_enabled,
+                                    bool& show_step_test, bool& show_test_panel, bool& show_gcode_test,
+                                    bool& force_wizard, int& wizard_step, bool& panel_requested,
+                                    int& display_num, int& x_pos, int& y_pos, bool& screenshot_enabled,
                                     int& screenshot_delay_sec, int& timeout_sec, int& verbosity,
                                     bool& dark_mode, bool& theme_requested, int& dpi) {
     // Parse arguments
@@ -205,11 +207,14 @@ static bool parse_command_line_args(int argc, char** argv, int& initial_panel, b
                     show_step_test = true;
                 } else if (strcmp(panel_arg, "test") == 0) {
                     show_test_panel = true;
+                } else if (strcmp(panel_arg, "gcode-test") == 0 ||
+                           strcmp(panel_arg, "gcode_test") == 0) {
+                    show_gcode_test = true;
                 } else {
                     printf("Unknown panel: %s\n", panel_arg);
                     printf("Available panels: home, controls, motion, nozzle-temp, bed-temp, "
                            "extrusion, print-status, filament, settings, advanced, print-select, "
-                           "step-test, test\n");
+                           "step-test, test, gcode-test\n");
                     return false;
                 }
             } else {
@@ -531,6 +536,7 @@ static void register_xml_components() {
     lv_xml_register_component_from_file("A:ui_xml/test_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/print_select_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/step_progress_test.xml");
+    lv_xml_register_component_from_file("A:ui_xml/gcode_test_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/app_layout.xml");
     lv_xml_register_component_from_file("A:ui_xml/wizard_container.xml");
     lv_xml_register_component_from_file("A:ui_xml/network_list_item.xml");
@@ -886,6 +892,7 @@ int main(int argc, char** argv) {
     bool show_keyboard = false;      // Special flag for keyboard testing
     bool show_step_test = false;     // Special flag for step progress widget testing
     bool show_test_panel = false;    // Special flag for test/development panel
+    bool show_gcode_test = false;    // Special flag for G-code 3D viewer testing
     bool force_wizard = false;       // Force wizard to run even if config exists
     int wizard_step = -1;            // Specific wizard step to show (-1 means normal flow)
     bool panel_requested = false;    // Track if user explicitly requested a panel via CLI
@@ -904,9 +911,9 @@ int main(int argc, char** argv) {
     if (!parse_command_line_args(argc, argv, initial_panel, show_motion, show_nozzle_temp,
                                  show_bed_temp, show_extrusion, show_print_status, show_file_detail,
                                  show_keypad, show_keyboard, show_step_test, show_test_panel,
-                                 force_wizard, wizard_step, panel_requested, display_num, x_pos,
-                                 y_pos, screenshot_enabled, screenshot_delay_sec, timeout_sec,
-                                 verbosity, dark_mode, theme_requested, dpi)) {
+                                 show_gcode_test, force_wizard, wizard_step, panel_requested,
+                                 display_num, x_pos, y_pos, screenshot_enabled, screenshot_delay_sec,
+                                 timeout_sec, verbosity, dark_mode, theme_requested, dpi)) {
         return 0; // Help shown or parse error
     }
 
@@ -1029,6 +1036,7 @@ int main(int argc, char** argv) {
     ui_switch_register();
     ui_card_register();
     ui_bed_mesh_register();
+    ui_gcode_viewer_register();
 
     // Initialize component systems (BEFORE XML registration)
     ui_component_header_bar_init();
@@ -1132,7 +1140,7 @@ int main(int argc, char** argv) {
     // requests)
     bool wizard_active = false;
     if ((force_wizard || config->is_wizard_required()) && !show_step_test && !show_test_panel &&
-        !show_keypad && !show_keyboard && !panel_requested) {
+        !show_keypad && !show_keyboard && !show_gcode_test && !panel_requested) {
         spdlog::info("Starting first-run configuration wizard");
 
         // Register wizard event callbacks and responsive constants BEFORE creating
@@ -1241,6 +1249,17 @@ int main(int argc, char** argv) {
             ui_nav_set_active(UI_PANEL_PRINT_SELECT);
             // Note: File detail requires selecting a specific file, which can't be automated via
             // CLI flag
+        }
+    }
+
+    // Create G-code test panel if requested (independent of wizard state)
+    if (show_gcode_test) {
+        spdlog::info("Creating G-code test panel");
+        lv_obj_t* gcode_test = ui_panel_gcode_test_create(screen);
+        if (gcode_test) {
+            spdlog::debug("G-code test panel created successfully");
+        } else {
+            spdlog::error("Failed to create G-code test panel");
         }
     }
 

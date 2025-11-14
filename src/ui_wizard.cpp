@@ -36,7 +36,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "lvgl/lvgl.h"
-#include "lvgl/src/others/xml/lv_xml.h"
+#include "lvgl/src/xml/lv_xml.h"
 #include "moonraker_client.h"
 #include "wizard_config_paths.h"
 

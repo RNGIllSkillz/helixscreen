@@ -25,10 +25,10 @@
 
 #include "bed_mesh_renderer.h"
 #include "lvgl/lvgl.h"
-#include "lvgl/src/others/xml/lv_xml.h"
-#include "lvgl/src/others/xml/lv_xml_parser.h"
-#include "lvgl/src/others/xml/lv_xml_widget.h"
-#include "lvgl/src/others/xml/parsers/lv_xml_obj_parser.h"
+#include "lvgl/src/xml/lv_xml.h"
+#include "lvgl/src/xml/lv_xml_parser.h"
+#include "lvgl/src/xml/lv_xml_widget.h"
+#include "lvgl/src/xml/parsers/lv_xml_obj_parser.h"
 
 #include <spdlog/spdlog.h>
 

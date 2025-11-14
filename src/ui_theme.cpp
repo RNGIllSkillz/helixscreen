@@ -25,7 +25,7 @@
 
 #include "helix_theme.h"
 #include "lvgl/lvgl.h"
-#include "lvgl/src/others/xml/lv_xml.h"
+#include "lvgl/src/xml/lv_xml.h"
 
 #include <spdlog/spdlog.h>
 

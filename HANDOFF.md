@@ -1,7 +1,7 @@
 # Session Handoff Document
 
 **Last Updated:** 2025-11-13
-**Current Focus:** Bed Mesh Visualization - Core rendering works, UI features missing
+**Current Focus:** Bed Mesh Visualization + G-code 3D Visualization
 
 ---
 
@@ -23,25 +23,34 @@
 - `d3a5f82` - refactor(bed_mesh): encapsulate rendering logic in custom widget
 - `2ecbd0a` - fix(bed_mesh): add comprehensive bounds checking to triangle renderer
 
-### Recently Completed (Previous Session)
+### Recently Completed (Previous Sessions)
 
-1. **Bed Mesh Phase 1: Settings Panel Infrastructure** - ✅ COMPLETE
+1. **G-Code 3D Visualization System - Phase 1** ✅ COMPLETE
+   - Streaming G-code parser with layer indexing
+   - 3D-to-2D renderer with LVGL canvas drawing
+   - Interactive 3D camera system (spherical coordinates, touch rotation)
+   - Custom LVGL widget (`ui_gcode_viewer`) with XML registration
+   - Test panel accessible via `-p gcode-test`
+   - Complete documentation in `docs/GCODE_VISUALIZATION.md`
+   - 14 comprehensive unit tests
+
+2. **Bed Mesh Phase 1: Settings Panel Infrastructure** - ✅ COMPLETE
    - Created settings_panel.xml with 6-card launcher grid
    - Only "Bed Mesh" card is active, opens visualization panel
 
-2. **Bed Mesh Phase 2: Core 3D Rendering Engine** - ✅ COMPLETE
+3. **Bed Mesh Phase 2: Core 3D Rendering Engine** - ✅ COMPLETE
    - Comprehensive bed_mesh_renderer.h/cpp (768 lines, C API)
    - Perspective projection, triangle rasterization, depth sorting
    - Heat-map color mapping (purple→blue→cyan→yellow→red)
    - Analysis documented in docs/GUPPYSCREEN_BEDMESH_ANALYSIS.md
 
-3. **Bed Mesh Phase 3: Basic Visualization** - ✅ COMPLETE
+4. **Bed Mesh Phase 3: Basic Visualization** - ✅ COMPLETE
    - bed_mesh_panel.xml created (overlay panel structure)
    - Canvas (600×400 RGB888) renders gradient mesh correctly
    - Test mesh: 7×7 dome shape (mock backend)
    - Back button works, resource cleanup on panel deletion
 
-4. **Bed Mesh Phase 4: Moonraker Integration** - ✅ COMPLETE
+5. **Bed Mesh Phase 4: Moonraker Integration** - ✅ COMPLETE
    - Added BedMeshProfile struct to moonraker_client.h
    - Implemented parse_bed_mesh() for WebSocket updates
    - Added reactive subjects: bed_mesh_dimensions, bed_mesh_z_range
@@ -50,6 +59,15 @@
 
 ### What Works Now
 
+**G-code Visualization:**
+- ✅ Parse G-code files with layer-indexed data structure
+- ✅ 3D orthographic rendering on LVGL canvas
+- ✅ Interactive camera rotation (touch drag gestures)
+- ✅ Preset views (Isometric, Top, Front, Side)
+- ✅ Theme-integrated color coding (extrusion vs travel moves)
+- ✅ Command-line access: `./build/bin/helix-ui-proto -p gcode-test`
+
+**Bed Mesh Visualization:**
 - ✅ Settings panel → Bed Mesh card → Visualization panel
 - ✅ Gradient mesh rendering (heat-map colors)
 - ✅ Moonraker integration (fetches real bed mesh data)
@@ -59,7 +77,7 @@
 
 ### 🚨 What's MISSING (Critical UI Features)
 
-**Only the gradient mesh is visible. Everything else is missing:**
+**Bed Mesh - Only the gradient mesh is visible. Everything else is missing:**
 
 ❌ **Grid Lines** - Not implemented
    - Reference grid over mesh surface (XY plane)
@@ -134,7 +152,22 @@
 - Existing: `bed_mesh_renderer.cpp` (add grid rendering here)
 - Existing: `bed_mesh_panel.xml` (add missing UI elements here)
 
-### 2. **Grid Rendering Implementation Details**
+### 2. **Integrate G-code Viewer with Print Select Panel**
+
+**Goal:** Add "Preview" button to print file browser
+
+**Tasks:**
+- [ ] Add preview button/icon to file list items in print_select_panel.xml
+- [ ] Fetch G-code file via Moonraker HTTP API (not WebSocket)
+- [ ] Open G-code viewer in overlay panel
+- [ ] Show filename and basic stats (layers, print time if available)
+- [ ] Allow returning to file list
+
+**Reference:**
+- `docs/GCODE_VISUALIZATION.md` - Integration guide
+- `ui_panel_gcode_test.cpp` - Example usage of viewer widget
+
+### 3. **Grid Rendering Implementation Details**
 
 **Where:** Add to `bed_mesh_renderer.cpp` after mesh rendering
 
@@ -152,7 +185,7 @@ if (show_grid) {
 - Project to screen space using same projection as mesh
 - Draw with lv_canvas_draw_line() or pixel-by-pixel
 
-### 3. **UI Elements to Add in XML**
+### 4. **UI Elements to Add in XML**
 
 **bed_mesh_panel.xml needs:**
 ```xml
@@ -277,32 +310,70 @@ if (connect_thread_.joinable()) {
 }
 ```
 
+### Pattern #5: G-code Viewer Widget API
+
+**Custom LVGL widget for G-code 3D visualization:**
+
+```cpp
+#include "ui_gcode_viewer.h"
+
+// Create viewer widget
+lv_obj_t* viewer = ui_gcode_viewer_create(parent);
+
+// Load G-code file
+ui_gcode_viewer_load_file(viewer, "/path/to/file.gcode");
+
+// Change view
+ui_gcode_viewer_set_view(viewer, GCODE_VIEW_ISOMETRIC);
+ui_gcode_viewer_set_view(viewer, GCODE_VIEW_TOP);
+
+// Reset camera
+ui_gcode_viewer_reset_view(viewer);
+```
+
+```xml
+<!-- Use in XML -->
+<gcode_viewer name="my_viewer" width="100%" height="400"/>
+```
+
+**Widget features:**
+- Touch drag to rotate camera
+- Automatic fit-to-bounds framing
+- Preset view buttons
+- State management (EMPTY/LOADING/LOADED/ERROR)
+
 ---
 
 ## 📚 Key Documentation
 
+- **G-code Visualization:** `docs/GCODE_VISUALIZATION.md` - Complete system design and integration guide
 - **Bed Mesh Analysis:** `docs/GUPPYSCREEN_BEDMESH_ANALYSIS.md` - GuppyScreen renderer analysis
 - **Implementation Patterns:** `docs/BEDMESH_IMPLEMENTATION_PATTERNS.md` - Code templates
 - **Renderer API:** `docs/BEDMESH_RENDERER_INDEX.md` - bed_mesh_renderer.h reference
-- **Widget API:** `include/ui_bed_mesh.h` - Custom widget public API
+- **Widget APIs:** `include/ui_bed_mesh.h`, `include/ui_gcode_viewer.h` - Custom widget public APIs
 
 ---
 
 ## 🐛 Known Issues
 
-1. **Missing UI Features** (see "What's MISSING" section above)
+1. **Missing Bed Mesh UI Features** (see "What's MISSING" section above)
    - Grid lines not implemented
    - Axis labels not implemented
    - Info labels may not be visible
    - Rotation sliders may not be working
    - Only gradient mesh currently visible
 
-2. **No Profile Switching**
+2. **No Bed Mesh Profile Switching**
    - Can fetch multiple profiles from Moonraker
    - No UI to switch between profiles
 
-3. **Limited Metadata Display**
+3. **Limited Bed Mesh Metadata Display**
    - Min/Max Z computed but not shown prominently
    - No variance/deviation statistics
 
-**Next Session:** Focus on completing missing UI features, starting with verifying/fixing rotation sliders and info labels, then implementing grid lines.
+4. **G-code Viewer Not Integrated**
+   - Standalone test panel works (`-p gcode-test`)
+   - Not yet integrated with print select panel
+   - No "Preview" button in file browser
+
+**Next Session:** Focus on completing missing bed mesh UI features, starting with verifying/fixing rotation sliders and info labels, then implementing grid lines. Consider integrating G-code viewer with print select panel.
