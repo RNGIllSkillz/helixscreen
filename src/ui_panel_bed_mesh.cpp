@@ -39,10 +39,9 @@
 
 using json = nlohmann::json;
 
-// Canvas dimensions (600×400 RGB888)
+// Canvas dimensions (must match ui_bed_mesh widget: 600×400 RGB888)
 #define CANVAS_WIDTH 600
 #define CANVAS_HEIGHT 400
-#define CANVAS_BUFFER_SIZE (CANVAS_WIDTH * CANVAS_HEIGHT * 3)
 
 // Rotation angle ranges
 #define ROTATION_X_MIN (-85)
@@ -62,9 +61,6 @@ static lv_obj_t* rotation_x_slider = nullptr;
 static lv_obj_t* rotation_z_slider = nullptr;
 static lv_obj_t* bed_mesh_panel = nullptr;
 static lv_obj_t* parent_obj = nullptr;
-
-// Canvas buffer (statically allocated)
-static uint8_t canvas_buffer[CANVAS_BUFFER_SIZE];
 
 // Current rotation angles
 static int current_rotation_x = ROTATION_X_DEFAULT;
@@ -272,12 +268,13 @@ void ui_panel_bed_mesh_setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
     spdlog::info("[BedMesh] Setting up event handlers...");
 
-    // Find canvas widget
+    // Find canvas widget (created by <bed_mesh> XML widget)
     canvas = lv_obj_find_by_name(panel, "bed_mesh_canvas");
     if (!canvas) {
         spdlog::error("[BedMesh] Canvas widget not found in XML");
         return;
     }
+    spdlog::debug("[BedMesh] Found canvas widget");
 
     // Find info label
     mesh_info_label = lv_obj_find_by_name(panel, "mesh_info_label");
@@ -333,12 +330,7 @@ void ui_panel_bed_mesh_setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         spdlog::warn("[BedMesh] Back button not found in XML");
     }
 
-    // Initialize canvas buffer
-    lv_canvas_set_buffer(canvas, canvas_buffer, CANVAS_WIDTH, CANVAS_HEIGHT,
-                         LV_COLOR_FORMAT_RGB888);
-    spdlog::debug("[BedMesh] Canvas buffer allocated: {}x{} RGB888 ({} bytes)", CANVAS_WIDTH,
-                  CANVAS_HEIGHT, CANVAS_BUFFER_SIZE);
-
+    // Canvas buffer already allocated by <bed_mesh> widget
     // Create renderer
     renderer = bed_mesh_renderer_create();
     if (!renderer) {

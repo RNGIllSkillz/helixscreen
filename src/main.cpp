@@ -21,6 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "ui_bed_mesh.h"
 #include "ui_card.h"
 #include "ui_component_header_bar.h"
 #include "ui_component_keypad.h"
@@ -496,9 +497,11 @@ static void register_fonts_and_images() {
 // Register XML components from ui_xml/ directory
 static void register_xml_components() {
     spdlog::debug("Registering remaining XML components...");
+    spdlog::info("[XML DEBUG] Starting XML registration function");
 
     // Register responsive constants (AFTER globals, BEFORE components that use them)
     ui_switch_register_responsive_constants();
+    spdlog::info("[XML DEBUG] Past responsive constants");
 
     // Register semantic text widgets (AFTER theme init, BEFORE components that use them)
     ui_text_init();
@@ -521,7 +524,9 @@ static void register_xml_components() {
     lv_xml_register_component_from_file("A:ui_xml/print_status_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/filament_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/settings_panel.xml");
-    lv_xml_register_component_from_file("A:ui_xml/bed_mesh_panel.xml");
+    spdlog::info("[XML] Registering bed_mesh_panel.xml...");
+    auto ret = lv_xml_register_component_from_file("A:ui_xml/bed_mesh_panel.xml");
+    spdlog::info("[XML] bed_mesh_panel.xml registration returned: {}", (int)ret);
     lv_xml_register_component_from_file("A:ui_xml/advanced_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/test_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/print_select_panel.xml");
@@ -1023,6 +1028,7 @@ int main(int argc, char** argv) {
     ui_icon_register_widget();
     ui_switch_register();
     ui_card_register();
+    ui_bed_mesh_register();
 
     // Initialize component systems (BEFORE XML registration)
     ui_component_header_bar_init();
