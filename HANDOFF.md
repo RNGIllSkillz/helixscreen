@@ -1,6 +1,6 @@
 # Session Handoff Document
 
-**Last Updated:** 2025-11-13
+**Last Updated:** 2025-11-14
 **Current Focus:** Bed Mesh Visualization + G-code 3D Visualization
 
 ---
@@ -9,19 +9,21 @@
 
 ### Just Completed (This Session)
 
-**Bed Mesh Widget Refactoring & Bounds Fix:**
-- ✅ Refactored bed_mesh into proper LVGL widget (ui_bed_mesh.h/cpp)
-- ✅ Widget encapsulates: buffer allocation, renderer lifecycle, rotation state
-- ✅ Added reactive XML bindings for mesh info labels (dimensions, Z range)
-- ✅ Fixed critical bounds checking bug (coordinates out of range errors)
-- ✅ Triangle fill functions now clip properly: 0 <= x < 600, 0 <= y < 400
-- ✅ Added layout update call (lv_obj_update_layout) before rendering
-- ✅ Panel loads successfully, gradient mesh renders correctly
-- ✅ Moonraker integration complete (get_active_bed_mesh, reactive subjects)
+**Bed Mesh UI Fixes & Reactive Bindings:**
+- ✅ Fixed reactive label bindings (nullptr prev buffer - wizard pattern)
+- ✅ Info labels now show real mesh data: "7x7 points", "Z: -0.300 to 0.288 mm"
+- ✅ Fixed mesh positioning (dynamic canvas buffer reallocation on SIZE_CHANGED)
+- ✅ Mesh now uses full available canvas space (624x223px responsive)
+- ✅ Removed frontend test data fallback - all data from Moonraker (mock or real)
+- ✅ XML refactored with theme constants (#padding_*, #card_bg)
+- ✅ Panel properly centered, no clipping
 
 **Commits:**
-- `d3a5f82` - refactor(bed_mesh): encapsulate rendering logic in custom widget
-- `2ecbd0a` - fix(bed_mesh): add comprehensive bounds checking to triangle renderer
+- `e97b141` - refactor(bed_mesh): remove frontend fallback, use theme constants
+- `e196b48` - fix(bed_mesh): dynamic canvas buffer and manual label updates
+- `6ebf122` - fix(bed_mesh): reactive bindings now working with nullptr prev buffer
+
+**Key Fix:** `lv_subject_init_string(&subj, buf, nullptr, ...)` - using nullptr for prev_buf parameter (not separate buffer) matches wizard pattern and allows proper observer notifications.
 
 ### Recently Completed (Previous Sessions)
 
@@ -70,14 +72,17 @@
 **Bed Mesh Visualization:**
 - ✅ Settings panel → Bed Mesh card → Visualization panel
 - ✅ Gradient mesh rendering (heat-map colors)
-- ✅ Moonraker integration (fetches real bed mesh data)
-- ✅ Reactive subjects update mesh info
+- ✅ Moonraker integration (fetches real bed mesh data, mock provides 7x7 dome)
+- ✅ Reactive subjects update info labels ("7x7 points", "Z: -0.300 to 0.288 mm")
 - ✅ Widget encapsulation (proper lifecycle management)
 - ✅ Bounds checking (no coordinate errors)
+- ✅ Responsive canvas buffer (dynamically resizes with flex layout)
+- ✅ Rotation sliders functional (Tilt: -45°, Spin: 45°)
+- ✅ Theme constants used throughout XML
 
 ### 🚨 What's MISSING (Critical UI Features)
 
-**Bed Mesh - Only the gradient mesh is visible. Everything else is missing:**
+**Bed Mesh - Gradient mesh works, but UI needs enhancement:**
 
 ❌ **Grid Lines** - Not implemented
    - Reference grid over mesh surface (XY plane)
