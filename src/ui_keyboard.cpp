@@ -33,9 +33,10 @@
 
 // Keyboard mode enum
 enum KeyboardMode {
-    MODE_ALPHA_LC,       // Lowercase alphabet
-    MODE_ALPHA_UC,       // Uppercase alphabet
-    MODE_NUMBERS_SYMBOLS // Numbers and symbols
+    MODE_ALPHA_LC,        // Lowercase alphabet
+    MODE_ALPHA_UC,        // Uppercase alphabet
+    MODE_NUMBERS_SYMBOLS, // Numbers and symbols (?123)
+    MODE_ALT_SYMBOLS      // Alternative symbols (#+= mode)
 };
 
 // Global keyboard instance
@@ -300,6 +301,44 @@ static const lv_buttonmatrix_ctrl_t kb_ctrl_numbers_symbols[] = {
     static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 6), // #+=
     LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 10), // Backspace
+    // Row 5: ABC + SPACEBAR + PERIOD + ENTER (4 + 14 + 2 + 4 = 24)
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 4), // ABC (special key)
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED |
+                                        14), // SPACEBAR (special key, wider)
+    lv_buttonmatrix_ctrl_t(2),               // Period (plain)
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 4) // Enter (special key)
+};
+
+// Alternative symbols layout (#+= mode)
+// Provides additional symbols with [123] button to return to ?123 mode
+static const char* const kb_map_alt_symbols[] = {
+    // Row 1: Brackets and math symbols
+    "[", "]", "{", "}", "#", "%", "^", "*", "+", "=", "\n",
+    // Row 2: Special characters and currency
+    "_", "\\", "|", "~", "<", ">", "\u20AC", "\u00A3", "\u00A5", "\u2022", "\n",
+    // Row 3: [SPACER] Punctuation [SPACER]
+    " ", ".", ",", "?", "!", "'", "\"", ";", ":", "-", " ", "\n",
+    // Row 4: [123] + misc symbols + [BACKSPACE]
+    "123", "`", "\u00B0", "\u00B7", "\u2013", "\u2014", LV_SYMBOL_BACKSPACE, "\n",
+    // Row 5: ABC + SPACEBAR + PERIOD + ENTER
+    "ABC", "SPACE", ".", LV_SYMBOL_NEW_LINE, ""};
+
+static const lv_buttonmatrix_ctrl_t kb_ctrl_alt_symbols[] = {
+    // Row 1: Brackets and math (equal width)
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    // Row 2: Special chars and currency (equal width)
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    // Row 3: disabled spacer + punctuation + disabled spacer (2 + 36 + 2 = 40)
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_DISABLED | 2), LV_KB_BTN(4),
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    LV_KB_BTN(4), LV_KB_BTN(4),
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_DISABLED | 2),
+    // Row 4: 123 (wide) + misc symbols (regular) + Backspace (wide) - 6+20+14=40
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_KEYBOARD_CTRL_BUTTON_FLAGS | 6), // 123
+    LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4), LV_KB_BTN(4),
+    static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 14), // Backspace
     // Row 5: ABC + SPACEBAR + PERIOD + ENTER (4 + 14 + 2 + 4 = 24)
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 4), // ABC (special key)
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED |
@@ -631,6 +670,12 @@ static void apply_keyboard_mode() {
                             kb_ctrl_numbers_symbols);
         spdlog::debug("[Keyboard] Switched to numbers/symbols");
         break;
+    case MODE_ALT_SYMBOLS:
+        // Apply alternative symbols map (#+= mode)
+        lv_keyboard_set_map(g_keyboard, LV_KEYBOARD_MODE_SPECIAL, kb_map_alt_symbols,
+                            kb_ctrl_alt_symbols);
+        spdlog::debug("[Keyboard] Switched to alternative symbols (#+= mode)");
+        break;
     }
 }
 
@@ -673,7 +718,7 @@ static void keyboard_event_cb(lv_event_t* e) {
             }
             spdlog::debug("[Keyboard] Mode switch: ?123 -> numbers/symbols");
         } else if (btn_text && strcmp(btn_text, "ABC") == 0) {
-            // Switch from numbers/symbols to alpha lowercase
+            // Switch from numbers/symbols or alt symbols to alpha lowercase
             g_mode = MODE_ALPHA_LC;
             // Reset shift states when switching modes
             g_shift_just_pressed = false;
@@ -687,6 +732,28 @@ static void keyboard_event_cb(lv_event_t* e) {
                 lv_textarea_delete_char(g_context_textarea);
             }
             spdlog::debug("[Keyboard] Mode switch: ABC -> alpha lowercase");
+        } else if (btn_text && strcmp(btn_text, "#+=") == 0) {
+            // Switch from ?123 mode to #+= alternative symbols
+            g_mode = MODE_ALT_SYMBOLS;
+            apply_keyboard_mode();
+            // Remove the "#+=" text that was added to textarea
+            if (g_context_textarea) {
+                lv_textarea_delete_char(g_context_textarea);
+                lv_textarea_delete_char(g_context_textarea);
+                lv_textarea_delete_char(g_context_textarea);
+            }
+            spdlog::debug("[Keyboard] Mode switch: #+= -> alternative symbols");
+        } else if (btn_text && strcmp(btn_text, "123") == 0) {
+            // Switch from #+= mode back to ?123 numbers/symbols
+            g_mode = MODE_NUMBERS_SYMBOLS;
+            apply_keyboard_mode();
+            // Remove the "123" text that was added to textarea
+            if (g_context_textarea) {
+                lv_textarea_delete_char(g_context_textarea);
+                lv_textarea_delete_char(g_context_textarea);
+                lv_textarea_delete_char(g_context_textarea);
+            }
+            spdlog::debug("[Keyboard] Mode switch: 123 -> numbers/symbols");
         } else if (btn_text &&
                    (strcmp(btn_text, LV_SYMBOL_UP) == 0 || strcmp(btn_text, LV_SYMBOL_EJECT) == 0 ||
                     strcmp(btn_text, LV_SYMBOL_UPLOAD) == 0)) {
