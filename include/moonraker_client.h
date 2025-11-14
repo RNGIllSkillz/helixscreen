@@ -200,6 +200,16 @@ class MoonrakerClient : public hv::WebSocketClient {
     void parse_objects(const json& objects);
 
     /**
+     * @brief Parse bed mesh data from Moonraker notification
+     *
+     * Extracts bed_mesh object from printer state updates (notify_status_update).
+     * Updates active_bed_mesh_ with probed_matrix, bounds, and available profiles.
+     *
+     * @param bed_mesh JSON object from bed_mesh subscription
+     */
+    void parse_bed_mesh(const json& bed_mesh);
+
+    /**
      * @brief Get discovered heaters (extruders, beds, generic heaters)
      */
     const std::vector<std::string>& get_heaters() const {
@@ -267,6 +277,57 @@ class MoonrakerClient : public hv::WebSocketClient {
      * @return Hotend sensor name or empty string
      */
     std::string guess_hotend_sensor() const;
+
+    /**
+     * @brief Bed mesh profile data from Klipper
+     */
+    struct BedMeshProfile {
+        std::string name;                              // Profile name (e.g., "default", "adaptive")
+        std::vector<std::vector<float>> probed_matrix; // Z height grid (row-major order)
+        float mesh_min[2];                             // Min X,Y coordinates
+        float mesh_max[2];                             // Max X,Y coordinates
+        int x_count;                                   // Probes per row
+        int y_count;                                   // Number of rows
+        std::string algo;                              // Interpolation algorithm
+
+        BedMeshProfile() : mesh_min{0, 0}, mesh_max{0, 0}, x_count(0), y_count(0) {}
+    };
+
+    /**
+     * @brief Get currently active bed mesh profile
+     *
+     * Returns the active mesh profile loaded from Moonraker's bed_mesh object.
+     * The probed_matrix field contains the 2D Z-height array ready for rendering.
+     *
+     * @return Active mesh profile, or empty profile if none loaded
+     */
+    const BedMeshProfile& get_active_bed_mesh() const {
+        return active_bed_mesh_;
+    }
+
+    /**
+     * @brief Get list of available mesh profile names
+     *
+     * Returns profile names from bed_mesh.profiles (e.g., "default", "adaptive", "calibration").
+     * Empty vector if no profiles available or discovery hasn't completed.
+     *
+     * @return Vector of profile names
+     */
+    const std::vector<std::string>& get_bed_mesh_profiles() const {
+        return bed_mesh_profiles_;
+    }
+
+    /**
+     * @brief Check if bed mesh data is available
+     *
+     * Returns true if at least one mesh has been loaded from Moonraker.
+     * Does NOT guarantee the mesh is currently active in Klipper.
+     *
+     * @return true if probed_matrix is non-empty
+     */
+    bool has_bed_mesh() const {
+        return !active_bed_mesh_.probed_matrix.empty();
+    }
 
     /**
      * @brief Get printer hostname from printer.info
@@ -368,6 +429,10 @@ class MoonrakerClient : public hv::WebSocketClient {
     std::vector<std::string> fans_;    // All fan types
     std::vector<std::string> leds_;    // LED outputs
     std::string hostname_;             // Printer hostname from printer.info
+
+    // Bed mesh data
+    BedMeshProfile active_bed_mesh_;             // Currently active mesh profile
+    std::vector<std::string> bed_mesh_profiles_; // Available profile names
 
   private:
     // Pending requests keyed by request ID

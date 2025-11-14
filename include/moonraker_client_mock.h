@@ -163,6 +163,14 @@ class MoonrakerClientMock : public MoonrakerClient {
      */
     void populate_hardware();
 
+    /**
+     * @brief Generate synthetic bed mesh data for testing
+     *
+     * Creates a realistic dome-shaped mesh (7×7 points, 0-0.3mm Z range).
+     * Populates active_bed_mesh_ with test data compatible with renderer.
+     */
+    void generate_mock_bed_mesh();
+
   private:
     PrinterType printer_type_;
 };

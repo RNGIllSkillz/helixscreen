@@ -269,6 +269,15 @@ int MoonrakerClient::connect(const char* url, std::function<void()> on_connected
                     }
                 } // Release lock
 
+                // Parse bed mesh updates before invoking user callbacks
+                if (method == "notify_status_update" && j.contains("params") &&
+                    j["params"].is_array() && !j["params"].empty()) {
+                    const json& params = j["params"][0];
+                    if (params.contains("bed_mesh") && params["bed_mesh"].is_object()) {
+                        parse_bed_mesh(params["bed_mesh"]);
+                    }
+                }
+
                 // Invoke callbacks outside lock to prevent deadlock
                 for (auto& cb : callbacks_to_invoke) {
                     try {
@@ -599,6 +608,9 @@ void MoonrakerClient::discover_printer(std::function<void()> on_complete) {
                     subscription_objects[led] = nullptr;
                 }
 
+                // Bed mesh (for 3D visualization)
+                subscription_objects["bed_mesh"] = nullptr;
+
                 json subscribe_params = {{"objects", subscription_objects}};
 
                 send_jsonrpc(
@@ -694,6 +706,74 @@ void MoonrakerClient::parse_objects(const json& objects) {
     }
     if (!leds_.empty()) {
         spdlog::debug("[Moonraker Client] LEDs: {}", json(leds_).dump());
+    }
+}
+
+void MoonrakerClient::parse_bed_mesh(const json& bed_mesh) {
+    // Parse active profile name
+    if (bed_mesh.contains("profile_name") && !bed_mesh["profile_name"].is_null()) {
+        active_bed_mesh_.name = bed_mesh["profile_name"].template get<std::string>();
+    }
+
+    // Parse probed_matrix (2D array of Z heights)
+    if (bed_mesh.contains("probed_matrix") && bed_mesh["probed_matrix"].is_array()) {
+        active_bed_mesh_.probed_matrix.clear();
+        for (const auto& row : bed_mesh["probed_matrix"]) {
+            if (row.is_array()) {
+                std::vector<float> row_vec;
+                for (const auto& val : row) {
+                    if (val.is_number()) {
+                        row_vec.push_back(val.template get<float>());
+                    }
+                }
+                if (!row_vec.empty()) {
+                    active_bed_mesh_.probed_matrix.push_back(row_vec);
+                }
+            }
+        }
+
+        // Update dimensions
+        active_bed_mesh_.y_count = active_bed_mesh_.probed_matrix.size();
+        active_bed_mesh_.x_count =
+            active_bed_mesh_.probed_matrix.empty() ? 0 : active_bed_mesh_.probed_matrix[0].size();
+    }
+
+    // Parse mesh bounds
+    if (bed_mesh.contains("mesh_min") && bed_mesh["mesh_min"].is_array() &&
+        bed_mesh["mesh_min"].size() >= 2) {
+        active_bed_mesh_.mesh_min[0] = bed_mesh["mesh_min"][0].template get<float>();
+        active_bed_mesh_.mesh_min[1] = bed_mesh["mesh_min"][1].template get<float>();
+    }
+
+    if (bed_mesh.contains("mesh_max") && bed_mesh["mesh_max"].is_array() &&
+        bed_mesh["mesh_max"].size() >= 2) {
+        active_bed_mesh_.mesh_max[0] = bed_mesh["mesh_max"][0].template get<float>();
+        active_bed_mesh_.mesh_max[1] = bed_mesh["mesh_max"][1].template get<float>();
+    }
+
+    // Parse available profiles
+    if (bed_mesh.contains("profiles") && bed_mesh["profiles"].is_object()) {
+        bed_mesh_profiles_.clear();
+        for (auto& [profile_name, profile_data] : bed_mesh["profiles"].items()) {
+            bed_mesh_profiles_.push_back(profile_name);
+        }
+    }
+
+    // Parse algorithm from mesh_params (if available)
+    if (bed_mesh.contains("mesh_params") && bed_mesh["mesh_params"].is_object()) {
+        const json& params = bed_mesh["mesh_params"];
+        if (params.contains("algo") && params["algo"].is_string()) {
+            active_bed_mesh_.algo = params["algo"].template get<std::string>();
+        }
+    }
+
+    if (active_bed_mesh_.probed_matrix.empty()) {
+        spdlog::debug("[Moonraker Client] Bed mesh data cleared (no probed_matrix)");
+    } else {
+        spdlog::info("[Moonraker Client] Bed mesh updated: profile='{}', size={}x{}, "
+                     "profiles={}, algo='{}'",
+                     active_bed_mesh_.name, active_bed_mesh_.x_count, active_bed_mesh_.y_count,
+                     bed_mesh_profiles_.size(), active_bed_mesh_.algo);
     }
 }
 

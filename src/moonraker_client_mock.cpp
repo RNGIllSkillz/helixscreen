@@ -25,6 +25,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <cmath>
+
 MoonrakerClientMock::MoonrakerClientMock(PrinterType type) : printer_type_(type) {
     spdlog::info("[MoonrakerClientMock] Created with printer type: {}", static_cast<int>(type));
 
@@ -33,6 +35,9 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type) : printer_type_(type)
     spdlog::debug(
         "[MoonrakerClientMock] Hardware populated: {} heaters, {} sensors, {} fans, {} LEDs",
         heaters_.size(), sensors_.size(), fans_.size(), leds_.size());
+
+    // Generate synthetic bed mesh data
+    generate_mock_bed_mesh();
 }
 
 int MoonrakerClientMock::connect(const char* url, std::function<void()> on_connected,
@@ -56,6 +61,9 @@ void MoonrakerClientMock::discover_printer(std::function<void()> on_complete) {
 
     // Populate hardware based on printer type
     populate_hardware();
+
+    // Generate synthetic bed mesh data
+    generate_mock_bed_mesh();
 
     // Log discovered hardware
     spdlog::info("[MoonrakerClientMock] Discovered: {} heaters, {} sensors, {} fans, {} LEDs",
@@ -166,6 +174,50 @@ void MoonrakerClientMock::populate_hardware() {
         spdlog::debug("  Fan: {}", f);
     for (const auto& l : leds_)
         spdlog::debug("  LED: {}", l);
+}
+
+void MoonrakerClientMock::generate_mock_bed_mesh() {
+    // Configure mesh profile
+    active_bed_mesh_.name = "default";
+    active_bed_mesh_.mesh_min[0] = 0.0f;
+    active_bed_mesh_.mesh_min[1] = 0.0f;
+    active_bed_mesh_.mesh_max[0] = 200.0f;
+    active_bed_mesh_.mesh_max[1] = 200.0f;
+    active_bed_mesh_.x_count = 7;
+    active_bed_mesh_.y_count = 7;
+    active_bed_mesh_.algo = "lagrange";
+
+    // Generate dome-shaped mesh (matches Phase 3 test mesh for consistency)
+    active_bed_mesh_.probed_matrix.clear();
+    float center_x = active_bed_mesh_.x_count / 2.0f;
+    float center_y = active_bed_mesh_.y_count / 2.0f;
+    float max_radius = std::min(center_x, center_y);
+
+    for (int row = 0; row < active_bed_mesh_.y_count; row++) {
+        std::vector<float> row_vec;
+        for (int col = 0; col < active_bed_mesh_.x_count; col++) {
+            // Distance from center
+            float dx = col - center_x;
+            float dy = row - center_y;
+            float dist = std::sqrt(dx * dx + dy * dy);
+
+            // Dome shape: height decreases with distance from center
+            // Z values from 0.0 to 0.3mm (realistic bed mesh range)
+            float normalized_dist = dist / max_radius;
+            float height = 0.3f * (1.0f - normalized_dist * normalized_dist);
+
+            row_vec.push_back(height);
+        }
+        active_bed_mesh_.probed_matrix.push_back(row_vec);
+    }
+
+    // Add profile names
+    bed_mesh_profiles_ = {"default", "adaptive"};
+
+    spdlog::info("[MoonrakerClientMock] Generated synthetic bed mesh: profile='{}', size={}x{}, "
+                 "profiles={}",
+                 active_bed_mesh_.name, active_bed_mesh_.x_count, active_bed_mesh_.y_count,
+                 bed_mesh_profiles_.size());
 }
 
 void MoonrakerClientMock::disconnect() {
