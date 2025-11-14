@@ -72,11 +72,8 @@ static lv_subject_t bed_mesh_z_range;      // String: "Z: 0.05 to 0.35mm"
 
 // String buffers for subjects (LVGL requires persistent buffers)
 static char profile_name_buf[64] = "";
-static char profile_name_prev_buf[64] = "";
 static char dimensions_buf[64] = "No mesh data";
-static char dimensions_prev_buf[64] = "";
 static char z_range_buf[64] = "";
-static char z_range_prev_buf[64] = "";
 
 // Cleanup handler for panel deletion
 static void panel_delete_cb(lv_event_t* e) {
@@ -208,34 +205,17 @@ static void on_bed_mesh_update(const MoonrakerClient::BedMeshProfile& mesh) {
     // Update renderer with new mesh data
     ui_panel_bed_mesh_set_data(mesh.probed_matrix);
 
-    // TEMPORARY: Manually set label text to verify labels are accessible
-    lv_obj_t* dim_label = lv_obj_find_by_name(bed_mesh_panel, "mesh_dimensions_label");
-    lv_obj_t* range_label = lv_obj_find_by_name(bed_mesh_panel, "mesh_z_range_label");
-    if (dim_label) {
-        lv_label_set_text(dim_label, dimensions_buf);
-        spdlog::debug("[BedMesh] Manually set dimensions label text");
-    } else {
-        spdlog::warn("[BedMesh] Could not find mesh_dimensions_label");
-    }
-    if (range_label) {
-        lv_label_set_text(range_label, z_range_buf);
-        spdlog::debug("[BedMesh] Manually set z_range label text");
-    } else {
-        spdlog::warn("[BedMesh] Could not find mesh_z_range_label");
-    }
-
     spdlog::info("[BedMesh] Mesh updated: {} ({}x{}, Z: {:.3f} to {:.3f})", mesh.name, mesh.x_count,
                  mesh.y_count, min_z, max_z);
 }
 
 void ui_panel_bed_mesh_init_subjects() {
     lv_subject_init_int(&bed_mesh_available, 0);
-    lv_subject_init_string(&bed_mesh_profile_name, profile_name_buf, profile_name_prev_buf,
+    lv_subject_init_string(&bed_mesh_profile_name, profile_name_buf, nullptr,
                            sizeof(profile_name_buf), "");
-    lv_subject_init_string(&bed_mesh_dimensions, dimensions_buf, dimensions_prev_buf,
-                           sizeof(dimensions_buf), "No mesh data");
-    lv_subject_init_string(&bed_mesh_z_range, z_range_buf, z_range_prev_buf, sizeof(z_range_buf),
-                           "");
+    lv_subject_init_string(&bed_mesh_dimensions, dimensions_buf, nullptr, sizeof(dimensions_buf),
+                           "No mesh data");
+    lv_subject_init_string(&bed_mesh_z_range, z_range_buf, nullptr, sizeof(z_range_buf), "");
 
     // Register subjects for XML bindings
     lv_xml_register_subject(NULL, "bed_mesh_available", &bed_mesh_available);
