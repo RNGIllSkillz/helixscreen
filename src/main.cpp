@@ -131,12 +131,12 @@ static void initialize_moonraker_client(Config* config);
 static bool parse_command_line_args(int argc, char** argv, int& initial_panel, bool& show_motion,
                                     bool& show_nozzle_temp, bool& show_bed_temp,
                                     bool& show_extrusion, bool& show_print_status,
-                                    bool& show_file_detail, bool& show_keypad, bool& show_step_test,
-                                    bool& show_test_panel, bool& force_wizard, int& wizard_step,
-                                    bool& panel_requested, int& display_num, int& x_pos, int& y_pos,
-                                    bool& screenshot_enabled, int& screenshot_delay_sec,
-                                    int& timeout_sec, int& verbosity, bool& dark_mode,
-                                    bool& theme_requested, int& dpi) {
+                                    bool& show_file_detail, bool& show_keypad, bool& show_keyboard,
+                                    bool& show_step_test, bool& show_test_panel, bool& force_wizard,
+                                    int& wizard_step, bool& panel_requested, int& display_num,
+                                    int& x_pos, int& y_pos, bool& screenshot_enabled,
+                                    int& screenshot_delay_sec, int& timeout_sec, int& verbosity,
+                                    bool& dark_mode, bool& theme_requested, int& dpi) {
     // Parse arguments
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--size") == 0) {
@@ -217,6 +217,8 @@ static bool parse_command_line_args(int argc, char** argv, int& initial_panel, b
             }
         } else if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "--keypad") == 0) {
             show_keypad = true;
+        } else if (strcmp(argv[i], "--keyboard") == 0 || strcmp(argv[i], "--show-keyboard") == 0) {
+            show_keyboard = true;
         } else if (strcmp(argv[i], "-w") == 0 || strcmp(argv[i], "--wizard") == 0) {
             force_wizard = true;
         } else if (strcmp(argv[i], "--wizard-step") == 0) {
@@ -346,6 +348,7 @@ static bool parse_command_line_args(int argc, char** argv, int& initial_panel, b
                    "medium)\n");
             printf("  -p, --panel <panel>  Initial panel (default: home)\n");
             printf("  -k, --keypad         Show numeric keypad for testing\n");
+            printf("  --keyboard           Show keyboard for testing (no textarea)\n");
             printf("  -w, --wizard         Force first-run configuration wizard\n");
             printf("  --wizard-step <step> Jump to specific wizard step for testing\n");
             printf("  -d, --display <n>    Display number for window placement (0, 1, 2...)\n");
@@ -875,6 +878,7 @@ int main(int argc, char** argv) {
     bool show_print_status = false;  // Special flag for print status screen
     bool show_file_detail = false;   // Special flag for file detail view
     bool show_keypad = false;        // Special flag for keypad testing
+    bool show_keyboard = false;      // Special flag for keyboard testing
     bool show_step_test = false;     // Special flag for step progress widget testing
     bool show_test_panel = false;    // Special flag for test/development panel
     bool force_wizard = false;       // Force wizard to run even if config exists
@@ -894,10 +898,10 @@ int main(int argc, char** argv) {
     // Parse command-line arguments (returns false for help/error)
     if (!parse_command_line_args(argc, argv, initial_panel, show_motion, show_nozzle_temp,
                                  show_bed_temp, show_extrusion, show_print_status, show_file_detail,
-                                 show_keypad, show_step_test, show_test_panel, force_wizard,
-                                 wizard_step, panel_requested, display_num, x_pos, y_pos,
-                                 screenshot_enabled, screenshot_delay_sec, timeout_sec, verbosity,
-                                 dark_mode, theme_requested, dpi)) {
+                                 show_keypad, show_keyboard, show_step_test, show_test_panel,
+                                 force_wizard, wizard_step, panel_requested, display_num, x_pos,
+                                 y_pos, screenshot_enabled, screenshot_delay_sec, timeout_sec,
+                                 verbosity, dark_mode, theme_requested, dpi)) {
         return 0; // Help shown or parse error
     }
 
@@ -1122,7 +1126,7 @@ int main(int argc, char** argv) {
     // requests)
     bool wizard_active = false;
     if ((force_wizard || config->is_wizard_required()) && !show_step_test && !show_test_panel &&
-        !show_keypad && !panel_requested) {
+        !show_keypad && !show_keyboard && !panel_requested) {
         spdlog::info("Starting first-run configuration wizard");
 
         // Register wizard event callbacks and responsive constants BEFORE creating
@@ -1207,6 +1211,10 @@ int main(int argc, char** argv) {
                                                 .callback = nullptr,
                                                 .user_data = nullptr};
             ui_keypad_show(&keypad_config);
+        }
+        if (show_keyboard) {
+            spdlog::debug("Showing keyboard as requested by command-line flag");
+            ui_keyboard_show(nullptr);
         }
         if (show_step_test) {
             spdlog::debug("Creating step progress test widget as requested by command-line flag");
