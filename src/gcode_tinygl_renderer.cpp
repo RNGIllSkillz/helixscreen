@@ -82,6 +82,12 @@ void GCodeTinyGLRenderer::set_extrusion_width(float width_mm) {
     }
 }
 
+void GCodeTinyGLRenderer::set_specular(float intensity, float shininess) {
+    specular_intensity_ = intensity;
+    specular_shininess_ = shininess;
+    // Material properties will be applied on next render
+}
+
 void GCodeTinyGLRenderer::set_simplification_tolerance(float tolerance_mm) {
     simplification_.tolerance_mm = tolerance_mm;
 
@@ -135,18 +141,21 @@ void GCodeTinyGLRenderer::init_tinygl() {
     glEnable(GL_COLOR_MATERIAL);
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 
-    // Explicitly disable specular highlights for matte G-code appearance
+    // Set material properties (use current specular settings)
     // GL_COLOR_MATERIAL only controls ambient/diffuse, so we must set specular separately
-    GLfloat no_specular[] = {0.0f, 0.0f, 0.0f, 1.0f};
+    GLfloat specular[] = {specular_intensity_, specular_intensity_, specular_intensity_, 1.0f};
     GLfloat no_emission[] = {0.0f, 0.0f, 0.0f, 1.0f};
-    GLfloat no_shininess = 0.0f;
-    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, no_specular);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular);
     glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, no_emission);
-    glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, no_shininess);
+    glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, specular_shininess_);
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 
+    // Enable specular lighting calculations (TinyGL-specific, disabled by default)
+    glSetEnableSpecular(1);
+
+    // Setup lighting with current material properties
     setup_lighting();
 }
 
@@ -179,7 +188,8 @@ void GCodeTinyGLRenderer::setup_lighting() {
     GLfloat light_top_ambient[] = {INTENSITY_AMBIENT, INTENSITY_AMBIENT, INTENSITY_AMBIENT, 1.0f};
     GLfloat light_top_diffuse[] = {0.8f * INTENSITY_CORRECTION, 0.8f * INTENSITY_CORRECTION,
                                    0.8f * INTENSITY_CORRECTION, 1.0f};
-    GLfloat light_top_specular[] = {0.0f, 0.0f, 0.0f, 1.0f}; // No specular (matte finish)
+    GLfloat light_top_specular[] = {1.0f, 1.0f, 1.0f,
+                                    1.0f}; // Enable specular (material controls intensity)
 
     glLightfv(GL_LIGHT0, GL_POSITION, light_top_dir);
     glLightfv(GL_LIGHT0, GL_AMBIENT, light_top_ambient);
@@ -390,6 +400,11 @@ void GCodeTinyGLRenderer::render_geometry(const GCodeCamera& camera) {
 
     // Clear buffers
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Apply current material properties (in case they changed)
+    GLfloat specular[] = {specular_intensity_, specular_intensity_, specular_intensity_, 1.0f};
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular);
+    glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, specular_shininess_);
 
     // Set up matrices from camera
     glMatrixMode(GL_PROJECTION);

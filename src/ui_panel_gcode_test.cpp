@@ -16,10 +16,11 @@
 #include "ui_theme.h"
 
 #include <spdlog/spdlog.h>
-#include <dirent.h>
-#include <vector>
-#include <string>
+
 #include <algorithm>
+#include <dirent.h>
+#include <string>
+#include <vector>
 
 // Panel state
 static lv_obj_t* panel_root = nullptr;
@@ -55,8 +56,7 @@ static void scan_gcode_files() {
         std::string filename = entry->d_name;
 
         // Check if file ends with .gcode
-        if (filename.length() > 6 &&
-            filename.substr(filename.length() - 6) == ".gcode") {
+        if (filename.length() > 6 && filename.substr(filename.length() - 6) == ".gcode") {
             std::string full_path = std::string(ASSETS_DIR) + "/" + filename;
             gcode_files.push_back(full_path);
             spdlog::debug("[GCodeTest] Found G-code file: {}", full_path);
@@ -97,8 +97,8 @@ static void on_file_selected(lv_event_t* e) {
                 char buf[256];
                 // Extract filename from path
                 size_t last_slash = filepath.find_last_of('/');
-                std::string filename = (last_slash != std::string::npos) ?
-                    filepath.substr(last_slash + 1) : filepath;
+                std::string filename =
+                    (last_slash != std::string::npos) ? filepath.substr(last_slash + 1) : filepath;
 
                 snprintf(buf, sizeof(buf), "%s | %d layers", filename.c_str(), layer_count);
                 lv_label_set_text(stats_label, buf);
@@ -146,7 +146,7 @@ static void show_file_picker() {
     file_picker_overlay = lv_obj_create(lv_screen_active());
     lv_obj_set_size(file_picker_overlay, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(file_picker_overlay, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(file_picker_overlay, 200, 0);  // Semi-transparent
+    lv_obj_set_style_bg_opa(file_picker_overlay, 200, 0); // Semi-transparent
     lv_obj_set_style_pad_all(file_picker_overlay, 40, 0);
 
     // Create card for file list
@@ -174,8 +174,9 @@ static void show_file_picker() {
     for (size_t i = 0; i < gcode_files.size(); i++) {
         // Extract filename from path
         size_t last_slash = gcode_files[i].find_last_of('/');
-        std::string filename = (last_slash != std::string::npos) ?
-            gcode_files[i].substr(last_slash + 1) : gcode_files[i];
+        std::string filename = (last_slash != std::string::npos)
+                                   ? gcode_files[i].substr(last_slash + 1)
+                                   : gcode_files[i];
 
         lv_obj_t* btn = lv_button_create(list_container);
         lv_obj_set_width(btn, LV_PCT(100));
@@ -214,8 +215,11 @@ static void on_view_preset_clicked(lv_event_t* e) {
 
     spdlog::info("[GCodeTest] View preset clicked: {}", name);
 
-    if (strcmp(name, "btn_isometric") == 0) {
-        ui_gcode_viewer_set_view(gcode_viewer, GCODE_VIEWER_VIEW_ISOMETRIC);
+    if (strcmp(name, "btn_travels") == 0) {
+        // Toggle travel moves visibility
+        bool is_checked = lv_obj_has_state(btn, LV_STATE_CHECKED);
+        ui_gcode_viewer_set_show_travels(gcode_viewer, is_checked);
+        spdlog::info("[GCodeTest] Travel moves: {}", is_checked ? "shown" : "hidden");
     } else if (strcmp(name, "btn_top") == 0) {
         ui_gcode_viewer_set_view(gcode_viewer, GCODE_VIEWER_VIEW_TOP);
     } else if (strcmp(name, "btn_front") == 0) {
@@ -270,6 +274,63 @@ static void on_clear(lv_event_t*) {
     }
 }
 
+/**
+ * @brief Specular intensity slider callback
+ */
+static void on_specular_intensity_changed(lv_event_t* e) {
+    if (!gcode_viewer)
+        return;
+
+    lv_obj_t* slider = lv_event_get_target_obj(e);
+    int32_t value = lv_slider_get_value(slider);
+    float intensity = value / 100.0f; // 0-20 → 0.0-0.2
+
+    // Update value label
+    lv_obj_t* container = lv_obj_get_parent(slider);
+    lv_obj_t* label = lv_obj_find_by_name(container, "specular_value_label");
+    if (label) {
+        lv_label_set_text_fmt(label, "%.2f", intensity);
+    }
+
+    // Get current shininess value
+    lv_obj_t* shininess_slider = lv_obj_find_by_name(panel_root, "shininess_slider");
+    float shininess = 15.0f;
+    if (shininess_slider) {
+        shininess = (float)lv_slider_get_value(shininess_slider);
+    }
+
+    // Update TinyGL material
+    ui_gcode_viewer_set_specular(gcode_viewer, intensity, shininess);
+}
+
+/**
+ * @brief Shininess slider callback
+ */
+static void on_shininess_changed(lv_event_t* e) {
+    if (!gcode_viewer)
+        return;
+
+    lv_obj_t* slider = lv_event_get_target_obj(e);
+    int32_t value = lv_slider_get_value(slider);
+
+    // Update value label
+    lv_obj_t* container = lv_obj_get_parent(slider);
+    lv_obj_t* label = lv_obj_find_by_name(container, "shininess_value_label");
+    if (label) {
+        lv_label_set_text_fmt(label, "%d", (int)value);
+    }
+
+    // Get current specular intensity value
+    lv_obj_t* intensity_slider = lv_obj_find_by_name(panel_root, "specular_slider");
+    float intensity = 0.05f;
+    if (intensity_slider) {
+        intensity = lv_slider_get_value(intensity_slider) / 100.0f;
+    }
+
+    // Update TinyGL material
+    ui_gcode_viewer_set_specular(gcode_viewer, intensity, (float)value);
+}
+
 // ==============================================
 // Public API
 // ==============================================
@@ -302,6 +363,10 @@ lv_obj_t* ui_panel_gcode_test_create(lv_obj_t* parent) {
     lv_obj_t* btn_load = lv_obj_find_by_name(panel_root, "btn_load_test");
     lv_obj_t* btn_clear = lv_obj_find_by_name(panel_root, "btn_clear");
 
+    // Find sliders
+    lv_obj_t* specular_slider = lv_obj_find_by_name(panel_root, "specular_slider");
+    lv_obj_t* shininess_slider = lv_obj_find_by_name(panel_root, "shininess_slider");
+
     if (btn_isometric)
         lv_obj_add_event_cb(btn_isometric, on_view_preset_clicked, LV_EVENT_CLICKED, nullptr);
     if (btn_top)
@@ -320,6 +385,14 @@ lv_obj_t* ui_panel_gcode_test_create(lv_obj_t* parent) {
         lv_obj_add_event_cb(btn_load, on_load_test_file, LV_EVENT_CLICKED, nullptr);
     if (btn_clear)
         lv_obj_add_event_cb(btn_clear, on_clear, LV_EVENT_CLICKED, nullptr);
+
+    // Register slider callbacks
+    if (specular_slider)
+        lv_obj_add_event_cb(specular_slider, on_specular_intensity_changed, LV_EVENT_VALUE_CHANGED,
+                            nullptr);
+    if (shininess_slider)
+        lv_obj_add_event_cb(shininess_slider, on_shininess_changed, LV_EVENT_VALUE_CHANGED,
+                            nullptr);
 
     // Auto-load the default sample file
     spdlog::info("[GCodeTest] Auto-loading sample file: {}", TEST_GCODE_PATH);

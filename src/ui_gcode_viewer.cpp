@@ -742,6 +742,23 @@ int ui_gcode_viewer_get_segments_rendered(lv_obj_t* obj) {
 }
 
 // ==============================================
+// Material & Lighting Control
+// ==============================================
+
+void ui_gcode_viewer_set_specular(lv_obj_t* obj, float intensity, float shininess) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st)
+        return;
+
+#ifdef ENABLE_TINYGL_3D
+    st->renderer->set_specular(intensity, shininess);
+    lv_obj_invalidate(obj); // Request redraw
+#else
+    spdlog::warn("[GCodeViewer] set_specular() ignored - not using TinyGL 3D renderer");
+#endif
+}
+
+// ==============================================
 // LVGL XML Component Registration
 // ==============================================
 

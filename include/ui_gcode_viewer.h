@@ -247,6 +247,18 @@ void ui_gcode_viewer_set_opacity(lv_obj_t* obj, lv_opa_t opacity);
  */
 void ui_gcode_viewer_set_brightness(lv_obj_t* obj, float factor);
 
+/**
+ * @brief Set material specular lighting parameters (TinyGL 3D only)
+ * @param obj Viewer widget
+ * @param intensity Specular intensity (0.0-0.2, where 0.0 = matte, 0.075 = OrcaSlicer default)
+ * @param shininess Specular shininess/focus (5.0-50.0, where 20.0 = OrcaSlicer default)
+ *
+ * Controls the appearance of reflective highlights on G-code extrusion surfaces.
+ * Higher intensity = brighter highlights. Higher shininess = tighter/sharper highlights.
+ * Only affects TinyGL 3D renderer; ignored by 2D renderer.
+ */
+void ui_gcode_viewer_set_specular(lv_obj_t* obj, float intensity, float shininess);
+
 // ==============================================
 // Layer Control Extensions
 // ==============================================

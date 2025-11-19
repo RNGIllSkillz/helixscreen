@@ -42,12 +42,13 @@ if [ "$STAGED_ONLY" = true ]; then
     grep -v '^lvgl/' | \
     grep -v '^lv_conf\.h$' | \
     grep -v '^spdlog/' | \
+    grep -v '^tinygl/' | \
     grep -v '^wpa_supplicant/' | \
     grep -v '^node_modules/' | \
     grep -v '^build/' | \
     grep -v '/\.' || true)
 else
-  # CI mode: check all files in src/ and include/
+  # CI mode: check all files in src/ and include/ (tinygl is excluded as third-party)
   FILES=$(find src include -name "*.cpp" -o -name "*.c" -o -name "*.h" -o -name "*.mm" 2>/dev/null | \
     grep -v '/\.' | \
     grep -v '^lv_conf\.h$' || true)

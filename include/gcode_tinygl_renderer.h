@@ -85,6 +85,16 @@ class GCodeTinyGLRenderer {
      */
     void set_simplification_tolerance(float tolerance_mm);
 
+    /**
+     * @brief Set material specular lighting parameters
+     * @param intensity Specular intensity (0.0-0.2, where 0.0 = matte, 0.075 = OrcaSlicer default)
+     * @param shininess Specular shininess/focus (5.0-50.0, where 20.0 = OrcaSlicer default)
+     *
+     * Controls reflective highlights on G-code surfaces. Higher intensity = brighter highlights.
+     * Higher shininess = tighter/sharper highlights. Updates take effect on next render.
+     */
+    void set_specular(float intensity, float shininess);
+
     // ==============================================
     // Compatibility Methods (for LVGL renderer interface)
     // ==============================================
@@ -260,6 +270,10 @@ class GCodeTinyGLRenderer {
     std::unordered_set<std::string> highlighted_objects_;
     lv_opa_t global_opacity_{LV_OPA_100};
     float brightness_factor_{1.0f};
+
+    // Material lighting properties
+    float specular_intensity_{0.05f}; // Default: subtle highlights (OrcaSlicer: 0.075)
+    float specular_shininess_{5.0f};  // Default: soft, broad highlights (OrcaSlicer: 20.0)
 
     // TinyGL context (opaque pointer to avoid header dependency)
     void* zbuffer_{nullptr};
