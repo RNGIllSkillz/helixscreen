@@ -366,11 +366,12 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
                                           const QuantizationParams& quant,
                                           std::optional<TubeCap> prev_start_cap) {
     // Determine tube dimensions based on move type
-    // Use per-segment width if available (calculated from E-delta), otherwise use default
+    // Use per-segment width if available AND reasonable, otherwise use metadata default
     float width;
-    if (segment.is_extrusion && segment.width > 0.0f) {
-        width = segment.width; // Use calculated width from G-code
+    if (segment.is_extrusion && segment.width >= 0.1f && segment.width <= 2.0f) {
+        width = segment.width; // Use calculated width from E-delta (if in reasonable range)
     } else {
+        // Use metadata-based default width (from slicer comments)
         width = segment.is_extrusion ? extrusion_width_mm_ : travel_width_mm_;
     }
     float half_width = width * 0.5f;

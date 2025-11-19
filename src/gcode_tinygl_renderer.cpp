@@ -345,15 +345,17 @@ void GCodeTinyGLRenderer::build_geometry(const ParsedGCodeFile& gcode) {
     }
 
     // Use extrusion width from G-code metadata if available
+    // Prefer comment-based widths (more reliable) over calculated per-segment widths
     if (gcode.perimeter_extrusion_width_mm > 0.0f) {
         // Use perimeter width (most common for visual appearance)
-        spdlog::info("Using perimeter extrusion width from G-code: {:.2f}mm",
-                     gcode.perimeter_extrusion_width_mm);
-        geometry_builder_->set_extrusion_width(gcode.perimeter_extrusion_width_mm);
+        extrusion_width_ = gcode.perimeter_extrusion_width_mm;
+        geometry_builder_->set_extrusion_width(extrusion_width_);
+        spdlog::info("Using perimeter extrusion width from G-code: {:.2f}mm", extrusion_width_);
     } else if (gcode.extrusion_width_mm > 0.0f) {
         // Use default width if perimeter not specified
-        spdlog::info("Using extrusion width from G-code: {:.2f}mm", gcode.extrusion_width_mm);
-        geometry_builder_->set_extrusion_width(gcode.extrusion_width_mm);
+        extrusion_width_ = gcode.extrusion_width_mm;
+        geometry_builder_->set_extrusion_width(extrusion_width_);
+        spdlog::info("Using extrusion width from G-code: {:.2f}mm", extrusion_width_);
     } else {
         // Keep current width (user-set or default)
         spdlog::info("No extrusion width in G-code, using current: {:.2f}mm", extrusion_width_);
