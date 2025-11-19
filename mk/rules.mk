@@ -16,7 +16,10 @@ $(LIBHV_LIB):
 # Build TinyGL if not present (dependency rule)
 # Only build if ENABLE_TINYGL_3D=yes
 ifeq ($(ENABLE_TINYGL_3D),yes)
-$(TINYGL_LIB):
+# Track TinyGL source files so incremental builds detect changes
+TINYGL_SOURCES := $(wildcard $(TINYGL_DIR)/src/*.c $(TINYGL_DIR)/src/*.h $(TINYGL_DIR)/include/*.h $(TINYGL_DIR)/include/GL/*.h)
+
+$(TINYGL_LIB): $(TINYGL_SOURCES)
 	$(ECHO) "$(CYAN)$(BOLD)Building TinyGL...$(RESET)"
 	$(Q)cd $(TINYGL_DIR) && MACOSX_DEPLOYMENT_TARGET=$(MACOS_MIN_VERSION) $(MAKE) -j$(NPROC)
 	$(ECHO) "$(GREEN)✓ TinyGL built: $(TINYGL_LIB)$(RESET)"
