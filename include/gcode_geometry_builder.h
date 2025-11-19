@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 #include <optional>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -253,14 +254,14 @@ class GeometryBuilder {
     }
 
     /**
-     * @brief Set highlighted object name for visual emphasis
-     * @param object_name Name of object to highlight (empty to clear)
+     * @brief Set highlighted object names for visual emphasis
+     * @param object_names Names of objects to highlight (empty to clear)
      *
      * Highlighted segments will be rendered with brightened color (1.8x multiplier)
      * to make them stand out from the rest of the model.
      */
-    void set_highlighted_object(const std::string& object_name) {
-        highlighted_object_ = object_name;
+    void set_highlighted_objects(const std::unordered_set<std::string>& object_names) {
+        highlighted_objects_ = object_names;
     }
 
   private:
@@ -299,7 +300,8 @@ class GeometryBuilder {
     uint8_t filament_r_ = 0x26;        ///< Filament color red component
     uint8_t filament_g_ = 0xA6;        ///< Filament color green component
     uint8_t filament_b_ = 0x9A;        ///< Filament color blue component
-    std::string highlighted_object_;   ///< Object name to highlight (empty = none)
+    std::unordered_set<std::string>
+        highlighted_objects_; ///< Object names to highlight (empty = none)
 
     // Build statistics
     BuildStats stats_;

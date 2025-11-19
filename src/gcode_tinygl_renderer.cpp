@@ -178,116 +178,118 @@ void GCodeTinyGLRenderer::setup_lighting() {
 }
 
 void GCodeTinyGLRenderer::render_bounding_box(const ParsedGCodeFile& gcode) {
-    spdlog::trace("render_bounding_box: highlighted_object_='{}', empty={}", highlighted_object_,
-                  highlighted_object_.empty());
+    spdlog::trace("render_bounding_box: {} highlighted objects", highlighted_objects_.size());
 
-    // Only render if we have a highlighted object
-    if (highlighted_object_.empty()) {
+    // Only render if we have highlighted objects
+    if (highlighted_objects_.empty()) {
         return;
     }
 
-    // Find the highlighted object in the G-code data
-    auto it = gcode.objects.find(highlighted_object_);
-    if (it == gcode.objects.end()) {
-        spdlog::warn("TinyGL: Cannot render bounding box - object '{}' not found in G-code",
-                     highlighted_object_);
-        return; // Object not found
-    }
+    // Render bounding box for each highlighted object
+    for (const auto& object_name : highlighted_objects_) {
+        // Find the highlighted object in the G-code data
+        auto it = gcode.objects.find(object_name);
+        if (it == gcode.objects.end()) {
+            spdlog::warn("TinyGL: Cannot render bounding box - object '{}' not found in G-code",
+                         object_name);
+            continue; // Skip this object
+        }
 
-    const GCodeObject& obj = it->second;
-    const AABB& bbox = obj.bounding_box;
+        const GCodeObject& obj = it->second;
+        const AABB& bbox = obj.bounding_box;
 
-    // IMPORTANT: The object AABB is in original G-code coordinates, but the rendered
-    // geometry has been quantized and dequantized using expanded bounds (to account for
-    // tube width). We need to transform the AABB through the same quantization process
-    // to get it into the same coordinate space as the rendered geometry.
+        // IMPORTANT: The object AABB is in original G-code coordinates, but the rendered
+        // geometry has been quantized and dequantized using expanded bounds (to account for
+        // tube width). We need to transform the AABB through the same quantization process
+        // to get it into the same coordinate space as the rendered geometry.
 
-    if (!geometry_) {
-        spdlog::warn("TinyGL: No geometry available for bounding box quantization");
-        return;
-    }
+        if (!geometry_) {
+            spdlog::warn("TinyGL: No geometry available for bounding box quantization");
+            return;
+        }
 
-    const auto& quant = geometry_->quantization;
+        const auto& quant = geometry_->quantization;
 
-    // Quantize the bounding box min/max
-    auto qmin = quant.quantize_vec3(bbox.min);
-    auto qmax = quant.quantize_vec3(bbox.max);
+        // Quantize the bounding box min/max
+        auto qmin = quant.quantize_vec3(bbox.min);
+        auto qmax = quant.quantize_vec3(bbox.max);
 
-    // Dequantize back to get coordinates in the same space as rendered geometry
-    glm::vec3 bbox_min = quant.dequantize_vec3(qmin);
-    glm::vec3 bbox_max = quant.dequantize_vec3(qmax);
+        // Dequantize back to get coordinates in the same space as rendered geometry
+        glm::vec3 bbox_min = quant.dequantize_vec3(qmin);
+        glm::vec3 bbox_max = quant.dequantize_vec3(qmax);
 
-    spdlog::debug("TinyGL: Object '{}' AABB (original): min=({:.2f},{:.2f},{:.2f}) "
-                  "max=({:.2f},{:.2f},{:.2f})",
-                  highlighted_object_, bbox.min.x, bbox.min.y, bbox.min.z, bbox.max.x, bbox.max.y,
-                  bbox.max.z);
-    spdlog::debug("TinyGL: Object AABB (transformed): min=({:.2f},{:.2f},{:.2f}) "
-                  "max=({:.2f},{:.2f},{:.2f})",
-                  bbox_min.x, bbox_min.y, bbox_min.z, bbox_max.x, bbox_max.y, bbox_max.z);
+        spdlog::debug("TinyGL: Object '{}' AABB (original): min=({:.2f},{:.2f},{:.2f}) "
+                      "max=({:.2f},{:.2f},{:.2f})",
+                      object_name, bbox.min.x, bbox.min.y, bbox.min.z, bbox.max.x, bbox.max.y,
+                      bbox.max.z);
+        spdlog::debug("TinyGL: Object AABB (transformed): min=({:.2f},{:.2f},{:.2f}) "
+                      "max=({:.2f},{:.2f},{:.2f})",
+                      bbox_min.x, bbox_min.y, bbox_min.z, bbox_max.x, bbox_max.y, bbox_max.z);
 
-    // Use material emission for bright white lines
-    glDisable(GL_DEPTH_TEST); // Draw on top
-    GLfloat white[] = {1.0f, 1.0f, 1.0f, 1.0f};
+        // Use material emission for bright white lines
+        glDisable(GL_DEPTH_TEST); // Draw on top
+        GLfloat white[] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-    // Set bright white emission for visibility (glowing lines)
-    glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, white);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, white);
+        // Set bright white emission for visibility (glowing lines)
+        glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, white);
+        glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, white);
 
-    // Draw complete wireframe cube using GL_LINES (12 edges total)
-    glBegin(GL_LINES);
+        // Draw complete wireframe cube using GL_LINES (12 edges total)
+        glBegin(GL_LINES);
 
-    // Bottom rectangle (4 edges at Z = min)
-    glVertex3f(bbox_min.x, bbox_min.y, bbox_min.z);
-    glVertex3f(bbox_max.x, bbox_min.y, bbox_min.z);
+        // Bottom rectangle (4 edges at Z = min)
+        glVertex3f(bbox_min.x, bbox_min.y, bbox_min.z);
+        glVertex3f(bbox_max.x, bbox_min.y, bbox_min.z);
 
-    glVertex3f(bbox_max.x, bbox_min.y, bbox_min.z);
-    glVertex3f(bbox_max.x, bbox_max.y, bbox_min.z);
+        glVertex3f(bbox_max.x, bbox_min.y, bbox_min.z);
+        glVertex3f(bbox_max.x, bbox_max.y, bbox_min.z);
 
-    glVertex3f(bbox_max.x, bbox_max.y, bbox_min.z);
-    glVertex3f(bbox_min.x, bbox_max.y, bbox_min.z);
+        glVertex3f(bbox_max.x, bbox_max.y, bbox_min.z);
+        glVertex3f(bbox_min.x, bbox_max.y, bbox_min.z);
 
-    glVertex3f(bbox_min.x, bbox_max.y, bbox_min.z);
-    glVertex3f(bbox_min.x, bbox_min.y, bbox_min.z);
+        glVertex3f(bbox_min.x, bbox_max.y, bbox_min.z);
+        glVertex3f(bbox_min.x, bbox_min.y, bbox_min.z);
 
-    // Top rectangle (4 edges at Z = max)
-    glVertex3f(bbox_min.x, bbox_min.y, bbox_max.z);
-    glVertex3f(bbox_max.x, bbox_min.y, bbox_max.z);
+        // Top rectangle (4 edges at Z = max)
+        glVertex3f(bbox_min.x, bbox_min.y, bbox_max.z);
+        glVertex3f(bbox_max.x, bbox_min.y, bbox_max.z);
 
-    glVertex3f(bbox_max.x, bbox_min.y, bbox_max.z);
-    glVertex3f(bbox_max.x, bbox_max.y, bbox_max.z);
+        glVertex3f(bbox_max.x, bbox_min.y, bbox_max.z);
+        glVertex3f(bbox_max.x, bbox_max.y, bbox_max.z);
 
-    glVertex3f(bbox_max.x, bbox_max.y, bbox_max.z);
-    glVertex3f(bbox_min.x, bbox_max.y, bbox_max.z);
+        glVertex3f(bbox_max.x, bbox_max.y, bbox_max.z);
+        glVertex3f(bbox_min.x, bbox_max.y, bbox_max.z);
 
-    glVertex3f(bbox_min.x, bbox_max.y, bbox_max.z);
-    glVertex3f(bbox_min.x, bbox_min.y, bbox_max.z);
+        glVertex3f(bbox_min.x, bbox_max.y, bbox_max.z);
+        glVertex3f(bbox_min.x, bbox_min.y, bbox_max.z);
 
-    // Vertical edges (4 edges connecting bottom to top)
-    glVertex3f(bbox_min.x, bbox_min.y, bbox_min.z);
-    glVertex3f(bbox_min.x, bbox_min.y, bbox_max.z);
+        // Vertical edges (4 edges connecting bottom to top)
+        glVertex3f(bbox_min.x, bbox_min.y, bbox_min.z);
+        glVertex3f(bbox_min.x, bbox_min.y, bbox_max.z);
 
-    glVertex3f(bbox_max.x, bbox_min.y, bbox_min.z);
-    glVertex3f(bbox_max.x, bbox_min.y, bbox_max.z);
+        glVertex3f(bbox_max.x, bbox_min.y, bbox_min.z);
+        glVertex3f(bbox_max.x, bbox_min.y, bbox_max.z);
 
-    glVertex3f(bbox_max.x, bbox_max.y, bbox_min.z);
-    glVertex3f(bbox_max.x, bbox_max.y, bbox_max.z);
+        glVertex3f(bbox_max.x, bbox_max.y, bbox_min.z);
+        glVertex3f(bbox_max.x, bbox_max.y, bbox_max.z);
 
-    glVertex3f(bbox_min.x, bbox_max.y, bbox_min.z);
-    glVertex3f(bbox_min.x, bbox_max.y, bbox_max.z);
+        glVertex3f(bbox_min.x, bbox_max.y, bbox_min.z);
+        glVertex3f(bbox_min.x, bbox_max.y, bbox_max.z);
 
-    glEnd();
+        glEnd();
 
-    // Reset material state to defaults (no emission, gray diffuse)
-    // This prevents the white material from affecting the next frame's geometry
-    GLfloat no_emission[] = {0.0f, 0.0f, 0.0f, 1.0f};
-    GLfloat default_gray[] = {0.8f, 0.8f, 0.8f, 1.0f};
-    glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, no_emission);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, default_gray);
+        // Reset material state to defaults (no emission, gray diffuse)
+        // This prevents the white material from affecting the next frame's geometry
+        GLfloat no_emission[] = {0.0f, 0.0f, 0.0f, 1.0f};
+        GLfloat default_gray[] = {0.8f, 0.8f, 0.8f, 1.0f};
+        glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, no_emission);
+        glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, default_gray);
 
-    // Re-enable depth test for subsequent geometry
-    glEnable(GL_DEPTH_TEST);
+        // Re-enable depth test for subsequent geometry
+        glEnable(GL_DEPTH_TEST);
 
-    spdlog::debug("TinyGL: Bounding box rendering complete");
+        spdlog::debug("TinyGL: Bounding box rendered for object '{}'", object_name);
+    } // end for each highlighted object
 }
 
 void GCodeTinyGLRenderer::build_geometry(const ParsedGCodeFile& gcode) {
@@ -342,10 +344,10 @@ void GCodeTinyGLRenderer::build_geometry(const ParsedGCodeFile& gcode) {
         spdlog::debug("Move filtering: travels={}, extrusions={}", show_travels_, show_extrusions_);
     }
 
-    // Configure highlighted object (segments will be brightened)
-    geometry_builder_->set_highlighted_object(highlighted_object_);
-    if (!highlighted_object_.empty()) {
-        spdlog::debug("Highlighting object: '{}'", highlighted_object_);
+    // Configure highlighted objects (segments will be brightened)
+    geometry_builder_->set_highlighted_objects(highlighted_objects_);
+    if (!highlighted_objects_.empty()) {
+        spdlog::debug("Highlighting {} objects", highlighted_objects_.size());
     }
 
     // Build optimized ribbon geometry
@@ -471,9 +473,9 @@ void GCodeTinyGLRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode
     // Render 3D geometry
     render_geometry(camera);
 
-    // Render bounding box wireframe for highlighted object
-    spdlog::trace("TinyGL render: highlighted_object_='{}', gcode.objects.size()={}",
-                  highlighted_object_, gcode.objects.size());
+    // Render bounding box wireframe for highlighted objects
+    spdlog::trace("TinyGL render: {} highlighted objects, gcode.objects.size()={}",
+                  highlighted_objects_.size(), gcode.objects.size());
     render_bounding_box(gcode);
 
     // Draw to LVGL
@@ -507,14 +509,23 @@ void GCodeTinyGLRenderer::set_layer_range(int start, int end) {
 }
 
 void GCodeTinyGLRenderer::set_highlighted_object(const std::string& name) {
-    // Only rebuild if the highlighted object actually changed
-    if (highlighted_object_ != name) {
-        highlighted_object_ = name;
+    // Convert single object to set and delegate to multi-object version
+    std::unordered_set<std::string> objects;
+    if (!name.empty()) {
+        objects.insert(name);
+    }
+    set_highlighted_objects(objects);
+}
+
+void GCodeTinyGLRenderer::set_highlighted_objects(const std::unordered_set<std::string>& names) {
+    // Only rebuild if the highlighted objects actually changed
+    if (highlighted_objects_ != names) {
+        highlighted_objects_ = names;
         // Trigger geometry rebuild to apply/remove highlighting
         geometry_.reset();
         current_gcode_filename_.clear();
-        spdlog::debug("TinyGL: Highlighted object changed to '{}', geometry will rebuild",
-                      name.empty() ? "(none)" : name);
+        spdlog::debug("TinyGL: Highlighted objects changed ({} selected), geometry will rebuild",
+                      names.size());
     }
 }
 
@@ -620,7 +631,9 @@ std::optional<std::string> GCodeTinyGLRenderer::pick_object(const glm::vec2& scr
 }
 
 GCodeTinyGLRenderer::RenderingOptions GCodeTinyGLRenderer::get_options() const {
-    return {show_extrusions_, show_travels_, layer_start_, layer_end_, highlighted_object_};
+    // Return first highlighted object for compatibility (RenderingOptions uses single string)
+    std::string first_object = highlighted_objects_.empty() ? "" : *highlighted_objects_.begin();
+    return {show_extrusions_, show_travels_, layer_start_, layer_end_, first_object};
 }
 
 } // namespace gcode

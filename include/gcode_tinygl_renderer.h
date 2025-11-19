@@ -15,6 +15,7 @@
 #include <glm/glm.hpp>
 #include <memory>
 #include <optional>
+#include <unordered_set>
 
 namespace gcode {
 
@@ -155,10 +156,16 @@ class GCodeTinyGLRenderer {
     void set_layer_range(int start, int end);
 
     /**
-     * @brief Set highlighted object name
+     * @brief Set highlighted object name (legacy single-object API)
      * @param name Object to highlight (empty to clear)
      */
     void set_highlighted_object(const std::string& name);
+
+    /**
+     * @brief Set highlighted object names (multi-select support)
+     * @param names Set of objects to highlight (empty to clear all)
+     */
+    void set_highlighted_objects(const std::unordered_set<std::string>& names);
 
     /**
      * @brief Reset to default rendering settings
@@ -250,7 +257,7 @@ class GCodeTinyGLRenderer {
     bool show_travels_{false};
     int layer_start_{0};
     int layer_end_{-1}; // -1 = all layers
-    std::string highlighted_object_;
+    std::unordered_set<std::string> highlighted_objects_;
     lv_opa_t global_opacity_{LV_OPA_100};
     float brightness_factor_{1.0f};
 

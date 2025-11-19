@@ -201,21 +201,19 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
                 // Already selected - deselect
                 st->selected_objects.erase(picked_name);
                 spdlog::info("GCodeViewer: Deselected object '{}'", picked_name);
-
-                // Clear highlighting
-                ui_gcode_viewer_set_highlighted_object(obj, nullptr);
             } else {
-                // Not selected - select it (single selection mode)
-                st->selected_objects.clear(); // Clear any previous selection
+                // Not selected - add to selection (multi-select mode)
                 st->selected_objects.insert(picked_name);
-                spdlog::info("GCodeViewer: Selected object '{}'", picked_name);
-
-                // Highlight the selected object
-                ui_gcode_viewer_set_highlighted_object(obj, picked_name.c_str());
+                spdlog::info("GCodeViewer: Selected object '{}' ({} total selected)", picked_name,
+                             st->selected_objects.size());
             }
+
+            // Update highlighting to show all selected objects
+            ui_gcode_viewer_set_highlighted_objects(obj, st->selected_objects);
         } else {
-            spdlog::debug("GCodeViewer: Click at ({}, {}) - no object found (G-code may lack EXCLUDE_OBJECT metadata)",
-                         point.x, point.y);
+            spdlog::debug("GCodeViewer: Click at ({}, {}) - no object found (G-code may lack "
+                          "EXCLUDE_OBJECT metadata)",
+                          point.x, point.y);
         }
         // Note: If no object picked, keep current selection (per user requirements)
     }
@@ -247,8 +245,8 @@ static void gcode_viewer_size_changed_cb(lv_event_t* e) {
     // Trigger redraw with new aspect ratio
     lv_obj_invalidate(obj);
 
-    spdlog::info("GCodeViewer SIZE_CHANGED: {}x{}, aspect={:.3f}",
-                 width, height, (float)width / (float)height);
+    spdlog::info("GCodeViewer SIZE_CHANGED: {}x{}, aspect={:.3f}", width, height,
+                 (float)width / (float)height);
 }
 
 /**
@@ -311,8 +309,8 @@ lv_obj_t* ui_gcode_viewer_create(lv_obj_t* parent) {
     if (width > 0 && height > 0) {
         st->camera->set_viewport_size(width, height);
         st->renderer->set_viewport_size(width, height);
-        spdlog::info("GCodeViewer INIT: viewport={}x{}, aspect={:.3f}",
-                     width, height, (float)width / (float)height);
+        spdlog::info("GCodeViewer INIT: viewport={}x{}, aspect={:.3f}", width, height,
+                     (float)width / (float)height);
     } else {
         spdlog::error("GCodeViewer INIT: Invalid size {}x{}, using defaults", width, height);
     }
@@ -530,11 +528,21 @@ void ui_gcode_viewer_set_layer_range(lv_obj_t* obj, int start_layer, int end_lay
 }
 
 void ui_gcode_viewer_set_highlighted_object(lv_obj_t* obj, const char* object_name) {
+    // Legacy single-object API - convert to set and call multi-object version
+    std::unordered_set<std::string> objects;
+    if (object_name && object_name[0] != '\0') {
+        objects.insert(object_name);
+    }
+    ui_gcode_viewer_set_highlighted_objects(obj, objects);
+}
+
+void ui_gcode_viewer_set_highlighted_objects(lv_obj_t* obj,
+                                             const std::unordered_set<std::string>& object_names) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return;
 
-    st->renderer->set_highlighted_object(object_name ? object_name : "");
+    st->renderer->set_highlighted_objects(object_names);
     lv_obj_invalidate(obj);
 }
 

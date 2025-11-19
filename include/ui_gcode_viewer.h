@@ -373,4 +373,23 @@ void ui_gcode_viewer_register(void);
 
 #ifdef __cplusplus
 }
+
+// ==============================================
+// C++ API Extensions
+// ==============================================
+
+#include <string>
+#include <unordered_set>
+
+/**
+ * @brief Set highlighted objects (multi-select support)
+ * @param obj Viewer widget
+ * @param object_names Set of object names to highlight (empty to clear all)
+ *
+ * Allows multiple objects to be highlighted simultaneously. Objects in the set
+ * will be rendered with brightened colors and bounding box wireframes.
+ */
+void ui_gcode_viewer_set_highlighted_objects(lv_obj_t* obj,
+                                             const std::unordered_set<std::string>& object_names);
+
 #endif
