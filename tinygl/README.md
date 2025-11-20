@@ -353,7 +353,21 @@ Every scan line is copied by a separate thread.
 
 Every scan line is copied by a separate thread.
 
-Compile the library with -fopenmp to see them in action (default). They are used in the texture demo, make sure to add the argument `-pp`
+**Enabling Multi-threading:**
+
+Multi-threading is **disabled by default** for simpler builds on embedded systems. To enable OpenMP multi-threading:
+
+```bash
+# Build with OpenMP enabled
+make TGL_ENABLE_OPENMP=1
+
+# Or set in config.mk:
+# TGL_ENABLE_OPENMP = 1
+```
+
+When enabled, the extensions string will show `TGL_FEATURE_MULTI_THREADED` instead of `TGL_FEATURE_SINGLE_THREADED`.
+
+**Note:** Multi-threading requires OpenMP support in your compiler (GCC/Clang with `-fopenmp`).
 
 You do not need a multithreaded processor to use TinyGL!
 
