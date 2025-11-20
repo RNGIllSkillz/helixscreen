@@ -1,11 +1,13 @@
 # TinyGL Test Results - Baseline Analysis
 
-Generated: 2025-11-19
+Generated: 2025-11-19 (Updated: 2025-11-20)
 Test Framework Version: 1.0
 
 ## Executive Summary
 
 We've successfully created a comprehensive TinyGL test framework that benchmarks both rendering quality and performance. The baseline results confirm the issues identified in our initial analysis and provide quantitative metrics for measuring improvements.
+
+**Update 2025-11-20**: Phong shading and critical bug fixes now complete. See updates below.
 
 ## Performance Baseline
 
@@ -38,12 +40,16 @@ We've successfully created a comprehensive TinyGL test framework that benchmarks
 
 ## Quality Issues Confirmed
 
-### 1. Gouraud Shading Artifacts ⚠️
+### 1. Gouraud Shading Artifacts ✅ RESOLVED (Phong Shading)
 **Test**: `gouraud_artifacts.ppm`
-- Low-tessellation cylinder (8 segments): **Severe faceting visible**
-- High-tessellation cylinder (32 segments): **Still shows subtle artifacts**
+- Low-tessellation cylinder (8 segments): **Severe faceting visible** (Gouraud)
+- High-tessellation cylinder (32 segments): **Still shows subtle artifacts** (Gouraud)
 - **Root Cause**: Per-vertex lighting interpolation
 - **Impact**: Most visible on curved surfaces with strong directional lighting
+- **✅ Solution**: Phong shading (per-pixel lighting) eliminates these artifacts
+  - Available via `glShadeModel(GL_PHONG)`
+  - Only 6.4% performance overhead
+  - Smooth lighting on low-poly curved surfaces
 
 ### 2. Color Banding ⚠️
 **Test**: `color_banding.ppm`
@@ -72,19 +78,29 @@ We've successfully created a comprehensive TinyGL test framework that benchmarks
 
 ## Recommended Priority Order
 
-Based on test results, here's the optimal implementation sequence:
+Based on test results and recent completions (2025-11-20):
 
-### Quick Wins (1-2 days each)
-1. **Ordered Dithering** - Addresses color banding (high visibility improvement)
+### ✅ Completed (2025-11-20)
+1. **✅ Per-Pixel Lighting (Phong Shading)** - Eliminates Gouraud artifacts (6.4% overhead)
+2. **✅ Depth Test Bug Fix** - Critical fix restored all rendering
+3. **✅ OpenMP Build Toggle** - Embedded-friendly builds (default OFF)
+
+### 🎯 Immediate Priority (Do Next)
+1. **Ordered Dithering** - Addresses color banding (infrastructure complete, needs integration)
+   - High visibility improvement
+   - <3% overhead, 0% when disabled
+   - Follow documented 5-step incremental approach
+
+### Short-term (If Quality Issues Arise)
 2. **Edge AA via Coverage** - Reduces aliasing (major quality boost)
+3. **Profile on Raspberry Pi** - Measure actual bottlenecks on target hardware
 
-### Medium Effort (1 week each)
-3. **SIMD Transform Pipeline** - 25-40% performance gain
-4. **Hierarchical Z-Buffer** - 15-25% speedup for complex scenes
+### Medium Effort (Only If Necessary)
+4. **SIMD Transform Pipeline (NEON)** - 25-40% performance gain on ARM
+5. **Hierarchical Z-Buffer** - 15-25% speedup for complex scenes
 
-### Major Improvements (2-3 weeks each)
-5. **Hybrid Per-Pixel Lighting** - Eliminates Gouraud artifacts
-6. **Tile-Based Rasterizer** - Enables multi-threading (2-3x speedup)
+### Low Priority (Defer)
+6. **Tile-Based Rasterizer** - Enables multi-threading (current performance sufficient)
 
 ## Test Suite Capabilities
 
