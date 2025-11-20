@@ -1,7 +1,7 @@
 # TinyGL Quality & Performance Improvement Plan
 
-**Status**: Phong Shading Complete, Other Improvements Deferred
-**Last Updated**: 2025-11-19 (Phong implementation)
+**Status**: Phong Shading Complete + Critical Fixes, Dithering Ready to Resume
+**Last Updated**: 2025-11-20 (Depth fix, API refactor, OpenMP toggle)
 **Target**: Improve visual quality and performance for embedded G-code preview
 
 ---
@@ -97,23 +97,72 @@ Implemented Phong shading (per-pixel lighting) alongside Gouraud shading (per-ve
 The template header ztriangle.h is included 7 times by different functions. Missing `#undef INTERP_NORMAL` at end of header caused flag leakage to subsequent includes, breaking texture mapping functions.
 
 ### Performance Results
-**Tested with test_runner.cpp phong test (2025-11-19):**
+**Tested with test_runner.cpp phong test (2025-11-20):**
 ```
 Scene                 Gouraud    Phong    Slowdown
 ────────────────────────────────────────────────────
-Sphere (80 tri)      0.12 ms   0.13 ms     +2.4%
-Sphere (320 tri)     0.17 ms   0.18 ms     +5.4%
-Cylinders (720 tri)  0.20 ms   0.22 ms     +6.8%
+Sphere (80 tri)      0.12 ms   0.12 ms     +4.6%
+Sphere (320 tri)     0.17 ms   0.18 ms     +4.1%
+Cylinders (720 tri)  0.19 ms   0.22 ms    +10.5%
 ────────────────────────────────────────────────────
-AVERAGE                                    +4.9%
+AVERAGE                                    +6.4%
 ```
 
 ### Actual Complexity: **High**
 ### Visual Impact: **High** (eliminates lighting bands on curves - manual verification required)
-### Performance Impact: **Minimal** (4.9% slowdown, well below 30% acceptable threshold)
+### Performance Impact: **Minimal** (6.4% slowdown, well below 30% acceptable threshold)
+
+### API Update (2025-11-20)
+Refactored from custom `glPhongShading()` to standard OpenGL pattern:
+- **New API**: `glShadeModel(GL_PHONG)` - Phong shading (TinyGL extension)
+- **Standard**: `glShadeModel(GL_SMOOTH)` - Gouraud shading (default)
+- **Standard**: `glShadeModel(GL_FLAT)` - Flat shading
+- **Feature flag**: `TGL_FEATURE_PHONG_SHADING` in extensions string
 
 ### Recommendation
-**✅ Production ready** - Phong shading available via `glSetPhongShading(GL_TRUE)` with negligible performance cost. Visual improvement significant on low-poly curved surfaces. No automated visual verification yet - requires manual comparison of `*_gouraud.ppm` vs `*_phong.ppm` test output.
+**✅ Production ready** - Phong shading available via `glShadeModel(GL_PHONG)` with negligible performance cost. Visual improvement significant on low-poly curved surfaces. No automated visual verification yet - requires manual comparison of `*_gouraud.ppm` vs `*_phong.ppm` test output.
+
+---
+
+## 3.5 Critical Bug Fixes & Build Configuration
+
+### Status: ✅ **COMPLETE** (2025-11-20)
+
+### 3.5.1 Depth Test Inversion Bug Fix
+**Critical bug introduced in commit c23881e** - Depth comparison was inverted from `z >= zpix` to `z <= zpix`, breaking ALL geometry rendering (blank output, only background visible).
+
+**Root cause**: Attempted to align with OpenGL's GL_LESS depth function, but TinyGL uses inverted Z-buffer coordinate system requiring `>=` comparison.
+
+**Fix**: Reverted `ztriangle.c` lines 45-46:
+```c
+#define ZCMP(z, zpix, _a, c) (((!zbdt) || (z >= zpix)) STIPTEST(_a) NODRAWTEST(c))
+#define ZCMPSIMP(z, zpix, _a, crabapple) (((!zbdt) || (z >= zpix)) STIPTEST(_a))
+```
+
+**Impact**: Restored all rendering functionality. gears demo produces 37K render.png (with geometry) vs 9.5K (blank) when broken.
+
+### 3.5.2 OpenMP Build Configuration
+**Added TGL_ENABLE_OPENMP toggle** for embedded-friendly builds.
+
+**Configuration** (`tinygl/config.mk`):
+```makefile
+TGL_ENABLE_OPENMP ?= 0  # Default: OFF (single-threaded)
+```
+
+**Enable via**:
+```bash
+make TGL_ENABLE_OPENMP=1  # Override on command line
+# Or edit config.mk to set TGL_ENABLE_OPENMP = 1
+```
+
+**When enabled**: Parallelizes glDrawPixels, glCopyTexImage2D, ZBCopyBuffer (memory operations, not rasterization)
+
+**Rationale for default OFF**:
+- Simpler builds on embedded systems (no OpenMP runtime dependency)
+- TinyGL multi-threading only helps memory operations, not triangle rasterization
+- 3D printer UI has infrequent rendering (not 60 FPS gaming)
+- Raspberry Pi memory bandwidth already constrained
+- Can enable later if profiling shows glDrawPixels/glTexImage2D bottleneck
 
 ---
 
@@ -203,23 +252,31 @@ Standard feature. Verify it's enabled but no changes needed.
 
 ## Priority Recommendations
 
-### ✅ Recently Completed
-1. **Per-Pixel Lighting (Phong Shading)** - Complete with excellent performance (4.9% overhead)
+### ✅ Recently Completed (2025-11-20)
+1. **Per-Pixel Lighting (Phong Shading)** - Complete with excellent performance (6.4% overhead)
+2. **Depth Test Bug Fix** - Critical fix restored all rendering functionality
+3. **OpenMP Build Toggle** - Default OFF for embedded-friendly builds
+4. **Phong API Refactor** - Standardized to `glShadeModel(GL_PHONG)` pattern
 
-### Immediate Priority (Do Next)
-1. **None** - Current TinyGL quality is excellent for G-code preview
+### 🎯 Immediate Priority (Do Next)
+1. **Ordered Dithering Integration** - Infrastructure complete, needs careful integration
+   - **Why**: Visible quality improvement (reduces color banding)
+   - **Effort**: Medium (infrastructure done, follow 5-step incremental plan)
+   - **Risk**: Moderate (broke rendering twice before, learned lessons)
+   - **Performance**: <3% overhead, 0% when disabled
+   - **ROI**: High - quality boost for minimal cost
 
 ### Short-term (If Quality Issues Arise)
 1. **Edge Anti-Aliasing** - If diagonal lines look too jagged
-2. **Ordered Dithering** - If gradient banding is reported as issue (infrastructure exists, needs integration)
+2. **Profile on Raspberry Pi** - Measure actual bottlenecks on target hardware
 
 ### Long-term (Only If Necessary)
-1. **SIMD Acceleration** - Only if profiling shows transform/lighting bottleneck on ARM
+1. **SIMD Acceleration (NEON)** - Only if profiling shows transform/lighting bottleneck on ARM
 2. **Parallel Rasterization** - Only if multi-core embedded target AND performance critical
 
 ### Never (Not Worth The Effort)
 - Supersampling anti-aliasing (too expensive)
-- ~~Full Phong lighting on all surfaces (too expensive)~~ **DONE** - Actually only 5% overhead!
+- ~~Full Phong lighting on all surfaces (too expensive)~~ **DONE** - Actually only 6.4% overhead!
 
 ---
 
