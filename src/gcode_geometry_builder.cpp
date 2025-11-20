@@ -11,8 +11,22 @@
 #include <algorithm>
 #include <cmath>
 #include <glm/gtx/norm.hpp>
+#include <limits>
 
 namespace gcode {
+
+// ============================================================================
+// Debug Face Colors
+// ============================================================================
+
+namespace DebugColors {
+constexpr uint32_t TOP = 0xFF0000;       // Bright Red
+constexpr uint32_t BOTTOM = 0x0000FF;    // Bright Blue
+constexpr uint32_t LEFT = 0x00FF00;      // Bright Green
+constexpr uint32_t RIGHT = 0xFFFF00;     // Bright Yellow
+constexpr uint32_t START_CAP = 0xFF00FF; // Bright Magenta
+constexpr uint32_t END_CAP = 0x00FFFF;   // Bright Cyan
+} // namespace DebugColors
 
 // ============================================================================
 // QuantizationParams Implementation
@@ -197,8 +211,9 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
                   gcode.layers.size());
 
     // Step 1: Simplify segments (merge collinear lines)
+    // TEMPORARILY DISABLED for testing - using raw segments
     std::vector<ToolpathSegment> simplified;
-    if (validated_opts.enable_merging) {
+    if (false && validated_opts.enable_merging) {
         simplified = simplify_segments(all_segments, validated_opts);
         stats_.output_segments = simplified.size();
         stats_.simplification_ratio =
@@ -210,6 +225,16 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
         simplified = all_segments;
         stats_.output_segments = simplified.size();
         stats_.simplification_ratio = 0.0f;
+        spdlog::info("Using RAW segments (simplification DISABLED): {} segments",
+                     simplified.size());
+    }
+
+    // Find the maximum Z height (top layer) dynamically for debug filtering
+    float max_z = -std::numeric_limits<float>::infinity();
+    for (const auto& segment : simplified) {
+        float z = std::round(segment.start.z * 100.0f) / 100.0f;
+        if (z > max_z)
+            max_z = z;
     }
 
     // Step 2: Generate ribbon geometry with vertex sharing
@@ -236,10 +261,24 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
 
         // Check if we can share vertices with previous segment (OPTIMIZATION ENABLED!)
         bool can_share = false;
+        float dist = 0.0f;
+        float connection_tolerance = 0.0f;
         if (prev_end_cap.has_value()) {
             // Segments must connect spatially (within epsilon) and be same type
-            float dist = glm::distance(segment.start, prev_end_pos);
-            can_share = (dist < 0.001f) && (segment.is_extrusion == simplified[i - 1].is_extrusion);
+            dist = glm::distance(segment.start, prev_end_pos);
+            // Use width-based tolerance: if gap is less than extrusion width, consider them
+            // connected
+            connection_tolerance = segment.width * 1.5f; //  50% overlap tolerance
+            can_share = (dist < connection_tolerance) &&
+                        (segment.is_extrusion == simplified[i - 1].is_extrusion);
+
+            // Debug top layer connections
+            float z = std::round(segment.start.z * 100.0f) / 100.0f;
+            if (z == max_z) {
+                spdlog::trace(
+                    "  Seg {:3d}: dist={:.4f}mm, tol={:.4f}mm, width={:.4f}mm, can_share={}", i,
+                    dist, connection_tolerance, segment.width, can_share);
+            }
         }
 
         // Generate geometry, reusing previous end cap if segments connect
@@ -251,7 +290,61 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
         prev_end_pos = segment.end;
     }
 
-    spdlog::debug("Segment Y range: [{:.1f}, {:.1f}]", seg_y_min, seg_y_max);
+    spdlog::trace("Segment Y range: [{:.1f}, {:.1f}]", seg_y_min, seg_y_max);
+
+    // Categorize segments in top layer by angle and type (max_z already calculated above)
+    size_t total_segs = 0, extrusion_segs = 0, travel_segs = 0;
+    size_t diagonal_45_segs = 0, horizontal_segs = 0, vertical_segs = 0, other_angle_segs = 0;
+
+    for (const auto& segment : simplified) {
+        float z = std::round(segment.start.z * 100.0f) / 100.0f;
+        if (std::abs(z - max_z) < 0.01f) {
+            total_segs++;
+
+            // Categorize by extrusion vs travel
+            if (segment.is_extrusion) {
+                extrusion_segs++;
+            } else {
+                travel_segs++;
+            }
+
+            // Calculate segment angle in XY plane
+            glm::vec2 delta(segment.end.x - segment.start.x, segment.end.y - segment.start.y);
+            float length_2d = glm::length(delta);
+
+            if (length_2d > 0.01f) { // Skip near-zero length segments
+                float angle_rad = std::atan2(delta.y, delta.x);
+                float angle_deg = glm::degrees(angle_rad);
+
+                // Normalize angle to [0, 180) for direction-independent classification
+                if (angle_deg < 0)
+                    angle_deg += 180.0f;
+
+                // Categorize by angle (±5° tolerance)
+                if (std::abs(angle_deg - 45.0f) < 5.0f || std::abs(angle_deg - 135.0f) < 5.0f) {
+                    diagonal_45_segs++;
+                } else if (std::abs(angle_deg - 0.0f) < 5.0f ||
+                           std::abs(angle_deg - 180.0f) < 5.0f) {
+                    horizontal_segs++;
+                } else if (std::abs(angle_deg - 90.0f) < 5.0f) {
+                    vertical_segs++;
+                } else {
+                    other_angle_segs++;
+                }
+            }
+        }
+    }
+
+    if (total_segs > 0) {
+        spdlog::info("═══ TOP LAYER Z={:.2f}mm SUMMARY ═══", max_z);
+        spdlog::info("  Total segments: {}", total_segs);
+        spdlog::info("  Extrusion: {} | Travel: {}", extrusion_segs, travel_segs);
+        spdlog::info("  By angle:");
+        spdlog::info("    Diagonal 45°: {}", diagonal_45_segs);
+        spdlog::info("    Horizontal:   {}", horizontal_segs);
+        spdlog::info("    Vertical:     {}", vertical_segs);
+        spdlog::info("    Other angles: {}", other_angle_segs);
+    }
 
     // Store quantization parameters for dequantization during rendering
     geometry.quantization = quant_params_;
@@ -366,16 +459,20 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
                                           const QuantizationParams& quant,
                                           std::optional<TubeCap> prev_start_cap) {
     // Determine tube dimensions based on move type
-    // Use per-segment width if available AND reasonable, otherwise use metadata default
+    // Use calculated per-segment width for proper coverage
     float width;
     if (segment.is_extrusion && segment.width >= 0.1f && segment.width <= 2.0f) {
-        width = segment.width; // Use calculated width from E-delta (if in reasonable range)
+        width = segment.width; // Use calculated width from E-delta
     } else {
-        // Use metadata-based default width (from slicer comments)
         width = segment.is_extrusion ? extrusion_width_mm_ : travel_width_mm_;
     }
-    float half_width = width * 0.5f;
-    float half_height = width * 0.5f; // Square cross-section
+
+    // Add 10% safety margin to ensure overlap despite quantization/float errors
+    width = width * 1.1f;
+
+    // Use realistic 3D printing cross-section dimensions
+    float half_width = width * 0.5f;             // Extrusion width controls horizontal dimension
+    float half_height = layer_height_mm_ * 0.5f; // Layer height controls vertical dimension
 
     // Calculate direction vector
     glm::vec3 direction = glm::normalize(segment.end - segment.start);
@@ -418,11 +515,11 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
 
     uint32_t idx_start = geometry.vertices.size();
 
-    // Compute normals for each face
-    glm::vec3 normal_bottom = -perp_vertical;
-    glm::vec3 normal_right = perp_horizontal;
-    glm::vec3 normal_top = perp_vertical;
-    glm::vec3 normal_left = -perp_horizontal;
+    // Compute normals for each face (must point OUTWARD for correct lighting/culling)
+    glm::vec3 normal_bottom = -perp_vertical; // Points DOWN away from bottom face
+    glm::vec3 normal_right = perp_horizontal; // Points away from right face
+    glm::vec3 normal_top = perp_vertical;     // Points UP away from top face
+    glm::vec3 normal_left = -perp_horizontal; // Points away from left face
 
     // Compute normals based on shading mode (stored as glm::vec3 for palette)
     // Vertex order: [bl_bottom, br_bottom, br_right, tr_right, tr_top, tl_top, tl_left, bl_left]
@@ -456,7 +553,31 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
     }
 
     // Add color to palette and get index (computed once per segment)
+    // In debug mode, create separate color indices for each face
     uint8_t color_idx = add_to_color_palette(geometry, rgb);
+    uint8_t color_idx_bottom = color_idx;
+    uint8_t color_idx_right = color_idx;
+    uint8_t color_idx_top = color_idx;
+    uint8_t color_idx_left = color_idx;
+    uint8_t color_idx_start_cap = color_idx;
+    uint8_t color_idx_end_cap = color_idx;
+
+    if (debug_face_colors_) {
+        // Override with distinct debug colors for each face
+        color_idx_bottom = add_to_color_palette(geometry, DebugColors::BOTTOM);
+        color_idx_right = add_to_color_palette(geometry, DebugColors::RIGHT);
+        color_idx_top = add_to_color_palette(geometry, DebugColors::TOP);
+        color_idx_left = add_to_color_palette(geometry, DebugColors::LEFT);
+        color_idx_start_cap = add_to_color_palette(geometry, DebugColors::START_CAP);
+        color_idx_end_cap = add_to_color_palette(geometry, DebugColors::END_CAP);
+
+        static bool logged_once = false;
+        if (!logged_once) {
+            spdlog::debug("DEBUG FACE COLORS ACTIVE: Top=Red, Bottom=Blue, Left=Green, "
+                          "Right=Yellow, StartCap=Magenta, EndCap=Cyan");
+            logged_once = true;
+        }
+    }
 
     // Start cap indices: reuse previous segment's end cap if provided, else create new
     // TubeCap order: [bl_bottom, br_bottom, br_right, tr_right, tr_top, tl_top, tl_left, bl_left]
@@ -476,82 +597,149 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
         glm::vec3 start_tl =
             segment.start - perp_horizontal * half_width + perp_vertical * half_height;
 
-        // Add vertices with palette indices
+        // Add vertices with palette indices (use face-specific colors in debug mode)
         start_cap[0] = idx_start++;
         geometry.vertices.push_back({quant.quantize_vec3(start_bl),
                                      add_to_normal_palette(geometry, vertex_normals[0]),
-                                     color_idx});
+                                     color_idx_bottom});
 
         start_cap[1] = idx_start++;
         geometry.vertices.push_back({quant.quantize_vec3(start_br),
                                      add_to_normal_palette(geometry, vertex_normals[1]),
-                                     color_idx});
+                                     color_idx_bottom});
 
         start_cap[2] = idx_start++;
         geometry.vertices.push_back({quant.quantize_vec3(start_br),
                                      add_to_normal_palette(geometry, vertex_normals[2]),
-                                     color_idx});
+                                     color_idx_right});
 
         start_cap[3] = idx_start++;
         geometry.vertices.push_back({quant.quantize_vec3(start_tr),
                                      add_to_normal_palette(geometry, vertex_normals[3]),
-                                     color_idx});
+                                     color_idx_right});
 
         start_cap[4] = idx_start++;
         geometry.vertices.push_back({quant.quantize_vec3(start_tr),
                                      add_to_normal_palette(geometry, vertex_normals[4]),
-                                     color_idx});
+                                     color_idx_top});
 
         start_cap[5] = idx_start++;
         geometry.vertices.push_back({quant.quantize_vec3(start_tl),
                                      add_to_normal_palette(geometry, vertex_normals[5]),
-                                     color_idx});
+                                     color_idx_top});
 
         start_cap[6] = idx_start++;
         geometry.vertices.push_back({quant.quantize_vec3(start_tl),
                                      add_to_normal_palette(geometry, vertex_normals[6]),
-                                     color_idx});
+                                     color_idx_left});
 
         start_cap[7] = idx_start++;
         geometry.vertices.push_back({quant.quantize_vec3(start_bl),
                                      add_to_normal_palette(geometry, vertex_normals[7]),
-                                     color_idx});
+                                     color_idx_left});
     }
 
-    // Always generate end cap vertices
+    // Always generate end cap vertices (use face-specific colors in debug mode)
     TubeCap end_cap;
 
     end_cap[0] = idx_start++;
     geometry.vertices.push_back({quant.quantize_vec3(end_bl),
-                                 add_to_normal_palette(geometry, vertex_normals[0]), color_idx});
+                                 add_to_normal_palette(geometry, vertex_normals[0]),
+                                 color_idx_bottom});
 
     end_cap[1] = idx_start++;
     geometry.vertices.push_back({quant.quantize_vec3(end_br),
-                                 add_to_normal_palette(geometry, vertex_normals[1]), color_idx});
+                                 add_to_normal_palette(geometry, vertex_normals[1]),
+                                 color_idx_bottom});
 
     end_cap[2] = idx_start++;
     geometry.vertices.push_back({quant.quantize_vec3(end_br),
-                                 add_to_normal_palette(geometry, vertex_normals[2]), color_idx});
+                                 add_to_normal_palette(geometry, vertex_normals[2]),
+                                 color_idx_right});
 
     end_cap[3] = idx_start++;
     geometry.vertices.push_back({quant.quantize_vec3(end_tr),
-                                 add_to_normal_palette(geometry, vertex_normals[3]), color_idx});
+                                 add_to_normal_palette(geometry, vertex_normals[3]),
+                                 color_idx_right});
 
     end_cap[4] = idx_start++;
     geometry.vertices.push_back({quant.quantize_vec3(end_tr),
-                                 add_to_normal_palette(geometry, vertex_normals[4]), color_idx});
+                                 add_to_normal_palette(geometry, vertex_normals[4]),
+                                 color_idx_top});
 
     end_cap[5] = idx_start++;
     geometry.vertices.push_back({quant.quantize_vec3(end_tl),
-                                 add_to_normal_palette(geometry, vertex_normals[5]), color_idx});
+                                 add_to_normal_palette(geometry, vertex_normals[5]),
+                                 color_idx_top});
 
     end_cap[6] = idx_start++;
     geometry.vertices.push_back({quant.quantize_vec3(end_tl),
-                                 add_to_normal_palette(geometry, vertex_normals[6]), color_idx});
+                                 add_to_normal_palette(geometry, vertex_normals[6]),
+                                 color_idx_left});
 
     end_cap[7] = idx_start++;
     geometry.vertices.push_back({quant.quantize_vec3(end_bl),
-                                 add_to_normal_palette(geometry, vertex_normals[7]), color_idx});
+                                 add_to_normal_palette(geometry, vertex_normals[7]),
+                                 color_idx_left});
+
+    // Generate END CAP faces for disconnected segments (solid plastic blob ends)
+    // CRITICAL: End caps need their OWN vertices with normals pointing along tube axis!
+    // Using side-face vertices causes wrong lighting (normals point perpendicular, not axial)
+
+    // Compute end cap normals (pointing along tube axis)
+    glm::vec3 start_cap_normal = -direction; // Points backward from start
+    glm::vec3 end_cap_normal = direction;    // Points forward from end
+
+    // Start cap: only if NOT sharing with previous segment
+    if (!prev_start_cap.has_value()) {
+        // Add 4 vertices for start cap with correct axial normals
+        glm::vec3 start_bl =
+            segment.start - perp_horizontal * half_width - perp_vertical * half_height;
+        glm::vec3 start_br =
+            segment.start + perp_horizontal * half_width - perp_vertical * half_height;
+        glm::vec3 start_tr =
+            segment.start + perp_horizontal * half_width + perp_vertical * half_height;
+        glm::vec3 start_tl =
+            segment.start - perp_horizontal * half_width + perp_vertical * half_height;
+
+        uint8_t start_cap_normal_idx = add_to_normal_palette(geometry, start_cap_normal);
+        uint32_t idx_start_cap_bl = idx_start++;
+        geometry.vertices.push_back(
+            {quant.quantize_vec3(start_bl), start_cap_normal_idx, color_idx_start_cap});
+        uint32_t idx_start_cap_br = idx_start++;
+        geometry.vertices.push_back(
+            {quant.quantize_vec3(start_br), start_cap_normal_idx, color_idx_start_cap});
+        uint32_t idx_start_cap_tr = idx_start++;
+        geometry.vertices.push_back(
+            {quant.quantize_vec3(start_tr), start_cap_normal_idx, color_idx_start_cap});
+        uint32_t idx_start_cap_tl = idx_start++;
+        geometry.vertices.push_back(
+            {quant.quantize_vec3(start_tl), start_cap_normal_idx, color_idx_start_cap});
+
+        // Start cap triangles: (BL, BR, TR) + (BL, TR, TL)
+        geometry.strips.push_back({idx_start_cap_bl, idx_start_cap_br, idx_start_cap_tr});
+        geometry.strips.push_back({idx_start_cap_bl, idx_start_cap_tr, idx_start_cap_tl});
+    }
+
+    // End cap: always generate (next segment may not connect)
+    // Add 4 vertices for end cap with correct axial normals
+    uint8_t end_cap_normal_idx = add_to_normal_palette(geometry, end_cap_normal);
+    uint32_t idx_end_cap_bl = idx_start++;
+    geometry.vertices.push_back(
+        {quant.quantize_vec3(end_bl), end_cap_normal_idx, color_idx_end_cap});
+    uint32_t idx_end_cap_br = idx_start++;
+    geometry.vertices.push_back(
+        {quant.quantize_vec3(end_br), end_cap_normal_idx, color_idx_end_cap});
+    uint32_t idx_end_cap_tr = idx_start++;
+    geometry.vertices.push_back(
+        {quant.quantize_vec3(end_tr), end_cap_normal_idx, color_idx_end_cap});
+    uint32_t idx_end_cap_tl = idx_start++;
+    geometry.vertices.push_back(
+        {quant.quantize_vec3(end_tl), end_cap_normal_idx, color_idx_end_cap});
+
+    // End cap triangles: (BL, BR, TR) + (BL, TR, TL)
+    geometry.strips.push_back({idx_end_cap_bl, idx_end_cap_br, idx_end_cap_tr});
+    geometry.strips.push_back({idx_end_cap_bl, idx_end_cap_tr, idx_end_cap_tl});
 
     // Generate triangle strips (4 strips, one per face, 2 triangles each)
     // Each strip uses 4 indices instead of 6 (33% reduction!)
@@ -569,11 +757,15 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
     // Left face strip: [start_TL, end_TL, start_BL, end_BL]
     geometry.strips.push_back({start_cap[6], end_cap[6], start_cap[7], end_cap[7]});
 
-    // Update counters (8 triangles per segment)
+    // Update counters: 4 side faces (8 tri) + end cap (2 tri) + optional start cap (2 tri)
+    int triangle_count = 8 + 2; // Sides + end cap
+    if (!prev_start_cap.has_value()) {
+        triangle_count += 2; // Add start cap
+    }
     if (segment.is_extrusion) {
-        geometry.extrusion_triangle_count += 8;
+        geometry.extrusion_triangle_count += triangle_count;
     } else {
-        geometry.travel_triangle_count += 8;
+        geometry.travel_triangle_count += triangle_count;
     }
 
     // Return end cap for next segment to reuse

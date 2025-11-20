@@ -95,6 +95,20 @@ class GCodeTinyGLRenderer {
      */
     void set_specular(float intensity, float shininess);
 
+    /**
+     * @brief Enable/disable per-face debug coloring
+     * @param enable true to assign distinct colors to each face for debugging
+     *
+     * When enabled, renders each face of the tube in a different bright color:
+     * - Top face: Red (#FF0000)
+     * - Bottom face: Blue (#0000FF)
+     * - Left face: Green (#00FF00)
+     * - Right face: Yellow (#FFFF00)
+     * - Start end cap: Magenta (#FF00FF)
+     * - End end cap: Cyan (#00FFFF)
+     */
+    void set_debug_face_colors(bool enable);
+
     // ==============================================
     // Compatibility Methods (for LVGL renderer interface)
     // ==============================================
@@ -258,7 +272,7 @@ class GCodeTinyGLRenderer {
     // Configuration
     int viewport_width_{800};
     int viewport_height_{600};
-    bool smooth_shading_{true};   // Smooth shading with wider extrusions
+    bool smooth_shading_{false};  // Use flat shading to avoid triangle seam artifacts
     float extrusion_width_{0.5f}; // Wider for solid appearance
     SimplificationOptions simplification_;
 

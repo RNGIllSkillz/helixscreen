@@ -1,13 +1,154 @@
 # Session Handoff Document
 
-**Last Updated:** 2025-11-14
-**Current Focus:** Bed Mesh Visualization + G-code 3D Visualization
+**Last Updated:** 2025-11-20
+**Current Focus:** G-code TinyGL Renderer - Tube Geometry Debugging
 
 ---
 
 ## ✅ CURRENT STATE
 
-### Just Completed (This Session)
+### Just Completed (This Session) - 2025-11-20
+
+**G-Code TinyGL Renderer: Per-Face Debug Coloring System**
+
+**Context:** Discovered critical geometry issues in 3D rectangular tube rendering. Tubes appearing twisted/kinked instead of straight, with triangular gaps and incorrect face positioning.
+
+**Implementation:** Added comprehensive per-face debug coloring system to diagnose geometry problems:
+
+**Files Modified:**
+1. `include/gcode_geometry_builder.h` (lines 278-295, 317)
+   - Added `bool debug_face_colors_` member variable
+   - Added `set_debug_face_colors(bool enable)` method with full documentation
+   - Documents 6-color mapping: Top=Red, Bottom=Blue, Left=Green, Right=Yellow, StartCap=Magenta, EndCap=Cyan
+
+2. `src/gcode_geometry_builder.cpp` (lines 18-29, 558-573, 586-625, 628-661, 681-691, 702-708)
+   - Added `DebugColors` namespace with 6 bright color constants
+   - Modified color assignment in `generate_ribbon_vertices()`:
+     - Creates 6 separate color palette indices when debug mode enabled
+     - Assigns face-specific colors to all vertices based on which face they belong to
+     - Vertex ordering: [0-1]=bottom (Blue), [2-3]=right (Yellow), [4-5]=top (Red), [6-7]=left (Green)
+     - Start cap vertices use Magenta, end cap vertices use Cyan
+   - Added debug logging (once per build) showing active color mapping
+
+3. `include/gcode_tinygl_renderer.h` (lines 98-110)
+   - Added `set_debug_face_colors(bool enable)` public method
+   - Complete Doxygen documentation with 6-color mapping
+
+4. `src/gcode_tinygl_renderer.cpp` (lines 31, 91-101)
+   - Enabled debug mode in constructor: `geometry_builder_->set_debug_face_colors(true)` (line 31)
+   - Implemented `set_debug_face_colors()` wrapper method with debug logging
+   - Method triggers geometry rebuild to apply new coloring
+
+5. `src/gcode_camera.cpp` (lines 28-38)
+   - Set camera to exact test angle: Az=85.5°, El=-2.5°, Zoom=10.0x
+   - Preserves custom zoom through `fit_to_bounds()` calls
+
+**Debug Output (with -vv flag):**
+```
+[debug] Setting debug face colors: ENABLED
+[debug] DEBUG FACE COLORS ACTIVE: Top=Red, Bottom=Blue, Left=Green,
+        Right=Yellow, StartCap=Magenta, EndCap=Cyan
+```
+
+**🚨 CRITICAL DISCOVERY: Major Geometry Issues Revealed**
+
+The per-face coloring successfully exposed fundamental problems in tube geometry generation:
+
+**Observable Issues (from screenshot `/tmp/ui-screenshot-gcode-debug-colors.png`):**
+1. ✅ **Debug colors working perfectly** - Can clearly see all 6 faces in distinct colors
+2. ❌ **Tube is twisted/kinked** - 10mm horizontal line renders as bent/curved shape
+3. ❌ **Black triangular gaps** - Missing or incorrectly connected geometry
+4. ❌ **Wrong overall shape** - Should be straight rectangular bar, appears twisted
+
+**Color Verification:**
+- Cyan (end cap) - visible at left front ✓
+- Blue (bottom) - visible on bottom face ✓
+- Yellow (right) - visible on right side ✓
+- Magenta (start cap) - visible at right end ✓
+- Geometry is clearly WRONG despite colors being correct
+
+**Root Cause Analysis (Suspected):**
+
+The issue is in `generate_ribbon_vertices()` (gcode_geometry_builder.cpp:451-720). Possible causes:
+
+1. **Vertex Ordering Issue:**
+   - TubeCap order: `[bl_bottom, br_bottom, br_right, tr_right, tr_top, tl_top, tl_left, bl_left]`
+   - Each vertex appears TWICE with different normals (8 vertices per cross-section)
+   - Start/end cap vertices might be misaligned causing twist
+
+2. **Triangle Strip Winding:**
+   - Face strips connect start→end vertices in strips
+   - If vertex order differs between start/end caps, causes twist
+   - Lines 697-708 define strips: bottom, right, top, left faces
+
+3. **Cross-Section Calculation:**
+   - Perpendicular vectors computed from direction (lines 473-485)
+   - `perp_horizontal = cross(direction, up)`
+   - `perp_vertical = cross(direction, perp_horizontal)`
+   - May need verification for horizontal lines
+
+**Test File:** `assets/single_line_test.gcode`
+```gcode
+G1 X0 Y0 F7800
+G1 X10 Y0 E1.0 F1800 ; single 10mm extrusion from (0,0,0.2) to (10,0,0.2)
+```
+
+**Expected Result:** Straight rectangular tube from (0,0,0.2) to (10,0,0.2)
+- Dimensions: 10mm × 0.42mm × 0.2mm (length × width × height)
+- Should appear perfectly straight when viewed from Az=85.5°, El=-2.5°
+
+**Actual Result:** Twisted/kinked tube with gaps
+
+**Next Steps (HIGH PRIORITY):**
+
+1. **Investigate Vertex Generation Logic:**
+   - Examine `generate_ribbon_vertices()` vertex ordering
+   - Verify start/end cap vertices match in position and order
+   - Check if vertex reuse (`prev_start_cap`) introduces misalignment
+
+2. **Verify Triangle Strip Construction:**
+   - Lines 697-708: bottom/right/top/left face strips
+   - Ensure strips connect corresponding vertices correctly
+   - Check winding order (CCW vs CW)
+
+3. **Cross-Section Geometry Validation:**
+   - Add debug logging for vertex positions
+   - Verify perpendicular vectors for horizontal direction
+   - Check if normal calculations affect vertex positioning
+
+4. **Consider Simplification:**
+   - Current approach: 8 vertices per cross-section (duplicate corners for different face normals)
+   - May need to separate vertex positions from normals
+   - Could use indexed geometry with unique positions + per-vertex normals
+
+**Files to Focus On:**
+- `src/gcode_geometry_builder.cpp:451-720` - `generate_ribbon_vertices()`
+- `src/gcode_geometry_builder.cpp:697-715` - Triangle strip construction
+- Review vertex ordering and strip winding documentation
+
+**Commits:**
+- (Pending) - feat(gcode): add per-face debug coloring for geometry diagnosis
+- (Pending) - docs: document discovered tube geometry issues
+
+---
+
+### Previously Completed (Earlier This Session)
+
+**G-Code Rendering: Layer Height and Normal Fixes**
+- ✅ Fixed tube proportions using `layer_height_mm` from G-code (was using width*0.25)
+- ✅ Corrected face normals to point outward (top=UP, bottom=DOWN)
+- ✅ Added camera debug overlay showing Az/El/Zoom (only with -vv flag)
+- ✅ Set layer height from G-code metadata in TinyGL renderer
+- ✅ Camera preset to exact test angle (Az=85.5°, El=-2.5°, Zoom=10.0x)
+
+**Files Modified:**
+- `include/gcode_parser.h:163` - Added `layer_height_mm` field
+- `include/gcode_geometry_builder.h:256-265, 309` - Added `set_layer_height()` method
+- `src/gcode_geometry_builder.cpp:453-455, 498-502` - Layer height usage, corrected normals
+- `src/gcode_tinygl_renderer.cpp:364-366, 540-559` - Layer height config, camera overlay
+- `src/gcode_camera.cpp:28-38` - Exact test camera angle
+
+### Recently Completed (Previous Sessions)
 
 **Bed Mesh Grid Lines Implementation:**
 - ✅ Wireframe grid overlay on mesh surface
@@ -18,117 +159,55 @@
 - ✅ Bounds checking with -10px margin for partially visible lines
 - ✅ Defensive checks for invalid canvas dimensions during flex layout
 
-**Bed Mesh UI Fixes & Reactive Bindings (Earlier):**
-- ✅ Fixed reactive label bindings (nullptr prev buffer - wizard pattern)
-- ✅ Info labels now show real mesh data: "7x7 points", "Z: -0.300 to 0.288 mm"
-- ✅ Fixed mesh positioning (dynamic canvas buffer reallocation on SIZE_CHANGED)
-- ✅ Mesh now uses full available canvas space (responsive)
-- ✅ Removed frontend test data fallback - all data from Moonraker (mock or real)
-- ✅ XML refactored with theme constants (#padding_*, #card_bg)
-
 **Commits:**
 - `dc2742e` - feat(bed_mesh): implement wireframe grid lines over mesh surface
 - `e97b141` - refactor(bed_mesh): remove frontend fallback, use theme constants
 - `e196b48` - fix(bed_mesh): dynamic canvas buffer and manual label updates
 - `6ebf122` - fix(bed_mesh): reactive bindings now working with nullptr prev buffer
 
-**Key Pattern:** Grid coordinates must match quad generation: Y-inversion `((rows-1-row) - rows/2.0)` and Z-centering `(mesh[row][col] - z_center)` for proper alignment.
-
-### Recently Completed (Previous Sessions)
-
-1. **G-Code 3D Visualization System - Phase 1** ✅ COMPLETE
-   - Streaming G-code parser with layer indexing
-   - 3D-to-2D renderer with LVGL canvas drawing
-   - Interactive 3D camera system (spherical coordinates, touch rotation)
-   - Custom LVGL widget (`ui_gcode_viewer`) with XML registration
-   - Test panel accessible via `-p gcode-test`
-   - Complete documentation in `docs/GCODE_VISUALIZATION.md`
-   - 14 comprehensive unit tests
-
-2. **Bed Mesh Phase 1: Settings Panel Infrastructure** - ✅ COMPLETE
-   - Created settings_panel.xml with 6-card launcher grid
-   - Only "Bed Mesh" card is active, opens visualization panel
-
-3. **Bed Mesh Phase 2: Core 3D Rendering Engine** - ✅ COMPLETE
-   - Comprehensive bed_mesh_renderer.h/cpp (768 lines, C API)
-   - Perspective projection, triangle rasterization, depth sorting
-   - Heat-map color mapping (purple→blue→cyan→yellow→red)
-   - Analysis documented in docs/GUPPYSCREEN_BEDMESH_ANALYSIS.md
-
-4. **Bed Mesh Phase 3: Basic Visualization** - ✅ COMPLETE
-   - bed_mesh_panel.xml created (overlay panel structure)
-   - Canvas (600×400 RGB888) renders gradient mesh correctly
-   - Test mesh: 7×7 dome shape (mock backend)
-   - Back button works, resource cleanup on panel deletion
-
-5. **Bed Mesh Phase 4: Moonraker Integration** - ✅ COMPLETE
-   - Added BedMeshProfile struct to moonraker_client.h
-   - Implemented parse_bed_mesh() for WebSocket updates
-   - Added reactive subjects: bed_mesh_dimensions, bed_mesh_z_range
-   - Mock backend generates 7×7 synthetic dome mesh
-   - Real-time updates via notify_status_update callback
-
-### What Works Now
-
-**G-code Visualization:**
-- ✅ Parse G-code files with layer-indexed data structure
-- ✅ 3D orthographic rendering on LVGL canvas
-- ✅ Interactive camera rotation (touch drag gestures)
-- ✅ Preset views (Isometric, Top, Front, Side)
-- ✅ Theme-integrated color coding (extrusion vs travel moves)
-- ✅ Command-line access: `./build/bin/helix-ui-proto -p gcode-test`
-
-**Bed Mesh Visualization:**
-- ✅ Settings panel → Bed Mesh card → Visualization panel
-- ✅ Gradient mesh rendering (heat-map colors)
-- ✅ Wireframe grid lines overlay (dark gray, 60% opacity, aligned to mesh)
-- ✅ Moonraker integration (fetches real bed mesh data, mock provides 7x7 dome)
-- ✅ Reactive subjects update info labels ("7x7 points", "Z: -0.300 to 0.288 mm")
-- ✅ Widget encapsulation (proper lifecycle management)
-- ✅ Bounds checking (no coordinate errors)
-- ✅ Responsive canvas buffer (dynamically resizes with flex layout)
-- ✅ Rotation sliders functional (Tilt: -45°, Spin: 45°)
-- ✅ Theme constants used throughout XML
-
-### 🚨 What's MISSING (Critical UI Features)
-
-**Bed Mesh - Core visualization complete, additional features pending:**
-
-✅ **Grid Lines** - COMPLETE
-   - Wireframe grid overlay on mesh surface
-   - Dark gray lines with 60% opacity
-   - Properly aligned with mesh geometry (Y-inversion, Z-centering)
-   - Uses LVGL 9.4 layer-based drawing API
-
-✅ **Info Labels** - COMPLETE
-   - Reactive bindings for mesh dimensions ("7x7 points")
-   - Reactive Z range display ("Z: -0.300 to 0.288 mm")
-   - Proper subject/observer pattern with nullptr prev_buf
-
-✅ **Rotation Sliders** - COMPLETE
-   - Tilt slider (-85° to -10°, default -45°)
-   - Spin slider (0° to 360°, default 45°)
-   - Live mesh rotation on slider value change
-   - Labels show current angles
-
-❌ **Axis Labels** - Not implemented
-   - X/Y/Z axis indicators
-   - Dimension labels (bed size, probe spacing)
-
-❌ **Mesh Profile Selector** - Not implemented
-   - Dropdown to switch between mesh profiles (default, adaptive, etc.)
-   - Should show available profiles from Moonraker
-
-❌ **Mesh Statistics** - Partially implemented
-   - Min/Max Z values (computed in backend, displayed in Z range label)
-   - Mesh variance/deviation - NOT IMPLEMENTED
-   - Probe count (shown in dimensions label)
-
 ---
 
 ## 🚀 NEXT PRIORITIES
 
-### 1. **Complete Bed Mesh UI Features** (HIGH PRIORITY)
+### 1. **FIX G-Code Tube Geometry (CRITICAL - BLOCKING)**
+
+**Status:** Major geometry bugs discovered via debug coloring system
+
+**Problem:** Rectangular tubes rendering twisted/kinked instead of straight
+
+**Investigation Tasks:**
+1. [ ] Add vertex position debug logging to `generate_ribbon_vertices()`
+2. [ ] Verify start/end cap vertex alignment (8 vertices each)
+3. [ ] Check triangle strip winding in face construction (lines 697-708)
+4. [ ] Validate perpendicular vector calculation for horizontal lines
+5. [ ] Test with multiple simple cases (horizontal, vertical, diagonal lines)
+
+**Potential Fixes:**
+- Ensure start_cap and end_cap vertices have identical ordering
+- Verify cross-section calculation doesn't introduce rotation
+- Check if vertex reuse (`prev_start_cap`) preserves order correctly
+- Consider separating vertex positions from normal assignments
+
+**Test Command:**
+```bash
+./build/bin/helix-ui-proto -p gcode-test -vv --test
+# Camera should show: Az: 85.5° El: -2.5° Zoom: 10.0x
+# Expected: Straight rectangular tube 10mm long
+```
+
+**Reference:**
+- Screenshot: `/tmp/ui-screenshot-gcode-debug-colors.png` - Shows twisted tube
+- Test file: `assets/single_line_test.gcode` - Single 10mm horizontal line
+- Code: `src/gcode_geometry_builder.cpp:451-720` - Vertex generation
+
+### 2. **Disable Debug Coloring After Fix**
+
+Once geometry is corrected:
+- [ ] Set `debug_face_colors(false)` in `gcode_tinygl_renderer.cpp:31`
+- [ ] Or make it runtime-configurable via UI toggle
+- [ ] Keep implementation for future debugging
+
+### 3. **Complete Bed Mesh UI Features** (MEDIUM PRIORITY)
 
 **Goal:** Match feature parity with GuppyScreen bed mesh visualization
 
@@ -138,85 +217,70 @@
 - ✅ Grid lines - wireframe overlay properly aligned
 
 **Remaining Tasks:**
+1. [ ] Add axis labels (X/Y/Z indicators, bed dimensions)
+2. [ ] Add mesh profile selector dropdown
+3. [ ] Display additional statistics (variance/deviation)
 
-1. **Implement Axis Labels** (in renderer or XML)
-   - [ ] Add X/Y/Z axis indicators
-   - [ ] Label bed dimensions (min/max X, min/max Y)
-   - [ ] Show probe spacing if available
-
-2. **Add Mesh Profile Selector** (XML + C++)
-   - [ ] Add dropdown to bed_mesh_panel.xml
-   - [ ] Populate from client->get_bed_mesh_profiles()
-   - [ ] Wire onChange to load selected profile
-   - [ ] Show active profile name
-
-3. **Add Mesh Statistics Display** (XML + reactive bindings)
-   - [ ] Mesh variance/deviation
-   - [ ] Additional metadata (probe algorithm, timing, etc.)
-
-**Reference Implementation:**
-- GuppyScreen: `panels/bed_mesh_panel.py` (grid, axes, labels)
-- Existing: `bed_mesh_renderer.cpp` (add grid rendering here)
-- Existing: `bed_mesh_panel.xml` (add missing UI elements here)
-
-### 2. **Integrate G-code Viewer with Print Select Panel**
+### 4. **Integrate G-code Viewer with Print Select Panel**
 
 **Goal:** Add "Preview" button to print file browser
 
 **Tasks:**
-- [ ] Add preview button/icon to file list items in print_select_panel.xml
-- [ ] Fetch G-code file via Moonraker HTTP API (not WebSocket)
-- [ ] Open G-code viewer in overlay panel
-- [ ] Show filename and basic stats (layers, print time if available)
-- [ ] Allow returning to file list
-
-**Reference:**
-- `docs/GCODE_VISUALIZATION.md` - Integration guide
-- `ui_panel_gcode_test.cpp` - Example usage of viewer widget
-
-### 3. **Grid Rendering Implementation Details**
-
-**Where:** Add to `bed_mesh_renderer.cpp` after mesh rendering
-
-**Approach:**
-```cpp
-// After rendering quads, draw grid lines
-if (show_grid) {
-    draw_grid_lines(canvas, mesh, canvas_width, canvas_height, view_state);
-}
-```
-
-**Grid should:**
-- Draw at Z=0 plane or slightly below mesh
-- Use mesh cell boundaries (rows-1 × cols-1 cells)
-- Project to screen space using same projection as mesh
-- Draw with lv_canvas_draw_line() or pixel-by-pixel
-
-### 4. **UI Elements to Add in XML**
-
-**bed_mesh_panel.xml needs:**
-```xml
-<!-- Mesh profile selector (if multiple profiles available) -->
-<lv_dropdown name="mesh_profile_selector" bind_text="bed_mesh_profile_name"/>
-
-<!-- Mesh statistics card -->
-<lv_obj> <!-- stats container -->
-  <lv_label bind_text="bed_mesh_min_z"/>
-  <lv_label bind_text="bed_mesh_max_z"/>
-  <lv_label bind_text="bed_mesh_variance"/>
-</lv_obj>
-```
-
-**C++ subjects to add:**
-- `bed_mesh_min_z` (already computed, need subject)
-- `bed_mesh_max_z` (already computed, need subject)
-- `bed_mesh_variance`
+- [ ] Add preview button to file list items in print_select_panel.xml
+- [ ] Fetch G-code via Moonraker HTTP API
+- [ ] Open viewer in overlay panel
+- [ ] Show filename and stats (layers, print time)
 
 ---
 
 ## 📋 Critical Patterns Reference
 
-### Pattern #0: LV_SIZE_CONTENT Bug
+### Pattern #0: Per-Face Debug Coloring (NEW)
+
+**Purpose:** Diagnose 3D geometry issues by coloring each face differently
+
+**Usage:**
+```cpp
+// Enable in renderer constructor or via method
+geometry_builder_->set_debug_face_colors(true);
+
+// Colors assigned:
+// - Top face: Red (#FF0000)
+// - Bottom face: Blue (#0000FF)
+// - Left face: Green (#00FF00)
+// - Right face: Yellow (#FFFF00)
+// - Start cap: Magenta (#FF00FF)
+// - End cap: Cyan (#00FFFF)
+```
+
+**Implementation:**
+- Creates 6 color palette entries when enabled
+- Assigns colors based on vertex face membership
+- Vertex order: [0-1]=bottom, [2-3]=right, [4-5]=top, [6-7]=left
+- Logs once per build: "DEBUG FACE COLORS ACTIVE: ..."
+
+**When to Use:**
+- Diagnosing twisted/kinked geometry
+- Verifying face orientation and winding order
+- Checking vertex ordering correctness
+- Validating normal calculations
+
+### Pattern #1: G-Code Camera Angles
+
+**Exact test angle for geometry verification:**
+```cpp
+// In gcode_camera.cpp reset():
+azimuth_ = 85.5f;    // Horizontal rotation
+elevation_ = -2.5f;  // Slight downward tilt
+zoom_level_ = 10.0f; // 10x zoom (preserved by fit_to_bounds)
+```
+
+**Debug Overlay (requires -vv flag):**
+- Shows "Az: 85.5° El: -2.5° Zoom: 10.0x" in upper-left
+- Only visible with debug logging enabled
+- Helps reproduce exact viewing conditions
+
+### Pattern #2: LV_SIZE_CONTENT Bug
 
 **NEVER use `height="LV_SIZE_CONTENT"` or `height="auto"` with complex nested children in flex layouts.**
 
@@ -234,7 +298,7 @@ if (show_grid) {
 </ui_card>
 ```
 
-### Pattern #1: Bed Mesh Widget API
+### Pattern #3: Bed Mesh Widget API
 
 **Custom LVGL widget for bed mesh canvas:**
 
@@ -259,7 +323,7 @@ ui_bed_mesh_redraw(canvas);
 - Layout updates (calls lv_obj_update_layout before render)
 - Bounds checking (clips all coordinates to canvas)
 
-### Pattern #2: Reactive Subjects for Mesh Data
+### Pattern #4: Reactive Subjects for Mesh Data
 
 ```cpp
 // Initialize subjects
@@ -278,29 +342,7 @@ lv_subject_copy_string(&bed_mesh_dimensions, dimensions_buf);
 <lv_label name="mesh_dimensions_label" bind_text="bed_mesh_dimensions"/>
 ```
 
-### Pattern #3: Moonraker Bed Mesh Access
-
-```cpp
-#include "app_globals.h"
-#include "moonraker_client.h"
-
-MoonrakerClient* client = get_moonraker_client();
-if (!client || !client->has_bed_mesh()) {
-    // Fall back to test mesh
-    return;
-}
-
-const auto& mesh = client->get_active_bed_mesh();
-// mesh.probed_matrix - 2D vector<vector<float>>
-// mesh.x_count, mesh.y_count - dimensions
-// mesh.mesh_min[2], mesh.mesh_max[2] - bounds
-// mesh.name - profile name
-
-const auto& profiles = client->get_bed_mesh_profiles();
-// vector<string> of available profile names
-```
-
-### Pattern #4: Thread Management - NEVER Block UI Thread
+### Pattern #5: Thread Management - NEVER Block UI Thread
 
 **CRITICAL:** NEVER use blocking operations like `thread.join()` in code paths triggered by UI events.
 
@@ -317,7 +359,7 @@ if (connect_thread_.joinable()) {
 }
 ```
 
-### Pattern #5: G-code Viewer Widget API
+### Pattern #6: G-code Viewer Widget API
 
 **Custom LVGL widget for G-code 3D visualization:**
 
@@ -363,24 +405,91 @@ ui_gcode_viewer_reset_view(viewer);
 
 ## 🐛 Known Issues
 
-1. **Missing Bed Mesh UI Features** (see "What's MISSING" section above)
-   - Grid lines not implemented
-   - Axis labels not implemented
-   - Info labels may not be visible
-   - Rotation sliders may not be working
-   - Only gradient mesh currently visible
+### CRITICAL: G-Code Tube Geometry Bugs (BLOCKING)
+
+**Discovered:** 2025-11-20 via per-face debug coloring system
+
+**Symptoms:**
+- Tubes render twisted/kinked instead of straight
+- Black triangular gaps in geometry
+- Wrong overall shape despite correct layer height and normals
+
+**Evidence:**
+- Screenshot: `/tmp/ui-screenshot-gcode-debug-colors.png`
+- Test case: `assets/single_line_test.gcode` (10mm horizontal line)
+- Camera angle: Az=85.5°, El=-2.5°, Zoom=10.0x
+
+**Debug System Active:**
+- Per-face coloring enabled (Top=Red, Bottom=Blue, Left=Green, Right=Yellow, StartCap=Magenta, EndCap=Cyan)
+- Colors render correctly, confirming geometry generation is the issue
+- Run with: `./build/bin/helix-ui-proto -p gcode-test -vv --test`
+
+**Investigation Focus:**
+- `src/gcode_geometry_builder.cpp:451-720` - `generate_ribbon_vertices()`
+- Vertex ordering in TubeCap (8 vertices with duplicated positions, different normals)
+- Triangle strip winding (lines 697-708)
+- Cross-section calculation for horizontal lines
+
+**Impact:** Blocks all G-code 3D visualization work
+
+---
+
+### Other Known Issues
+
+1. **Missing Bed Mesh UI Features**
+   - ✅ Grid lines - IMPLEMENTED
+   - ✅ Info labels - IMPLEMENTED
+   - ✅ Rotation sliders - IMPLEMENTED
+   - ❌ Axis labels not implemented
+   - ❌ Mesh profile selector not implemented
+   - ❌ Variance/deviation statistics not displayed
 
 2. **No Bed Mesh Profile Switching**
    - Can fetch multiple profiles from Moonraker
    - No UI to switch between profiles
 
-3. **Limited Bed Mesh Metadata Display**
-   - Min/Max Z computed but not shown prominently
-   - No variance/deviation statistics
-
-4. **G-code Viewer Not Integrated**
+3. **G-code Viewer Not Integrated**
    - Standalone test panel works (`-p gcode-test`)
    - Not yet integrated with print select panel
    - No "Preview" button in file browser
 
-**Next Session:** Focus on completing missing bed mesh UI features, starting with verifying/fixing rotation sliders and info labels, then implementing grid lines. Consider integrating G-code viewer with print select panel.
+---
+
+## 🔍 Debugging Tips
+
+**G-Code Geometry Issues:**
+```bash
+# Run with debug logging
+./build/bin/helix-ui-proto -p gcode-test -vv --test
+
+# Check for debug output
+grep "DEBUG FACE COLORS" /tmp/gcode-debug.log
+grep "Setting debug face colors" /tmp/gcode-debug.log
+
+# Camera overlay should show:
+# "Az: 85.5° El: -2.5° Zoom: 10.0x" (upper-left, only with -vv)
+```
+
+**Screenshot Current State:**
+```bash
+# Take screenshot (may open new instance)
+./scripts/screenshot.sh helix-ui-proto gcode-debug gcode-test
+
+# View screenshot
+open /tmp/ui-screenshot-gcode-debug.png
+```
+
+**Add Vertex Debug Logging:**
+```cpp
+// In generate_ribbon_vertices() after vertex creation
+spdlog::debug("Start cap vertices:");
+for (int i = 0; i < 8; i++) {
+    const auto& v = geometry.vertices[start_cap[i]];
+    spdlog::debug("  [{}] pos=({},{},{})", i,
+        quant.dequantize(v.position.x, quant.min_bounds.x),
+        quant.dequantize(v.position.y, quant.min_bounds.y),
+        quant.dequantize(v.position.z, quant.min_bounds.z));
+}
+```
+
+**Next Session:** PRIORITY #1 is fixing the tube geometry bugs. Use the per-face debug coloring to diagnose vertex ordering and strip winding issues. Once geometry is correct, can proceed with bed mesh features and G-code viewer integration.

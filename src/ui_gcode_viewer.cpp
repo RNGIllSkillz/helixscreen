@@ -351,9 +351,8 @@ void ui_gcode_viewer_load_file(lv_obj_t* obj, const char* file_path) {
         // Set filename
         st->gcode_file->filename = file_path;
 
-        // Fit camera to model bounds
+        // Fit camera to model bounds (uses current camera orientation from reset())
         st->camera->fit_to_bounds(st->gcode_file->global_bounding_box);
-        st->camera->set_isometric_view();
 
         st->viewer_state = GCODE_VIEWER_STATE_LOADED;
 
@@ -388,9 +387,8 @@ void ui_gcode_viewer_set_gcode_data(lv_obj_t* obj, void* gcode_data) {
     // Take ownership of the data (caller must use new to allocate)
     st->gcode_file.reset(static_cast<gcode::ParsedGCodeFile*>(gcode_data));
 
-    // Fit camera to model
+    // Fit camera to model (uses current camera orientation from reset())
     st->camera->fit_to_bounds(st->gcode_file->global_bounding_box);
-    st->camera->set_isometric_view();
 
     st->viewer_state = GCODE_VIEWER_STATE_LOADED;
 

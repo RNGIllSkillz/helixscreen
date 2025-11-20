@@ -60,21 +60,27 @@ grep -A 20 "LAYER Z=30.00mm SUMMARY" /tmp/top_layer_debug.txt
 #   Gap stats: min=[X]mm avg=[X]mm max=[X]mm
 ```
 
-**Status**: ⏳ **BLOCKED** - Waiting for user to fix TinyGL compilation errors
+**Status**: ✅ **COMPLETE**
 
-**Blockers**:
-- TinyGL compilation errors in `ztriangle.c` (undeclared V3, normal identifiers)
-- User is working on dithering implementation
+**Actual Output Captured**:
+```
+[2025-11-20 14:42:11.887] [info] ═══ TOP LAYER Z=30.00mm SUMMARY ═══
+[2025-11-20 14:42:11.887] [info]   Total segments: 215
+```
 
-**Expected Output**:
-- Total segments for Z=30.00mm layer: ~20-30 expected
-- Connected percentage: Should be high (>80%) with 1.0x width tolerance
-- Disconnected segments: Should be minimal, mostly perimeter-to-infill transitions
-- Gap statistics: Useful for diagnosing spacing issues
+**Analysis**:
+- **Total segments**: 215 (vs expected 21-23 from OrcaSlicer)
+- **Discrepancy**: ~10x more segments than visible diagonal infill lines
+- **Hypothesis**: We're counting ALL segments including:
+  - Perimeter walls (outer/inner walls of the cube)
+  - Diagonal infill lines (the visible 21-23 lines)
+  - Travel moves (non-extrusion moves between features)
+  - Possibly multiple passes or other segment types
 
-**Code Changes Already Applied**:
-- `src/gcode_geometry_builder.cpp:401-414` - Added final layer summary output loop
-- This ensures the last layer (Z=30.00mm) gets summarized even though there's no layer transition after it
+**Code Changes Applied**:
+- `src/gcode_geometry_builder.cpp:256-268` - Added simple top layer segment counting
+- Changed detailed debug output to trace level to reduce noise
+- Using info level for final summary statistics only
 
 ---
 
@@ -95,31 +101,38 @@ grep -A 20 "LAYER Z=30.00mm SUMMARY" /tmp/top_layer_debug.txt
 # Difference: Calculate and document
 ```
 
-**Status**: ⏸️ **NOT STARTED** - Waiting for Stage 2 completion
+**Status**: ✅ **IN PROGRESS**
 
-**Analysis Questions**:
-1. **If our count is similar (20-25 segments)**:
-   - Segments exist but not rendering properly
-   - → Check tube width (may be too narrow)
-   - → Check end cap generation (may have gaps)
-   - → Check for Z-fighting or depth issues
+**Comparison Results**:
+- **OrcaSlicer visible lines**: 21-23 diagonal infill lines
+- **Our total segments**: 215 segments
+- **Discrepancy**: 215 ÷ 22 = **9.77x more segments** (nearly 10x!)
 
-2. **If our count is higher (>30 segments)**:
-   - May be duplicating segments
-   - May be generating extra non-extrusion moves
-   - → Review segment filtering logic
-   - → Check for perimeter vs infill differentiation
+**Analysis Category**: **#2 - Count is much higher (>30 segments)**
 
-3. **If our count is lower (<15 segments)**:
-   - Missing segments due to over-simplification
-   - → Review simplification tolerance
-   - → Check if segments are being incorrectly filtered
-   - → Verify all top layer segments are being processed
+**Root Cause Hypothesis**:
+We're counting ALL segment types on the top layer, not just the visible diagonal infill:
 
-**Expected Outcome**: Clear hypothesis about whether this is a:
-- Geometry generation issue (wrong segment count)
-- Geometry sizing issue (segments too narrow)
-- Rendering issue (segments exist but don't render)
+1. **Perimeter segments** (outer/inner walls):
+   - A 20mm × 20mm cube likely has outer + inner perimeter walls
+   - Each wall is ~80mm circumference
+   - Could account for many of the 215 segments
+
+2. **Infill segments** (the diagonal lines we want):
+   - These should be the 21-23 visible diagonal lines
+   - This is what OrcaSlicer preview shows
+
+3. **Travel moves** (non-extrusion):
+   - Moves between perimeter and infill
+   - May be included in segment count
+
+**Next Steps**:
+1. Add segment categorization by angle to identify diagonal infill (~45°)
+2. Count how many of the 215 are actually diagonal infill
+3. Verify the expected 21-23 diagonal segments exist
+4. Determine if rendering all segment types is causing the holes
+
+**Expected Outcome**: Confirm that ~21-23 of the 215 segments are diagonal infill, and identify why the top surface has holes despite having the right infill segments
 
 ---
 
@@ -243,6 +256,16 @@ float connection_tolerance = width * 1.2f; // More forgiving
   - Fixes issue where last layer wasn't getting summarized (no layer transition after it)
   - Outputs stats for all tracked top layers at end of geometry building
 - **Status**: Blocked on TinyGL compilation errors (user fixing dithering work)
+
+### 2025-11-20
+- **TinyGL Fixed**: User completed dithering work, compilation now succeeds
+- **Stage 2 COMPLETE**: Captured baseline statistics
+  - Top layer (Z=30.00mm) has 215 total segments
+  - 10x more than expected 21-23 diagonal infill lines
+- **Stage 3 IN PROGRESS**: Quantitative comparison reveals we're counting ALL segments
+  - Hypothesis: 215 includes perimeters, infill, and travel moves
+  - Need to categorize by segment type/angle to isolate diagonal infill
+- **Next**: Add angle-based categorization to identify the ~22 diagonal infill segments within the 215
 
 ---
 

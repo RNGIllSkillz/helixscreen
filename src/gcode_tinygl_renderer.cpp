@@ -28,6 +28,7 @@ GCodeTinyGLRenderer::GCodeTinyGLRenderer()
     geometry_builder_->set_smooth_shading(smooth_shading_);
     geometry_builder_->set_extrusion_width(extrusion_width_);
     geometry_builder_->set_use_height_gradient(false); // Use actual G-code filament colors
+    geometry_builder_->set_debug_face_colors(true);    // TEMP: Enable debug coloring for testing
 
     spdlog::debug("GCodeTinyGLRenderer created");
 }
@@ -86,6 +87,17 @@ void GCodeTinyGLRenderer::set_specular(float intensity, float shininess) {
     specular_intensity_ = intensity;
     specular_shininess_ = shininess;
     // Material properties will be applied on next render
+}
+
+void GCodeTinyGLRenderer::set_debug_face_colors(bool enable) {
+    spdlog::debug("Setting debug face colors: {}", enable ? "ENABLED" : "disabled");
+    geometry_builder_->set_debug_face_colors(enable);
+
+    // Geometry needs rebuild to apply new coloring
+    if (geometry_) {
+        geometry_.reset();
+        current_gcode_filename_.clear();
+    }
 }
 
 void GCodeTinyGLRenderer::set_simplification_tolerance(float tolerance_mm) {
@@ -361,6 +373,10 @@ void GCodeTinyGLRenderer::build_geometry(const ParsedGCodeFile& gcode) {
         spdlog::info("No extrusion width in G-code, using current: {:.2f}mm", extrusion_width_);
     }
 
+    // Set layer height from G-code metadata for correct tube proportions
+    geometry_builder_->set_layer_height(gcode.layer_height_mm);
+    spdlog::info("Using layer height from G-code: {:.2f}mm", gcode.layer_height_mm);
+
     // Apply layer filtering and travel/extrusion filtering
     ParsedGCodeFile filtered_gcode = gcode; // Copy the file
 
@@ -536,6 +552,27 @@ void GCodeTinyGLRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode
 
     // Draw to LVGL
     draw_to_lvgl(layer);
+
+    // Draw camera debug info overlay (only in verbose debug mode: -vv or higher)
+    if (spdlog::get_level() <= spdlog::level::debug) {
+        char debug_text[128];
+        snprintf(debug_text, sizeof(debug_text), "Az: %.1f° El: %.1f° Zoom: %.1fx",
+                 camera.get_azimuth(), camera.get_elevation(), camera.get_zoom_level());
+
+        lv_draw_label_dsc_t label_dsc;
+        lv_draw_label_dsc_init(&label_dsc);
+        label_dsc.color = lv_color_make(255, 255, 255); // White text
+        label_dsc.text = debug_text;
+        label_dsc.text_local = true;
+
+        lv_area_t text_area;
+        text_area.x1 = 10; // 10px from left
+        text_area.y1 = 10; // 10px from top
+        text_area.x2 = viewport_width_ - 1;
+        text_area.y2 = 40; // Room for one line of text
+
+        lv_draw_label(layer, &label_dsc, &text_area);
+    }
 }
 
 // ==============================================

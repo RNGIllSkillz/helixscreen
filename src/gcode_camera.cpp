@@ -26,11 +26,12 @@ GCodeCamera::GCodeCamera() {
 }
 
 void GCodeCamera::reset() {
-    azimuth_ = 45.0f;
-    elevation_ = 30.0f;
+    // Match user's test view angle for geometry verification
+    azimuth_ = 85.5f;
+    elevation_ = -2.5f;
     target_ = glm::vec3(0, 0, 0);
     distance_ = 100.0f;
-    zoom_level_ = 1.0f;
+    zoom_level_ = 10.0f; // 10x zoom - will be preserved by fit_to_bounds
     projection_type_ = ProjectionType::ORTHOGRAPHIC;
 
     update_matrices();
@@ -97,7 +98,11 @@ void GCodeCamera::fit_to_bounds(const AABB& bounds) {
     // For orthographic projection, we adjust zoom instead of distance
     // Distance affects near/far planes, zoom affects the orthographic scale
     distance_ = max_dimension * 2.0f; // Far enough for near/far planes
-    zoom_level_ = 1.0f;               // Start at 1.0, will be adjusted by projection
+
+    // Preserve custom zoom if explicitly set (> 1.0), otherwise reset to default
+    if (zoom_level_ <= 1.0f) {
+        zoom_level_ = 1.0f; // Reset to default only if not customized
+    }
 
     update_matrices();
 

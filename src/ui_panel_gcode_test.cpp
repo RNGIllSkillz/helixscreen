@@ -29,7 +29,7 @@ static lv_obj_t* stats_label = nullptr;
 static lv_obj_t* file_picker_overlay = nullptr;
 
 // Path to default sample G-code file
-static const char* TEST_GCODE_PATH = "assets/OrcaCube AD5M.gcode";
+static const char* TEST_GCODE_PATH = "assets/single_line_test.gcode";
 static const char* ASSETS_DIR = "assets";
 
 // Store available files
@@ -404,8 +404,11 @@ lv_obj_t* ui_panel_gcode_test_create(lv_obj_t* parent) {
 
     if (stats_label) {
         if (state == GCODE_VIEWER_STATE_LOADED) {
+            // Extract just the filename from the path
+            const char* filename = strrchr(TEST_GCODE_PATH, '/');
+            filename = filename ? filename + 1 : TEST_GCODE_PATH;
             char buf[256];
-            snprintf(buf, sizeof(buf), "OrcaCube AD5M.gcode | %d layers", layer_count);
+            snprintf(buf, sizeof(buf), "%s | %d layers", filename, layer_count);
             lv_label_set_text(stats_label, buf);
         } else if (state == GCODE_VIEWER_STATE_ERROR) {
             lv_label_set_text(stats_label, "Error loading file");

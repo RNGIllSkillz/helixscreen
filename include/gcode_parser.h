@@ -160,6 +160,7 @@ struct ParsedGCodeFile {
     float infill_extrusion_width_mm{0.0f};      ///< Infill width
     float first_layer_extrusion_width_mm{0.0f}; ///< First layer width
     float filament_diameter_mm{1.75f};          ///< Filament diameter (default: 1.75mm)
+    float layer_height_mm{0.2f};                ///< Layer height (default: 0.2mm)
 
     /**
      * @brief Get layer at specific index

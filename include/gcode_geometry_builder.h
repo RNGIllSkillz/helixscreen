@@ -254,6 +254,17 @@ class GeometryBuilder {
     }
 
     /**
+     * @brief Set layer height for tube geometry (default: 0.2mm)
+     * @param height_mm Layer height in millimeters
+     *
+     * Controls the vertical dimension of extruded tubes. Should match the actual
+     * layer height from the G-code for accurate proportions.
+     */
+    void set_layer_height(float height_mm) {
+        layer_height_mm_ = height_mm;
+    }
+
+    /**
      * @brief Set highlighted object names for visual emphasis
      * @param object_names Names of objects to highlight (empty to clear)
      *
@@ -262,6 +273,25 @@ class GeometryBuilder {
      */
     void set_highlighted_objects(const std::unordered_set<std::string>& object_names) {
         highlighted_objects_ = object_names;
+    }
+
+    /**
+     * @brief Enable/disable per-face debug coloring
+     * @param enable true to assign distinct colors to each face for debugging
+     *
+     * When enabled, renders each face of the tube in a different bright color:
+     * - Top face: Red (#FF0000)
+     * - Bottom face: Blue (#0000FF)
+     * - Left face: Green (#00FF00)
+     * - Right face: Yellow (#FFFF00)
+     * - Start end cap: Magenta (#FF00FF)
+     * - End end cap: Cyan (#00FFFF)
+     *
+     * This overrides normal color computation and is useful for debugging
+     * face orientation, winding order, and geometry issues.
+     */
+    void set_debug_face_colors(bool enable) {
+        debug_face_colors_ = enable;
     }
 
   private:
@@ -295,13 +325,15 @@ class GeometryBuilder {
     // Configuration
     float extrusion_width_mm_ = 0.42f; ///< Default for 0.4mm nozzle
     float travel_width_mm_ = 0.1f;     ///< Thin for travels
+    float layer_height_mm_ = 0.2f;     ///< Layer height for tube vertical dimension
     bool use_height_gradient_ = true;  ///< Rainbow Z-gradient
     bool use_smooth_shading_ = false;  ///< Smooth (Gouraud) vs flat shading
     uint8_t filament_r_ = 0x26;        ///< Filament color red component
     uint8_t filament_g_ = 0xA6;        ///< Filament color green component
     uint8_t filament_b_ = 0x9A;        ///< Filament color blue component
     std::unordered_set<std::string>
-        highlighted_objects_; ///< Object names to highlight (empty = none)
+        highlighted_objects_;        ///< Object names to highlight (empty = none)
+    bool debug_face_colors_ = false; ///< Enable per-face debug coloring
 
     // Build statistics
     BuildStats stats_;
