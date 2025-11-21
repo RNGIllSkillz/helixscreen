@@ -61,6 +61,8 @@
   },
   "gcode_viewer": {
     "shading_model": "phong",
-    "_shading_comment": "Shading model for G-code 3D preview. Options: 'flat' (faceted, lowest cost), 'smooth' (Gouraud/per-vertex), 'phong' (per-pixel, highest quality, default)"
+    "_shading_comment": "Shading model for G-code 3D preview. Options: 'flat' (faceted, lowest cost), 'smooth' (Gouraud/per-vertex), 'phong' (per-pixel, highest quality, default)",
+    "tube_sides": 16,
+    "_tube_sides_comment": "Number of sides for tube cross-section. Options: 4 (diamond, fastest), 8 (octagonal, balanced), 16 (circular, highest quality, matches OrcaSlicer)"
   }
 }

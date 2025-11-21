@@ -286,8 +286,8 @@ class GCodeTinyGLRenderer {
     float brightness_factor_{1.0f};
 
     // Material lighting properties
-    float specular_intensity_{0.05f}; // Default: subtle highlights (OrcaSlicer: 0.075)
-    float specular_shininess_{5.0f};  // Default: soft, broad highlights (OrcaSlicer: 20.0)
+    float specular_intensity_{0.10f}; // Default: subtle highlights (OrcaSlicer: 0.075)
+    float specular_shininess_{20.0f}; // Default: soft, broad highlights (OrcaSlicer: 20.0)
 
     // TinyGL context (opaque pointer to avoid header dependency)
     void* zbuffer_{nullptr};

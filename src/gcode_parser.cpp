@@ -237,14 +237,14 @@ bool GCodeParser::parse_exclude_object_command(const std::string& line) {
             current_object_.clear();
             return false;
         }
-        spdlog::debug("Started object: {}", current_object_);
+        spdlog::trace("Started object: {}", current_object_);
         return true;
     }
     // EXCLUDE_OBJECT_END NAME=...
     else if (line.find("EXCLUDE_OBJECT_END") == 0) {
         std::string name;
         if (extract_string_param(line, "NAME", name) && name == current_object_) {
-            spdlog::debug("Ended object: {}", current_object_);
+            spdlog::trace("Ended object: {}", current_object_);
             current_object_.clear();
             return true;
         }
@@ -492,7 +492,19 @@ void GCodeParser::parse_extruder_color_metadata(const std::string& line) {
         }
     }
 
-    spdlog::debug("Parsed {} extruder colors from metadata", tool_color_palette_.size());
+    // Log color palette (manual join since fmt::join may not be available)
+    std::string palette_str;
+    for (size_t i = 0; i < tool_color_palette_.size(); ++i) {
+        if (i > 0) palette_str += ", ";
+        palette_str += tool_color_palette_[i];
+    }
+    spdlog::debug("Parsed {} extruder colors from metadata: [{}]",
+                  tool_color_palette_.size(), palette_str);
+
+    // Set metadata_filament_color_ to the first valid color (for single-color rendering fallback)
+    if (!tool_color_palette_.empty() && !tool_color_palette_[0].empty()) {
+        metadata_filament_color_ = tool_color_palette_[0];
+    }
 }
 
 void GCodeParser::parse_tool_change_command(const std::string& line) {
@@ -702,7 +714,7 @@ void GCodeParser::start_new_layer(float z) {
     layer.z_height = z;
     layers_.push_back(layer);
 
-    spdlog::debug("Started layer {} at Z={:.3f}", layers_.size() - 1, z);
+    spdlog::trace("Started layer {} at Z={:.3f}", layers_.size() - 1, z);
 }
 
 std::string GCodeParser::trim_line(const std::string& line) {

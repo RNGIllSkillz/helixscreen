@@ -108,6 +108,10 @@ using TriangleIndices = std::array<uint32_t, 3>;
  */
 using TriangleStrip = std::array<uint32_t, 4>;
 
+// Forward declarations for hash functions (defined in .cpp)
+struct Vec3Hash;
+struct Vec3Equal;
+
 /**
  * @brief Complete ribbon geometry for rendering
  */
@@ -119,6 +123,13 @@ struct RibbonGeometry {
     // Palette-based compression (normals and colors stored once, indexed from vertices)
     std::vector<glm::vec3> normal_palette; ///< Unique normals (max 256)
     std::vector<uint32_t> color_palette;   ///< Unique colors in RGB format (max 256)
+
+    // Palette lookup caches (O(1) lookup instead of O(N) linear search)
+    // NOTE: These use raw pointer types to avoid template bloat in header
+    // Actual types: std::unordered_map<glm::vec3, uint16_t, Vec3Hash, Vec3Equal>
+    //               std::unordered_map<uint32_t, uint8_t>
+    void* normal_cache_ptr = nullptr; ///< Cache for normal palette lookups
+    void* color_cache_ptr = nullptr;  ///< Cache for color palette lookups
 
     size_t extrusion_triangle_count; ///< Triangles for extrusion moves
     size_t travel_triangle_count;    ///< Triangles for travel moves
@@ -136,15 +147,19 @@ struct RibbonGeometry {
     /**
      * @brief Clear all geometry data
      */
-    void clear() {
-        vertices.clear();
-        indices.clear();
-        strips.clear();
-        normal_palette.clear();
-        color_palette.clear();
-        extrusion_triangle_count = 0;
-        travel_triangle_count = 0;
-    }
+    void clear();
+
+    /**
+     * @brief Destructor - clean up cache pointers
+     */
+    ~RibbonGeometry();
+
+    // Copy/move operations need special handling for cache pointers
+    RibbonGeometry();
+    RibbonGeometry(const RibbonGeometry&) = delete;
+    RibbonGeometry& operator=(const RibbonGeometry&) = delete;
+    RibbonGeometry(RibbonGeometry&& other) noexcept;
+    RibbonGeometry& operator=(RibbonGeometry&& other) noexcept;
 };
 
 // ============================================================================
