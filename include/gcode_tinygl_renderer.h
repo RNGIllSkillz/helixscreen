@@ -214,6 +214,14 @@ class GCodeTinyGLRenderer {
     }
 
     /**
+     * @brief Get number of unique colors in geometry (for multicolor detection)
+     * @return Color palette size, or 0 if no geometry loaded
+     */
+    size_t get_geometry_color_count() const {
+        return geometry_.has_value() ? geometry_->color_palette.size() : 0;
+    }
+
+    /**
      * @brief Get memory usage of last rendered geometry
      * @return Memory in bytes
      */

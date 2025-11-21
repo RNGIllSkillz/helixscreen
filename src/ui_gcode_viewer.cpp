@@ -66,6 +66,10 @@ struct gcode_viewer_state_t {
     lv_obj_t* loading_label_{nullptr};
     bool first_render_{true}; // Show "Rendering..." message on first draw
 
+    // Load completion callback
+    gcode_viewer_load_callback_t load_callback_{nullptr};
+    void* load_callback_user_data_{nullptr};
+
     // Constructor
     gcode_viewer_state_t() {
         camera = std::make_unique<gcode::GCodeCamera>();
@@ -123,8 +127,32 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
         return; // Timer will trigger actual render
     }
 
+    // FPS tracking for performance monitoring (debug mode only via spdlog level)
+    static auto last_frame_time = std::chrono::high_resolution_clock::now();
+    static float fps_average = 0.0f;
+    static int frame_count = 0;
+    static constexpr float FPS_ALPHA = 0.1f; // Exponential moving average smoothing factor
+
+    auto frame_start = std::chrono::high_resolution_clock::now();
+    auto frame_duration = std::chrono::duration_cast<std::chrono::microseconds>(frame_start - last_frame_time);
+
+    if (frame_duration.count() > 0) {
+        float current_fps = 1000000.0f / frame_duration.count();
+        fps_average = (fps_average == 0.0f) ? current_fps : (FPS_ALPHA * current_fps + (1.0f - FPS_ALPHA) * fps_average);
+    }
+
+    last_frame_time = frame_start;
+
     // Render G-code (viewport size is already set by SIZE_CHANGED event)
     st->renderer->render(layer, *st->gcode_file, *st->camera);
+
+    // Log FPS every 60 frames (controlled by spdlog level)
+    if (++frame_count >= 60) {
+        spdlog::debug("[GCode::Viewer] FPS: current={:.1f}, average={:.1f}",
+                     (frame_duration.count() > 0 ? 1000000.0f / frame_duration.count() : 0.0f),
+                     fps_average);
+        frame_count = 0;
+    }
 }
 
 /**
@@ -438,10 +466,11 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 gcode::SimplificationOptions opts{.tolerance_mm = 0.15f};
 
                 // Configure builder with metadata
-                if (!result->gcode_file->filament_color_hex.empty()) {
-                    builder.set_filament_color(result->gcode_file->filament_color_hex);
-                } else {
-                    builder.set_filament_color(gcode::GeometryBuilder::DEFAULT_FILAMENT_COLOR);
+                // Set tool color palette for multicolor prints
+                if (!result->gcode_file->tool_color_palette.empty()) {
+                    builder.set_tool_color_palette(result->gcode_file->tool_color_palette);
+                    spdlog::debug("GCodeViewer: Set tool color palette with {} colors",
+                                 result->gcode_file->tool_color_palette.size());
                 }
 
                 if (result->gcode_file->perimeter_extrusion_width_mm > 0.0f) {
@@ -501,14 +530,26 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                     st->viewer_state = GCODE_VIEWER_STATE_LOADED;
                     spdlog::debug("GCodeViewer: State set to LOADED");
 
-                    // Auto-apply filament color if enabled
+                    // Auto-apply filament color if enabled, but ONLY for single-color prints
+                    // Multicolor prints have multiple colors in the geometry's color palette
+#ifdef ENABLE_TINYGL_3D
+                    size_t color_count = st->renderer->get_geometry_color_count();
+                    bool is_multicolor = (color_count > 1); // >1 means multiple tool colors
+#else
+                    bool is_multicolor = false; // 2D renderer doesn't have color palette
+#endif
+
                     if (st->use_filament_color &&
+                        !is_multicolor &&
                         st->gcode_file->filament_color_hex.length() >= 2) {
                         lv_color_t color = lv_color_hex(std::strtol(
                             st->gcode_file->filament_color_hex.c_str() + 1, nullptr, 16));
                         st->renderer->set_extrusion_color(color);
-                        spdlog::debug("GCodeViewer: Auto-applied filament color: {}",
+                        spdlog::debug("GCodeViewer: Auto-applied single-color filament: {}",
                                      st->gcode_file->filament_color_hex);
+                    } else if (is_multicolor) {
+                        spdlog::info("GCodeViewer: Multicolor print detected ({} colors) - preserving per-segment colors",
+                                    color_count);
                     }
 
                     // Clear first_render flag to allow actual rendering on next draw
@@ -518,10 +559,22 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                     lv_obj_invalidate(obj);
 
                     spdlog::info("GCodeViewer: Async load completed successfully");
+
+                    // Invoke load callback if registered
+                    if (st->load_callback_) {
+                        spdlog::debug("GCodeViewer: Invoking load callback");
+                        st->load_callback_(obj, st->load_callback_user_data_, true);
+                    }
                 } else {
                     spdlog::error("GCodeViewer: Async load failed: {}", r->error_msg);
                     st->viewer_state = GCODE_VIEWER_STATE_ERROR;
                     st->gcode_file.reset();
+
+                    // Invoke load callback with error status if registered
+                    if (st->load_callback_) {
+                        spdlog::debug("GCodeViewer: Invoking load callback (error)");
+                        st->load_callback_(obj, st->load_callback_user_data_, false);
+                    }
                 }
             });
     });
@@ -530,6 +583,17 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 void ui_gcode_viewer_load_file(lv_obj_t* obj, const char* file_path) {
     // Use async version by default
     ui_gcode_viewer_load_file_async(obj, file_path);
+}
+
+void ui_gcode_viewer_set_load_callback(lv_obj_t* obj, gcode_viewer_load_callback_t callback, void* user_data) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st) {
+        return;
+    }
+
+    st->load_callback_ = callback;
+    st->load_callback_user_data_ = user_data;
+    spdlog::debug("GCodeViewer: Load callback registered");
 }
 
 void ui_gcode_viewer_set_gcode_data(lv_obj_t* obj, void* gcode_data) {
@@ -915,6 +979,14 @@ const char* ui_gcode_viewer_pick_object(lv_obj_t* obj, int x, int y) {
 // ==============================================
 // Statistics
 // ==============================================
+
+const char* ui_gcode_viewer_get_filename(lv_obj_t* obj) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st || !st->gcode_file || st->gcode_file->filename.empty())
+        return nullptr;
+
+    return st->gcode_file->filename.c_str();
+}
 
 int ui_gcode_viewer_get_layer_count(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);

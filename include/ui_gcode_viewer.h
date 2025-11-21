@@ -54,6 +54,14 @@ typedef enum {
 } gcode_viewer_state_enum_t;
 
 /**
+ * @brief Callback invoked when async file loading completes
+ * @param viewer The viewer widget that finished loading
+ * @param user_data User data pointer passed during callback registration
+ * @param success true if loading succeeded, false on error
+ */
+typedef void (*gcode_viewer_load_callback_t)(lv_obj_t* viewer, void* user_data, bool success);
+
+/**
  * @brief Camera preset views
  */
 typedef enum {
@@ -84,6 +92,18 @@ lv_obj_t* ui_gcode_viewer_create(lv_obj_t* parent);
  * Note: Async parsing not implemented in Phase 1 - parses synchronously.
  */
 void ui_gcode_viewer_load_file(lv_obj_t* obj, const char* file_path);
+
+/**
+ * @brief Set callback to be invoked when async file loading completes
+ * @param obj Viewer widget
+ * @param callback Callback function (NULL to clear)
+ * @param user_data User data passed to callback
+ *
+ * The callback will be invoked from the main LVGL thread after async
+ * geometry building completes. Use this to update UI elements that
+ * depend on the loaded file data.
+ */
+void ui_gcode_viewer_set_load_callback(lv_obj_t* obj, gcode_viewer_load_callback_t callback, void* user_data);
 
 /**
  * @brief Set G-code data directly (already parsed)
@@ -379,6 +399,16 @@ float ui_gcode_viewer_get_nozzle_diameter_mm(lv_obj_t* obj);
 // ==============================================
 // Statistics
 // ==============================================
+
+/**
+ * @brief Get loaded filename
+ * @param obj Viewer widget
+ * @return Filename string or NULL if no file loaded
+ *
+ * Returns the filename from the loaded G-code file. String is valid
+ * until next file load.
+ */
+const char* ui_gcode_viewer_get_filename(lv_obj_t* obj);
 
 /**
  * @brief Get number of layers in loaded file

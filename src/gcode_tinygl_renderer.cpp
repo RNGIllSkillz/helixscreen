@@ -464,7 +464,7 @@ void GCodeTinyGLRenderer::set_prebuilt_geometry(std::unique_ptr<RibbonGeometry> 
     geometry_ = std::move(*geometry);  // Move the value from unique_ptr into optional
     current_gcode_filename_ = filename;
 
-    spdlog::info("Pre-built geometry set: {} vertices, {} triangles (extrusion: {}, travel: {})",
+    spdlog::info("[GCode::Renderer] Pre-built geometry set: {} vertices, {} triangles (extrusion: {}, travel: {})",
                  geometry_->vertices.size(),
                  geometry_->extrusion_triangle_count + geometry_->travel_triangle_count,
                  geometry_->extrusion_triangle_count, geometry_->travel_triangle_count);
@@ -474,6 +474,11 @@ void GCodeTinyGLRenderer::render_geometry(const GCodeCamera& camera) {
     if (!geometry_) {
         return; // No geometry to render
     }
+
+    // Performance timing for render operations
+    static bool first_render = true;
+    static int frame_count = 0;
+    auto render_start = std::chrono::high_resolution_clock::now();
 
     // Clear buffers
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -558,6 +563,23 @@ void GCodeTinyGLRenderer::render_geometry(const GCodeCamera& camera) {
     if (!logged_strip_count) {
         spdlog::info("Total strips rendered: {}", strip_count);
         logged_strip_count = true;
+    }
+
+    // Log render timing
+    auto render_end = std::chrono::high_resolution_clock::now();
+    auto render_duration = std::chrono::duration_cast<std::chrono::microseconds>(render_end - render_start);
+    float render_ms = render_duration.count() / 1000.0f;
+
+    if (first_render) {
+        spdlog::info("[GCode::Renderer] First render completed in {:.1f}ms", render_ms);
+        first_render = false;
+    }
+
+    // Log every 60 frames (debug level only)
+    if (++frame_count >= 60) {
+        spdlog::debug("[GCode::Renderer] Render time: {:.1f}ms ({:.1f} FPS)",
+                     render_ms, render_ms > 0 ? 1000.0f / render_ms : 0.0f);
+        frame_count = 0;
     }
 }
 

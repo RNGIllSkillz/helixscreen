@@ -90,7 +90,7 @@
         <!-- Statistics Section -->
         <lv_obj width="100%" flex_grow="10" style_flex_main_place="end" flex_flow="column" style_bg_color="#bg_dark" style_radius="#card_radius" style_pad_all="4" style_pad_gap="4" style_border_width="0">
           <lv_label text="File Info" style_text_font="#font_subheader" style_text_color="#text_primary"/>
-          <lv_label name="stats_label" text="Loading..." style_text_color="#text_secondary" style_text_font="#font_small" long_mode="WRAP"/>
+          <lv_label width="100%" height="100" name="stats_label" text="Loading..." style_text_color="#text_secondary" style_text_font="#font_small" long_mode="wrap"/>
         </lv_obj>      
       </lv_obj> <!-- control panel -->
     </lv_obj>

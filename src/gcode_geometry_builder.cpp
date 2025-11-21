@@ -198,19 +198,24 @@ void RibbonGeometry::clear() {
 // ============================================================================
 
 void GeometryBuilder::BuildStats::log() const {
-    spdlog::info("Geometry Build Statistics:");
-    spdlog::info("  Input segments:      {:>8}", input_segments);
-    spdlog::info("  Simplified segments: {:>8} ({:.1f}% reduction)", output_segments,
+    spdlog::info("[GCode::Builder] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    spdlog::info("[GCode::Builder] Geometry Build Statistics:");
+    spdlog::info("[GCode::Builder]   G-code Parsing:");
+    spdlog::info("[GCode::Builder]     Raw toolpath segments:    {:>8}", input_segments);
+    spdlog::info("[GCode::Builder]     After simplification:     {:>8} ({:.1f}% reduction)", output_segments,
                  simplification_ratio * 100.0f);
-    spdlog::info("  Vertices generated:  {:>8}", vertices_generated);
-    spdlog::info("  Triangles generated: {:>8}", triangles_generated);
-    spdlog::info("  Memory usage:        {:>8} KB ({:.2f} MB)", memory_bytes / 1024,
+    spdlog::info("[GCode::Builder]   3D Geometry Generation:");
+    spdlog::info("[GCode::Builder]     Vertices (triangle strips): {:>8}", vertices_generated);
+    spdlog::info("[GCode::Builder]     Triangles rendered:         {:>8}", triangles_generated);
+    spdlog::info("[GCode::Builder]   Memory:");
+    spdlog::info("[GCode::Builder]     Total geometry memory:    {:>8} KB ({:.2f} MB)", memory_bytes / 1024,
                  memory_bytes / (1024.0 * 1024.0));
 
     if (input_segments > 0) {
         float bytes_per_segment = static_cast<float>(memory_bytes) / input_segments;
-        spdlog::info("  Bytes per segment:   {:.1f}", bytes_per_segment);
+        spdlog::info("[GCode::Builder]     Bytes per toolpath segment: {:.1f}", bytes_per_segment);
     }
+    spdlog::info("[GCode::Builder] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 }
 
 // ============================================================================
@@ -227,7 +232,7 @@ GeometryBuilder::GeometryBuilder() {
 
 uint16_t GeometryBuilder::add_to_normal_palette(RibbonGeometry& geometry, const glm::vec3& normal) {
     // Very light quantization (0.001) to merge nearly-identical normals without visible banding
-    constexpr float QUANT_STEP = 0.001f;
+    constexpr float QUANT_STEP = 0.01f;  // Increased from 0.001 for better deduplication
     glm::vec3 quantized;
     quantized.x = std::round(normal.x / QUANT_STEP) * QUANT_STEP;
     quantized.y = std::round(normal.y / QUANT_STEP) * QUANT_STEP;
@@ -323,8 +328,26 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     }
 
     stats_.input_segments = all_segments.size();
-    spdlog::debug("Collected {} total segments from {} layers", all_segments.size(),
+    spdlog::debug("[GCode::Builder] Collected {} total segments from {} layers", all_segments.size(),
                   gcode.layers.size());
+
+    // Pre-filter: Remove degenerate (zero-length) segments before simplification
+    size_t degenerate_count = 0;
+    all_segments.erase(
+        std::remove_if(all_segments.begin(), all_segments.end(),
+                      [&degenerate_count](const ToolpathSegment& seg) {
+                          float length = glm::distance(seg.start, seg.end);
+                          if (length < 0.0001f) {
+                              degenerate_count++;
+                              return true;  // Remove this segment
+                          }
+                          return false;  // Keep this segment
+                      }),
+        all_segments.end());
+
+    if (degenerate_count > 0) {
+        spdlog::debug("[GCode::Builder] Pre-filtered {} degenerate (zero-length) segments", degenerate_count);
+    }
 
     // Step 1: Simplify segments (merge collinear lines)
     std::vector<ToolpathSegment> simplified;
@@ -334,14 +357,13 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
         stats_.simplification_ratio =
             1.0f - (static_cast<float>(simplified.size()) / all_segments.size());
 
-        spdlog::info("Simplified {} → {} segments ({:.1f}% reduction)", all_segments.size(),
-                     simplified.size(), stats_.simplification_ratio * 100.0f);
+        spdlog::info("[GCode::Builder] Toolpath simplification: {} → {} segments ({:.1f}% reduction)",
+                     all_segments.size(), simplified.size(), stats_.simplification_ratio * 100.0f);
     } else {
         simplified = all_segments;
         stats_.output_segments = simplified.size();
         stats_.simplification_ratio = 0.0f;
-        spdlog::info("Using RAW segments (simplification DISABLED): {} segments",
-                     simplified.size());
+        spdlog::info("[GCode::Builder] Toolpath simplification DISABLED: using {} raw segments", simplified.size());
     }
 
     // Find the maximum Z height (top layer) dynamically for debug filtering
@@ -363,12 +385,7 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     for (size_t i = 0; i < simplified.size(); ++i) {
         const auto& segment = simplified[i];
 
-        // Skip degenerate segments (zero length)
-        float segment_length = glm::distance(segment.start, segment.end);
-        if (segment_length < 0.0001f) {
-            segments_skipped++;
-            continue;
-        }
+        // Note: Degenerate segments were already filtered before simplification
 
         // Skip travel moves (non-extrusion moves)
         // TODO: Make this configurable if we want to visualize travel paths
@@ -472,18 +489,18 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     stats_.memory_bytes = geometry.memory_usage();
 
     // Log palette statistics
-    spdlog::info("Palette stats: {} normals, {} colors (smooth_shading={})",
+    spdlog::info("[GCode::Builder] Palette stats: {} normals, {} colors (smooth_shading={})",
                  geometry.normal_palette.size(), geometry.color_palette.size(),
                  use_smooth_shading_);
 
     // Log cache statistics
     auto* normal_cache = static_cast<NormalCache*>(geometry.normal_cache_ptr);
     auto* color_cache = static_cast<ColorCache*>(geometry.color_cache_ptr);
-    spdlog::debug("Cache stats: normal_cache={} entries, color_cache={} entries",
+    spdlog::debug("[GCode::Builder] Cache stats: normal_cache={} entries, color_cache={} entries",
                  normal_cache->size(), color_cache->size());
 
     if (segments_skipped > 0) {
-        spdlog::warn("Skipped {} degenerate segments (zero length)", segments_skipped);
+        spdlog::debug("[GCode::Builder] Skipped {} travel move segments (non-extrusion)", segments_skipped);
     }
 
     stats_.log();
@@ -491,7 +508,7 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     // End timing
     auto build_end = std::chrono::high_resolution_clock::now();
     auto build_duration = std::chrono::duration_cast<std::chrono::milliseconds>(build_end - build_start);
-    spdlog::info("Geometry build completed in {:.3f} seconds", build_duration.count() / 1000.0);
+    spdlog::info("[GCode::Builder] Geometry build completed in {:.3f} seconds", build_duration.count() / 1000.0);
 
     return geometry;
 }

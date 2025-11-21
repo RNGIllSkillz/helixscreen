@@ -73,6 +73,72 @@ static void scan_gcode_files() {
 }
 
 /**
+ * @brief Callback invoked when async G-code loading completes
+ */
+static void on_gcode_load_complete(lv_obj_t* viewer, void* user_data, bool success) {
+    (void)user_data; // Not used
+
+    if (!success) {
+        spdlog::error("[GCodeTest] G-code load callback: failed");
+        if (stats_label) {
+            lv_label_set_text(stats_label, "Error loading file");
+        }
+        return;
+    }
+
+    spdlog::info("[GCodeTest] G-code load callback: success");
+
+    // Get file info from viewer
+    const char* full_path = ui_gcode_viewer_get_filename(viewer);
+    int layer_count = ui_gcode_viewer_get_layer_count(viewer);
+    const char* filament_type = ui_gcode_viewer_get_filament_type(viewer);
+
+    if (stats_label) {
+        char buf[256];
+
+        // Extract just the filename from full path
+        const char* filename = full_path ? strrchr(full_path, '/') : nullptr;
+        filename = filename ? filename + 1 : (full_path ? full_path : "Unknown");
+
+        // Clean up filament type for multi-tool prints (e.g., "ABS;ABS;ABS;ABS" -> "ABS")
+        std::string filament_str;
+        if (filament_type && filament_type[0] != '\0') {
+            filament_str = filament_type;
+            // If it's a semicolon-separated list where all entries are the same, just show once
+            size_t first_semi = filament_str.find(';');
+            if (first_semi != std::string::npos) {
+                std::string first_type = filament_str.substr(0, first_semi);
+                bool all_same = true;
+                size_t pos = first_semi + 1;
+                while (pos < filament_str.length()) {
+                    size_t next_semi = filament_str.find(';', pos);
+                    std::string next_type = filament_str.substr(pos, next_semi - pos);
+                    if (next_type != first_type) {
+                        all_same = false;
+                        break;
+                    }
+                    if (next_semi == std::string::npos) break;
+                    pos = next_semi + 1;
+                }
+                if (all_same) {
+                    filament_str = first_type;
+                }
+            }
+        }
+
+        // Build stats string: filename | layers | filament type
+        if (!filament_str.empty()) {
+            snprintf(buf, sizeof(buf), "%s | %d layers | %s", filename, layer_count, filament_str.c_str());
+        } else {
+            snprintf(buf, sizeof(buf), "%s | %d layers", filename, layer_count);
+        }
+
+        lv_label_set_text(stats_label, buf);
+        spdlog::debug("[GCodeTest] Updated stats label: {}", buf);
+    }
+}
+
+/**
  * @brief File list item click handler
  */
 static void on_file_selected(lv_event_t* e) {
@@ -87,28 +153,15 @@ static void on_file_selected(lv_event_t* e) {
     const std::string& filepath = gcode_files[index];
     spdlog::info("[GCodeTest] Loading selected file: {}", filepath);
 
-    // Load the file
+    // Load the file (async - callback will update stats when done)
     if (gcode_viewer) {
-        ui_gcode_viewer_load_file(gcode_viewer, filepath.c_str());
-
-        // Update stats
-        int layer_count = ui_gcode_viewer_get_layer_count(gcode_viewer);
-        gcode_viewer_state_enum_t state = ui_gcode_viewer_get_state(gcode_viewer);
-
+        // Set stats to "Loading..." immediately
         if (stats_label) {
-            if (state == GCODE_VIEWER_STATE_LOADED) {
-                char buf[256];
-                // Extract filename from path
-                size_t last_slash = filepath.find_last_of('/');
-                std::string filename =
-                    (last_slash != std::string::npos) ? filepath.substr(last_slash + 1) : filepath;
-
-                snprintf(buf, sizeof(buf), "%s | %d layers", filename.c_str(), layer_count);
-                lv_label_set_text(stats_label, buf);
-            } else if (state == GCODE_VIEWER_STATE_ERROR) {
-                lv_label_set_text(stats_label, "Error loading file");
-            }
+            lv_label_set_text(stats_label, "Loading...");
         }
+
+        ui_gcode_viewer_load_file(gcode_viewer, filepath.c_str());
+        // Stats will be updated by on_gcode_load_complete callback
     }
 
     // Close the file picker
@@ -440,29 +493,19 @@ lv_obj_t* ui_panel_gcode_test_create(lv_obj_t* parent) {
         ui_gcode_viewer_set_debug_colors(gcode_viewer, true);
     }
 
+    // Register callback for async load completion
+    ui_gcode_viewer_set_load_callback(gcode_viewer, on_gcode_load_complete, nullptr);
+
     // Auto-load file (either from config or default)
     const char* file_to_load = config.gcode_test_file ? config.gcode_test_file : TEST_GCODE_PATH;
     spdlog::info("[GCodeTest] Auto-loading file: {}", file_to_load);
-    ui_gcode_viewer_load_file(gcode_viewer, file_to_load);
-
-    // Update stats after loading
-    int layer_count = ui_gcode_viewer_get_layer_count(gcode_viewer);
-    gcode_viewer_state_enum_t state = ui_gcode_viewer_get_state(gcode_viewer);
 
     if (stats_label) {
-        if (state == GCODE_VIEWER_STATE_LOADED) {
-            // Extract just the filename from the path
-            const char* filename = strrchr(file_to_load, '/');
-            filename = filename ? filename + 1 : file_to_load;
-            char buf[256];
-            snprintf(buf, sizeof(buf), "%s | %d layers", filename, layer_count);
-            lv_label_set_text(stats_label, buf);
-        } else if (state == GCODE_VIEWER_STATE_ERROR) {
-            lv_label_set_text(stats_label, "Error loading file");
-        } else {
-            lv_label_set_text(stats_label, "Loading...");
-        }
+        lv_label_set_text(stats_label, "Loading...");
     }
+
+    ui_gcode_viewer_load_file(gcode_viewer, file_to_load);
+    // Stats will be updated by callback when load completes
 
     spdlog::info("[GCodeTest] Panel created");
     return panel_root;
