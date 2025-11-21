@@ -600,8 +600,16 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
         spdlog::info("G-code tube geometry: N={} sides (elliptical cross-section) [NOTE: Only N=4 currently supported, N=8/16 coming soon]", tube_sides);
     }
 
-    const int N = tube_sides;  // Number of sides for this segment
-    (void)N;  // Suppress unused warning during Phase 1
+    // Phase 2: Force N=4 until vertex generation is refactored (Phase 3)
+    // Config may request 8 or 16, but Phase 2 only supports 4
+    const int N = 4;  // Override tube_sides during Phase 2
+    if (tube_sides != 4) {
+        static bool warned_once = false;
+        if (!warned_once) {
+            spdlog::warn("Phase 2: Overriding tube_sides={} to N=4 (N=8/16 support coming in Phase 3)", tube_sides);
+            warned_once = true;
+        }
+    }
 
     // Determine tube dimensions
     float width;
@@ -641,33 +649,27 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
     }
 
     uint8_t color_idx = add_to_color_palette(geometry, rgb);
-    uint8_t color_idx_up = color_idx;
-    uint8_t color_idx_down = color_idx;
-    uint8_t color_idx_right = color_idx;
-    uint8_t color_idx_left = color_idx;
 
-    // For diamond cross-section debug colors, we need FACE colors not VERTEX colors
-    uint8_t face_color_top_right = color_idx;
-    uint8_t face_color_right_bottom = color_idx;
-    uint8_t face_color_bottom_left = color_idx;
-    uint8_t face_color_left_top = color_idx;
+    // Face colors: one color per face (N faces total)
+    std::vector<uint8_t> face_colors(N, color_idx);
 
     if (debug_face_colors_) {
-        // Override with distinct debug colors for each face
-        color_idx_up = add_to_color_palette(geometry, DebugColors::TOP);
-        color_idx_down = add_to_color_palette(geometry, DebugColors::BOTTOM);
-        color_idx_right = add_to_color_palette(geometry, DebugColors::RIGHT);
-        color_idx_left = add_to_color_palette(geometry, DebugColors::LEFT);
+        // Cycle through 4 debug colors for N faces
+        constexpr uint32_t DEBUG_COLORS[] = {
+            DebugColors::TOP,    // Red
+            DebugColors::RIGHT,  // Yellow
+            DebugColors::BOTTOM, // Blue
+            DebugColors::LEFT    // Green
+        };
 
-        // Assign unique colors to each of the 4 side faces
-        face_color_top_right = color_idx_up;       // RED for top-right face
-        face_color_right_bottom = color_idx_right;  // YELLOW for right-bottom face
-        face_color_bottom_left = color_idx_down;    // BLUE for bottom-left face
-        face_color_left_top = color_idx_left;       // GREEN for left-top face
+        for (int i = 0; i < N; i++) {
+            uint32_t color = DEBUG_COLORS[i % 4];  // Cycle: R,Y,B,G,R,Y,B,G,...
+            face_colors[i] = add_to_color_palette(geometry, color);
+        }
 
         static bool logged_once = false;
         if (!logged_once) {
-            spdlog::debug("DEBUG FACE COLORS ACTIVE: TopRight=Red, RightBottom=Yellow, BottomLeft=Blue, LeftTop=Green, StartCap=Magenta, EndCap=Cyan");
+            spdlog::debug("DEBUG FACE COLORS ACTIVE: N={} faces, colors cycle through Red/Yellow/Blue/Green", N);
             logged_once = true;
         }
     }
@@ -677,26 +679,49 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
     const glm::vec3 prev_pos = segment.start - half_height * perp_up;
     const glm::vec3 curr_pos = segment.end - half_height * perp_up;
 
-    // Pre-compute offsets (OrcaSlicer naming)
-    const glm::vec3 d_up = half_height * perp_up;
-    const glm::vec3 d_down = -half_height * perp_up;
-    const glm::vec3 d_right = half_width * right;
-    const glm::vec3 d_left = -half_width * right;
+    // Generate N vertex offsets in elliptical arrangement
+    // Vertex i is at angle (i * 2π/N) around the ellipse
+    // Position offset = cos(angle)*half_width*right + sin(angle)*half_height*perp_up
+    const float angle_step = 2.0f * M_PI / N;
+    std::vector<glm::vec3> vertex_offsets(N);
 
-    // For diamond cross-section, vertices need normals averaged from adjacent faces
-    // Face normals: perpendicular to the diagonal faces
-    // Top face (UP→RIGHT): normal points UP+RIGHT at 45°
-    // Right face (RIGHT→DOWN): normal points RIGHT+DOWN at 45°
-    // Bottom face (DOWN→LEFT): normal points DOWN+LEFT at 45°
-    // Left face (LEFT→UP): normal points LEFT+UP at 45°
+    for (int i = 0; i < N; i++) {
+        float angle = i * angle_step;  // 0°, 360°/N, 2×360°/N, ...
+        vertex_offsets[i] = half_width * std::cos(angle) * right +
+                           half_height * std::sin(angle) * perp_up;
+    }
 
-    glm::vec3 face_normal_top = glm::normalize(perp_up + right);      // UP-RIGHT diagonal
-    glm::vec3 face_normal_right = glm::normalize(right - perp_up);    // RIGHT-DOWN diagonal
-    glm::vec3 face_normal_bottom = glm::normalize(-perp_up - right);  // DOWN-LEFT diagonal
-    glm::vec3 face_normal_left = glm::normalize(-right + perp_up);    // LEFT-UP diagonal
+    // Generate N face normals (one per face)
+    // Face normal points outward from face center (midpoint between adjacent vertices)
+    // Face i connects vertex i to vertex (i+1)%N, so face center is at angle (i+0.5)*angle_step
+    std::vector<glm::vec3> face_normals(N);
 
-    // Note: Vertex normals not needed with current per-face vertex structure
-    // Each face has its own vertices with face normals for uniform shading
+    for (int i = 0; i < N; i++) {
+        float face_angle = (i + 0.5f) * angle_step;  // Midpoint between vertices i and i+1
+        glm::vec3 face_center_offset =
+            half_width * std::cos(face_angle) * right +
+            half_height * std::sin(face_angle) * perp_up;
+        face_normals[i] = glm::normalize(face_center_offset);
+    }
+
+    // Phase 2: Compatibility aliases for N=4 (old variable names)
+    // These will be removed in Phase 3 when vertex generation is refactored
+    // For N=4: vertex_offsets = [RIGHT(0°), UP(90°), LEFT(180°), DOWN(270°)]
+    const glm::vec3& d_right = vertex_offsets[0];  // 0° = RIGHT
+    const glm::vec3& d_up = vertex_offsets[1];     // 90° = UP
+    const glm::vec3& d_left = vertex_offsets[2];   // 180° = LEFT
+    const glm::vec3& d_down = vertex_offsets[3];   // 270° = DOWN
+
+    const uint8_t color_idx_up = face_colors[1];     // UP face
+    const uint8_t face_color_top_right = face_colors[1];     // Between UP and RIGHT
+    const uint8_t face_color_right_bottom = face_colors[0];  // Between RIGHT and DOWN
+    const uint8_t face_color_bottom_left = face_colors[3];   // Between DOWN and LEFT
+    const uint8_t face_color_left_top = face_colors[2];      // Between LEFT and UP
+
+    const glm::vec3& face_normal_top = face_normals[1];
+    const glm::vec3& face_normal_right = face_normals[0];
+    const glm::vec3& face_normal_bottom = face_normals[3];
+    const glm::vec3& face_normal_left = face_normals[2];
 
     uint32_t idx_start = geometry.vertices.size();
 
@@ -815,7 +840,7 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
     idx_start += 8;
 
     // Track end cap edge positions for end cap generation (use first occurrence of each edge)
-    TubeCap end_cap;
+    TubeCap end_cap(N);  // Resize to N vertices
     end_cap[0] = idx_start - 8 + 0;  // Face1's UP vertex
     end_cap[1] = idx_start - 8 + 1;  // Face1's RIGHT vertex
     end_cap[2] = idx_start - 8 + 3;  // Face2's DOWN vertex

@@ -334,7 +334,7 @@ class GeometryBuilder {
 
     // Tube cross-section vertex indices (4 vertices: one per face)
     // OrcaSlicer approach - Order: [up, right, down, left]
-    using TubeCap = std::array<uint32_t, 4>;
+    using TubeCap = std::vector<uint32_t>;  // Size determined at runtime (4, 8, or 16)
 
     // Geometry generation with vertex sharing (OrcaSlicer approach)
     // prev_start_cap: Optional 4 vertex indices from previous segment's end cap (for reuse)
