@@ -1196,6 +1196,9 @@ int main(int argc, char** argv) {
     // Register app_layout with navigation system (to prevent hiding it)
     ui_nav_set_app_layout(app_layout);
 
+    // Initialize shared overlay backdrop
+    ui_nav_init_overlay_backdrop(screen);
+
     // Find navbar and panel widgets
     // app_layout > navbar (child 0), content_area (child 1)
     lv_obj_t* navbar = lv_obj_get_child(app_layout, 0);
