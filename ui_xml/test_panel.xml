@@ -65,5 +65,11 @@
       <lv_label text="size=&quot;medium&quot; width=&quot;100&quot;" style_text_font="#test_label_font"/>
       <ui_switch name="test_switch_override" size="medium" width="100"/>
     </ui_card>
+
+    <!-- NEW: Keyboard test -->
+    <lv_label text="Keyboard Test (Gboard-style)" style_text_font="#test_label_large_font" style_margin_top="10"/>
+    <ui_card width="100%" height="120" style_bg_opa="255" style_radius="8" style_pad_all="#padding_normal">
+      <lv_textarea name="keyboard_test_textarea" width="100%" height="100%" placeholder="Tap to show keyboard..." one_line="false" max_length="200"/>
+    </ui_card>
   </view>
 </component>

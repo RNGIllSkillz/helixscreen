@@ -24,6 +24,7 @@
 #include "ui_panel_test.h"
 
 #include "ui_theme.h"
+#include "ui_keyboard.h"
 
 #include <spdlog/spdlog.h>
 
@@ -86,6 +87,13 @@ void ui_panel_test_setup(lv_obj_t* test_panel) {
     if (row_height_label) {
         snprintf(buffer, sizeof(buffer), "Row Height: %dpx (fits switch + padding)", row_height);
         lv_label_set_text(row_height_label, buffer);
+    }
+
+    // Register keyboard for textarea
+    lv_obj_t* keyboard_textarea = lv_obj_find_by_name(test_panel, "keyboard_test_textarea");
+    if (keyboard_textarea) {
+        ui_keyboard_register_textarea(keyboard_textarea);
+        spdlog::info("[Test Panel] Registered keyboard for textarea");
     }
 
     spdlog::info("[Test Panel] Setup complete: {} ({}x{}, max={}), switch={}x{}, row={}px",

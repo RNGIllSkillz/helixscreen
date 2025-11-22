@@ -1,13 +1,41 @@
 # Session Handoff Document
 
 **Last Updated:** 2025-11-21
-**Current Focus:** G-code viewer enhancements complete
+**Current Focus:** G-code viewer performance optimizations complete
 
 ---
 
 ## ✅ CURRENT STATE
 
 ### Recently Completed
+
+**G-Code Viewer Performance & Multicolor Rendering (2025-11-21)**
+- ✅ **Phase 1 - Performance optimizations + multicolor rendering fixes:**
+  - Fixed multicolor rendering bug (OrcaCube_ABS_Multicolor.gcode now displays properly)
+  - Configured tool color palette in async geometry builder
+  - Added multicolor detection to prevent color override (get_geometry_color_count())
+  - Added callback-based async load completion API (gcode_viewer_load_callback_t)
+  - Implemented ui_gcode_viewer_get_filename() API
+  - Enhanced file info display with filename and simplified filament type
+  - Fixed XML long_mode="wrap" syntax
+  - Added FPS tracking for performance monitoring (debug level)
+- ✅ **Phase 2 - Vertex sharing diagnostics and analysis:**
+  - Added vertex sharing statistics tracking
+  - Discovered 92.4% vertex sharing rate (34,496/37,347 segments)
+  - Original estimate of ~3% was incorrect - vertex sharing already highly optimized
+  - Analyzed framebuffer RGB conversion (already optimal)
+  - Concluded no further optimization needed
+
+**Performance Metrics (OrcaCube_ABS_Multicolor.gcode):**
+- Geometry build: 0.056s
+- First render: 99.2ms
+- Memory: 10.85 MB
+- Vertex sharing: 92.4% (34,496/37,347 segments)
+- Normal palette: 10k entries (down from 44k via hash map optimization)
+
+**Commits:**
+- `ebf361e` - perf(gcode): Phase 2 - vertex sharing diagnostics and analysis
+- `8102c34` - perf(gcode): Phase 1 performance optimizations + multicolor rendering fixes
 
 **N-Sided Elliptical Tube Rendering (2025-11-21)**
 - ✅ Implemented configurable N-sided tube cross-sections (N=4, 8, or 16)
@@ -43,85 +71,31 @@
 - `b3d2368` - wip(gcode): Phase 3 - Vertex generation refactor for N-sided tubes
 - `0ab2f42` - wip(gcode): Phase 2 - Data structure refactor for N-sided tubes
 
-**G-Code Viewer Command-Line Options (2025-11-20/21)**
-- ✅ Added `--gcode-file <path>` to load specific G-code file on startup
-- ✅ Added `--camera <params>` to set camera params in compact format: "az:90.5,el:4.0,zoom:15.5"
-  - Each parameter is optional, comma-separated
-  - Supports flexible parsing with whitespace tolerance
-- ✅ Added `--gcode-az <deg>` to set camera azimuth angle (individual arg)
-- ✅ Added `--gcode-el <deg>` to set camera elevation angle (individual arg)
-- ✅ Added `--gcode-zoom <n>` to set camera zoom level (individual arg)
-- ✅ Added `--gcode-debug-colors` to enable per-face debug coloring
-- ✅ Exposed camera setters (set_azimuth/set_elevation/set_zoom_level) in GCodeCamera
-- ✅ Added ui_gcode_viewer API functions for camera control and debug colors
-- ✅ Settings applied automatically in gcode test panel on startup
-
-**Files Modified:**
-- `include/runtime_config.h` - Added G-code viewer config fields
-- `src/main.cpp` - Added command-line argument parsing
-- `include/gcode_camera.h` - Added direct setter methods
-- `src/gcode_camera.cpp` - Implemented camera setters
-- `include/ui_gcode_viewer.h` - Added viewer widget API functions
-- `src/ui_gcode_viewer.cpp` - Implemented widget wrapper functions
-- `src/ui_panel_gcode_test.cpp` - Apply runtime config on panel init
-
-**Usage Examples:**
-```bash
-# Custom camera angles (compact format - NEW!)
-./build/bin/helix-ui-proto -p gcode-test --camera "az:90,el:-10,zoom:5"
-
-# Custom camera angles (individual args)
-./build/bin/helix-ui-proto -p gcode-test --gcode-az 90 --gcode-el -10 --gcode-zoom 5
-
-# Partial camera params (only set what you need)
-./build/bin/helix-ui-proto -p gcode-test --camera "az:45"
-./build/bin/helix-ui-proto -p gcode-test --camera "el:30,zoom:2.0"
-
-# Load specific file with debug colors
-./build/bin/helix-ui-proto -p gcode-test --gcode-file assets/test_gcode/multi_color_cube.gcode --gcode-debug-colors
-
-# All options combined
-./build/bin/helix-ui-proto -p gcode-test --test \
-  --gcode-file my_print.gcode \
-  --gcode-az 45 --gcode-el 30 --gcode-zoom 2.5 \
-  --gcode-debug-colors
-```
-
-**G-Code 3D Rendering - Geometry Fixes (Earlier 2025-11-20)**
-- ✅ Fixed tube geometry cross-section calculation (perpendicular vectors)
-- ✅ Corrected end cap rendering (proper vertex ordering)
-- ✅ Fixed tube proportions using `layer_height_mm` from G-code metadata
-- ✅ Corrected face normals to point outward (top=UP, bottom=DOWN)
-- ✅ Added per-face debug coloring system for geometry diagnosis
-- ✅ Added camera debug overlay showing Az/El/Zoom (only with -vv flag)
-
-**Commits:**
-- (Pending) - feat(gcode): add command-line options for camera and debug controls
-- `d02b140` - fix(gcode): correct tube geometry cross-section and end cap rendering
-- `f56edde` - Add single extrusion test G-code file
-
-### Recently Completed (Previous Sessions)
-
-**Bed Mesh Grid Lines Implementation:**
-- ✅ Wireframe grid overlay on mesh surface
-- ✅ Dark gray (80,80,80) lines with 60% opacity
-- ✅ LVGL 9.4 layer-based drawing (lv_canvas_init_layer/finish_layer)
-- ✅ Coordinate system matches mesh quads exactly (Y-inversion, Z-centering)
-- ✅ Horizontal and vertical lines connecting mesh vertices
-- ✅ Bounds checking with -10px margin for partially visible lines
-- ✅ Defensive checks for invalid canvas dimensions during flex layout
-
-**Commits:**
-- `dc2742e` - feat(bed_mesh): implement wireframe grid lines over mesh surface
-- `e97b141` - refactor(bed_mesh): remove frontend fallback, use theme constants
-- `e196b48` - fix(bed_mesh): dynamic canvas buffer and manual label updates
-- `6ebf122` - fix(bed_mesh): reactive bindings now working with nullptr prev buffer
+**Async G-Code Rendering (2025-11-20/21)**
+- ✅ Non-blocking geometry building in background thread
+- ✅ UI remains responsive during large file loads
+- ✅ Callback-based completion notification
+- ✅ File info panel updates automatically after load
 
 ---
 
 ## 🚀 NEXT PRIORITIES
 
-### 1. **G-Code Viewer - Layer Controls** (HIGH PRIORITY)
+### 1. **Complete Bed Mesh UI Features** (HIGH PRIORITY)
+
+**Goal:** Match feature parity with GuppyScreen bed mesh visualization
+
+**Completed:**
+- ✅ Rotation sliders (Tilt/Spin) - visible and functional
+- ✅ Info labels (dimensions, Z range) - visible with reactive bindings
+- ✅ Grid lines - wireframe overlay properly aligned
+
+**Remaining Tasks:**
+1. [ ] Add axis labels (X/Y/Z indicators, bed dimensions)
+2. [ ] Add mesh profile selector dropdown
+3. [ ] Display additional statistics (variance/deviation)
+
+### 2. **G-Code Viewer - Layer Controls** (MEDIUM PRIORITY)
 
 **Remaining Tasks:**
 - [ ] Add layer slider/scrubber for preview-by-layer
@@ -145,20 +119,6 @@
   --gcode-az 45 --gcode-el 30 --gcode-zoom 2.0 \
   --screenshot 2
 ```
-
-### 2. **Complete Bed Mesh UI Features** (MEDIUM PRIORITY)
-
-**Goal:** Match feature parity with GuppyScreen bed mesh visualization
-
-**Completed:**
-- ✅ Rotation sliders (Tilt/Spin) - visible and functional
-- ✅ Info labels (dimensions, Z range) - visible with reactive bindings
-- ✅ Grid lines - wireframe overlay properly aligned
-
-**Remaining Tasks:**
-1. [ ] Add axis labels (X/Y/Z indicators, bed dimensions)
-2. [ ] Add mesh profile selector dropdown
-3. [ ] Display additional statistics (variance/deviation)
 
 ### 3. **Print Select Integration**
 
