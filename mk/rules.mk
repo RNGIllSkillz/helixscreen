@@ -136,9 +136,14 @@ clean:
 		echo "$(GREEN)✓ Already clean (no build directory)$(RESET)"; \
 	fi
 	$(Q)rm -f .fonts.stamp
+	$(Q)rm -f compile_commands.json
 	$(Q)if [ -d "$(SDL2_BUILD_DIR)" ]; then \
 		echo "$(YELLOW)→ Cleaning SDL2 build...$(RESET)"; \
 		rm -rf $(SDL2_BUILD_DIR); \
+	fi
+	$(Q)if [ -d "$(LIBHV_DIR)" ] && [ -n "$$(find $(LIBHV_DIR) -name '*.o' -o -name '*.a' -o -name '*.so' -o -name '*.dylib' 2>/dev/null)" ]; then \
+		echo "$(YELLOW)→ Cleaning libhv build artifacts...$(RESET)"; \
+		find $(LIBHV_DIR) -type f \( -name '*.o' -o -name '*.a' -o -name '*.so' -o -name '*.dylib' \) -delete; \
 	fi
 ifeq ($(ENABLE_TINYGL_3D),yes)
 	$(Q)if [ -f "$(TINYGL_LIB)" ]; then \
