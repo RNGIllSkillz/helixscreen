@@ -1,132 +1,30 @@
 # Session Handoff Document
 
 **Last Updated:** 2025-11-22
-**Current Focus:** Bed mesh centering bug identified, fix ready to implement
+**Current Focus:** Bed mesh coordinate math refactoring
 
 ---
 
-## 🔥 URGENT FIX NEEDED
+## 🔥 ACTIVE WORK
 
-### Bed Mesh Visualization Off-Center Bug
+### Bed Mesh Coordinate Math Refactoring (IN PROGRESS)
 
-**Problem:** The bed mesh is rendering significantly left of center in the viewport.
+**Goal:** Consolidate duplicate coordinate calculations across grid, mesh, axis, and gradient rendering to reduce errors and improve maintainability.
 
-**Debug Evidence:**
-```
-Canvas dimensions: 520x410, center at (260, 205)
-Mesh center before offset: (222, 231) - 38 pixels left
-After "centering": bounds show [0,520] - using full width incorrectly
-```
+**Problem:** After fixing the centering bug, the codebase has multiple places computing similar coordinate transformations:
+1. `project_3d_to_2d()` - Main projection with centering offset
+2. `generate_mesh_quads()` - Quad vertex calculations
+3. `render_grid_lines()` - Grid line endpoints
+4. `render_axis_labels()` - Axis positioning
+5. Triangle fill functions - Gradient quad rendering
 
-**Root Cause:** In `src/bed_mesh_renderer.cpp` lines 525-526, the centering calculation incorrectly subtracts the current offset from already-offset projected points, creating incorrect bounds and cumulative offset errors.
+**Risk:** Changes to coordinate math require updates in multiple places, leading to bugs like the recent centering/clipping issues.
 
-**DETAILED FIX INSTRUCTIONS:**
-
-### Step 1: Fix the bounds calculation in center_mesh_in_viewport() (Lines 514-544)
-
-Find this code block starting at line 522:
-```cpp
-// Calculate bounds of the projected mesh WITHOUT the current offset
-int min_x = INT_MAX, max_x = INT_MIN;
-int min_y = INT_MAX, max_y = INT_MIN;
-for (int row = 0; row < renderer->rows; row++) {
-    for (int col = 0; col < renderer->cols; col++) {
-        // Get coordinates WITHOUT the current offset applied
-        int x = renderer->projected_points[row][col].screen_x - renderer->view_state.center_offset_x;
-        int y = renderer->projected_points[row][col].screen_y - renderer->view_state.center_offset_y;
-        min_x = std::min(min_x, x);
-        max_x = std::max(max_x, x);
-        min_y = std::min(min_y, y);
-        max_y = std::max(max_y, y);
-    }
-}
-```
-
-**CHANGE TO:**
-```cpp
-// Calculate bounds of the projected mesh
-int min_x = INT_MAX, max_x = INT_MIN;
-int min_y = INT_MAX, max_y = INT_MIN;
-for (int row = 0; row < renderer->rows; row++) {
-    for (int col = 0; col < renderer->cols; col++) {
-        // Use the projected coordinates directly - they already have offset applied
-        int x = renderer->projected_points[row][col].screen_x;
-        int y = renderer->projected_points[row][col].screen_y;
-        min_x = std::min(min_x, x);
-        max_x = std::max(max_x, x);
-        min_y = std::min(min_y, y);
-        max_y = std::max(max_y, y);
-    }
-}
-```
-
-### Step 2: Remove redundant centering call (Line 544)
-
-Find this line after the gradient rendering (around line 544):
-```cpp
-center_mesh_in_viewport(renderer, canvas_width, canvas_height);
-```
-
-**DELETE THIS LINE ENTIRELY** - The centering is already done at line 489 before rendering starts.
-
-### Step 3: Ensure centering_done flag is properly used
-
-Check that around line 515-516, the centering_done flag is being checked:
-```cpp
-if (renderer->centering_done) {
-    return;  // Already centered for this configuration
-}
-```
-
-And that it's set to true at the end of center_mesh_in_viewport (around line 541):
-```cpp
-renderer->centering_done = true;
-```
-
-### Step 4: Clean up the debug log message (Optional but helpful)
-
-Around line 538, update the debug message to be clearer:
-```cpp
-spdlog::info("[CENTERING_ONCE] Fixed offset calculated: ({},{}) | Mesh center was: ({},{}) | Canvas center: ({},{})",
-             renderer->view_state.center_offset_x, renderer->view_state.center_offset_y,
-             center_x, center_y,
-             canvas_center_x, canvas_center_y);
-```
-
-### WHY THIS FIXES IT:
-
-1. **The Bug:** The projected_points already have center_offset applied from project_3d_to_2d() at lines 762-764:
-   ```cpp
-   result.screen_x = static_cast<int>(canvas_width / 2 + perspective_x) + view->center_offset_x;
-   result.screen_y = static_cast<int>(canvas_height * BED_MESH_Z_ORIGIN_VERTICAL_POS + perspective_y) + view->center_offset_y;
-   ```
-
-2. **The Problem:** By subtracting the offset again in center_mesh_in_viewport(), we're calculating bounds based on "double-offset" coordinates, which gives wrong bounds.
-
-3. **The Solution:** Use the projected coordinates as-is for bounds calculation since they already include the offset.
-
-### TESTING THE FIX:
-
-After making changes:
-```bash
-# Rebuild
-make -j
-
-# Run with debug to see centering logs
-./build/bin/helix-ui-proto bed-mesh --test -vv 2>&1 | grep CENTERING
-
-# Should see bounds centered around x=260, not [0,520]
-# Take a screenshot to verify visual centering
-./scripts/screenshot.sh helix-ui-proto bedmesh-fixed "bed-mesh --test"
-```
-
-**Expected Results:**
-- Mesh should appear centered in viewport
-- Debug logs should show reasonable bounds (not [0,520])
-- CENTERING_ONCE should only appear once per render
-- Visual should match Mainsail reference (centered mesh)
-
-**Files to modify:** Only `src/bed_mesh_renderer.cpp`
+**Desired Outcome:**
+- Single source of truth for coordinate transformations
+- Clear separation between world-space → screen-space conversions
+- Reusable helpers for common patterns (bounds calculation, centering, etc.)
+- Better documentation of coordinate space assumptions
 
 ---
 
@@ -134,7 +32,34 @@ make -j
 
 ### Recently Completed
 
-**Bed Mesh DRAW_POST Architecture & UI Refinements (2025-11-22)** ⭐ **NEW**
+**Bed Mesh Centering & Clipping Fixes (2025-11-22)** ⭐ **NEW**
+- ✅ **Fixed 38-pixel horizontal centering bug:**
+  - Root cause: Layer offset confusion (overlay at screen x=136)
+  - Projection returns screen-absolute coords, centering treated as layer-relative
+  - Solution: Work entirely in screen coordinate space
+  - Added center_offset_x/center_offset_y to view_state
+  - Calculate layer_center = layer_offset + canvas_size/2
+  - Apply offset in project_3d_to_2d()
+- ✅ **Fixed gradient right-edge clipping:**
+  - Removed ALL manual clipping from fill_triangle_solid/gradient
+  - Let LVGL's layer system handle clipping automatically
+  - Manual clipping was using canvas dims to clip screen coords (wrong!)
+- ✅ **Visual improvements for Mainsail appearance:**
+  - Lightened grid lines: RGB(80,80,80) → RGB(140,140,140)
+  - Increased grid opacity: 60% → 70%
+  - Increased padding: CANVAS_PADDING_FACTOR 1.0 → 0.95 (5% margin)
+- ✅ **Documented -vv flag usage in CLAUDE.md**
+
+**Files Modified:**
+- `src/bed_mesh_renderer.cpp` - Centering logic, clipping removal
+- `include/bed_mesh_renderer.h` - Added center_offset fields
+- `CLAUDE.md` - Explicit -vv flag documentation
+
+**Commit:** `7dea48d` - fix(bed_mesh): resolve centering bug and gradient clipping issues
+
+**Testing:** Verified with screenshots - mesh now properly centered with equal padding, gradient renders completely without clipping.
+
+**Bed Mesh DRAW_POST Architecture & UI Refinements (2025-11-22)**
 - ✅ **Complete DRAW_POST migration from canvas buffers:**
   - Changed from canvas widget to base `lv_obj` with `LV_EVENT_DRAW_POST` callback
   - Renderer now draws directly to layer (no 720KB buffer allocation)
