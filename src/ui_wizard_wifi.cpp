@@ -416,13 +416,10 @@ void ui_wizard_wifi_init_wifi_manager() {
 void ui_wizard_wifi_cleanup() {
     spdlog::debug("[WiFi Screen] Cleaning up WiFi screen");
 
-    // Stop WiFi scanning and disable if enabled
+    // Stop WiFi scanning (network remains configured for subsequent wizard steps)
     if (wifi_manager) {
-        spdlog::debug("[WiFi Screen] Stopping scan and disabling WiFi");
+        spdlog::debug("[WiFi Screen] Stopping scan");
         wifi_manager->stop_scan();
-        if (lv_subject_get_int(&wifi_enabled) == 1) {
-            wifi_manager->set_enabled(false);
-        }
     }
 
     // Clear network list BEFORE destroying wifi_manager
