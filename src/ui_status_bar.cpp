@@ -35,6 +35,16 @@ static lv_obj_t* notification_icon = nullptr;
 static lv_obj_t* notification_badge = nullptr;
 static lv_obj_t* notification_badge_count = nullptr;
 
+// Observer callback for network state changes
+static void network_status_observer(lv_observer_t* observer, lv_subject_t* subject) {
+    int32_t network_state = lv_subject_get_int(subject);
+    spdlog::debug("[StatusBar] Network observer fired! State: {}", network_state);
+
+    // Map integer to NetworkStatus enum
+    NetworkStatus status = static_cast<NetworkStatus>(network_state);
+    ui_status_bar_update_network(status);
+}
+
 // Observer callback for printer connection state changes
 static void printer_connection_observer(lv_observer_t* observer, lv_subject_t* subject) {
     int32_t connection_state = lv_subject_get_int(subject);
@@ -81,12 +91,20 @@ void ui_status_bar_init() {
     // Register notification history callback
     lv_xml_register_event_cb(NULL, "status_notification_history_clicked", status_notification_history_clicked);
 
-    // Find status bar icons by name
-    network_icon = lv_obj_find_by_name(lv_screen_active(), "status_network_icon");
-    printer_icon = lv_obj_find_by_name(lv_screen_active(), "status_printer_icon");
-    notification_icon = lv_obj_find_by_name(lv_screen_active(), "status_notification_icon");
-    notification_badge = lv_obj_find_by_name(lv_screen_active(), "notification_badge");
-    notification_badge_count = lv_obj_find_by_name(lv_screen_active(), "notification_badge_count");
+    // First, find the status_bar container itself
+    lv_obj_t* status_bar = lv_obj_find_by_name(lv_screen_active(), "status_bar");
+    if (!status_bar) {
+        spdlog::error("[StatusBar] Failed to find status_bar container - cannot initialize");
+        return;
+    }
+    spdlog::debug("[StatusBar] Found status_bar container at {}", (void*)status_bar);
+
+    // Find status bar icons by name (search within status_bar container)
+    network_icon = lv_obj_find_by_name(status_bar, "status_network_icon");
+    printer_icon = lv_obj_find_by_name(status_bar, "status_printer_icon");
+    notification_icon = lv_obj_find_by_name(status_bar, "status_notification_icon");
+    notification_badge = lv_obj_find_by_name(status_bar, "notification_badge");
+    notification_badge_count = lv_obj_find_by_name(status_bar, "notification_badge_count");
 
     spdlog::debug("[StatusBar] Widget lookup: network_icon={}, printer_icon={}, notification_icon={}",
                   (void*)network_icon, (void*)printer_icon, (void*)notification_icon);
@@ -100,14 +118,25 @@ void ui_status_bar_init() {
         spdlog::warn("[StatusBar] Failed to find notification badge widgets");
     }
 
-    // Observe printer connection state for reactive icon updates
+    // Observe network and printer states for reactive icon updates
     PrinterState& printer_state = get_printer_state();
-    lv_subject_t* conn_subject = printer_state.get_printer_connection_state_subject();
 
+    // Network status observer
+    lv_subject_t* net_subject = printer_state.get_network_status_subject();
+    spdlog::debug("[StatusBar] Registering observer on network_status_subject at {}", (void*)net_subject);
+    lv_subject_add_observer(net_subject, network_status_observer, nullptr);
+
+    // Trigger initial network update
+    int32_t initial_net_state = lv_subject_get_int(net_subject);
+    spdlog::debug("[StatusBar] Initial network state: {}", initial_net_state);
+    ui_status_bar_update_network(static_cast<NetworkStatus>(initial_net_state));
+
+    // Printer connection observer
+    lv_subject_t* conn_subject = printer_state.get_printer_connection_state_subject();
     spdlog::debug("[StatusBar] Registering observer on printer_connection_state_subject at {}", (void*)conn_subject);
     lv_subject_add_observer(conn_subject, printer_connection_observer, nullptr);
 
-    // Trigger initial update with current state
+    // Trigger initial printer update
     int32_t initial_state = lv_subject_get_int(conn_subject);
     spdlog::debug("[StatusBar] Initial printer connection state from subject: {}", initial_state);
     spdlog::debug("[StatusBar] Triggering initial update with PrinterStatus={}", static_cast<int>(static_cast<PrinterStatus>(initial_state)));
@@ -122,26 +151,23 @@ void ui_status_bar_update_network(NetworkStatus status) {
         return;
     }
 
-    const char* icon = nullptr;
+    // Network icon is a Font Awesome label showing link symbol (generic network indicator)
     lv_color_t color;
 
     switch (status) {
         case NetworkStatus::CONNECTED:
-            icon = LV_SYMBOL_WIFI;
             color = ui_theme_parse_color(lv_xml_get_const(NULL, "success_color"));
             break;
         case NetworkStatus::CONNECTING:
-            icon = LV_SYMBOL_WIFI;
             color = ui_theme_parse_color(lv_xml_get_const(NULL, "warning_color"));
             break;
         case NetworkStatus::DISCONNECTED:
         default:
-            icon = LV_SYMBOL_WIFI;
             color = ui_theme_parse_color(lv_xml_get_const(NULL, "text_secondary"));
             break;
     }
 
-    lv_label_set_text(network_icon, icon);
+    // Update text color for the Font Awesome label
     lv_obj_set_style_text_color(network_icon, color, 0);
 }
 

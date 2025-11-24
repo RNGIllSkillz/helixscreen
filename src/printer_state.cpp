@@ -107,7 +107,8 @@ void PrinterState::init_subjects(bool register_xml) {
                            sizeof(printer_connection_message_buf_), "Disconnected");
 
     // Network connectivity subject (WiFi/Ethernet)
-    lv_subject_init_int(&network_status_, 0); // 0 = disconnected
+    // TODO: Get actual network status from EthernetManager/WiFiManager
+    lv_subject_init_int(&network_status_, 2); // 0=DISCONNECTED, 1=CONNECTING, 2=CONNECTED (mock mode default)
 
     // Register all subjects with LVGL XML system (CRITICAL for XML bindings)
     if (register_xml) {

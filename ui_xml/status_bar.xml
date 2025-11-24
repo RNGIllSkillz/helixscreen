@@ -12,9 +12,9 @@
         flex_flow="row" style_flex_main_place="end" style_flex_cross_place="center"
         scrollbar_mode="off">
 
-    <!-- Network status icon (LV_SYMBOL_WIFI) -->
-    <lv_label name="status_network_icon" text="&#xF1EB;"
-              style_text_font="#font_heading"
+    <!-- Network status icon (FA sitemap - network diagram) -->
+    <lv_label name="status_network_icon" text="&#xF0E8;"
+              style_text_font="fa_icons_24"
               style_text_color="#text_secondary"
               clickable="true">
       <event_cb trigger="clicked" callback="status_network_icon_clicked"/>
