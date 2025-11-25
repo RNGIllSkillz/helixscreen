@@ -431,10 +431,10 @@ ifeq ($(UNAME_S),Darwin)
 		CFLAGS="$(MACOS_DEPLOYMENT_TARGET)" \
 		CXXFLAGS="$(MACOS_DEPLOYMENT_TARGET)" \
 		./configure --with-http-client
-	$(Q)MACOSX_DEPLOYMENT_TARGET=$(MACOS_MIN_VERSION) $(MAKE) -C $(LIBHV_DIR) -j$(NPROC) libhv
+	$(Q)MACOSX_DEPLOYMENT_TARGET=$(MACOS_MIN_VERSION) $(MAKE) -C $(LIBHV_DIR) libhv
 else
 	$(Q)cd $(LIBHV_DIR) && ./configure --with-http-client
-	$(Q)$(MAKE) -C $(LIBHV_DIR) -j$(NPROC) libhv
+	$(Q)$(MAKE) -C $(LIBHV_DIR) libhv
 endif
 	$(ECHO) "$(GREEN)✓ libhv built successfully$(RESET)"
 
@@ -452,7 +452,7 @@ ifeq ($(UNAME_S),Darwin)
 			-DSDL_STATIC=ON \
 			-DSDL_TEST=OFF \
 			-DSDL_TESTS=OFF
-	$(Q)MACOSX_DEPLOYMENT_TARGET=$(MACOS_MIN_VERSION) cmake --build $(SDL2_BUILD_DIR) --config Release -j$(NPROC)
+	$(Q)MACOSX_DEPLOYMENT_TARGET=$(MACOS_MIN_VERSION) cmake --build $(SDL2_BUILD_DIR) --config Release
 else
 	$(Q)cd $(SDL2_BUILD_DIR) && \
 		cmake .. \
@@ -461,7 +461,7 @@ else
 			-DSDL_STATIC=ON \
 			-DSDL_TEST=OFF \
 			-DSDL_TESTS=OFF
-	$(Q)cmake --build $(SDL2_BUILD_DIR) --config Release -j$(NPROC)
+	$(Q)cmake --build $(SDL2_BUILD_DIR) --config Release
 endif
 	$(ECHO) "$(GREEN)✓ SDL2 built successfully$(RESET)"
 
@@ -482,7 +482,7 @@ $(WPA_CLIENT_LIB):
 			exit 1; \
 		fi; \
 	fi
-	$(Q)$(MAKE) -C $(WPA_DIR)/wpa_supplicant -j$(NPROC) libwpa_client.a
+	$(Q)$(MAKE) -C $(WPA_DIR)/wpa_supplicant libwpa_client.a
 	$(ECHO) "$(GREEN)✓ libwpa_client.a built successfully$(RESET)"
 endif
 
