@@ -61,12 +61,22 @@ This file tracks the migration of function-based panels to the class-based `Pane
 
 ### 📋 Phase 6: Wizard Steps
 
+#### ✅ Completed
+
 | Module | Target Class | Lines | Key Pattern |
 |--------|--------------|-------|-------------|
-| `ui_wizard_summary` | `WizardSummaryStep` | ~300 | 12 subjects |
-| `ui_wizard_wifi` | `WizardWifiStep` | ~250 | Network scanning |
-| `ui_wizard_printer` | `WizardPrinterStep` | ~200 | Printer selection |
-| `ui_wizard_moonraker` | `WizardMoonrakerStep` | ~200 | Connection testing |
+| `ui_wizard_summary` | `WizardSummaryStep` | 345 | 12 subjects, config summary display, Phase 6 |
+| `ui_wizard_heater_select` | `WizardHeaterSelectStep` | 256 | 2 subjects, hardware dropdown, Phase 6 |
+| `ui_wizard_fan_select` | `WizardFanSelectStep` | 278 | 2 subjects, hardware dropdown, Phase 6 |
+| `ui_wizard_led_select` | `WizardLedSelectStep` | 206 | 1 subject, hardware dropdown, Phase 6 |
+
+#### 📋 Remaining (Complex Async Patterns)
+
+| Module | Target Class | Lines | Key Pattern |
+|--------|--------------|-------|-------------|
+| `ui_wizard_connection` | `WizardConnectionStep` | ~500 | 5 subjects, async WebSocket callbacks, extern subject dependency |
+| `ui_wizard_printer_identify` | `WizardPrinterIdentifyStep` | ~470 | 3 subjects, printer detection, LVGL_SAFE_EVENT_CB_WITH_EVENT macros |
+| `ui_wizard_wifi` | `WizardWifiStep` | ~900 | 3+ subjects, network scanning, password modal, WiFiManager callbacks |
 
 ## Deprecated Wrappers Ready for Clean Break
 
@@ -86,6 +96,10 @@ This file tracks the migration of function-based panels to the class-based `Pane
 | `PrintStatusPanel` | `ui_panel_print_status_init_subjects()`, `ui_panel_print_status_setup()`, etc. | `src/ui_panel_print_status.cpp` |
 | `GcodeTestPanel` | `ui_panel_gcode_test_create()`, `ui_panel_gcode_test_cleanup()` | `src/ui_panel_gcode_test.cpp` |
 | `PrintSelectPanel` | `ui_panel_print_select_init_subjects()`, `ui_panel_print_select_setup()`, etc. | `src/ui_panel_print_select.cpp` |
+| `WizardSummaryStep` | `ui_wizard_summary_init_subjects()`, `ui_wizard_summary_create()`, etc. | `src/ui_wizard_summary.cpp` |
+| `WizardHeaterSelectStep` | `ui_wizard_heater_select_init_subjects()`, `ui_wizard_heater_select_create()`, etc. | `src/ui_wizard_heater_select.cpp` |
+| `WizardFanSelectStep` | `ui_wizard_fan_select_init_subjects()`, `ui_wizard_fan_select_create()`, etc. | `src/ui_wizard_fan_select.cpp` |
+| `WizardLedSelectStep` | `ui_wizard_led_select_init_subjects()`, `ui_wizard_led_select_create()`, etc. | `src/ui_wizard_led_select.cpp` |
 
 ## Clean Break Checklist
 
