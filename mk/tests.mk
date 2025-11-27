@@ -65,6 +65,7 @@ TEST_UI_DEPS := \
 
 # UI panel components (all panels for smoke tests)
 TEST_PANEL_DEPS := \
+    $(OBJ_DIR)/ui_panel_base.o \
     $(OBJ_DIR)/ui_panel_home.o \
     $(OBJ_DIR)/ui_panel_controls.o \
     $(OBJ_DIR)/ui_temp_control_panel.o \
