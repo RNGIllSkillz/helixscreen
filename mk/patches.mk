@@ -51,3 +51,14 @@ apply-patches:
 	else \
 		echo "$(GREEN)✓ LVGL flex SIZE_CONTENT propagation patch already applied$(RESET)"; \
 	fi
+	$(Q)if git -C $(LVGL_DIR) diff --quiet src/xml/lv_xml_style.c 2>/dev/null; then \
+		echo "$(YELLOW)→ Applying LVGL translate percentage patch...$(RESET)"; \
+		if git -C $(LVGL_DIR) apply --check ../../patches/lvgl_translate_percent.patch 2>/dev/null; then \
+			git -C $(LVGL_DIR) apply ../../patches/lvgl_translate_percent.patch && \
+			echo "$(GREEN)✓ Translate percentage patch applied$(RESET)"; \
+		else \
+			echo "$(YELLOW)⚠ Cannot apply patch (already applied or conflicts)$(RESET)"; \
+		fi \
+	else \
+		echo "$(GREEN)✓ LVGL translate percentage patch already applied$(RESET)"; \
+	fi

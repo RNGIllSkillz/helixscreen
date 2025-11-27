@@ -20,7 +20,7 @@
         <!-- Gradient background -->
         <ui_gradient_canvas width="100%" height="100%" dither="true"/>
         <!-- Thumbnail with reactive binding -->
-        <lv_image bind_src="selected_thumbnail" width="100%" height="100%" style_bg_opa="0" align="center" inner_align="contain" name="detail_thumbnail"/>
+        <lv_image bind_src="selected_thumbnail" width="100%" height="100%" style_bg_opa="0" align="center" inner_align="contain" style_translate_y="-20%" name="detail_thumbnail"/>
         <!-- Metadata clip container - clips top rounded corners of inner overlay -->
         <lv_obj width="100%" height="90" style_bg_opa="0" style_border_width="0" style_radius="0" style_pad_all="0" align="bottom_mid" scrollable="false" name="detail_metadata_clip">
           <!-- Inner overlay with rounded corners - taller to hide top radius -->
