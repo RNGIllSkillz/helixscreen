@@ -491,6 +491,7 @@ struct GCodeHeaderMetadata {
     double estimated_time_seconds = 0.0;
     double filament_used_mm = 0.0;
     double filament_used_g = 0.0;
+    std::string filament_type; ///< e.g., "PLA", "PETG", "ABS", "TPU", "ASA"
     uint32_t layer_count = 0;
     double first_layer_bed_temp = 0.0;
     double first_layer_nozzle_temp = 0.0;

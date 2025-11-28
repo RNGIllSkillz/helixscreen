@@ -194,6 +194,7 @@ static json build_mock_file_metadata_response(const std::string& filename) {
                    {"estimated_time", header_meta.estimated_time_seconds},
                    {"filament_total", header_meta.filament_used_mm},
                    {"filament_weight_total", header_meta.filament_used_g},
+                   {"filament_type", header_meta.filament_type},
                    {"layer_count", header_meta.layer_count},
                    {"first_layer_bed_temp", header_meta.first_layer_bed_temp},
                    {"first_layer_extr_temp", header_meta.first_layer_nozzle_temp},

@@ -86,6 +86,7 @@ struct FileMetadata {
     double estimated_time = 0.0;        // seconds
     double filament_total = 0.0;        // mm
     double filament_weight_total = 0.0; // grams
+    std::string filament_type;          // e.g., "PLA", "PETG", "ABS", "TPU", "ASA"
     double first_layer_bed_temp = 0.0;
     double first_layer_extr_temp = 0.0;
     uint64_t gcode_start_byte = 0;

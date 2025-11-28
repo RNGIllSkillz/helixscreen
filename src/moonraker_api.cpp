@@ -1121,6 +1121,13 @@ FileMetadata MoonrakerAPI::parse_file_metadata(const json& response) {
     if (result.contains("filament_weight_total")) {
         metadata.filament_weight_total = result["filament_weight_total"].get<double>();
     }
+    if (result.contains("filament_type")) {
+        // Moonraker returns "PLA;PLA;PLA;PLA" for multi-extruder - take first value
+        std::string raw_type = result["filament_type"].get<std::string>();
+        size_t semicolon = raw_type.find(';');
+        metadata.filament_type =
+            (semicolon != std::string::npos) ? raw_type.substr(0, semicolon) : raw_type;
+    }
 
     // Temperature info
     if (result.contains("first_layer_bed_temp")) {

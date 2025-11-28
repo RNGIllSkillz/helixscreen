@@ -67,6 +67,7 @@ struct PrintFileData {
     time_t modified_timestamp; ///< Last modified timestamp
     int print_time_minutes;    ///< Print time in minutes
     float filament_grams;      ///< Filament weight in grams
+    std::string filament_type; ///< Filament type (e.g., "PLA", "PETG", "ABS")
     bool is_dir = false;       ///< True if this is a directory
 
     // Formatted strings (cached for performance)
@@ -295,7 +296,8 @@ class PrintSelectPanel : public PanelBase {
     //
 
     std::vector<PrintFileData> file_list_;
-    std::string current_path_; ///< Current directory path (empty = root gcodes dir)
+    std::string current_path_;           ///< Current directory path (empty = root gcodes dir)
+    std::string selected_filament_type_; ///< Filament type of selected file (for dropdown default)
     PrintSelectViewMode current_view_mode_ = PrintSelectViewMode::CARD;
     PrintSelectSortColumn current_sort_column_ = PrintSelectSortColumn::FILENAME;
     PrintSelectSortDirection current_sort_direction_ = PrintSelectSortDirection::ASCENDING;

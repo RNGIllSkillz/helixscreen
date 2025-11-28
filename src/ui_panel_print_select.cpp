@@ -384,6 +384,7 @@ void PrintSelectPanel::refresh_files() {
                             static_cast<int>(metadata.estimated_time / 60.0);
                         self->file_list_[i].filament_grams =
                             static_cast<float>(metadata.filament_weight_total);
+                        self->file_list_[i].filament_type = metadata.filament_type;
 
                         // Update formatted strings
                         self->file_list_[i].print_time_str =
@@ -391,9 +392,10 @@ void PrintSelectPanel::refresh_files() {
                         self->file_list_[i].filament_str =
                             format_filament_weight(self->file_list_[i].filament_grams);
 
-                        spdlog::debug("[{}] Updated metadata for {}: {}min, {}g", self->get_name(),
-                                      filename, self->file_list_[i].print_time_minutes,
-                                      self->file_list_[i].filament_grams);
+                        spdlog::debug(
+                            "[{}] Updated metadata for {}: {}min, {}g, type={}", self->get_name(),
+                            filename, self->file_list_[i].print_time_minutes,
+                            self->file_list_[i].filament_grams, self->file_list_[i].filament_type);
 
                         // Use thumbnail if available (add LVGL filesystem prefix)
                         if (!metadata.thumbnails.empty()) {
@@ -483,6 +485,32 @@ void PrintSelectPanel::set_selected_file(const char* filename, const char* thumb
 
 void PrintSelectPanel::show_detail_view() {
     if (detail_view_widget_) {
+        // Set filament type dropdown to match file metadata
+        lv_obj_t* dropdown = lv_obj_find_by_name(detail_view_widget_, "filament_dropdown");
+        if (dropdown && !selected_filament_type_.empty()) {
+            // Map filament type string to dropdown index
+            // Options: PLA(0), PETG(1), ABS(2), TPU(3), Nylon(4), ASA(5), PC(6)
+            uint32_t index = 0; // Default to PLA
+            if (selected_filament_type_ == "PETG") {
+                index = 1;
+            } else if (selected_filament_type_ == "ABS") {
+                index = 2;
+            } else if (selected_filament_type_ == "TPU") {
+                index = 3;
+            } else if (selected_filament_type_ == "Nylon" || selected_filament_type_ == "NYLON" ||
+                       selected_filament_type_ == "PA") {
+                index = 4;
+            } else if (selected_filament_type_ == "ASA") {
+                index = 5;
+            } else if (selected_filament_type_ == "PC") {
+                index = 6;
+            }
+            // PLA is index 0 (default) for "PLA" or any unrecognized type
+            lv_dropdown_set_selected(dropdown, index);
+            spdlog::debug("[{}] Set filament dropdown to {} (index {})", get_name(),
+                          selected_filament_type_, index);
+        }
+
         // Use nav system for consistent backdrop and z-order management
         ui_nav_push_overlay(detail_view_widget_);
         lv_subject_set_int(&detail_view_visible_subject_, 1);
@@ -918,6 +946,7 @@ void PrintSelectPanel::handle_file_click(size_t file_index) {
         // File clicked - show detail view
         set_selected_file(file.filename.c_str(), file.thumbnail_path.c_str(),
                           file.print_time_str.c_str(), file.filament_str.c_str());
+        selected_filament_type_ = file.filament_type;
         show_detail_view();
     }
 }

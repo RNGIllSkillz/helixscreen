@@ -1239,6 +1239,12 @@ bool parse_metadata_line(const std::string& line, GCodeHeaderMetadata& metadata)
             metadata.first_layer_nozzle_temp = std::stod(value);
         } catch (...) {
         }
+    } else if (key == "filament_type") {
+        // Slicers may output multiple types separated by semicolons (e.g., "PLA;PLA;PLA")
+        // Take the first type only
+        size_t semicolon = value.find(';');
+        metadata.filament_type =
+            (semicolon != std::string::npos) ? value.substr(0, semicolon) : value;
     }
 
     return true;
