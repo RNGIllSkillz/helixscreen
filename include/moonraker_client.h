@@ -43,6 +43,29 @@
 using json = nlohmann::json;
 
 /**
+ * @brief Unique identifier for notification subscriptions
+ *
+ * Used to track and remove subscriptions registered via register_notify_update().
+ * Valid IDs are always > 0; ID 0 indicates invalid/unsubscribed.
+ */
+using SubscriptionId = uint64_t;
+
+/** @brief Invalid subscription ID constant */
+constexpr SubscriptionId INVALID_SUBSCRIPTION_ID = 0;
+
+/**
+ * @brief Unique identifier for JSON-RPC requests
+ *
+ * Used to track pending requests and allow cancellation.
+ * Returned by send_jsonrpc() overloads that take callbacks.
+ * Valid IDs are always > 0; ID 0 indicates invalid/failed request.
+ */
+using RequestId = uint64_t;
+
+/** @brief Invalid request ID constant */
+constexpr RequestId INVALID_REQUEST_ID = 0;
+
+/**
  * @brief Connection state for Moonraker WebSocket
  */
 enum class ConnectionState {
@@ -98,8 +121,20 @@ class MoonrakerClient : public hv::WebSocketClient {
      * (triggered by printer.objects.subscribe subscriptions).
      *
      * @param cb Callback function receiving parsed JSON notification
+     * @return Subscription ID for later unsubscription (0 = invalid/failed)
      */
-    void register_notify_update(std::function<void(json)> cb);
+    SubscriptionId register_notify_update(std::function<void(json)> cb);
+
+    /**
+     * @brief Unsubscribe from status update notifications
+     *
+     * Removes a previously registered notification callback.
+     * Safe to call with invalid IDs (no-op).
+     *
+     * @param id Subscription ID returned by register_notify_update()
+     * @return true if subscription was found and removed, false otherwise
+     */
+    bool unsubscribe_notify_update(SubscriptionId id);
 
     /**
      * @brief Register persistent callback for specific notification methods
@@ -108,11 +143,23 @@ class MoonrakerClient : public hv::WebSocketClient {
      * Useful for console output, prompt notifications, etc.
      *
      * @param method Notification method name (e.g., "notify_gcode_response")
-     * @param handler_name Unique identifier for this handler (for debugging)
+     * @param handler_name Unique identifier for this handler (for unregistration)
      * @param cb Callback function receiving parsed JSON notification
      */
     void register_method_callback(const std::string& method, const std::string& handler_name,
                                   std::function<void(json)> cb);
+
+    /**
+     * @brief Unregister a method callback by handler name
+     *
+     * Removes a previously registered method-specific callback.
+     * Safe to call with non-existent method/handler combinations (no-op).
+     *
+     * @param method Notification method name (e.g., "notify_gcode_response")
+     * @param handler_name Handler name used during registration
+     * @return true if handler was found and removed, false otherwise
+     */
+    bool unregister_method_callback(const std::string& method, const std::string& handler_name);
 
     /**
      * @brief Send JSON-RPC request without parameters
@@ -145,10 +192,10 @@ class MoonrakerClient : public hv::WebSocketClient {
      * @param method RPC method name
      * @param params JSON parameters object
      * @param cb Callback function receiving response JSON
-     * @return 0 on success, non-zero on error
+     * @return Request ID for cancellation, or INVALID_REQUEST_ID on error
      */
-    virtual int send_jsonrpc(const std::string& method, const json& params,
-                             std::function<void(json)> cb);
+    virtual RequestId send_jsonrpc(const std::string& method, const json& params,
+                                   std::function<void(json)> cb);
 
     /**
      * @brief Send JSON-RPC request with success and error callbacks
@@ -160,12 +207,25 @@ class MoonrakerClient : public hv::WebSocketClient {
      * @param success_cb Callback for successful response
      * @param error_cb Callback for errors (timeout, JSON-RPC error, etc.)
      * @param timeout_ms Optional timeout override (0 = use default)
-     * @return 0 on success, non-zero on error
+     * @return Request ID for cancellation, or INVALID_REQUEST_ID on error
      */
-    virtual int send_jsonrpc(const std::string& method, const json& params,
-                             std::function<void(json)> success_cb,
-                             std::function<void(const MoonrakerError&)> error_cb,
-                             uint32_t timeout_ms = 0);
+    virtual RequestId send_jsonrpc(const std::string& method, const json& params,
+                                   std::function<void(json)> success_cb,
+                                   std::function<void(const MoonrakerError&)> error_cb,
+                                   uint32_t timeout_ms = 0);
+
+    /**
+     * @brief Cancel a pending JSON-RPC request
+     *
+     * Removes the request from the pending queue without invoking callbacks.
+     * Safe to call with invalid IDs or already-completed requests (no-op).
+     * The actual WebSocket message cannot be recalled once sent; this only
+     * prevents callback invocation when the response arrives.
+     *
+     * @param id Request ID returned by send_jsonrpc()
+     * @return true if request was found and cancelled, false otherwise
+     */
+    bool cancel_request(RequestId id);
 
     /**
      * @brief Send G-code script command
@@ -458,7 +518,9 @@ class MoonrakerClient : public hv::WebSocketClient {
     std::vector<std::string> bed_mesh_profiles_; // Available profile names
 
     // Notification callbacks (protected to allow mock to trigger notifications)
-    std::vector<std::function<void(json)>> notify_callbacks_;
+    // Map of subscription ID -> callback for O(1) unsubscription
+    std::map<SubscriptionId, std::function<void(json)>> notify_callbacks_;
+    std::atomic<SubscriptionId> next_subscription_id_{1}; // Start at 1 (0 = invalid)
     std::mutex callbacks_mutex_; // Protect notify_callbacks_ and method_callbacks_
 
   private:

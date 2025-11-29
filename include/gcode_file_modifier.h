@@ -7,143 +7,135 @@
 
 #include <filesystem>
 #include <functional>
-#include <memory>
-#include <optional>
 #include <string>
 #include <vector>
-
-// Forward declarations
-class MoonrakerAPI;
 
 namespace gcode {
 
 /**
- * @brief RAII wrapper for modified G-code temp files.
+ * @brief Type of modification to apply to G-code
+ */
+enum class ModificationType {
+    COMMENT_OUT,    ///< Comment out the line(s) by prefixing with "; "
+    DELETE,         ///< Remove the line(s) entirely
+    INJECT_BEFORE,  ///< Inject G-code before a specific line
+    INJECT_AFTER,   ///< Inject G-code after a specific line
+    REPLACE,        ///< Replace the line with different G-code
+};
+
+/**
+ * @brief A single modification to apply to a G-code file
  *
- * Automatically tracks temp file state for post-print cleanup.
- * The actual file deletion is done via Moonraker API (since files
- * are on the printer, not local filesystem).
+ * Modifications are applied in order from last line to first to preserve
+ * line numbers during multi-edit operations.
+ */
+struct Modification {
+    ModificationType type;
+
+    /// For COMMENT_OUT, DELETE, REPLACE: the line number (1-indexed)
+    size_t line_number = 0;
+
+    /// For multi-line operations: end line (inclusive). If 0, single line.
+    size_t end_line_number = 0;
+
+    /// For INJECT_BEFORE, INJECT_AFTER, REPLACE: the G-code to inject
+    std::string gcode;
+
+    /// Optional comment explaining the modification (for debugging)
+    std::string comment;
+
+    /// Create a COMMENT_OUT modification for a single line
+    static Modification comment_out(size_t line, const std::string& reason = "") {
+        return {ModificationType::COMMENT_OUT, line, 0, "", reason};
+    }
+
+    /// Create a COMMENT_OUT modification for a range of lines
+    static Modification comment_out_range(size_t start, size_t end, const std::string& reason = "") {
+        return {ModificationType::COMMENT_OUT, start, end, "", reason};
+    }
+
+    /// Create an INJECT_BEFORE modification
+    static Modification inject_before(size_t line, const std::string& gcode,
+                                       const std::string& reason = "") {
+        return {ModificationType::INJECT_BEFORE, line, 0, gcode, reason};
+    }
+
+    /// Create an INJECT_AFTER modification
+    static Modification inject_after(size_t line, const std::string& gcode,
+                                      const std::string& reason = "") {
+        return {ModificationType::INJECT_AFTER, line, 0, gcode, reason};
+    }
+
+    /// Create a REPLACE modification
+    static Modification replace(size_t line, const std::string& gcode,
+                                 const std::string& reason = "") {
+        return {ModificationType::REPLACE, line, 0, gcode, reason};
+    }
+};
+
+/**
+ * @brief Result of applying modifications
+ */
+struct ModificationResult {
+    bool success = false;
+    std::string error_message;
+
+    /// Path to modified file (temp file if not in-place)
+    std::string modified_path;
+
+    /// Number of lines modified
+    size_t lines_modified = 0;
+
+    /// Number of lines added
+    size_t lines_added = 0;
+
+    /// Number of lines removed
+    size_t lines_removed = 0;
+
+    /// Original file size
+    size_t original_size = 0;
+
+    /// Modified file size
+    size_t modified_size = 0;
+};
+
+/**
+ * @brief Modifies G-code files by commenting out, injecting, or replacing lines
  *
- * Movable but not copyable. Use release() to prevent cleanup
- * if the file should be retained.
+ * This class provides safe G-code file modification for scenarios where
+ * the user wants to disable operations that are embedded in the G-code file
+ * (e.g., disable bed leveling when it's already in the slicer's start G-code).
+ *
+ * **Design philosophy:**
+ * - Prefer G-code injection (execute_gcode) over file modification
+ * - Only modify files when disabling operations already in the G-code
+ * - Create temp files, never modify originals in place
+ * - Use Moonraker's file upload to replace the file for printing
  *
  * @code
- * auto temp = modifier.create_skip_copy(original, ops_to_skip);
- * if (temp) {
- *     // Print using temp->moonraker_path()
- *     // After print completes, temp destructor triggers cleanup callback
+ * GCodeFileModifier modifier;
+ *
+ * // Disable detected operations
+ * auto scan = detector.scan_file("3DBenchy.gcode");
+ * if (auto op = scan.get_operation(OperationType::BED_LEVELING)) {
+ *     if (!user_wants_bed_leveling) {
+ *         modifier.add_modification(Modification::comment_out(
+ *             op->line_number, "Disabled by HelixScreen"));
+ *     }
+ * }
+ *
+ * // Create modified version
+ * auto result = modifier.apply("3DBenchy.gcode");
+ * if (result.success) {
+ *     // Upload result.modified_path to printer and start print
  * }
  * @endcode
- */
-class TempGCodeFile {
-public:
-    using CleanupCallback = std::function<void(const std::string& moonraker_path)>;
-
-    /**
-     * @brief Construct a temp file handle
-     *
-     * @param moonraker_path Path on Moonraker server (e.g., ".helix_temp/original.gcode")
-     * @param original_filename Original filename for job history patching
-     * @param cleanup_callback Called on destruction to delete the temp file
-     */
-    TempGCodeFile(std::string moonraker_path, std::string original_filename,
-                  CleanupCallback cleanup_callback);
-
-    ~TempGCodeFile();
-
-    // Move-only semantics
-    TempGCodeFile(TempGCodeFile&& other) noexcept;
-    TempGCodeFile& operator=(TempGCodeFile&& other) noexcept;
-    TempGCodeFile(const TempGCodeFile&) = delete;
-    TempGCodeFile& operator=(const TempGCodeFile&) = delete;
-
-    /**
-     * @brief Get the path to use with Moonraker start_print
-     * @return Path relative to gcodes root (e.g., ".helix_temp/original.gcode")
-     */
-    [[nodiscard]] const std::string& moonraker_path() const { return moonraker_path_; }
-
-    /**
-     * @brief Get the original filename for job history patching
-     * @return Original filename that should appear in print history
-     */
-    [[nodiscard]] const std::string& original_filename() const { return original_filename_; }
-
-    /**
-     * @brief Release ownership - prevents cleanup on destruction
-     *
-     * Call this if you want to keep the temp file (e.g., for debugging).
-     * After calling release(), the destructor will not delete the file.
-     */
-    void release();
-
-    /**
-     * @brief Check if this handle owns the file
-     * @return true if destructor will trigger cleanup
-     */
-    [[nodiscard]] bool owns_file() const { return owns_file_; }
-
-private:
-    std::string moonraker_path_;
-    std::string original_filename_;
-    CleanupCallback cleanup_callback_;
-    bool owns_file_ = true;
-};
-
-/**
- * @brief Result of creating a skip copy
- */
-struct SkipCopyResult {
-    std::unique_ptr<TempGCodeFile> temp_file;  ///< RAII handle for the temp file
-    std::vector<OperationType> skipped_ops;    ///< Operations that were commented out
-    size_t lines_modified = 0;                  ///< Number of lines modified
-};
-
-/**
- * @brief Configuration for file modification behavior
- */
-struct ModifierConfig {
-    std::string temp_dir = ".helix_temp";  ///< Subdirectory for temp files (under gcodes/)
-    std::string skip_prefix = "; HELIX_SKIP: ";  ///< Prefix for commented-out lines
-    bool add_header_comment = true;  ///< Add comment at top explaining modifications
-};
-
-/**
- * @brief Creates modified G-code files for skip operations.
  *
- * When a user wants to skip an operation that exists in their G-code file
- * (e.g., disable bed leveling that's embedded in start gcode), this class:
- *
- * 1. Reads the original file from the printer via Moonraker
- * 2. Creates a modified copy with detected operations commented out
- * 3. Uploads the modified copy to a temp directory
- * 4. Returns an RAII handle that auto-deletes the temp file
- *
- * Thread-safe for concurrent use with different files.
- *
- * @code
- * GCodeFileModifier modifier(moonraker_api, config);
- *
- * // Create temp file with bed leveling skipped
- * auto result = modifier.create_skip_copy(
- *     "my_print.gcode",
- *     {detected_bed_level_op},
- *     [](auto&&) { spdlog::info("Skip copy created"); },
- *     [](auto& err) { spdlog::error("Failed: {}", err.message); });
- * @endcode
+ * @note Thread-safe for concurrent modifications of different files.
  */
 class GCodeFileModifier {
 public:
-    using SuccessCallback = std::function<void(SkipCopyResult result)>;
-    using ErrorCallback = std::function<void(const std::string& error)>;
-
-    /**
-     * @brief Construct with Moonraker API reference
-     *
-     * @param api Reference to MoonrakerAPI (must remain valid for modifier lifetime)
-     * @param config Optional configuration
-     */
-    explicit GCodeFileModifier(MoonrakerAPI& api, const ModifierConfig& config = {});
+    GCodeFileModifier() = default;
 
     // Non-copyable, movable
     GCodeFileModifier(const GCodeFileModifier&) = delete;
@@ -153,125 +145,121 @@ public:
     ~GCodeFileModifier() = default;
 
     /**
-     * @brief Create a modified copy with operations commented out
+     * @brief Add a modification to the pending list
      *
-     * This is an asynchronous operation that:
-     * 1. Downloads the original file from the printer
-     * 2. Comments out lines matching the specified operations
-     * 3. Uploads the modified file to the temp directory
-     * 4. Returns an RAII handle for automatic cleanup
-     *
-     * @param original_path Path to original file (relative to gcodes root)
-     * @param ops_to_skip Operations to comment out
-     * @param on_success Callback with RAII temp file handle
-     * @param on_error Error callback
+     * Modifications are stored and applied when apply() is called.
+     * Order of additions doesn't matter - they're sorted by line number
+     * and applied from last to first to preserve line numbers.
      */
-    void create_skip_copy(const std::string& original_path,
-                          const std::vector<DetectedOperation>& ops_to_skip,
-                          SuccessCallback on_success, ErrorCallback on_error);
+    void add_modification(Modification mod);
 
     /**
-     * @brief Ensure the temp directory exists
-     *
-     * Creates .helix_temp directory if it doesn't exist.
-     * Called automatically by create_skip_copy().
-     *
-     * @param on_success Success callback
-     * @param on_error Error callback
+     * @brief Clear all pending modifications
      */
-    void ensure_temp_directory(std::function<void()> on_success, ErrorCallback on_error);
+    void clear_modifications();
 
     /**
-     * @brief Clean up all temp files in the temp directory
-     *
-     * Useful for startup cleanup to remove orphaned temp files
-     * from crashes or unexpected shutdowns.
-     *
-     * @param on_success Success callback (called after deletion attempts)
-     * @param on_error Error callback (called if listing fails)
+     * @brief Get pending modifications
      */
-    void cleanup_all_temp_files(std::function<void(int deleted_count)> on_success,
-                                 ErrorCallback on_error);
+    [[nodiscard]] const std::vector<Modification>& modifications() const { return modifications_; }
 
     /**
-     * @brief Get the current configuration
+     * @brief Apply all pending modifications to a file
+     *
+     * Creates a modified copy in a temp location. The original file is never
+     * modified. Use result.modified_path to access the modified file.
+     *
+     * @param filepath Path to the source G-code file
+     * @return ModificationResult with success status and modified file path
      */
-    [[nodiscard]] const ModifierConfig& config() const { return config_; }
+    [[nodiscard]] ModificationResult apply(const std::filesystem::path& filepath);
+
+    /**
+     * @brief Apply modifications to G-code content string (for testing)
+     *
+     * @param content The G-code content as a string
+     * @return Modified content as string, or empty on error
+     */
+    [[nodiscard]] std::string apply_to_content(const std::string& content);
+
+    // =========================================================================
+    // Convenience methods for common operations
+    // =========================================================================
+
+    /**
+     * @brief Disable a detected operation by commenting it out
+     *
+     * Convenience method that adds the appropriate modification based on
+     * the operation's embedding type.
+     *
+     * @param op The detected operation to disable
+     * @return true if a modification was added, false if operation type
+     *         doesn't support commenting out
+     */
+    bool disable_operation(const DetectedOperation& op);
+
+    /**
+     * @brief Modify START_PRINT parameter to disable an operation
+     *
+     * For operations embedded as macro parameters (e.g., FORCE_LEVELING=true),
+     * this replaces the parameter value with 0/false.
+     *
+     * @param op The detected operation (must have MACRO_PARAMETER embedding)
+     * @return true if modification added, false if not applicable
+     */
+    bool disable_macro_parameter(const DetectedOperation& op);
+
+    /**
+     * @brief Create modifications to disable multiple operations at once
+     *
+     * @param scan_result Result from GCodeOpsDetector::scan_file()
+     * @param types_to_disable Set of operation types to disable
+     */
+    void disable_operations(const ScanResult& scan_result,
+                            const std::vector<OperationType>& types_to_disable);
+
+    // =========================================================================
+    // Static utilities
+    // =========================================================================
+
+    /**
+     * @brief Generate a temp file path for modified G-code
+     *
+     * @param original_path The original file path
+     * @return Unique temp path like /tmp/helixscreen_mod_XXXXXX.gcode
+     */
+    [[nodiscard]] static std::string generate_temp_path(const std::filesystem::path& original_path);
+
+    /**
+     * @brief Clean up temp files created by this modifier
+     *
+     * Call this periodically or on application exit to remove stale temp files.
+     *
+     * @param max_age_seconds Files older than this are deleted (default: 1 hour)
+     * @return Number of files deleted
+     */
+    static size_t cleanup_temp_files(int max_age_seconds = 3600);
 
 private:
     /**
-     * @brief Generate modified content with operations commented out
+     * @brief Sort modifications by line number (descending)
      *
-     * @param original_content Original G-code content
-     * @param ops_to_skip Operations to comment out
-     * @return Modified content and count of modified lines
+     * Processing from end to start preserves line numbers for earlier mods.
      */
-    std::pair<std::string, size_t> generate_modified_content(
-        const std::string& original_content,
-        const std::vector<DetectedOperation>& ops_to_skip) const;
+    void sort_modifications();
 
     /**
-     * @brief Generate header comment for modified file
+     * @brief Apply a single modification to content lines
      */
-    std::string generate_header_comment(const std::string& original_filename,
-                                         const std::vector<DetectedOperation>& ops_to_skip) const;
+    void apply_single_modification(std::vector<std::string>& lines, const Modification& mod,
+                                    ModificationResult& result);
 
     /**
-     * @brief Delete a temp file via Moonraker
+     * @brief Comment out a single line
      */
-    void delete_temp_file(const std::string& moonraker_path);
+    static std::string comment_out_line(const std::string& line, const std::string& reason);
 
-    MoonrakerAPI& api_;
-    ModifierConfig config_;
+    std::vector<Modification> modifications_;
 };
 
-/**
- * @brief Utility to patch job history after printing a temp file
- *
- * After a print completes using a temp file, this updates the job
- * history to show the original filename instead of the temp file path.
- *
- * @code
- * // After print completes
- * JobHistoryPatcher patcher(api);
- * patcher.patch_latest_job(temp_file.original_filename(),
- *     []() { spdlog::info("History patched"); },
- *     [](auto& err) { spdlog::warn("Failed to patch: {}", err); });
- * @endcode
- */
-class JobHistoryPatcher {
-public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const std::string& error)>;
-
-    explicit JobHistoryPatcher(MoonrakerAPI& api);
-
-    /**
-     * @brief Patch the most recent job to show a different filename
-     *
-     * Queries the job history for the latest job and updates its
-     * filename field to show the original name.
-     *
-     * @param original_filename Filename to show in history
-     * @param on_success Success callback
-     * @param on_error Error callback
-     */
-    void patch_latest_job(const std::string& original_filename, SuccessCallback on_success,
-                          ErrorCallback on_error);
-
-    /**
-     * @brief Patch a specific job by ID
-     *
-     * @param job_id Moonraker job ID
-     * @param original_filename Filename to show in history
-     * @param on_success Success callback
-     * @param on_error Error callback
-     */
-    void patch_job(const std::string& job_id, const std::string& original_filename,
-                   SuccessCallback on_success, ErrorCallback on_error);
-
-private:
-    MoonrakerAPI& api_;
-};
-
-}  // namespace gcode
+} // namespace gcode

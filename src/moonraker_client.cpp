@@ -327,8 +327,11 @@ int MoonrakerClient::connect(const char* url, std::function<void()> on_connected
 
                     // Printer status updates (most common)
                     if (method == "notify_status_update" || method == "notify_filelist_changed") {
-                        // Copy all notify callbacks
-                        callbacks_to_invoke = notify_callbacks_;
+                        // Copy all notify callbacks from map
+                        callbacks_to_invoke.reserve(notify_callbacks_.size());
+                        for (const auto& [id, cb] : notify_callbacks_) {
+                            callbacks_to_invoke.push_back(cb);
+                        }
                     }
 
                     // Method-specific persistent callbacks
@@ -500,9 +503,35 @@ int MoonrakerClient::connect(const char* url, std::function<void()> on_connected
     return open(url, headers);
 }
 
-void MoonrakerClient::register_notify_update(std::function<void(json)> cb) {
+SubscriptionId MoonrakerClient::register_notify_update(std::function<void(json)> cb) {
+    if (!cb) {
+        spdlog::warn("[Moonraker Client] register_notify_update called with null callback");
+        return INVALID_SUBSCRIPTION_ID;
+    }
+
+    SubscriptionId id = next_subscription_id_.fetch_add(1);
+    {
+        std::lock_guard<std::mutex> lock(callbacks_mutex_);
+        notify_callbacks_.emplace(id, cb);
+    }
+    spdlog::debug("[Moonraker Client] Registered notify callback with ID {}", id);
+    return id;
+}
+
+bool MoonrakerClient::unsubscribe_notify_update(SubscriptionId id) {
+    if (id == INVALID_SUBSCRIPTION_ID) {
+        return false;
+    }
+
     std::lock_guard<std::mutex> lock(callbacks_mutex_);
-    notify_callbacks_.push_back(cb);
+    auto it = notify_callbacks_.find(id);
+    if (it != notify_callbacks_.end()) {
+        notify_callbacks_.erase(it);
+        spdlog::debug("[Moonraker Client] Unsubscribed notify callback ID {}", id);
+        return true;
+    }
+    spdlog::debug("[Moonraker Client] Unsubscribe failed: notify callback ID {} not found", id);
+    return false;
 }
 
 void MoonrakerClient::dispatch_status_update(const json& status) {
@@ -520,10 +549,14 @@ void MoonrakerClient::dispatch_status_update(const json& status) {
     };
 
     // Dispatch to all registered callbacks
+    // Two-phase: copy under lock, invoke outside to avoid deadlock
     std::vector<std::function<void(json)>> callbacks_copy;
     {
         std::lock_guard<std::mutex> lock(callbacks_mutex_);
-        callbacks_copy = notify_callbacks_;
+        callbacks_copy.reserve(notify_callbacks_.size());
+        for (const auto& [id, cb] : notify_callbacks_) {
+            callbacks_copy.push_back(cb);
+        }
     }
 
     for (const auto& cb : callbacks_copy) {
@@ -554,6 +587,35 @@ void MoonrakerClient::register_method_callback(const std::string& method,
     }
 }
 
+bool MoonrakerClient::unregister_method_callback(const std::string& method,
+                                                  const std::string& handler_name) {
+    std::lock_guard<std::mutex> lock(callbacks_mutex_);
+    auto method_it = method_callbacks_.find(method);
+    if (method_it == method_callbacks_.end()) {
+        spdlog::debug("[Moonraker Client] Unregister failed: method '{}' not found", method);
+        return false;
+    }
+
+    auto handler_it = method_it->second.find(handler_name);
+    if (handler_it == method_it->second.end()) {
+        spdlog::debug("[Moonraker Client] Unregister failed: handler '{}' not found for method '{}'",
+                      handler_name, method);
+        return false;
+    }
+
+    method_it->second.erase(handler_it);
+    spdlog::debug("[Moonraker Client] Unregistered handler '{}' from method '{}'", handler_name,
+                  method);
+
+    // Clean up empty method entries to avoid memory leaks
+    if (method_it->second.empty()) {
+        method_callbacks_.erase(method_it);
+        spdlog::debug("[Moonraker Client] Removed empty method entry for '{}'", method);
+    }
+
+    return true;
+}
+
 int MoonrakerClient::send_jsonrpc(const std::string& method) {
     json rpc;
     rpc["jsonrpc"] = "2.0";
@@ -580,18 +642,20 @@ int MoonrakerClient::send_jsonrpc(const std::string& method, const json& params)
     return send(rpc.dump());
 }
 
-int MoonrakerClient::send_jsonrpc(const std::string& method, const json& params,
-                                  std::function<void(json)> cb) {
+RequestId MoonrakerClient::send_jsonrpc(const std::string& method, const json& params,
+                                        std::function<void(json)> cb) {
     // Forward to new overload with null error callback
     return send_jsonrpc(method, params, cb, nullptr, 0);
 }
 
-int MoonrakerClient::send_jsonrpc(const std::string& method, const json& params,
-                                  std::function<void(json)> success_cb,
-                                  std::function<void(const MoonrakerError&)> error_cb,
-                                  uint32_t timeout_ms) {
+RequestId MoonrakerClient::send_jsonrpc(const std::string& method, const json& params,
+                                        std::function<void(json)> success_cb,
+                                        std::function<void(const MoonrakerError&)> error_cb,
+                                        uint32_t timeout_ms) {
     // Atomically fetch and increment to avoid race condition in concurrent calls
-    uint64_t id = request_id_.fetch_add(1);
+    // Note: request_id_ starts at 0, but we increment FIRST, so actual IDs start at 1
+    // This ensures we never return 0 (INVALID_REQUEST_ID) for a valid request
+    RequestId id = request_id_.fetch_add(1) + 1;
 
     // Create pending request
     PendingRequest request;
@@ -609,7 +673,7 @@ int MoonrakerClient::send_jsonrpc(const std::string& method, const json& params,
         if (it != pending_requests_.end()) {
             LOG_ERROR_INTERNAL("[Moonraker Client] Request ID {} already has a registered callback",
                                id);
-            return -1;
+            return INVALID_REQUEST_ID;
         }
         pending_requests_.insert({id, request});
         spdlog::debug("[Moonraker Client] Registered request {} for method {}, total pending: {}",
@@ -630,7 +694,34 @@ int MoonrakerClient::send_jsonrpc(const std::string& method, const json& params,
     spdlog::debug("[Moonraker Client] send_jsonrpc: {}", rpc.dump());
     int result = send(rpc.dump());
     spdlog::debug("[Moonraker Client] send_jsonrpc({}) returned {}", method, result);
-    return result;
+
+    // Return the request ID on success, or INVALID_REQUEST_ID on send failure
+    if (result < 0) {
+        // Send failed - remove pending request and return invalid ID
+        std::lock_guard<std::mutex> lock(requests_mutex_);
+        pending_requests_.erase(id);
+        spdlog::error("[Moonraker Client] Failed to send request {}, removed from pending", id);
+        return INVALID_REQUEST_ID;
+    }
+
+    return id;
+}
+
+bool MoonrakerClient::cancel_request(RequestId id) {
+    if (id == INVALID_REQUEST_ID) {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(requests_mutex_);
+    auto it = pending_requests_.find(id);
+    if (it != pending_requests_.end()) {
+        spdlog::debug("[Moonraker Client] Cancelled request {} ({})", id, it->second.method);
+        pending_requests_.erase(it);
+        return true;
+    }
+
+    spdlog::debug("[Moonraker Client] Cancel failed: request {} not found (already completed?)", id);
+    return false;
 }
 
 int MoonrakerClient::gcode_script(const std::string& gcode) {

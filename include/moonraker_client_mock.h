@@ -210,7 +210,7 @@ class MoonrakerClientMock : public MoonrakerClient {
      * @param cb Callback function (not invoked in mock)
      * @return Always returns 0 (success)
      */
-    int send_jsonrpc(const std::string& method, const json& params,
+    RequestId send_jsonrpc(const std::string& method, const json& params,
                      std::function<void(json)> cb) override;
 
     /**
@@ -225,7 +225,7 @@ class MoonrakerClientMock : public MoonrakerClient {
      * @param timeout_ms Timeout (ignored in mock)
      * @return Always returns 0 (success)
      */
-    int send_jsonrpc(const std::string& method, const json& params,
+    RequestId send_jsonrpc(const std::string& method, const json& params,
                      std::function<void(json)> success_cb,
                      std::function<void(const MoonrakerError&)> error_cb,
                      uint32_t timeout_ms = 0) override;

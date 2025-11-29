@@ -108,13 +108,18 @@ TEST_CONFIG_DEPS := \
     $(OBJ_DIR)/config.o \
     $(OBJ_DIR)/tips_manager.o
 
-# GCode parsing, geometry, and file modification (for gcode tests and bed mesh)
+# GCode parsing, geometry, rendering, and file modification (for gcode tests and bed mesh)
+# ui_gcode_viewer.o is required by ui_panel_print_status.o for integrated layer tracking
+# gcode_renderer.o + gcode_tinygl_renderer.o are required by ui_gcode_viewer.o
 TEST_GCODE_DEPS := \
     $(OBJ_DIR)/gcode_parser.o \
     $(OBJ_DIR)/gcode_ops_detector.o \
     $(OBJ_DIR)/gcode_file_modifier.o \
     $(OBJ_DIR)/gcode_geometry_builder.o \
     $(OBJ_DIR)/gcode_camera.o \
+    $(OBJ_DIR)/gcode_renderer.o \
+    $(OBJ_DIR)/gcode_tinygl_renderer.o \
+    $(OBJ_DIR)/ui_gcode_viewer.o \
     $(OBJ_DIR)/bed_mesh_coordinate_transform.o \
     $(OBJ_DIR)/bed_mesh_renderer.o \
     $(OBJ_DIR)/bed_mesh_gradient.o \

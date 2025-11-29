@@ -68,8 +68,11 @@ static LVGLInitializer lvgl_init;
 class WiFiManagerTestFixture {
 public:
     WiFiManagerTestFixture() {
-        // Create fresh instance for each test
-        wifi_manager = std::make_unique<WiFiManager>();
+        // Create fresh instance for each test as shared_ptr
+        // CRITICAL: WiFiManager requires init_self_reference() for async callbacks
+        // to work - the weak_ptr in async dispatch needs the shared_ptr to lock
+        wifi_manager = std::make_shared<WiFiManager>();
+        wifi_manager->init_self_reference(wifi_manager);
 
         // Reset state
         scan_callback_count = 0;
@@ -114,8 +117,8 @@ public:
         return false;  // Timeout
     }
 
-    // Test instance
-    std::unique_ptr<WiFiManager> wifi_manager;
+    // Test instance (shared_ptr for init_self_reference support)
+    std::shared_ptr<WiFiManager> wifi_manager;
 
     // Test state
     int scan_callback_count = 0;
@@ -139,7 +142,8 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFiManager instance creation", "[wifi
     }
 
     SECTION("Multiple instances can coexist") {
-        auto wifi2 = std::make_unique<WiFiManager>();
+        auto wifi2 = std::make_shared<WiFiManager>();
+        wifi2->init_self_reference(wifi2);
         REQUIRE(wifi2 != nullptr);
         REQUIRE(wifi2->has_hardware());
     }
@@ -149,7 +153,8 @@ TEST_CASE_METHOD(WiFiManagerTestFixture, "WiFiManager instance creation", "[wifi
         REQUIRE(wifi_manager == nullptr);
 
         // Creating new instance after destruction works
-        wifi_manager = std::make_unique<WiFiManager>();
+        wifi_manager = std::make_shared<WiFiManager>();
+        wifi_manager->init_self_reference(wifi_manager);
         REQUIRE(wifi_manager != nullptr);
     }
 }

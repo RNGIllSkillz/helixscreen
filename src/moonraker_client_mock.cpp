@@ -594,7 +594,7 @@ int MoonrakerClientMock::send_jsonrpc(const std::string& method,
     return 0; // Success
 }
 
-int MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
+RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
                                       std::function<void(json)> cb) {
     spdlog::debug("[MoonrakerClientMock] Mock send_jsonrpc: {} (with callback)", method);
 
@@ -631,7 +631,7 @@ int MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& par
     return 0;
 }
 
-int MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
+RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
                                       std::function<void(json)> success_cb,
                                       std::function<void(const MoonrakerError&)> error_cb,
                                       [[maybe_unused]] uint32_t timeout_ms) {
@@ -1733,10 +1733,14 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                              {"params", json::array({status_obj, tick * base_dt})}};
 
         // Push notification through all registered callbacks
+        // Two-phase: copy under lock, invoke outside to avoid deadlock
         std::vector<std::function<void(json)>> callbacks_copy;
         {
             std::lock_guard<std::mutex> lock(callbacks_mutex_);
-            callbacks_copy = notify_callbacks_;
+            callbacks_copy.reserve(notify_callbacks_.size());
+            for (const auto& [id, cb] : notify_callbacks_) {
+                callbacks_copy.push_back(cb);
+            }
         }
         for (const auto& cb : callbacks_copy) {
             if (cb) {
