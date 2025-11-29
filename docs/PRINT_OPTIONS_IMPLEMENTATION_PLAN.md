@@ -438,100 +438,21 @@ The system is designed for future options:
 
 ---
 
-## For AI Agent
+## Implementation Status
 
-This section contains additional context for AI assistants picking up this work in a fresh session.
+**Completed Stages:**
+- Stages 1-6: Core pre-print options, capability detection, G-code injection, preparing UI
+- Stage 7: GCodeFileModifier - comments out operations when user disables them
+- Stage 8: Capability overrides - user can force enable/disable features in helixconfig.json
+- Stage 9: Concurrent print prevention - blocks starting new print while one is active
 
-### Background Context
+**Key files for understanding current implementation:**
+- `src/ui_panel_print_select.cpp` - start_print() with pre-print sequencer
+- `src/gcode_file_modifier.cpp` - modifies G-code to disable embedded operations
+- `src/capability_overrides.cpp` - three-state override system (auto/enable/disable)
+- `include/printer_state.h` - PrintJobState enum and can_start_new_print()
 
-**User's Goal**: Replicate the Bambu/OrcaSlicer experience where a dialog pops up before printing with checkboxes for bed leveling, chamber soak, nozzle cleaning, etc. The challenge is that these operations may already be embedded in:
-- Slicer start G-code (e.g., `START_PRINT BED_TEMP=60 EXTRUDER_TEMP=200`)
-- Printer macros in `printer.cfg` (e.g., `[gcode_macro START_PRINT]`)
-- Raw G-code moves (e.g., `G28` for homing, `BED_MESH_CALIBRATE`)
-
-**Key Decisions Made**:
-1. **Prefer G-code injection over file modification** - Don't parse/modify the G-code file unless absolutely necessary
-2. **Hybrid approach** - Use HelixScreen macros (`HELIX_START_PRINT`) when installed, fall back to sequential `execute_gcode()` calls when not
-3. **Klipper access varies** - Some users let HelixScreen manage their config, others don't. Must support both.
-4. **Long operations UX** - Immediately transition to print status panel with "PREPARING" phase, don't block with a modal
-
-### Critical Files to Read First
-
-Before implementing, read these files to understand existing patterns:
-
-1. **`src/moonraker_client.cpp`** (lines 769-843)
-   - `parse_objects()` function shows how printer capabilities are detected
-   - Currently detects heaters, sensors, fans, LEDs - extend for macros
-
-2. **`src/moonraker_api.cpp`** (lines 813-821)
-   - `execute_gcode()` method - this is how G-code injection works
-   - Already validates input and handles async callbacks
-
-3. **`src/ui_panel_print_select.cpp`** (lines 954-993)
-   - Current `start_print()` flow - this needs to be modified to:
-     1. Collect options from UI
-     2. Transition to print status panel
-     3. Execute pre-print sequence
-     4. Then call `api_->start_print()`
-
-4. **`ui_xml/print_file_detail.xml`** (lines 50-56)
-   - Existing options card with filament dropdown and bed leveling checkbox
-   - The checkbox is orphaned (not wired to anything) - needs to be connected
-
-5. **`config/gcode/3DBenchy.gcode`**
-   - Example showing `START_PRINT EXTRUDER_TEMP=220 BED_TEMP=55 FORCE_LEVELING=true` usage
-   - Shows the macro parameter pattern used by OrcaSlicer
-
-### Moonraker API Reference
-
-**Detecting macros**: Query `printer.objects.list`, look for entries starting with `gcode_macro `
-```json
-// Response includes:
-["gcode_macro START_PRINT", "gcode_macro END_PRINT", "gcode_macro CLEAN_NOZZLE", ...]
-```
-
-**Executing G-code**: `printer.gcode.script` via WebSocket JSON-RPC
-```json
-{"method": "printer.gcode.script", "params": {"script": "BED_MESH_CALIBRATE"}}
-```
-
-**File upload** (for macro installation): HTTP POST to `/server/files/upload`
-- Requires libhv HTTP client (already in project)
-- Multipart form data with `file` and `root=config`
-
-### Existing Orphaned UI
-
-The print file detail view already has UI elements that aren't connected:
-- `filament_dropdown` - populated from file metadata but selection not used
-- `bed_leveling_checkbox` - exists but not wired to anything
-
-These should be wired up as part of this implementation.
-
-### Testing Considerations
-
-- Use `MoonrakerClientMock` for unit testing capability detection
-- The mock already simulates printer objects - extend to include `gcode_macro` entries
-- For integration testing, the mock print simulation can verify pre-print sequence execution
-
-### Common Macro Names by Printer Type
-
-| Operation | Voron | Creality | FlashForge | Generic |
-|-----------|-------|----------|------------|---------|
-| Bed mesh | `BED_MESH_CALIBRATE` | `BED_MESH_CALIBRATE` or `G29` | `G29` | `BED_MESH_CALIBRATE` |
-| QGL | `QUAD_GANTRY_LEVEL` | N/A | N/A | N/A |
-| Z-tilt | `Z_TILT_ADJUST` | N/A | N/A | `Z_TILT_ADJUST` |
-| Nozzle clean | `CLEAN_NOZZLE` | `NOZZLE_WIPE` | N/A | varies |
-| Chamber soak | `HEAT_SOAK` | N/A | N/A | `HEAT_SOAK` |
-
-### Potential Pitfalls
-
-1. **Duplicate operations**: If user enables bed leveling but the G-code file already has `BED_MESH_CALIBRATE` in start sequence, it runs twice. Consider scanning first ~50KB of file for conflict markers.
-
-2. **Timing uncertainty**: `execute_gcode()` returns success when command is queued, not when complete. For sequential operations, may need to poll `printer.objects.query` for `toolhead.homed_axes` or similar.
-
-3. **Macro parameter format**: Klipper macros use `PARAM=value` format (no quotes for strings). Chamber soak would be `HELIX_START_PRINT CHAMBER_SOAK=5 CHAMBER_TEMP=45`.
-
-4. **Klipper restart required**: After installing macros, Klipper must restart. This interrupts any active connection and requires reconnection logic.
+**Next: Stage 10** - Memory-safe streaming for large files on embedded devices.
 
 ---
 
@@ -808,7 +729,7 @@ moonraker-helixscreen/
 - [ ] Options preferences persist across sessions
 - [x] **GCodeFileModifier comments out operations when user disables them**
 - [x] **GCodeFileModifier handles macro parameters (FORCE_LEVELING=true → FALSE)**
-- [ ] Capability override system allows force enable/disable
-- [ ] Concurrent print prevention at UI level
+- [x] **Capability override system allows force enable/disable** (Stage 8)
+- [x] **Concurrent print prevention at UI level** (Stage 9)
 - [ ] Modified file cleanup after print completes
-- [ ] Large file streaming for memory-constrained devices
+- [ ] Large file streaming for memory-constrained devices (Stage 10)
