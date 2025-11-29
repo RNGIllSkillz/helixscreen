@@ -1,53 +1,122 @@
 {
-  "version": "1.0",
-  "description": "Printer auto-detection database with hardware fingerprints",
+  "version": "2.0",
+  "description": "Printer auto-detection database with Klipper hardware fingerprints",
+  "heuristic_types": {
+    "hostname_match": "Match against Moonraker hostname (from /printer/info)",
+    "kinematics_match": "Match against printer kinematics type (corexy, cartesian, delta, etc.)",
+    "object_exists": "Check if a Klipper object exists in /printer/objects/list",
+    "stepper_count": "Count of Z steppers (z_count_1, z_count_2, z_count_3, z_count_4)",
+    "sensor_match": "Match against temperature_sensor names",
+    "fan_match": "Match against fan object names",
+    "fan_combo": "Match multiple fan patterns together",
+    "mcu_match": "Match against MCU chip type or serial pattern",
+    "build_volume_range": "Match against bed_mesh dimensions"
+  },
   "printers": [
     {
       "id": "flashforge_adventurer_5m",
       "name": "FlashForge Adventurer 5M",
       "manufacturer": "FlashForge",
+      "image": "flashforge-adventurer-5m.png",
       "heuristics": [
         {
           "type": "sensor_match",
           "field": "sensors",
           "pattern": "tvocValue",
           "confidence": 95,
-          "reason": "Detected tvocValue sensor (FlashForge Adventurer 5M signature)"
+          "reason": "TVOC air quality sensor (FlashForge Adventurer 5M signature)"
         },
         {
           "type": "sensor_match",
           "field": "sensors",
           "pattern": "tvoc",
           "confidence": 95,
-          "reason": "Detected TVOC air quality sensor (FlashForge Adventurer 5M signature)"
+          "reason": "TVOC sensor detected (FlashForge signature)"
         },
         {
           "type": "sensor_match",
           "field": "sensors",
           "pattern": "weightValue",
-          "confidence": 70,
-          "reason": "Detected weight sensor (FlashForge-like)"
+          "confidence": 80,
+          "reason": "Spool weight sensor (FlashForge signature)"
         },
         {
           "type": "sensor_match",
           "field": "sensors",
           "pattern": "weight",
           "confidence": 70,
-          "reason": "Detected weight sensor (FlashForge-like)"
+          "reason": "Weight sensor detected (FlashForge-like)"
+        },
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 30,
+          "reason": "CoreXY kinematics"
         },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "flashforge",
           "confidence": 80,
-          "reason": "Hostname suggests FlashForge printer"
+          "reason": "Hostname contains 'flashforge'"
         },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "ad5m",
+          "confidence": 90,
+          "reason": "Hostname contains 'ad5m' (Adventurer 5M)"
+        }
+      ]
+    },
+    {
+      "id": "flashforge_adventurer_5m_pro",
+      "name": "FlashForge Adventurer 5M Pro",
+      "manufacturer": "FlashForge",
+      "image": "flashforge-adventurer-5m-pro.png",
+      "heuristics": [
+        {
+          "type": "sensor_match",
+          "field": "sensors",
+          "pattern": "tvocValue",
+          "confidence": 95,
+          "reason": "TVOC air quality sensor (FlashForge signature)"
+        },
+        {
+          "type": "sensor_match",
+          "field": "sensors",
+          "pattern": "weightValue",
           "confidence": 80,
-          "reason": "Hostname suggests FlashForge Adventurer 5M"
+          "reason": "Spool weight sensor (FlashForge signature)"
+        },
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 30,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "flashforge",
+          "confidence": 80,
+          "reason": "Hostname contains 'flashforge'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "ad5m-pro",
+          "confidence": 95,
+          "reason": "Hostname contains 'ad5m-pro'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "ad5mpro",
+          "confidence": 95,
+          "reason": "Hostname contains 'ad5mpro'"
         }
       ]
     },
@@ -55,69 +124,128 @@
       "id": "voron_2_4",
       "name": "Voron 2.4",
       "manufacturer": "Voron",
+      "image": "voron-24r2.png",
       "heuristics": [
         {
-          "type": "fan_match",
-          "field": "fans",
-          "pattern": "bed_fans",
-          "confidence": 50,
-          "reason": "Detected bed fans (Voron-like, uncertain)"
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "quad_gantry_level",
+          "confidence": 95,
+          "reason": "Quad Gantry Level present (Voron 2.4 signature)"
+        },
+        {
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "z_count_4",
+          "confidence": 90,
+          "reason": "4 independent Z steppers detected"
+        },
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
         },
         {
           "type": "fan_match",
           "field": "fans",
-          "pattern": "bed_fan",
-          "confidence": 50,
-          "reason": "Detected bed fans (Voron-like, uncertain)"
+          "pattern": "exhaust_fan",
+          "confidence": 60,
+          "reason": "Exhaust fan (Voron enclosed signature)"
         },
         {
-          "type": "fan_combo",
+          "type": "fan_match",
           "field": "fans",
-          "patterns": ["bed_fans", "chamber"],
+          "pattern": "nevermore",
           "confidence": 70,
-          "reason": "Detected bed fans and chamber control (Voron-like)"
+          "reason": "Nevermore filter (common Voron mod)"
         },
         {
           "type": "fan_combo",
           "field": "fans",
           "patterns": ["bed_fans", "exhaust"],
-          "confidence": 70,
-          "reason": "Detected bed fans and exhaust control (Voron-like)"
+          "confidence": 75,
+          "reason": "Bed fans + exhaust (Voron enclosed signature)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "neopixel",
+          "confidence": 40,
+          "reason": "Neopixel LEDs (common on Vorons)"
         },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "voron",
           "confidence": 75,
-          "reason": "Hostname suggests Voron printer (variant unknown)"
+          "reason": "Hostname contains 'voron'"
         },
         {
           "type": "hostname_match",
           "field": "hostname",
-          "pattern": "v2",
-          "confidence": 85,
-          "reason": "Hostname suggests Voron 2.4"
+          "pattern": "v2.4",
+          "confidence": 90,
+          "reason": "Hostname contains 'v2.4'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "v2-4",
+          "confidence": 90,
+          "reason": "Hostname contains 'v2-4'"
         }
       ]
     },
     {
       "id": "voron_0_1",
-      "name": "Voron 0.1",
+      "name": "Voron 0.2",
       "manufacturer": "Voron",
+      "image": "voron-0-2.png",
       "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "z_count_1",
+          "confidence": 30,
+          "reason": "Single Z stepper"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "max_x": 130,
+          "max_y": 130,
+          "confidence": 70,
+          "reason": "Small build volume (~120mm, Voron 0 size)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "neopixel",
+          "confidence": 40,
+          "reason": "Neopixel LEDs (common on Vorons)"
+        },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "voron",
           "confidence": 75,
-          "reason": "Hostname suggests Voron printer (variant unknown)"
+          "reason": "Hostname contains 'voron'"
         },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "v0",
           "confidence": 85,
-          "reason": "Hostname suggests Voron 0.1"
+          "reason": "Hostname contains 'v0'"
         }
       ]
     },
@@ -125,20 +253,56 @@
       "id": "voron_trident",
       "name": "Voron Trident",
       "manufacturer": "Voron",
+      "image": "voron-trident.png",
       "heuristics": [
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "z_tilt",
+          "confidence": 70,
+          "reason": "Z-tilt adjustment present (3-point leveling)"
+        },
+        {
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "z_count_3",
+          "confidence": 85,
+          "reason": "3 independent Z steppers (Trident signature)"
+        },
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "fan_match",
+          "field": "fans",
+          "pattern": "exhaust_fan",
+          "confidence": 60,
+          "reason": "Exhaust fan (Voron enclosed signature)"
+        },
+        {
+          "type": "fan_match",
+          "field": "fans",
+          "pattern": "nevermore",
+          "confidence": 70,
+          "reason": "Nevermore filter (common Voron mod)"
+        },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "voron",
           "confidence": 75,
-          "reason": "Hostname suggests Voron printer (variant unknown)"
+          "reason": "Hostname contains 'voron'"
         },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "trident",
-          "confidence": 85,
-          "reason": "Hostname suggests Voron Trident"
+          "confidence": 90,
+          "reason": "Hostname contains 'trident'"
         }
       ]
     },
@@ -146,20 +310,42 @@
       "id": "voron_switchwire",
       "name": "Voron Switchwire",
       "manufacturer": "Voron",
+      "image": "voron-switchwire.png",
       "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexz",
+          "confidence": 90,
+          "reason": "CoreXZ kinematics (Switchwire signature)"
+        },
+        {
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "z_count_1",
+          "confidence": 30,
+          "reason": "Single Z stepper"
+        },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "voron",
           "confidence": 75,
-          "reason": "Hostname suggests Voron printer (variant unknown)"
+          "reason": "Hostname contains 'voron'"
         },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "switchwire",
-          "confidence": 85,
-          "reason": "Hostname suggests Voron Switchwire"
+          "confidence": 95,
+          "reason": "Hostname contains 'switchwire'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "sw",
+          "confidence": 60,
+          "reason": "Hostname contains 'sw'"
         }
       ]
     },
@@ -167,34 +353,169 @@
       "id": "creality_k1",
       "name": "Creality K1",
       "manufacturer": "Creality",
+      "image": "creality-k1.png",
       "heuristics": [
         {
-          "type": "fan_match",
-          "field": "fans",
-          "pattern": "chamber_fan",
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
           "confidence": 40,
-          "reason": "Detected chamber fan (Creality K1-like, guessing)"
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "sensor_match",
+          "field": "sensors",
+          "pattern": "chamber_temp",
+          "confidence": 70,
+          "reason": "Chamber temperature sensor (enclosed printer)"
         },
         {
           "type": "fan_match",
           "field": "fans",
-          "pattern": "chamber",
-          "confidence": 40,
-          "reason": "Detected chamber fan (Creality K1-like, guessing)"
+          "pattern": "chamber_fan",
+          "confidence": 75,
+          "reason": "Chamber fan (Creality K1 signature)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "temperature_fan chamber_fan",
+          "confidence": 80,
+          "reason": "Temperature-controlled chamber fan"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 200,
+          "max_x": 230,
+          "min_y": 200,
+          "max_y": 230,
+          "confidence": 50,
+          "reason": "Build volume ~220mm (K1 size)"
         },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "creality",
           "confidence": 60,
-          "reason": "Hostname suggests Creality printer (model unknown)"
+          "reason": "Hostname contains 'creality'"
         },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "k1",
           "confidence": 80,
-          "reason": "Hostname suggests Creality K1"
+          "reason": "Hostname contains 'k1'"
+        }
+      ]
+    },
+    {
+      "id": "creality_k1_max",
+      "name": "Creality K1 Max",
+      "manufacturer": "Creality",
+      "image": "creality-k1-max.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "sensor_match",
+          "field": "sensors",
+          "pattern": "chamber_temp",
+          "confidence": 70,
+          "reason": "Chamber temperature sensor (enclosed printer)"
+        },
+        {
+          "type": "fan_match",
+          "field": "fans",
+          "pattern": "chamber_fan",
+          "confidence": 75,
+          "reason": "Chamber fan (Creality K1 signature)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "camera",
+          "confidence": 60,
+          "reason": "Built-in camera (K1 Max has AI camera)"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 280,
+          "max_x": 320,
+          "min_y": 280,
+          "max_y": 320,
+          "confidence": 70,
+          "reason": "Build volume ~300mm (K1 Max size)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "creality",
+          "confidence": 60,
+          "reason": "Hostname contains 'creality'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "k1-max",
+          "confidence": 90,
+          "reason": "Hostname contains 'k1-max'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "k1max",
+          "confidence": 90,
+          "reason": "Hostname contains 'k1max'"
+        }
+      ]
+    },
+    {
+      "id": "creality_k2_plus",
+      "name": "Creality K2 Plus",
+      "manufacturer": "Creality",
+      "image": "creality-k2-plus.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "sensor_match",
+          "field": "sensors",
+          "pattern": "chamber_temp",
+          "confidence": 70,
+          "reason": "Chamber temperature sensor"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "multi_material",
+          "confidence": 80,
+          "reason": "Multi-material system (K2 Plus feature)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "creality",
+          "confidence": 60,
+          "reason": "Hostname contains 'creality'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "k2",
+          "confidence": 85,
+          "reason": "Hostname contains 'k2'"
         }
       ]
     },
@@ -202,27 +523,59 @@
       "id": "creality_ender_3",
       "name": "Creality Ender 3",
       "manufacturer": "Creality",
+      "image": "creality-ender-3.png",
       "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 40,
+          "reason": "Cartesian kinematics (bedslinger)"
+        },
+        {
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "z_count_1",
+          "confidence": 30,
+          "reason": "Single Z stepper"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 200,
+          "max_x": 240,
+          "min_y": 200,
+          "max_y": 240,
+          "confidence": 40,
+          "reason": "Build volume ~220mm (Ender 3 size)"
+        },
+        {
+          "type": "mcu_match",
+          "field": "mcu",
+          "pattern": "STM32F103",
+          "confidence": 30,
+          "reason": "STM32F103 MCU (common Creality board)"
+        },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "creality",
           "confidence": 60,
-          "reason": "Hostname suggests Creality printer (model unknown)"
-        },
-        {
-          "type": "hostname_match",
-          "field": "hostname",
-          "pattern": "ender",
-          "confidence": 60,
-          "reason": "Hostname suggests Creality printer (model unknown)"
+          "reason": "Hostname contains 'creality'"
         },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "ender3",
-          "confidence": 80,
-          "reason": "Hostname suggests Creality Ender 3"
+          "confidence": 85,
+          "reason": "Hostname contains 'ender3'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "ender-3",
+          "confidence": 85,
+          "reason": "Hostname contains 'ender-3'"
         }
       ]
     },
@@ -230,27 +583,98 @@
       "id": "creality_ender_5",
       "name": "Creality Ender 5",
       "manufacturer": "Creality",
+      "image": "creality-ender-5.png",
       "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 40,
+          "reason": "Cartesian kinematics"
+        },
+        {
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "z_count_2",
+          "confidence": 50,
+          "reason": "Dual Z steppers (common Ender 5 upgrade)"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 200,
+          "max_x": 240,
+          "min_y": 200,
+          "max_y": 240,
+          "confidence": 40,
+          "reason": "Build volume ~220mm (Ender 5 size)"
+        },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "creality",
           "confidence": 60,
-          "reason": "Hostname suggests Creality printer (model unknown)"
-        },
-        {
-          "type": "hostname_match",
-          "field": "hostname",
-          "pattern": "ender",
-          "confidence": 60,
-          "reason": "Hostname suggests Creality printer (model unknown)"
+          "reason": "Hostname contains 'creality'"
         },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "ender5",
-          "confidence": 80,
-          "reason": "Hostname suggests Creality Ender 5"
+          "confidence": 85,
+          "reason": "Hostname contains 'ender5'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "ender-5",
+          "confidence": 85,
+          "reason": "Hostname contains 'ender-5'"
+        }
+      ]
+    },
+    {
+      "id": "creality_ender_5_max",
+      "name": "Creality Ender 5 Max",
+      "manufacturer": "Creality",
+      "image": "creality-ender-5-max.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 40,
+          "reason": "Cartesian kinematics"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 350,
+          "max_x": 420,
+          "min_y": 350,
+          "max_y": 420,
+          "confidence": 70,
+          "reason": "Large build volume ~400mm (Ender 5 Max size)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "creality",
+          "confidence": 60,
+          "reason": "Hostname contains 'creality'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "ender5max",
+          "confidence": 90,
+          "reason": "Hostname contains 'ender5max'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "ender-5-max",
+          "confidence": 90,
+          "reason": "Hostname contains 'ender-5-max'"
         }
       ]
     },
@@ -258,20 +682,750 @@
       "id": "creality_cr10",
       "name": "Creality CR-10",
       "manufacturer": "Creality",
+      "image": "creality-cr10.png",
       "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 40,
+          "reason": "Cartesian kinematics (bedslinger)"
+        },
+        {
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "z_count_1",
+          "confidence": 30,
+          "reason": "Single Z stepper"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 280,
+          "max_x": 320,
+          "min_y": 280,
+          "max_y": 320,
+          "confidence": 50,
+          "reason": "Build volume ~300mm (CR-10 size)"
+        },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "creality",
           "confidence": 60,
-          "reason": "Hostname suggests Creality printer (model unknown)"
+          "reason": "Hostname contains 'creality'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "cr10",
+          "confidence": 85,
+          "reason": "Hostname contains 'cr10'"
         },
         {
           "type": "hostname_match",
           "field": "hostname",
           "pattern": "cr-10",
+          "confidence": 85,
+          "reason": "Hostname contains 'cr-10'"
+        }
+      ]
+    },
+    {
+      "id": "elegoo_neptune_4",
+      "name": "Elegoo Neptune 4",
+      "manufacturer": "Elegoo",
+      "image": "elegoo-neptune-4.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 40,
+          "reason": "Cartesian kinematics (bedslinger)"
+        },
+        {
+          "type": "mcu_match",
+          "field": "mcu",
+          "pattern": "STM32F401",
+          "confidence": 50,
+          "reason": "STM32F401 MCU (Neptune 4 board)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "adxl345",
+          "confidence": 60,
+          "reason": "ADXL345 accelerometer (Neptune 4 has input shaper)"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 220,
+          "max_x": 240,
+          "min_y": 220,
+          "max_y": 240,
+          "confidence": 40,
+          "reason": "Build volume ~225mm (Neptune 4 size)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "elegoo",
           "confidence": 80,
-          "reason": "Hostname suggests Creality CR-10"
+          "reason": "Hostname contains 'elegoo'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "neptune",
+          "confidence": 75,
+          "reason": "Hostname contains 'neptune'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "neptune4",
+          "confidence": 90,
+          "reason": "Hostname contains 'neptune4'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "neptune-4",
+          "confidence": 90,
+          "reason": "Hostname contains 'neptune-4'"
+        }
+      ]
+    },
+    {
+      "id": "elegoo_neptune_4_pro",
+      "name": "Elegoo Neptune 4 Pro",
+      "manufacturer": "Elegoo",
+      "image": "elegoo-neptune-4.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 40,
+          "reason": "Cartesian kinematics (bedslinger)"
+        },
+        {
+          "type": "mcu_match",
+          "field": "mcu",
+          "pattern": "STM32F401",
+          "confidence": 50,
+          "reason": "STM32F401 MCU (Neptune 4 board)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "adxl345",
+          "confidence": 60,
+          "reason": "ADXL345 accelerometer (input shaper support)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "filament_motion_sensor",
+          "confidence": 50,
+          "reason": "Filament motion sensor (Pro feature)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "elegoo",
+          "confidence": 80,
+          "reason": "Hostname contains 'elegoo'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "neptune4pro",
+          "confidence": 95,
+          "reason": "Hostname contains 'neptune4pro'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "neptune-4-pro",
+          "confidence": 95,
+          "reason": "Hostname contains 'neptune-4-pro'"
+        }
+      ]
+    },
+    {
+      "id": "prusa_mk4",
+      "name": "Prusa MK4",
+      "manufacturer": "Prusa Research",
+      "image": "prusa-mk4.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 40,
+          "reason": "Cartesian kinematics (bedslinger)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "probe",
+          "confidence": 40,
+          "reason": "Probe present (Prusa uses loadcell probe)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "input_shaper",
+          "confidence": 50,
+          "reason": "Input shaper configured (MK4 feature)"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 240,
+          "max_x": 260,
+          "min_y": 200,
+          "max_y": 220,
+          "confidence": 60,
+          "reason": "Build volume ~250x210mm (Prusa MK4 size)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "prusa",
+          "confidence": 80,
+          "reason": "Hostname contains 'prusa'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "mk4",
+          "confidence": 90,
+          "reason": "Hostname contains 'mk4'"
+        }
+      ]
+    },
+    {
+      "id": "qidi_x_max_3",
+      "name": "Qidi X-Max 3",
+      "manufacturer": "Qidi",
+      "image": "qidi-x-max-3.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "sensor_match",
+          "field": "sensors",
+          "pattern": "chamber",
+          "confidence": 70,
+          "reason": "Chamber temperature sensor (enclosed printer)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "heater_generic chamber",
+          "confidence": 80,
+          "reason": "Active chamber heater (Qidi X3 series)"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 300,
+          "max_x": 340,
+          "min_y": 240,
+          "max_y": 270,
+          "confidence": 60,
+          "reason": "Build volume ~325x250mm (X-Max 3 size)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "qidi",
+          "confidence": 80,
+          "reason": "Hostname contains 'qidi'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "x-max",
+          "confidence": 90,
+          "reason": "Hostname contains 'x-max'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "xmax",
+          "confidence": 90,
+          "reason": "Hostname contains 'xmax'"
+        }
+      ]
+    },
+    {
+      "id": "qidi_plus_4",
+      "name": "Qidi Plus 4",
+      "manufacturer": "Qidi",
+      "image": "qidi-plus-4.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "sensor_match",
+          "field": "sensors",
+          "pattern": "chamber",
+          "confidence": 70,
+          "reason": "Chamber temperature sensor (enclosed printer)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "heater_generic chamber",
+          "confidence": 80,
+          "reason": "Active chamber heater (Qidi signature)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "qidi",
+          "confidence": 80,
+          "reason": "Hostname contains 'qidi'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "plus4",
+          "confidence": 90,
+          "reason": "Hostname contains 'plus4'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "plus-4",
+          "confidence": 90,
+          "reason": "Hostname contains 'plus-4'"
+        }
+      ]
+    },
+    {
+      "id": "flsun_delta",
+      "name": "FLSUN Delta",
+      "manufacturer": "FLSUN",
+      "image": "flsun-delta.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "delta",
+          "confidence": 90,
+          "reason": "Delta kinematics"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "delta_calibrate",
+          "confidence": 95,
+          "reason": "Delta calibration present (delta printer signature)"
+        },
+        {
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "stepper_a",
+          "confidence": 85,
+          "reason": "Delta stepper naming (stepper_a/b/c)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "flsun",
+          "confidence": 90,
+          "reason": "Hostname contains 'flsun'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "delta",
+          "confidence": 60,
+          "reason": "Hostname contains 'delta'"
+        }
+      ]
+    },
+    {
+      "id": "doron_velta",
+      "name": "Doron Velta",
+      "manufacturer": "Doron",
+      "image": "doron_velta.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "delta",
+          "confidence": 90,
+          "reason": "Delta kinematics"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "delta_calibrate",
+          "confidence": 95,
+          "reason": "Delta calibration present (delta printer signature)"
+        },
+        {
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "stepper_a",
+          "confidence": 85,
+          "reason": "Delta stepper naming (stepper_a/b/c)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "doron",
+          "confidence": 85,
+          "reason": "Hostname contains 'doron'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "velta",
+          "confidence": 95,
+          "reason": "Hostname contains 'velta'"
+        }
+      ]
+    },
+    {
+      "id": "ratrig_vcore3",
+      "name": "RatRig V-Core 3",
+      "manufacturer": "RatRig",
+      "image": "ratrig-vcore3.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "z_tilt",
+          "confidence": 70,
+          "reason": "Z-tilt adjustment present (3-point leveling)"
+        },
+        {
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "z_count_3",
+          "confidence": 75,
+          "reason": "3 independent Z steppers (V-Core 3 design)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "ratrig",
+          "confidence": 85,
+          "reason": "Hostname contains 'ratrig'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "vcore",
+          "confidence": 90,
+          "reason": "Hostname contains 'vcore'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "v-core",
+          "confidence": 90,
+          "reason": "Hostname contains 'v-core'"
+        }
+      ]
+    },
+    {
+      "id": "ratrig_vminion",
+      "name": "RatRig V-Minion",
+      "manufacturer": "RatRig",
+      "image": "ratrig-vminion.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "max_x": 200,
+          "max_y": 200,
+          "confidence": 50,
+          "reason": "Smaller build volume (~180mm, V-Minion size)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "ratrig",
+          "confidence": 85,
+          "reason": "Hostname contains 'ratrig'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "vminion",
+          "confidence": 95,
+          "reason": "Hostname contains 'vminion'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "v-minion",
+          "confidence": 95,
+          "reason": "Hostname contains 'v-minion'"
+        }
+      ]
+    },
+    {
+      "id": "sovol_sv08",
+      "name": "Sovol SV08",
+      "manufacturer": "Sovol",
+      "image": "sovol-sv08.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "quad_gantry_level",
+          "confidence": 85,
+          "reason": "Quad Gantry Level (Voron 2.4 clone design)"
+        },
+        {
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "z_count_4",
+          "confidence": 80,
+          "reason": "4 independent Z steppers (Voron 2.4 style)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "adxl345",
+          "confidence": 50,
+          "reason": "ADXL345 accelerometer (input shaper)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "sovol",
+          "confidence": 85,
+          "reason": "Hostname contains 'sovol'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "sv08",
+          "confidence": 95,
+          "reason": "Hostname contains 'sv08'"
+        }
+      ]
+    },
+    {
+      "id": "anycubic_chiron",
+      "name": "Anycubic Chiron",
+      "manufacturer": "Anycubic",
+      "image": "anycubic-chiron.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 40,
+          "reason": "Cartesian kinematics (bedslinger)"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 380,
+          "max_x": 420,
+          "min_y": 380,
+          "max_y": 420,
+          "confidence": 70,
+          "reason": "Large build volume ~400mm (Chiron size)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "anycubic",
+          "confidence": 80,
+          "reason": "Hostname contains 'anycubic'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "chiron",
+          "confidence": 95,
+          "reason": "Hostname contains 'chiron'"
+        }
+      ]
+    },
+    {
+      "id": "anycubic_kobra",
+      "name": "Anycubic Kobra",
+      "manufacturer": "Anycubic",
+      "image": "anycubic-kobra.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 40,
+          "reason": "Cartesian kinematics (bedslinger)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "probe",
+          "confidence": 40,
+          "reason": "Probe present (Kobra has auto-leveling)"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 200,
+          "max_x": 240,
+          "min_y": 200,
+          "max_y": 240,
+          "confidence": 40,
+          "reason": "Build volume ~220mm (Kobra size)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "anycubic",
+          "confidence": 80,
+          "reason": "Hostname contains 'anycubic'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "kobra",
+          "confidence": 95,
+          "reason": "Hostname contains 'kobra'"
+        }
+      ]
+    },
+    {
+      "id": "anycubic_vyper",
+      "name": "Anycubic Vyper",
+      "manufacturer": "Anycubic",
+      "image": "anycubic-vyper.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "cartesian",
+          "confidence": 40,
+          "reason": "Cartesian kinematics (bedslinger)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "probe",
+          "confidence": 40,
+          "reason": "Probe present (Vyper has auto-leveling)"
+        },
+        {
+          "type": "stepper_count",
+          "field": "steppers",
+          "pattern": "z_count_2",
+          "confidence": 60,
+          "reason": "Dual Z steppers (Vyper design)"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 230,
+          "max_x": 260,
+          "min_y": 230,
+          "max_y": 260,
+          "confidence": 50,
+          "reason": "Build volume ~245mm (Vyper size)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "anycubic",
+          "confidence": 80,
+          "reason": "Hostname contains 'anycubic'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "vyper",
+          "confidence": 95,
+          "reason": "Hostname contains 'vyper'"
+        }
+      ]
+    },
+    {
+      "id": "snapmaker_u1",
+      "name": "Snapmaker U1",
+      "manufacturer": "Snapmaker",
+      "image": "snapmaker-u1.png",
+      "heuristics": [
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "tool",
+          "confidence": 80,
+          "reason": "Multi-tool system (U1 toolchanger)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "camera",
+          "confidence": 60,
+          "reason": "Built-in camera (U1 feature)"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "snapmaker",
+          "confidence": 90,
+          "reason": "Hostname contains 'snapmaker'"
+        },
+        {
+          "type": "hostname_match",
+          "field": "hostname",
+          "pattern": "u1",
+          "confidence": 95,
+          "reason": "Hostname contains 'u1'"
         }
       ]
     }
