@@ -1,20 +1,20 @@
 # LVGL 9 XML UI Prototype - Development Roadmap
 
-**Last Updated:** 2025-11-28
+**Last Updated:** 2025-11-29
 
 ---
 
 ## 🎯 Current Priorities
 
-1. **Phase 13:** Complete G-code ops detection and modification
-2. **Phase 11:** Finish wizard connection/summary screens
-3. **Phase 8:** Implement thumbnail HTTP downloads
-4. **Phase 8:** File upload functionality
-5. **Phase 12:** Production readiness
+1. **Phase 11:** Finish wizard connection/summary screens
+2. **Phase 8:** Implement thumbnail HTTP downloads
+3. **Phase 8:** File upload functionality
+4. **Phase 12:** Production readiness
+5. **Phase 15:** Continue reactive UI architecture improvements
 
-**Completed Phases:** 1, 2, 3, 4, 14
-**Mostly Complete:** 5, 7, 8
-**In Progress:** 6, 9, 10, 11, 13
+**Completed Phases:** 1, 2, 3, 4, 13, 14
+**Mostly Complete:** 5, 7, 8, 15
+**In Progress:** 6, 9, 10, 11
 
 ---
 
@@ -605,60 +605,63 @@ New users need a guided setup wizard to:
 
 ---
 
-## 🔧 Phase 13: G-code Pre-Print Modification (IN PROGRESS)
+## ✅ Phase 13: G-code Pre-Print Modification (COMPLETED)
 
-**Priority: Medium** - Enable/disable print operations before starting
+**Priority: N/A** - Completed 2025-11-29
 
-**Status: IN PROGRESS** - Architecture defined, implementation underway
+**Status: COMPLETE** - Full implementation with 10-stage architecture
 
 ### Overview
-Allow users to enable/disable optional print operations (bed leveling, purge line, etc.) before starting a print, with automatic G-code modification.
+Users can enable/disable optional print operations (bed leveling, QGL, Z-tilt, nozzle clean) before starting a print. Supports both:
+1. **Pre-print sequencing**: Run operations before printing starts
+2. **G-code modification**: Comment out embedded operations in the file itself
 
-### Components
+### Components ✅
 
-- [ ] **GcodeOpsDetector** (`gcode_ops_detector.cpp`)
-  - [ ] Detect bed leveling sequences (G28, G29, BED_MESH_CALIBRATE)
-  - [ ] Detect purge/prime line sequences
-  - [ ] Detect other configurable operations
-  - [ ] Return line ranges for each detected operation
+- [x] **GcodeOpsDetector** (`gcode_ops_detector.cpp`)
+  - [x] Detect bed leveling (G29, BED_MESH_CALIBRATE, KAMP_CALIBRATE)
+  - [x] Detect QGL (QUAD_GANTRY_LEVEL)
+  - [x] Detect Z-tilt (Z_TILT_ADJUST)
+  - [x] Detect nozzle clean (CLEAN_NOZZLE, NOZZLE_CLEAN)
+  - [x] Return line numbers for each detected operation
 
-- [ ] **GcodeFileModifier** (`gcode_file_modifier.cpp`)
-  - [ ] Comment out line ranges to disable operations
-  - [ ] Inject custom G-code sequences
-  - [ ] Create modified G-code files for printing
+- [x] **GcodeFileModifier** (`gcode_file_modifier.cpp`)
+  - [x] Comment out specific lines to disable operations
+  - [x] Generate modified G-code content
+  - [x] Upload modified file to .helix_temp directory
 
-- [ ] **CommandSequencer** (`command_sequencer.cpp`)
-  - [ ] Coordinate multi-step print preparation
-  - [ ] Handle async operations (preheat → level → print)
-  - [ ] Manage operation dependencies
+- [x] **CommandSequencer** (`command_sequencer.cpp`)
+  - [x] Coordinate multi-step print preparation
+  - [x] Handle async operations (home → QGL → Z-tilt → mesh → clean → print)
+  - [x] Progress callbacks for UI feedback
 
-- [ ] **PrinterCapabilities** (`printer_capabilities.cpp`)
-  - [ ] Track what features printer supports
-  - [ ] Auto-detect from Klipper config
-  - [ ] Store in helixconfig.json
+- [x] **PrinterCapabilities** (`printer_capabilities.cpp`)
+  - [x] Track what features printer supports (from Klipper config)
+  - [x] User-configurable overrides (force enable/disable)
+  - [x] Reactive subjects for UI binding
 
-### UI Integration
-- [ ] Print file detail checkboxes for:
-  - [ ] "Run bed leveling" (if detected in G-code)
-  - [ ] "Run purge line" (if detected)
-  - [ ] "Preheat before print"
-- [ ] Visual feedback for detected operations
+### UI Integration ✅
+- [x] Print file detail checkboxes (Bambu-style):
+  - [x] "Automatic Bed Leveling" (visibility bound to printer capability)
+  - [x] "Quad Gantry Level" (visibility bound to printer capability)
+  - [x] "Z-Tilt Adjust" (visibility bound to printer capability)
+  - [x] "Clean Nozzle" (visibility bound to printer capability)
+- [x] "Preparing" overlay with spinner and progress bar
+- [x] Conflict detection: warn when disabling embedded operations
 
-### Files
-```
-include/gcode_ops_detector.h     # Operation detection API
-include/gcode_file_modifier.h    # G-code modification API
-include/command_sequencer.h      # Multi-step coordination
-include/printer_capabilities.h   # Printer feature tracking
-src/gcode_ops_detector.cpp
-src/gcode_file_modifier.cpp
-src/command_sequencer.cpp
-src/printer_capabilities.cpp
-tests/unit/test_gcode_ops_detector.cpp
-tests/unit/test_gcode_file_modifier.cpp
-tests/unit/test_command_sequencer.cpp
-tests/unit/test_printer_capabilities.cpp
-```
+### Implementation Stages (All Complete)
+| Stage | Feature | Commit |
+|-------|---------|--------|
+| 1 | GcodeOpsDetector with line tracking | ✅ |
+| 2 | GcodeFileModifier for commenting out | `4c4f6ef` |
+| 3 | PrinterCapabilities with reactive subjects | ✅ |
+| 4 | CommandSequencer for pre-print ops | `2c6a22d` |
+| 5 | UI checkboxes bound to capabilities | `8c76c4f` |
+| 6 | Pre-print sequence execution | `2c6a22d` |
+| 7 | Conflict detection (embedded ops) | `e6a7628` |
+| 8 | User capability overrides | `369aa73` |
+| 9 | Concurrent print prevention | `1a25afd` |
+| 10 | Memory-safe streaming for large files | `2fc776b` |
 
 ### Design Doc
 See `docs/PRINT_OPTIONS_IMPLEMENTATION_PLAN.md` for full specification.
@@ -686,21 +689,94 @@ See `docs/PRINT_OPTIONS_IMPLEMENTATION_PLAN.md` for full specification.
 
 ---
 
-## Recent Work (2025-11-14 to 2025-11-28)
+## 📐 Phase 15: Reactive UI Architecture (MOSTLY COMPLETE)
+
+**Priority: Medium** - Eliminate imperative UI flag manipulation in favor of declarative XML bindings
+
+**Status: MOSTLY COMPLETE** - Core refactoring done, remaining items have complexity > benefit
+
+### Overview
+Convert imperative `lv_obj_add_flag()`/`lv_obj_remove_flag()` calls to reactive XML bindings using `<lv_obj-bind_flag_if_eq>` elements. This makes UI state declarative and self-documenting.
+
+### Completed ✅
+
+- [x] **Temperature Panel X-axis Labels** (`922e918`)
+  - Subject: `nozzle_graph_points`, `bed_graph_points`
+  - Labels hidden until 60+ data points using `<lv_obj-bind_flag_if_lt>`
+
+- [x] **Extrusion Panel Safety Warning** (`2384501`)
+  - Subject: `extrusion_safety_warning_visible`
+  - Warning shown/hidden via reactive binding
+
+- [x] **Filament Panel Safety Warning** (`2384501`)
+  - Subject: `filament_safety_warning_visible`
+  - Warning shown/hidden via reactive binding
+
+- [x] **Print Status G-code Viewer Mode** (`2384501`)
+  - Subject: `gcode_viewer_mode`
+  - Gradient, thumbnail, and viewer visibility controlled reactively
+
+- [x] **Notification History Empty State** (`2384501`)
+  - Subject: `notification_has_entries`
+  - Content/empty state visibility controlled reactively
+
+- [x] **Controls Panel Clickable Cards** (`8b1881c`)
+  - XML attribute: `clickable="true"` on 5 cards
+  - Removed 5 `lv_obj_add_flag(LV_OBJ_FLAG_CLICKABLE)` calls
+
+- [x] **Settings Panel Clickable Card** (`8b1881c`)
+  - XML attribute: `clickable="true"` on bed_mesh card
+  - Removed 1 `lv_obj_add_flag(LV_OBJ_FLAG_CLICKABLE)` call
+
+- [x] **Print Select View Mode Toggle** (`8b1881c`)
+  - Subject: `print_select_view_mode` (0=CARD, 1=LIST)
+  - Card/list container visibility controlled reactively
+
+### Skipped (Complexity > Benefit)
+
+- Empty state with compound conditions (empty AND view_mode)
+- Sort indicators (8 compound conditions for 4 columns × 2 directions)
+- Directory card metadata (dynamic per-card creation)
+
+### Key Pattern
+```xml
+<!-- In XML: Declare visibility rule -->
+<lv_obj name="warning_container">
+  <lv_obj-bind_flag_if_eq subject="safety_warning_visible" flag="hidden" ref_value="0"/>
+</lv_obj>
+
+<!-- In C++: Just update the subject -->
+lv_subject_set_int(&safety_warning_subject_, show ? 1 : 0);
+```
+
+### Benefits
+- UI behavior visible in XML layout files
+- C++ code focuses on business logic, not presentation
+- Easier to understand and maintain
+- Self-documenting state management
+
+---
+
+## Recent Work (2025-11-14 to 2025-11-29)
 
 | Feature | Phase | Date |
 |---------|-------|------|
+| **Reactive UI refactoring (Priorities 4+5)** | 15 | 2025-11-29 |
+| **Reactive X-axis time labels for temp graphs** | 15 | 2025-11-29 |
+| **G-code memory-safe streaming (Stage 10)** | 13 | 2025-11-29 |
+| **Concurrent print prevention (Stage 9)** | 13 | 2025-11-29 |
+| IP/hostname validation improvements | 11 | 2025-11-29 |
+| Toast redesign (floating, top-right) | 6 | 2025-11-27 |
+| Wizard header component extraction | 11 | 2025-11-27 |
+| Printer database v2.0 (50+ printers) | 11 | 2025-11-22 |
 | Class-based panel refactoring (PanelBase) | 14 | 2025-11-17 |
 | Print Status → real Moonraker API | 8 | 2025-11-18 |
 | Home Panel → live temps/LEDs | 8 | 2025-11-18 |
 | Motion sub-screen complete | 5 | 2025-11-15 |
 | Temperature sub-screens complete | 5 | 2025-11-15 |
 | Extrusion sub-screen complete | 5 | 2025-11-15 |
-| Toast redesign (floating, top-right) | 6 | 2025-11-27 |
-| Wizard header component extraction | 11 | 2025-11-27 |
 | ModalBase RAII pattern | 6 | 2025-11-17 |
 | Slide animations for overlays | 7 | 2025-11-18 |
-| Printer database v2.0 (50+ printers) | 11 | 2025-11-22 |
 | Clang-format pre-commit hooks | 10 | 2025-11-17 |
 
 ---
