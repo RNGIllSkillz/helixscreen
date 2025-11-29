@@ -80,10 +80,6 @@ void ui_toast_show(ToastSeverity severity, const char* message, uint32_t duratio
     // Finalize severity styling for children (icon text and color)
     ui_severity_card_finalize(active_toast);
 
-    // Position at top-center below navigation
-    const int32_t top_margin = 80; // Below nav/header area
-    lv_obj_align(active_toast, LV_ALIGN_TOP_MID, 0, top_margin);
-
     // Wire up close button callback
     lv_obj_t* close_btn = lv_obj_find_by_name(active_toast, "toast_close_btn");
     if (close_btn) {

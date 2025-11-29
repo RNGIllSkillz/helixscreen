@@ -277,6 +277,11 @@ void PrintStatusPanel::format_time(int seconds, char* buf, size_t buf_size) {
 }
 
 void PrintStatusPanel::update_all_displays() {
+    // Guard: don't update if subjects aren't initialized yet
+    if (!subjects_initialized_) {
+        return;
+    }
+
     // Progress text
     std::snprintf(progress_text_buf_, sizeof(progress_text_buf_), "%d%%", current_progress_);
     lv_subject_copy_string(&progress_text_subject_, progress_text_buf_);
