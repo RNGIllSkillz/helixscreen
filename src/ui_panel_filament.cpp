@@ -201,14 +201,8 @@ void FilamentPanel::update_safety_state() {
         }
     }
 
-    // Imperative warning visibility
-    if (safety_warning_) {
-        if (allowed) {
-            lv_obj_add_flag(safety_warning_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(safety_warning_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    // Safety warning visibility is handled by XML binding to safety_warning_visible_subject_
+    // (updated at line 177 above)
 
     spdlog::debug("[{}] Safety state updated: allowed={} (temp={}°C)", get_name(), allowed,
                   nozzle_current_);

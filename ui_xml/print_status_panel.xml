@@ -14,12 +14,18 @@
       <!-- LEFT SECTION: G-code Viewer / Thumbnail (5/9 width via flex_grow) -->
       <!-- ================================================================== -->
       <ui_card name="thumbnail_section" flex_grow="5" height="100%" style_pad_all="0" style_radius="#border_radius" style_clip_corner="true">
-        <!-- Gradient background (procedural canvas with dithering, fills entire section) -->
-        <ui_gradient_canvas name="gradient_background" width="100%" height="100%" dither="true"/>
-        <!-- G-code 3D Viewer (hidden until file loaded, replaces gradient+thumbnail) -->
-        <gcode_viewer name="print_gcode_viewer" width="100%" height="100%" hidden="true"/>
-        <!-- Thumbnail image fallback (shown when no G-code loaded) -->
-        <lv_image name="print_thumbnail" bind_src="print_thumbnail" width="100%" height="100%" style_bg_opa="0" inner_align="contain" style_translate_y="-20%"/>
+        <!-- Gradient background (hidden in gcode viewer mode) -->
+        <ui_gradient_canvas name="gradient_background" width="100%" height="100%" dither="true">
+          <lv_obj-bind_flag_if_eq subject="gcode_viewer_mode" flag="hidden" ref_value="1"/>
+        </ui_gradient_canvas>
+        <!-- G-code 3D Viewer (hidden in thumbnail mode, shown in gcode mode) -->
+        <gcode_viewer name="print_gcode_viewer" width="100%" height="100%">
+          <lv_obj-bind_flag_if_eq subject="gcode_viewer_mode" flag="hidden" ref_value="0"/>
+        </gcode_viewer>
+        <!-- Thumbnail image fallback (hidden in gcode viewer mode) -->
+        <lv_image name="print_thumbnail" bind_src="print_thumbnail" width="100%" height="100%" style_bg_opa="0" inner_align="contain" style_translate_y="-20%">
+          <lv_obj-bind_flag_if_eq subject="gcode_viewer_mode" flag="hidden" ref_value="1"/>
+        </lv_image>
         <!-- ================================================================== -->
         <!-- PREPARING OVERLAY: Shown during pre-print operations (homing, etc) -->
         <!-- ================================================================== -->

@@ -86,7 +86,9 @@
         </lv_button>
       </lv_obj>
       <!-- Safety Warning Card (Visible when temp < 170°C) -->
+      <!-- Visibility controlled by filament_safety_warning_visible subject: 1=show, 0=hide -->
       <ui_card name="safety_warning" width="100%" flex_grow="1" style_border_width="2" style_radius="#border_radius" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start" style_pad_gap="#gap_small">
+        <lv_obj-bind_flag_if_eq subject="filament_safety_warning_visible" flag="hidden" ref_value="0"/>
         <!-- Warning Title (icon + text in single label) -->
         <lv_obj width="100%" height="#label_height_md" style_bg_opa="0" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#gap_tiny">
           <lv_label text="#icon_triangle_exclamation" style_text_font="#font_body"/>

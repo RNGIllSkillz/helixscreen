@@ -8,6 +8,7 @@
 #include "ui_panel_common.h"
 #include "ui_severity_card.h"
 #include "ui_status_bar.h"
+#include "ui_subject_registry.h"
 
 #include "app_globals.h"
 #include "printer_state.h"
@@ -37,9 +38,11 @@ void NotificationHistoryPanel::init_subjects() {
         return;
     }
 
-    // No subjects needed for this panel
+    // Has entries subject: 1 = has entries (show content), 0 = empty (show empty state)
+    UI_SUBJECT_INIT_AND_REGISTER_INT(has_entries_subject_, 0, "notification_has_entries");
+
     subjects_initialized_ = true;
-    spdlog::debug("[{}] Subjects initialized (none required)", get_name());
+    spdlog::debug("[{}] Subjects initialized (1 subject)", get_name());
 }
 
 void NotificationHistoryPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
@@ -111,23 +114,12 @@ void NotificationHistoryPanel::refresh() {
         return;
     }
 
-    // Find empty state
-    lv_obj_t* empty_state = lv_obj_find_by_name(panel_, "empty_state");
-
     // Clear existing items from content area
     lv_obj_clean(overlay_content);
 
-    // Show/hide content vs empty state
+    // Update has_entries subject - XML bindings handle visibility reactively
     bool has_entries = !entries.empty();
-    if (has_entries) {
-        lv_obj_remove_flag(overlay_content, LV_OBJ_FLAG_HIDDEN);
-        if (empty_state)
-            lv_obj_add_flag(empty_state, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(overlay_content, LV_OBJ_FLAG_HIDDEN);
-        if (empty_state)
-            lv_obj_remove_flag(empty_state, LV_OBJ_FLAG_HIDDEN);
-    }
+    lv_subject_set_int(&has_entries_subject_, has_entries ? 1 : 0);
 
     // Create list items using severity_card for automatic color styling
     for (const auto& entry : entries) {

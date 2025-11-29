@@ -53,9 +53,12 @@ void ExtrusionPanel::init_subjects() {
                                         "extrusion_temp_status");
     UI_SUBJECT_INIT_AND_REGISTER_STRING(warning_temps_subject_, warning_temps_buf_,
                                         warning_temps_buf_, "extrusion_warning_temps");
+    UI_SUBJECT_INIT_AND_REGISTER_INT(safety_warning_visible_subject_, 1,
+                                     "extrusion_safety_warning_visible"); // 1=visible (cold at start)
 
     subjects_initialized_ = true;
-    spdlog::debug("[{}] Subjects initialized: temp_status, warning_temps", get_name());
+    spdlog::debug("[{}] Subjects initialized: temp_status, warning_temps, safety_warning_visible",
+                  get_name());
 }
 
 void ExtrusionPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
@@ -203,14 +206,8 @@ void ExtrusionPanel::update_safety_state() {
         }
     }
 
-    // Show/hide safety warning
-    if (safety_warning_) {
-        if (allowed) {
-            lv_obj_add_flag(safety_warning_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_clear_flag(safety_warning_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    // Update safety warning visibility via reactive subject (XML binding handles visibility)
+    lv_subject_set_int(&safety_warning_visible_subject_, allowed ? 0 : 1);
 
     spdlog::debug("[{}] Safety state updated: allowed={} (temp={}°C)", get_name(), allowed,
                   nozzle_current_);

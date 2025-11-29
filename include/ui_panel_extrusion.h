@@ -122,6 +122,7 @@ class ExtrusionPanel : public PanelBase {
 
     lv_subject_t temp_status_subject_;
     lv_subject_t warning_temps_subject_;
+    lv_subject_t safety_warning_visible_subject_;
 
     // Subject storage buffers
     char temp_status_buf_[64];

@@ -178,8 +178,11 @@ void PrintStatusPanel::init_subjects() {
                                         "Preparing...", "preparing_operation");
     UI_SUBJECT_INIT_AND_REGISTER_INT(preparing_progress_subject_, 0, "preparing_progress");
 
+    // Viewer mode subject (0=thumbnail, 1=gcode viewer)
+    UI_SUBJECT_INIT_AND_REGISTER_INT(gcode_viewer_mode_subject_, 0, "gcode_viewer_mode");
+
     subjects_initialized_ = true;
-    spdlog::debug("[{}] Subjects initialized (13 subjects)", get_name());
+    spdlog::debug("[{}] Subjects initialized (14 subjects)", get_name());
 }
 
 void PrintStatusPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
@@ -323,31 +326,12 @@ void PrintStatusPanel::format_time(int seconds, char* buf, size_t buf_size) {
 }
 
 void PrintStatusPanel::show_gcode_viewer(bool show) {
-    if (gcode_viewer_) {
-        if (show) {
-            lv_obj_remove_flag(gcode_viewer_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(gcode_viewer_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    // Update viewer mode subject - XML bindings handle visibility reactively
+    // Mode 0 = thumbnail (gradient + thumbnail visible, gcode hidden)
+    // Mode 1 = gcode viewer (gcode visible, gradient + thumbnail hidden)
+    lv_subject_set_int(&gcode_viewer_mode_subject_, show ? 1 : 0);
 
-    if (print_thumbnail_) {
-        if (show) {
-            lv_obj_add_flag(print_thumbnail_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(print_thumbnail_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    if (gradient_background_) {
-        if (show) {
-            lv_obj_add_flag(gradient_background_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(gradient_background_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    spdlog::debug("[{}] G-code viewer visibility: {}", get_name(), show ? "shown" : "hidden");
+    spdlog::debug("[{}] G-code viewer mode: {}", get_name(), show ? "gcode" : "thumbnail");
 }
 
 void PrintStatusPanel::load_gcode_file(const char* file_path) {

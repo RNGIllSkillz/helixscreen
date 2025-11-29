@@ -6,6 +6,8 @@
 #include "ui_notification_history.h"
 #include "ui_panel_base.h"
 
+#include <lvgl.h>
+
 /**
  * @file ui_panel_notification_history.h
  * @brief Notification history overlay panel
@@ -115,6 +117,13 @@ class NotificationHistoryPanel : public PanelBase {
 
     /// Current severity filter (-1 = all)
     int current_filter_ = -1;
+
+    //
+    // === Subjects ===
+    //
+
+    /// Has entries subject (1 = has entries, 0 = empty)
+    lv_subject_t has_entries_subject_;
 
     //
     // === Private Helpers ===

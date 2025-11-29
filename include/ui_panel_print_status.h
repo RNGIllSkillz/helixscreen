@@ -237,6 +237,9 @@ class PrintStatusPanel : public PanelBase {
     lv_subject_t preparing_operation_subject_; // string: current operation name
     lv_subject_t preparing_progress_subject_;  // int: 0-100 progress percentage
 
+    // Viewer mode subject (0=thumbnail mode, 1=gcode viewer mode)
+    lv_subject_t gcode_viewer_mode_subject_;
+
     // Subject storage buffers
     char filename_buf_[128] = "No print active";
     char progress_text_buf_[32] = "0%";
