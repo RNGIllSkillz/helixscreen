@@ -1,4 +1,4 @@
-// Copyright 2025 HelixScreen
+// Copyright 2025 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
@@ -7,39 +7,33 @@
 
 /**
  * @file ui_panel_settings.h
- * @brief Settings panel - Launcher menu for configuration screens
+ * @brief Settings panel - Scrolling list of app and printer settings
  *
- * A card-based launcher panel providing access to various configuration
- * and calibration screens (network, display, bed mesh, Z-offset, etc.).
+ * A comprehensive settings panel with sections for Appearance, Printer,
+ * Notifications, Calibration, System, and About information.
  *
  * ## Key Features:
- * - Card-based launcher menu with 6 settings categories
- * - Lazy creation of overlay panels (bed mesh, etc.)
- * - Navigation stack integration for overlay management
+ * - Dark mode toggle with immediate theme switching
+ * - Display sleep timeout configuration
+ * - LED light control (via Moonraker)
+ * - Sound and notification settings (placeholder)
+ * - Calibration launchers (Bed Mesh, Z-Offset, PID Tuning)
+ * - System info display (version, printer, Klipper)
  *
- * ## Launcher Pattern:
- * Each card click handler:
- * 1. Creates the target panel on first access (lazy initialization)
- * 2. Pushes it onto the navigation stack via ui_nav_push_overlay()
- * 3. Stores panel reference for subsequent clicks
+ * ## Architecture:
+ * Uses SettingsManager for reactive data binding and persistence.
+ * Toggle switches automatically sync with SettingsManager subjects.
  *
- * ## Migration Notes:
- * First Phase 3 panel migrated to class-based architecture.
- * Demonstrates the launcher pattern where clicks spawn overlay panels.
- *
+ * @see SettingsManager for data layer
  * @see PanelBase for base class documentation
- * @see ui_nav for overlay navigation
  */
 class SettingsPanel : public PanelBase {
   public:
     /**
      * @brief Construct SettingsPanel with injected dependencies
      *
-     * @param printer_state Reference to PrinterState (for future use)
-     * @param api Pointer to MoonrakerAPI (for future use)
-     *
-     * @note Dependencies passed for interface consistency with PanelBase.
-     *       Currently only bed mesh uses these indirectly.
+     * @param printer_state Reference to PrinterState
+     * @param api Pointer to MoonrakerAPI
      */
     SettingsPanel(PrinterState& printer_state, MoonrakerAPI* api);
 
@@ -50,21 +44,19 @@ class SettingsPanel : public PanelBase {
     //
 
     /**
-     * @brief Initialize subjects for child panels
+     * @brief Initialize SettingsManager subjects
      *
-     * Delegates to ui_panel_bed_mesh_init_subjects() since the bed mesh
-     * panel may be lazily created when its card is clicked.
+     * Must be called BEFORE XML creation to enable data binding.
      */
     void init_subjects() override;
 
     /**
-     * @brief Setup the settings panel with launcher card event handlers
+     * @brief Setup the settings panel with event handlers and bindings
      *
-     * Finds all launcher cards by name and wires up click handlers.
-     * Currently only the bed mesh card is fully active; others are placeholders.
+     * Wires up toggle switches, dropdown, and action row click handlers.
      *
      * @param panel Root panel object from lv_xml_create()
-     * @param parent_screen Parent screen (needed for overlay panel creation)
+     * @param parent_screen Parent screen (for overlay panel creation)
      */
     void setup(lv_obj_t* panel, lv_obj_t* parent_screen) override;
 
@@ -77,45 +69,73 @@ class SettingsPanel : public PanelBase {
 
   private:
     //
-    // === Instance State ===
+    // === Widget References ===
     //
 
-    /// Lazily-created bed mesh visualization panel
+    // Toggle switches
+    lv_obj_t* dark_mode_switch_ = nullptr;
+    lv_obj_t* led_light_switch_ = nullptr;
+    lv_obj_t* sounds_switch_ = nullptr;
+    lv_obj_t* completion_alert_switch_ = nullptr;
+
+    // Dropdown
+    lv_obj_t* display_sleep_dropdown_ = nullptr;
+
+    // Action rows (clickable)
+    lv_obj_t* bed_mesh_row_ = nullptr;
+    lv_obj_t* z_offset_row_ = nullptr;
+    lv_obj_t* pid_tuning_row_ = nullptr;
+    lv_obj_t* network_row_ = nullptr;
+    lv_obj_t* factory_reset_row_ = nullptr;
+
+    // Info rows (for dynamic updates)
+    lv_obj_t* version_value_ = nullptr;
+    lv_obj_t* printer_value_ = nullptr;
+    lv_obj_t* klipper_value_ = nullptr;
+
+    // Lazily-created overlay panels
     lv_obj_t* bed_mesh_panel_ = nullptr;
 
     //
-    // === Private Helpers ===
+    // === Setup Helpers ===
     //
 
-    /**
-     * @brief Wire up click handlers for all launcher cards
-     */
-    void setup_card_handlers();
+    void setup_toggle_handlers();
+    void setup_dropdown();
+    void setup_action_handlers();
+    void populate_info_rows();
 
     //
-    // === Card Click Handlers ===
+    // === Event Handlers ===
     //
 
-    void handle_network_clicked();
-    void handle_display_clicked();
+    void handle_dark_mode_changed(bool enabled);
+    void handle_display_sleep_changed(int index);
+    void handle_led_light_changed(bool enabled);
+    void handle_sounds_changed(bool enabled);
+    void handle_completion_alert_changed(bool enabled);
+
     void handle_bed_mesh_clicked();
     void handle_z_offset_clicked();
-    void handle_printer_info_clicked();
-    void handle_about_clicked();
+    void handle_pid_tuning_clicked();
+    void handle_network_clicked();
+    void handle_factory_reset_clicked();
 
     //
     // === Static Trampolines ===
     //
-    // LVGL callbacks must be static. These trampolines extract the
-    // SettingsPanel* from user_data and delegate to instance methods.
-    //
 
-    static void on_network_clicked(lv_event_t* e);
-    static void on_display_clicked(lv_event_t* e);
+    static void on_dark_mode_changed(lv_event_t* e);
+    static void on_display_sleep_changed(lv_event_t* e);
+    static void on_led_light_changed(lv_event_t* e);
+    static void on_sounds_changed(lv_event_t* e);
+    static void on_completion_alert_changed(lv_event_t* e);
+
     static void on_bed_mesh_clicked(lv_event_t* e);
     static void on_z_offset_clicked(lv_event_t* e);
-    static void on_printer_info_clicked(lv_event_t* e);
-    static void on_about_clicked(lv_event_t* e);
+    static void on_pid_tuning_clicked(lv_event_t* e);
+    static void on_network_clicked(lv_event_t* e);
+    static void on_factory_reset_clicked(lv_event_t* e);
 };
 
 // Global instance accessor (needed by main.cpp)

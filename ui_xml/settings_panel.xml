@@ -2,68 +2,82 @@
 <!-- Copyright 2025 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
-<!-- Settings Panel Launcher - 6 Card Menu -->
+<!-- Settings Panel - Scrolling List Design -->
+<!-- Comprehensive settings organized in sections: Appearance, Printer, Notifications, Calibration, System, About -->
 <component>
-  <view extends="lv_obj" name="settings_panel" width="100%" height="100%" style_pad_all="#padding_normal" style_border_width="0" flex_flow="row_wrap" style_pad_gap="#padding_normal" scrollable="true" scroll_dir="ver">
-    <!-- Card 1: Network Settings -->
-    <ui_card name="card_network" width="#launcher_card_width" height="#launcher_card_height" flex_flow="column" flex_main_place="center" flex_cross_place="center" style_radius="#border_radius_large" style_pad_all="#launcher_card_padding" style_opa="128">
-      <!-- Disabled appearance - placeholder -->
-      <!-- Icon -->
-      <icon src="mat_wifi" variant="secondary" style_pad_bottom="#launcher_card_icon_padding"/>
-      <!-- Label -->
-      <text_body text="Network" style_pad_bottom="#launcher_card_title_padding"/>
-      <!-- Subtitle -->
-      <text_small text="Coming soon"/>
-    </ui_card>
-    <!-- Card 2: Display Settings -->
-    <ui_card name="card_display" width="#launcher_card_width" height="#launcher_card_height" flex_flow="column" flex_main_place="center" flex_cross_place="center" style_radius="#border_radius_large" style_pad_all="#launcher_card_padding" style_opa="128">
-      <!-- Disabled appearance - placeholder -->
-      <!-- Icon -->
-      <icon src="mat_light" variant="secondary" style_pad_bottom="#launcher_card_icon_padding"/>
-      <!-- Label -->
-      <text_body text="Display" style_pad_bottom="#launcher_card_title_padding"/>
-      <!-- Subtitle -->
-      <text_small text="Coming soon"/>
-    </ui_card>
-    <!-- Card 3: Bed Mesh Calibration -->
-    <ui_card name="card_bed_mesh" width="#launcher_card_width" height="#launcher_card_height" flex_flow="column" flex_main_place="center" flex_cross_place="center" style_radius="#border_radius_large" style_pad_all="#launcher_card_padding" clickable="true">
-      <!-- Active card -->
-      <!-- Icon -->
-      <icon src="mat_bedmesh" variant="accent" style_pad_bottom="#launcher_card_icon_padding"/>
-      <!-- Label -->
-      <text_body text="Bed Mesh" style_pad_bottom="#launcher_card_title_padding"/>
-      <!-- Subtitle -->
-      <text_small text="Calibrate &amp; visualize"/>
-    </ui_card>
-    <!-- Card 4: Z-Offset Adjustment -->
-    <ui_card name="card_z_offset" width="#launcher_card_width" height="#launcher_card_height" flex_flow="column" flex_main_place="center" flex_cross_place="center" style_radius="#border_radius_large" style_pad_all="#launcher_card_padding" style_opa="128">
-      <!-- Disabled appearance - placeholder -->
-      <!-- Icon -->
-      <icon src="mat_fine_tune" variant="secondary" style_pad_bottom="#launcher_card_icon_padding"/>
-      <!-- Label -->
-      <text_body text="Z-Offset" style_pad_bottom="#launcher_card_title_padding"/>
-      <!-- Subtitle -->
-      <text_small text="Coming soon"/>
-    </ui_card>
-    <!-- Card 5: Printer Info & Diagnostics -->
-    <ui_card name="card_printer_info" width="#launcher_card_width" height="#launcher_card_height" flex_flow="column" flex_main_place="center" flex_cross_place="center" style_radius="#border_radius_large" style_pad_all="#launcher_card_padding" style_opa="128">
-      <!-- Disabled appearance - placeholder -->
-      <!-- Icon -->
-      <icon src="mat_info" variant="secondary" style_pad_bottom="#launcher_card_icon_padding"/>
-      <!-- Label -->
-      <text_body text="Printer Info" style_pad_bottom="#launcher_card_title_padding"/>
-      <!-- Subtitle -->
-      <text_small text="Coming soon"/>
-    </ui_card>
-    <!-- Card 6: About HelixScreen -->
-    <ui_card name="card_about" width="#launcher_card_width" height="#launcher_card_height" flex_flow="column" flex_main_place="center" flex_cross_place="center" style_radius="#border_radius_large" style_pad_all="#launcher_card_padding" style_opa="128">
-      <!-- Disabled appearance - placeholder -->
-      <!-- Icon -->
-      <icon src="mat_info" variant="secondary" style_pad_bottom="#launcher_card_icon_padding"/>
-      <!-- Label -->
-      <text_body text="About" style_pad_bottom="#launcher_card_title_padding"/>
-      <!-- Subtitle -->
-      <text_small text="Coming soon"/>
-    </ui_card>
+  <view extends="lv_obj" name="settings_panel" width="100%" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="column" scrollable="true" scroll_dir="ver">
+
+    <!-- ================================================================== -->
+    <!-- APPEARANCE SECTION -->
+    <!-- ================================================================== -->
+    <setting_section_header title="APPEARANCE"/>
+
+    <!-- Dark Mode Toggle -->
+    <setting_toggle_row name="row_dark_mode" label="Dark Mode"/>
+
+    <!-- Display Sleep Dropdown -->
+    <setting_dropdown_row name="row_display_sleep" label="Display Sleep"/>
+
+    <!-- ================================================================== -->
+    <!-- PRINTER SECTION -->
+    <!-- ================================================================== -->
+    <setting_section_header title="PRINTER"/>
+
+    <!-- LED Light Toggle -->
+    <setting_toggle_row name="row_led_light" label="LED Light"/>
+
+    <!-- ================================================================== -->
+    <!-- NOTIFICATIONS SECTION -->
+    <!-- ================================================================== -->
+    <setting_section_header title="NOTIFICATIONS"/>
+
+    <!-- Sounds Toggle (placeholder) -->
+    <setting_toggle_row name="row_sounds" label="Sounds"/>
+
+    <!-- Completion Alert Toggle -->
+    <setting_toggle_row name="row_completion_alert" label="Print Completion Alert"/>
+
+    <!-- ================================================================== -->
+    <!-- CALIBRATION SECTION -->
+    <!-- ================================================================== -->
+    <setting_section_header title="CALIBRATION"/>
+
+    <!-- Bed Mesh Calibration -->
+    <setting_action_row name="row_bed_mesh" label="Bed Mesh Calibration"/>
+
+    <!-- Z-Offset Calibration -->
+    <setting_action_row name="row_z_offset" label="Z-Offset Calibration"/>
+
+    <!-- PID Tuning -->
+    <setting_action_row name="row_pid_tuning" label="PID Tuning"/>
+
+    <!-- ================================================================== -->
+    <!-- SYSTEM SECTION -->
+    <!-- ================================================================== -->
+    <setting_section_header title="SYSTEM"/>
+
+    <!-- Network Settings -->
+    <setting_action_row name="row_network" label="Network Settings"/>
+
+    <!-- Factory Reset -->
+    <setting_action_row name="row_factory_reset" label="Factory Reset"/>
+
+    <!-- ================================================================== -->
+    <!-- ABOUT SECTION -->
+    <!-- ================================================================== -->
+    <setting_section_header title="ABOUT"/>
+
+    <!-- Version Info -->
+    <setting_info_row name="row_version" label="Version" value="1.0.0"/>
+
+    <!-- Printer Name -->
+    <setting_info_row name="row_printer" label="Printer" value="—"/>
+
+    <!-- Klipper Version -->
+    <setting_info_row name="row_klipper" label="Klipper" value="—"/>
+
+    <!-- Bottom padding for scroll -->
+    <lv_obj width="100%" height="#padding_normal" style_bg_opa="0" style_border_width="0"/>
+
   </view>
 </component>

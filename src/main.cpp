@@ -429,6 +429,8 @@ static bool parse_command_line_args(
             g_runtime_config.use_real_moonraker = true;
         } else if (strcmp(argv[i], "--real-files") == 0) {
             g_runtime_config.use_real_files = true;
+        } else if (strcmp(argv[i], "--real-usb") == 0) {
+            g_runtime_config.use_real_usb = true;
         } else if (strcmp(argv[i], "--select-file") == 0) {
             if (i + 1 < argc) {
                 g_runtime_config.select_file = argv[++i];
@@ -599,6 +601,7 @@ static bool parse_command_line_args(
             printf("    --real-ethernet    Use real Ethernet hardware (requires --test)\n");
             printf("    --real-moonraker   Connect to real printer (requires --test)\n");
             printf("    --real-files       Use real files from printer (requires --test)\n");
+            printf("    --real-usb         Use real USB monitoring (requires --test)\n");
             printf("    --select-file <name>  Auto-select file in print-select panel and show detail view\n");
             printf("\nG-code Viewer Options (require --test):\n");
             printf("  --gcode-file <path>  Load specific G-code file in gcode-test panel\n");
@@ -791,6 +794,12 @@ static void register_xml_components() {
     lv_xml_register_component_from_file("A:ui_xml/fan_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/print_status_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/filament_panel.xml");
+    // Settings row components (must be registered before settings_panel)
+    lv_xml_register_component_from_file("A:ui_xml/setting_section_header.xml");
+    lv_xml_register_component_from_file("A:ui_xml/setting_toggle_row.xml");
+    lv_xml_register_component_from_file("A:ui_xml/setting_dropdown_row.xml");
+    lv_xml_register_component_from_file("A:ui_xml/setting_action_row.xml");
+    lv_xml_register_component_from_file("A:ui_xml/setting_info_row.xml");
     lv_xml_register_component_from_file("A:ui_xml/settings_panel.xml");
     spdlog::debug("[XML] Registering bed_mesh_panel.xml...");
     auto ret = lv_xml_register_component_from_file("A:ui_xml/bed_mesh_panel.xml");
