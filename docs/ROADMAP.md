@@ -439,6 +439,11 @@
   - [x] DPI scaling tests (4 hardware profiles)
   - [x] Theme toggle verification
 
+- [x] **Moonraker Mock Testing** ✅ PARTIAL (2025-11-29)
+  - [x] Unit tests for mock motion commands (G28, G0/G1)
+  - [x] Mock Moonraker client infrastructure
+  - [ ] Full API coverage for all mocked endpoints
+
 - [ ] **Cross-platform Testing**
   - Raspberry Pi target
   - BTT Pad target
@@ -670,7 +675,7 @@ See `docs/PRINT_OPTIONS_IMPLEMENTATION_PLAN.md` for full specification.
 
 ## ✅ Phase 14: Class-Based Panel Architecture (COMPLETED)
 
-**Priority: N/A** - Completed 2025-11-17
+**Priority: N/A** - Completed 2025-11-17, enhanced 2025-11-29
 
 **Summary:** Migrated all panels from function-based to class-based architecture using PanelBase.
 
@@ -678,12 +683,17 @@ See `docs/PRINT_OPTIONS_IMPLEMENTATION_PLAN.md` for full specification.
 - [x] **All 13+ panels migrated** - Home, Controls, Motion, Temps, Print Select, etc.
 - [x] **Wizard steps migrated** - All 7 wizard steps use class-based pattern
 - [x] **Deprecated wrappers removed** - Clean break from old function-based API
+- [x] **ObserverGuard RAII pattern** (2025-11-29) - Safe observer subscription lifecycle
+  - Automatic unsubscription on destruction
+  - Applied to HomePanel, PrintStatusOverlay, FilamentOverlay, ExtrusionOverlay
+  - Fixes crash from LVGL observer immediate-fire pattern
 
 **Benefits:**
 - RAII lifecycle management
 - Consistent show/hide behavior
 - Easier testing and maintenance
 - Clear ownership semantics
+- Safe observer cleanup (no dangling callbacks)
 
 **Reference:** `docs/archive/PANEL_MIGRATION.md`, `docs/archive/PANEL_REFACTORING_PLAN.md`
 
@@ -761,6 +771,10 @@ lv_subject_set_int(&safety_warning_subject_, show ? 1 : 0);
 
 | Feature | Phase | Date |
 |---------|-------|------|
+| **ObserverGuard RAII pattern for panels** | 14 | 2025-11-29 |
+| **Unit tests for Moonraker mock motion commands** | 10 | 2025-11-29 |
+| Fix LVGL observer immediate-fire crash | 14 | 2025-11-29 |
+| Documentation cleanup (outdated/redundant docs) | - | 2025-11-29 |
 | **Reactive UI refactoring (Priorities 4+5)** | 15 | 2025-11-29 |
 | **Reactive X-axis time labels for temp graphs** | 15 | 2025-11-29 |
 | **G-code memory-safe streaming (Stage 10)** | 13 | 2025-11-29 |
