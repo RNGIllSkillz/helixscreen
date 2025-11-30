@@ -89,6 +89,14 @@ struct RuntimeConfig {
     }
 
     /**
+     * @brief Check if USB should use mock implementation
+     * @return true if test mode is enabled
+     */
+    bool should_mock_usb() const {
+        return test_mode;
+    }
+
+    /**
      * @brief Check if we're in any form of test mode
      * @return true if test mode is enabled
      */

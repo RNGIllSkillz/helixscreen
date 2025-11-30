@@ -92,6 +92,17 @@ TEST_WIFI_DEPS := \
     $(OBJ_DIR)/ethernet_backend_mock.o \
     $(OBJCPP_OBJS)
 
+# USB components
+TEST_USB_DEPS := \
+    $(OBJ_DIR)/usb_backend.o \
+    $(OBJ_DIR)/usb_backend_mock.o \
+    $(OBJ_DIR)/usb_manager.o
+
+# Settings components (required by ui_panel_settings.o)
+TEST_SETTINGS_DEPS := \
+    $(OBJ_DIR)/settings_manager.o \
+    $(OBJ_DIR)/ui_panel_calibration_zoffset.o
+
 # Moonraker/printer components
 # Note: LIBHV_LIB is in LDFLAGS via LIBHV_LIBS, not needed here
 # Note: app_globals.o excluded - ui_test_utils.o provides stub implementations
@@ -315,6 +326,8 @@ $(TEST_BIN): $(TEST_CORE_DEPS) \
              $(TEST_UI_DEPS) \
              $(TEST_PANEL_DEPS) \
              $(TEST_WIFI_DEPS) \
+             $(TEST_USB_DEPS) \
+             $(TEST_SETTINGS_DEPS) \
              $(TEST_MOONRAKER_DEPS) \
              $(TEST_CONFIG_DEPS) \
              $(TEST_GCODE_DEPS) \
