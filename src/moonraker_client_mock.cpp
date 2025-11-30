@@ -261,6 +261,11 @@ int MoonrakerClientMock::get_total_layers() const {
     return static_cast<int>(print_metadata_.layer_count);
 }
 
+std::set<std::string> MoonrakerClientMock::get_excluded_objects() const {
+    std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
+    return excluded_objects_;
+}
+
 MoonrakerClientMock::~MoonrakerClientMock() {
     stop_temperature_simulation();
 }
@@ -1455,6 +1460,43 @@ int MoonrakerClientMock::gcode_script(const std::string& gcode) {
         trigger_restart(/*is_firmware=*/false);
     }
 
+    // EXCLUDE_OBJECT - Track excluded objects during print
+    // EXCLUDE_OBJECT NAME=Part_1
+    // EXCLUDE_OBJECT NAME="Part With Spaces"
+    if (gcode.find("EXCLUDE_OBJECT") != std::string::npos &&
+        gcode.find("EXCLUDE_OBJECT_DEFINE") == std::string::npos &&
+        gcode.find("EXCLUDE_OBJECT_START") == std::string::npos &&
+        gcode.find("EXCLUDE_OBJECT_END") == std::string::npos) {
+        // Parse NAME parameter
+        size_t name_pos = gcode.find("NAME=");
+        if (name_pos != std::string::npos) {
+            size_t start = name_pos + 5;
+            std::string object_name;
+
+            // Handle quoted names (NAME="Part With Spaces")
+            if (start < gcode.length() && gcode[start] == '"') {
+                size_t end_quote = gcode.find('"', start + 1);
+                if (end_quote != std::string::npos) {
+                    object_name = gcode.substr(start + 1, end_quote - start - 1);
+                }
+            } else {
+                // Unquoted name (ends at space or end of string)
+                size_t end = gcode.find_first_of(" \t\n", start);
+                object_name = (end != std::string::npos) ? gcode.substr(start, end - start)
+                                                          : gcode.substr(start);
+            }
+
+            if (!object_name.empty()) {
+                std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
+                excluded_objects_.insert(object_name);
+                spdlog::info("[MoonrakerClientMock] EXCLUDE_OBJECT: '{}' added to exclusion list",
+                             object_name);
+            }
+        } else {
+            spdlog::warn("[MoonrakerClientMock] EXCLUDE_OBJECT without NAME parameter ignored");
+        }
+    }
+
     // QGL / Z-tilt (NOT IMPLEMENTED)
     if (gcode.find("QUAD_GANTRY_LEVEL") != std::string::npos) {
         spdlog::warn("[MoonrakerClientMock] STUB: QUAD_GANTRY_LEVEL NOT IMPLEMENTED");
@@ -1534,6 +1576,12 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
     total_pause_duration_sim_ = 0.0;
     preheat_start_time_ = std::chrono::steady_clock::now();
     printing_start_time_.reset();
+
+    // Clear excluded objects from any previous print
+    {
+        std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
+        excluded_objects_.clear();
+    }
 
     // Transition to PREHEAT phase
     print_phase_.store(MockPrintPhase::PREHEAT);
@@ -2167,6 +2215,12 @@ void MoonrakerClientMock::trigger_restart(bool is_firmware) {
     // Set temperature targets to 0 (heaters off) - temps will naturally cool
     extruder_target_.store(0.0);
     bed_target_.store(0.0);
+
+    // Clear excluded objects list (restart clears Klipper state)
+    {
+        std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
+        excluded_objects_.clear();
+    }
 
     // Dispatch klippy state change notification
     json status = {{"webhooks",

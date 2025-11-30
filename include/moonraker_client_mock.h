@@ -30,6 +30,7 @@
 #include <chrono>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -168,6 +169,16 @@ class MoonrakerClientMock : public MoonrakerClient {
      * @return Total layers from G-code metadata, or 0 if not printing
      */
     int get_total_layers() const;
+
+    /**
+     * @brief Get set of excluded object names
+     *
+     * Returns the names of objects that have been excluded via
+     * EXCLUDE_OBJECT G-code commands during the current print.
+     *
+     * @return Set of excluded object names (thread-safe copy)
+     */
+    std::set<std::string> get_excluded_objects() const;
 
     /**
      * @brief Simulate WebSocket connection (no real network I/O)
@@ -531,6 +542,10 @@ class MoonrakerClientMock : public MoonrakerClient {
 
     // G-code offset tracking
     std::atomic<double> gcode_offset_z_{0.0}; // Z offset from SET_GCODE_OFFSET
+
+    // Excluded objects tracking (for EXCLUDE_OBJECT command)
+    std::set<std::string> excluded_objects_;  // Object names excluded during print
+    mutable std::mutex excluded_objects_mutex_; // Protects excluded_objects_
 
     // Simulation tick counter
     std::atomic<uint32_t> tick_count_{0};
