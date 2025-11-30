@@ -95,6 +95,24 @@ public:
     [[nodiscard]] bool has_exclude_object() const { return has_exclude_object_; }
 
     /**
+     * @brief Check if printer has a probe (for Z-offset calibration)
+     * @return true if probe or bltouch object was detected
+     */
+    [[nodiscard]] bool has_probe() const { return has_probe_; }
+
+    /**
+     * @brief Check if printer has a heated bed
+     * @return true if heater_bed object was detected
+     */
+    [[nodiscard]] bool has_heater_bed() const { return has_heater_bed_; }
+
+    /**
+     * @brief Check if printer has LED/light control
+     * @return true if neopixel, led, or output_pin with light/led in name was detected
+     */
+    [[nodiscard]] bool has_led() const { return has_led_; }
+
+    /**
      * @brief Check if printer supports any form of bed leveling
      * @return true if has QGL, Z-tilt, or bed mesh
      */
@@ -219,6 +237,9 @@ private:
     bool has_chamber_heater_ = false;
     bool has_chamber_sensor_ = false;
     bool has_exclude_object_ = false;
+    bool has_probe_ = false;
+    bool has_heater_bed_ = false;
+    bool has_led_ = false;
 
     // Macro names (stored uppercase for case-insensitive matching)
     std::unordered_set<std::string> macros_;

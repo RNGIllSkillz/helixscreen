@@ -128,6 +128,14 @@ void PrinterState::reset_for_testing() {
     lv_subject_deinit(&network_status_);
     lv_subject_deinit(&klippy_state_);
     lv_subject_deinit(&led_state_);
+    lv_subject_deinit(&excluded_objects_version_);
+    lv_subject_deinit(&printer_has_qgl_);
+    lv_subject_deinit(&printer_has_z_tilt_);
+    lv_subject_deinit(&printer_has_bed_mesh_);
+    lv_subject_deinit(&printer_has_nozzle_clean_);
+    lv_subject_deinit(&printer_has_probe_);
+    lv_subject_deinit(&printer_has_heater_bed_);
+    lv_subject_deinit(&printer_has_led_);
 
     subjects_initialized_ = false;
 }
@@ -193,6 +201,9 @@ void PrinterState::init_subjects(bool register_xml) {
     lv_subject_init_int(&printer_has_z_tilt_, 0);
     lv_subject_init_int(&printer_has_bed_mesh_, 0);
     lv_subject_init_int(&printer_has_nozzle_clean_, 0);
+    lv_subject_init_int(&printer_has_probe_, 0);
+    lv_subject_init_int(&printer_has_heater_bed_, 0);
+    lv_subject_init_int(&printer_has_led_, 0);
 
     // Register all subjects with LVGL XML system (CRITICAL for XML bindings)
     if (register_xml) {
@@ -224,6 +235,9 @@ void PrinterState::init_subjects(bool register_xml) {
         lv_xml_register_subject(NULL, "printer_has_z_tilt", &printer_has_z_tilt_);
         lv_xml_register_subject(NULL, "printer_has_bed_mesh", &printer_has_bed_mesh_);
         lv_xml_register_subject(NULL, "printer_has_nozzle_clean", &printer_has_nozzle_clean_);
+        lv_xml_register_subject(NULL, "printer_has_probe", &printer_has_probe_);
+        lv_xml_register_subject(NULL, "printer_has_heater_bed", &printer_has_heater_bed_);
+        lv_xml_register_subject(NULL, "printer_has_led", &printer_has_led_);
     } else {
         spdlog::debug("[PrinterState] Skipping XML registration (tests mode)");
     }
@@ -513,6 +527,13 @@ void PrinterState::set_printer_capabilities(const PrinterCapabilities& caps) {
     lv_subject_set_int(&printer_has_bed_mesh_, capability_overrides_.has_bed_leveling() ? 1 : 0);
     lv_subject_set_int(&printer_has_nozzle_clean_, capability_overrides_.has_nozzle_clean() ? 1 : 0);
 
+    // Hardware capabilities (no user override support yet - set directly from detection)
+    lv_subject_set_int(&printer_has_probe_, caps.has_probe() ? 1 : 0);
+    lv_subject_set_int(&printer_has_heater_bed_, caps.has_heater_bed() ? 1 : 0);
+    lv_subject_set_int(&printer_has_led_, caps.has_led() ? 1 : 0);
+
+    spdlog::info("[PrinterState] Capabilities set: probe={}, heater_bed={}, LED={}",
+                 caps.has_probe(), caps.has_heater_bed(), caps.has_led());
     spdlog::info("[PrinterState] Capabilities set (with overrides): {}",
                  capability_overrides_.summary());
 }

@@ -479,6 +479,9 @@ class PrinterState {
     lv_subject_t printer_has_z_tilt_;       // Integer: 0=no, 1=yes
     lv_subject_t printer_has_bed_mesh_;     // Integer: 0=no, 1=yes
     lv_subject_t printer_has_nozzle_clean_; // Integer: 0=no, 1=yes
+    lv_subject_t printer_has_probe_;        // Integer: 0=no, 1=yes (for Z-offset calibration)
+    lv_subject_t printer_has_heater_bed_;   // Integer: 0=no, 1=yes (for PID bed tuning)
+    lv_subject_t printer_has_led_;          // Integer: 0=no, 1=yes (for LED light control)
 
     // Tracked LED name (e.g., "neopixel chamber_light")
     std::string tracked_led_name_;

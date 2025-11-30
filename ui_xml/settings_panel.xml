@@ -23,8 +23,11 @@
     <!-- ================================================================== -->
     <setting_section_header title="PRINTER"/>
 
-    <!-- LED Light Toggle -->
-    <setting_toggle_row name="row_led_light" label="LED Light"/>
+    <!-- LED Light Toggle (hidden if no LED capability) -->
+    <lv_obj name="container_led_light" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0">
+      <lv_obj-bind_flag_if_eq subject="printer_has_led" flag="hidden" ref_value="0"/>
+      <setting_toggle_row name="row_led_light" label="LED Light"/>
+    </lv_obj>
 
     <!-- ================================================================== -->
     <!-- NOTIFICATIONS SECTION -->
@@ -42,13 +45,19 @@
     <!-- ================================================================== -->
     <setting_section_header title="CALIBRATION"/>
 
-    <!-- Bed Mesh Calibration -->
-    <setting_action_row name="row_bed_mesh" label="Bed Mesh Calibration"/>
+    <!-- Bed Mesh Calibration (hidden if no bed mesh capability) -->
+    <lv_obj name="container_bed_mesh" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0">
+      <lv_obj-bind_flag_if_eq subject="printer_has_bed_mesh" flag="hidden" ref_value="0"/>
+      <setting_action_row name="row_bed_mesh" label="Bed Mesh Calibration"/>
+    </lv_obj>
 
-    <!-- Z-Offset Calibration -->
-    <setting_action_row name="row_z_offset" label="Z-Offset Calibration"/>
+    <!-- Z-Offset Calibration (hidden if no probe capability) -->
+    <lv_obj name="container_z_offset" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0">
+      <lv_obj-bind_flag_if_eq subject="printer_has_probe" flag="hidden" ref_value="0"/>
+      <setting_action_row name="row_z_offset" label="Z-Offset Calibration"/>
+    </lv_obj>
 
-    <!-- PID Tuning -->
+    <!-- PID Tuning (always shown - extruder is always available) -->
     <setting_action_row name="row_pid_tuning" label="PID Tuning"/>
 
     <!-- ================================================================== -->

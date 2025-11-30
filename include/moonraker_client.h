@@ -545,6 +545,9 @@ class MoonrakerClient : public hv::WebSocketClient {
     std::string hostname_;             // Printer hostname from printer.info
     PrinterCapabilities capabilities_; // QGL, Z-tilt, bed mesh, macros
 
+    // Discovery callback (protected to allow mock to invoke it)
+    std::function<void(const PrinterCapabilities&)> on_discovery_complete_;
+
     // Bed mesh data
     BedMeshProfile active_bed_mesh_;             // Currently active mesh profile
     std::vector<std::string> bed_mesh_profiles_; // Available profile names
@@ -572,7 +575,6 @@ class MoonrakerClient : public hv::WebSocketClient {
     std::atomic<ConnectionState> connection_state_;
     std::atomic_bool is_destroying_{false}; // Prevent callbacks during destruction
     std::function<void(ConnectionState, ConnectionState)> state_change_callback_;
-    std::function<void(const PrinterCapabilities&)> on_discovery_complete_;
     mutable std::mutex state_callback_mutex_; // Protect state_change_callback_ during destruction
     uint32_t connection_timeout_ms_;
     uint32_t reconnect_attempts_ = 0;

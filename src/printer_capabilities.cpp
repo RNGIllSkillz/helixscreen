@@ -33,6 +33,31 @@ void PrinterCapabilities::parse_objects(const json& objects) {
         } else if (name == "exclude_object") {
             has_exclude_object_ = true;
             spdlog::debug("[PrinterCapabilities] Detected exclude_object");
+        } else if (name == "probe" || name == "bltouch") {
+            // Standard probe or BLTouch (includes Voron TAP which uses [probe])
+            has_probe_ = true;
+            spdlog::debug("[PrinterCapabilities] Detected probe: {}", name);
+        } else if (name.rfind("probe_eddy_current ", 0) == 0) {
+            // Eddy current probes: BTT Eddy, Beacon, Cartographer, etc.
+            has_probe_ = true;
+            spdlog::debug("[PrinterCapabilities] Detected eddy probe: {}", name);
+        } else if (name == "heater_bed") {
+            has_heater_bed_ = true;
+            spdlog::debug("[PrinterCapabilities] Detected heater_bed");
+        }
+        // LED/light detection (neopixel, led, or output_pin with light/led in name)
+        else if (name.rfind("neopixel ", 0) == 0 || name.rfind("led ", 0) == 0) {
+            has_led_ = true;
+            spdlog::debug("[PrinterCapabilities] Detected LED: {}", name);
+        } else if (name.rfind("output_pin ", 0) == 0) {
+            std::string pin_name = name.substr(11);  // Remove "output_pin " prefix
+            std::string upper_pin = to_upper(pin_name);
+            if (upper_pin.find("LIGHT") != std::string::npos ||
+                upper_pin.find("LED") != std::string::npos ||
+                upper_pin.find("LAMP") != std::string::npos) {
+                has_led_ = true;
+                spdlog::debug("[PrinterCapabilities] Detected LED output pin: {}", name);
+            }
         }
         // Chamber heater detection (heater_generic with "chamber" in name)
         else if (name.rfind("heater_generic ", 0) == 0) {
@@ -105,6 +130,9 @@ void PrinterCapabilities::clear() {
     has_chamber_heater_ = false;
     has_chamber_sensor_ = false;
     has_exclude_object_ = false;
+    has_probe_ = false;
+    has_heater_bed_ = false;
+    has_led_ = false;
     macros_.clear();
     helix_macros_.clear();
     nozzle_clean_macro_.clear();
@@ -170,6 +198,12 @@ std::string PrinterCapabilities::summary() const {
         caps.push_back("chamber_sensor");
     if (has_exclude_object_)
         caps.push_back("exclude_object");
+    if (has_probe_)
+        caps.push_back("probe");
+    if (has_heater_bed_)
+        caps.push_back("heater_bed");
+    if (has_led_)
+        caps.push_back("LED");
 
     if (caps.empty()) {
         ss << "none";

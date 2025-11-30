@@ -312,6 +312,12 @@ void MoonrakerClientMock::discover_printer(std::function<void()> on_complete) {
     mock_objects.push_back("heater_bed");
     mock_objects.push_back("extruder");
     mock_objects.push_back("bed_mesh");
+    mock_objects.push_back("probe"); // Most printers have a probe for bed mesh/leveling
+
+    // Add LED objects from populated hardware
+    for (const auto& led : leds_) {
+        mock_objects.push_back(led);
+    }
 
     // Add printer-specific objects
     switch (printer_type_) {
@@ -335,6 +341,11 @@ void MoonrakerClientMock::discover_printer(std::function<void()> on_complete) {
     // Log discovered hardware
     spdlog::debug("[MoonrakerClientMock] Discovered: {} heaters, {} sensors, {} fans, {} LEDs",
                   heaters_.size(), sensors_.size(), fans_.size(), leds_.size());
+
+    // Invoke discovery complete callback with capabilities (for PrinterState binding)
+    if (on_discovery_complete_) {
+        on_discovery_complete_(capabilities_);
+    }
 
     // Invoke completion callback immediately (no async delay in mock)
     if (on_complete) {

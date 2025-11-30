@@ -70,10 +70,14 @@
           <lv_label name="network_icon" bind_text="network_icon" style_text_font="fa_icons_48" style_text_align="center" width="100%"/>
           <lv_label name="network_label" bind_text="network_label" style_text_font="#font_body" style_text_align="center" width="100%"/>
         </lv_obj>
-        <!-- Vertical divider -->
-        <lv_obj name="divider2" width="1" height="80%" style_bg_color="#text_secondary" style_bg_opa="50%" style_border_width="0" style_pad_all="0"/>
+        <!-- Vertical divider (hidden if no LED capability) -->
+        <lv_obj name="divider2" width="1" height="80%" style_bg_color="#text_secondary" style_bg_opa="50%" style_border_width="0" style_pad_all="0">
+          <lv_obj-bind_flag_if_eq subject="printer_has_led" flag="hidden" ref_value="0"/>
+        </lv_obj>
         <!-- Light control button - uses two icons with conditional visibility for reactive on/off state -->
+        <!-- Hidden if printer doesn't have LED capability -->
         <lv_button name="light_button" flex_grow="1" height="100%" style_bg_opa="0%" style_border_width="0" style_pad_all="0" style_shadow_width="0">
+          <lv_obj-bind_flag_if_eq subject="printer_has_led" flag="hidden" ref_value="0"/>
           <!-- OFF state icon (gray) - visible when led_state == 0 -->
           <icon name="light_icon_off" src="mat_light" align="center"
                 style_image_recolor="#light_icon_off_dark" style_image_recolor_opa="255">
