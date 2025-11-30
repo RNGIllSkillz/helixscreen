@@ -85,11 +85,15 @@ PrinterState::PrinterState() {
     std::memset(print_state_buf_, 0, sizeof(print_state_buf_));
     std::memset(homed_axes_buf_, 0, sizeof(homed_axes_buf_));
     std::memset(printer_connection_message_buf_, 0, sizeof(printer_connection_message_buf_));
+    std::memset(klipper_version_buf_, 0, sizeof(klipper_version_buf_));
+    std::memset(moonraker_version_buf_, 0, sizeof(moonraker_version_buf_));
 
     // Set default values
     std::strcpy(print_state_buf_, "standby");
     std::strcpy(homed_axes_buf_, "");
     std::strcpy(printer_connection_message_buf_, "Disconnected");
+    std::strcpy(klipper_version_buf_, "—");
+    std::strcpy(moonraker_version_buf_, "—");
 
     // Load user-configured capability overrides from helixconfig.json
     capability_overrides_.load_from_config();
@@ -136,6 +140,8 @@ void PrinterState::reset_for_testing() {
     lv_subject_deinit(&printer_has_probe_);
     lv_subject_deinit(&printer_has_heater_bed_);
     lv_subject_deinit(&printer_has_led_);
+    lv_subject_deinit(&klipper_version_);
+    lv_subject_deinit(&moonraker_version_);
 
     subjects_initialized_ = false;
 }
@@ -205,6 +211,12 @@ void PrinterState::init_subjects(bool register_xml) {
     lv_subject_init_int(&printer_has_heater_bed_, 0);
     lv_subject_init_int(&printer_has_led_, 0);
 
+    // Version subjects (for About section)
+    lv_subject_init_string(&klipper_version_, klipper_version_buf_, nullptr,
+                           sizeof(klipper_version_buf_), "—");
+    lv_subject_init_string(&moonraker_version_, moonraker_version_buf_, nullptr,
+                           sizeof(moonraker_version_buf_), "—");
+
     // Register all subjects with LVGL XML system (CRITICAL for XML bindings)
     if (register_xml) {
         spdlog::debug("[PrinterState] Registering subjects with XML system");
@@ -238,6 +250,8 @@ void PrinterState::init_subjects(bool register_xml) {
         lv_xml_register_subject(NULL, "printer_has_probe", &printer_has_probe_);
         lv_xml_register_subject(NULL, "printer_has_heater_bed", &printer_has_heater_bed_);
         lv_xml_register_subject(NULL, "printer_has_led", &printer_has_led_);
+        lv_xml_register_subject(NULL, "klipper_version", &klipper_version_);
+        lv_xml_register_subject(NULL, "moonraker_version", &moonraker_version_);
     } else {
         spdlog::debug("[PrinterState] Skipping XML registration (tests mode)");
     }
@@ -536,6 +550,16 @@ void PrinterState::set_printer_capabilities(const PrinterCapabilities& caps) {
                  caps.has_probe(), caps.has_heater_bed(), caps.has_led());
     spdlog::info("[PrinterState] Capabilities set (with overrides): {}",
                  capability_overrides_.summary());
+}
+
+void PrinterState::set_klipper_version(const std::string& version) {
+    lv_subject_copy_string(&klipper_version_, version.c_str());
+    spdlog::debug("[PrinterState] Klipper version set: {}", version);
+}
+
+void PrinterState::set_moonraker_version(const std::string& version) {
+    lv_subject_copy_string(&moonraker_version_, version.c_str());
+    spdlog::debug("[PrinterState] Moonraker version set: {}", version);
 }
 
 void PrinterState::set_excluded_objects(const std::unordered_set<std::string>& objects) {

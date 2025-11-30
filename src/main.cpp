@@ -68,6 +68,7 @@
 #include "lvgl/src/xml/lv_xml.h"
 #include "material_icons.h"
 #include "moonraker_api.h"
+#include "moonraker_api_mock.h"
 #include "moonraker_client.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -1180,9 +1181,14 @@ static void initialize_moonraker_client(Config* config) {
         notification_queue.push(notification);
     });
 
-    // Create MoonrakerAPI instance
+    // Create MoonrakerAPI instance (mock or real based on test mode)
     spdlog::debug("Creating MoonrakerAPI instance...");
-    moonraker_api = new MoonrakerAPI(*moonraker_client, get_printer_state());
+    if (get_runtime_config().should_use_test_files()) {
+        spdlog::debug("[Test Mode] Creating MOCK MoonrakerAPI (local file transfers)");
+        moonraker_api = new MoonrakerAPIMock(*moonraker_client, get_printer_state());
+    } else {
+        moonraker_api = new MoonrakerAPI(*moonraker_client, get_printer_state());
+    }
 
     // Register with app_globals
     set_moonraker_api(moonraker_api);
@@ -1751,6 +1757,10 @@ int main(int argc, char** argv) {
         moonraker_client->set_on_discovery_complete([](const PrinterCapabilities& caps) {
             // Update PrinterState with discovered capabilities for reactive UI bindings
             get_printer_state().set_printer_capabilities(caps);
+
+            // Update version info from client (for Settings About section)
+            get_printer_state().set_klipper_version(moonraker_client->get_software_version());
+            get_printer_state().set_moonraker_version(moonraker_client->get_moonraker_version());
         });
 
         // Connect to Moonraker

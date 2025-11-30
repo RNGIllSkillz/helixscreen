@@ -842,9 +842,9 @@ void MoonrakerClient::discover_printer(std::function<void()> on_complete) {
             if (info_response.contains("result")) {
                 const json& result = info_response["result"];
                 std::string klippy_version = result.value("klippy_version", "unknown");
-                std::string moonraker_version = result.value("moonraker_version", "unknown");
+                moonraker_version_ = result.value("moonraker_version", "unknown");
 
-                spdlog::debug("[Moonraker Client] Moonraker version: {}", moonraker_version);
+                spdlog::debug("[Moonraker Client] Moonraker version: {}", moonraker_version_);
                 spdlog::debug("[Moonraker Client] Klippy version: {}", klippy_version);
 
                 if (result.contains("components")) {
@@ -860,12 +860,12 @@ void MoonrakerClient::discover_printer(std::function<void()> on_complete) {
                 if (printer_response.contains("result")) {
                     const json& result = printer_response["result"];
                     hostname_ = result.value("hostname", "unknown");
-                    std::string software_version = result.value("software_version", "unknown");
+                    software_version_ = result.value("software_version", "unknown");
                     std::string state_message = result.value("state_message", "");
 
                     spdlog::debug("[Moonraker Client] Printer hostname: {}", hostname_);
                     spdlog::debug("[Moonraker Client] Klipper software version: {}",
-                                  software_version);
+                                  software_version_);
                     if (!state_message.empty()) {
                         spdlog::info("[Moonraker Client] Printer state: {}", state_message);
                     }

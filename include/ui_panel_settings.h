@@ -92,6 +92,7 @@ class SettingsPanel : public PanelBase {
     lv_obj_t* version_value_ = nullptr;
     lv_obj_t* printer_value_ = nullptr;
     lv_obj_t* klipper_value_ = nullptr;
+    lv_obj_t* moonraker_value_ = nullptr;
 
     // Lazily-created overlay panels
     lv_obj_t* bed_mesh_panel_ = nullptr;

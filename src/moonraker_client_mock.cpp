@@ -305,6 +305,11 @@ void MoonrakerClientMock::discover_printer(std::function<void()> on_complete) {
     // Generate synthetic bed mesh data
     generate_mock_bed_mesh();
 
+    // Set mock printer info (mimics server.info and printer.info responses)
+    hostname_ = "mock-printer";
+    software_version_ = "v0.12.0-mock";
+    moonraker_version_ = "v0.8.0-mock";
+
     // Populate capabilities by creating mock Klipper object list
     json mock_objects = json::array();
 
@@ -769,7 +774,145 @@ RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const jso
         return next_mock_request_id();
     }
 
-    // Unimplemented methods - see docs/MOCK_CLIENT_IMPLEMENTATION_PLAN.md
+    // ========================================================================
+    // File Mutation Operations (JSON-RPC based)
+    // ========================================================================
+
+    // server.files.delete - Delete a file
+    if (method == "server.files.delete") {
+        std::string path;
+        if (params.contains("path")) {
+            path = params["path"].get<std::string>();
+        }
+        spdlog::info("[MoonrakerClientMock] Mock delete_file: {}", path);
+        if (success_cb) {
+            // Return success response matching Moonraker format
+            json response = {{"result", {{"item", {{"path", path}, {"root", "gcodes"}}}}}};
+            success_cb(response);
+        }
+        return next_mock_request_id();
+    }
+
+    // server.files.move - Move/rename a file
+    if (method == "server.files.move") {
+        std::string source, dest;
+        if (params.contains("source")) {
+            source = params["source"].get<std::string>();
+        }
+        if (params.contains("dest")) {
+            dest = params["dest"].get<std::string>();
+        }
+        spdlog::info("[MoonrakerClientMock] Mock move_file: {} -> {}", source, dest);
+        if (success_cb) {
+            json response = {{"result", {{"item", {{"path", dest}, {"root", "gcodes"}}}}}};
+            success_cb(response);
+        }
+        return next_mock_request_id();
+    }
+
+    // server.files.copy - Copy a file
+    if (method == "server.files.copy") {
+        std::string source, dest;
+        if (params.contains("source")) {
+            source = params["source"].get<std::string>();
+        }
+        if (params.contains("dest")) {
+            dest = params["dest"].get<std::string>();
+        }
+        spdlog::info("[MoonrakerClientMock] Mock copy_file: {} -> {}", source, dest);
+        if (success_cb) {
+            json response = {{"result", {{"item", {{"path", dest}, {"root", "gcodes"}}}}}};
+            success_cb(response);
+        }
+        return next_mock_request_id();
+    }
+
+    // server.files.post_directory - Create a directory
+    if (method == "server.files.post_directory") {
+        std::string path;
+        if (params.contains("path")) {
+            path = params["path"].get<std::string>();
+        }
+        spdlog::info("[MoonrakerClientMock] Mock create_directory: {}", path);
+        if (success_cb) {
+            json response = {{"result", {{"item", {{"path", path}, {"root", "gcodes"}}}}}};
+            success_cb(response);
+        }
+        return next_mock_request_id();
+    }
+
+    // server.files.delete_directory - Delete a directory
+    if (method == "server.files.delete_directory") {
+        std::string path;
+        if (params.contains("path")) {
+            path = params["path"].get<std::string>();
+        }
+        spdlog::info("[MoonrakerClientMock] Mock delete_directory: {}", path);
+        if (success_cb) {
+            json response = {{"result", {{"item", {{"path", path}, {"root", "gcodes"}}}}}};
+            success_cb(response);
+        }
+        return next_mock_request_id();
+    }
+
+    // ========================================================================
+    // Query Operations
+    // ========================================================================
+
+    // printer.objects.query - Query printer state (used by is_printer_ready, get_print_state)
+    if (method == "printer.objects.query") {
+        json status_obj = json::object();
+
+        // Check what objects are being queried
+        if (params.contains("objects")) {
+            auto& objects = params["objects"];
+
+            // webhooks state (for is_printer_ready)
+            if (objects.contains("webhooks")) {
+                KlippyState klippy = klippy_state_.load();
+                std::string state_str = "ready";
+                switch (klippy) {
+                case KlippyState::STARTUP:
+                    state_str = "startup";
+                    break;
+                case KlippyState::SHUTDOWN:
+                    state_str = "shutdown";
+                    break;
+                case KlippyState::ERROR:
+                    state_str = "error";
+                    break;
+                default:
+                    break;
+                }
+                status_obj["webhooks"] = {{"state", state_str}};
+            }
+
+            // print_stats (for get_print_state)
+            if (objects.contains("print_stats")) {
+                status_obj["print_stats"] = {{"state", get_print_state_string()}};
+            }
+
+            // configfile.settings (for update_safety_limits_from_printer)
+            if (objects.contains("configfile")) {
+                status_obj["configfile"] = {
+                    {"settings",
+                     {{"printer", {{"max_velocity", 500.0}, {"max_accel", 10000.0}}},
+                      {"stepper_x", {{"position_min", 0.0}, {"position_max", 250.0}}},
+                      {"stepper_y", {{"position_min", 0.0}, {"position_max", 250.0}}},
+                      {"stepper_z", {{"position_min", 0.0}, {"position_max", 300.0}}},
+                      {"extruder", {{"min_temp", 0.0}, {"max_temp", 300.0}}},
+                      {"heater_bed", {{"min_temp", 0.0}, {"max_temp", 120.0}}}}}};
+            }
+        }
+
+        if (success_cb) {
+            json response = {{"result", {{"status", status_obj}}}};
+            success_cb(response);
+        }
+        return next_mock_request_id();
+    }
+
+    // Unimplemented methods - log warning
     spdlog::warn("[MoonrakerClientMock] Method '{}' not implemented - callbacks not invoked",
                  method);
     return next_mock_request_id();

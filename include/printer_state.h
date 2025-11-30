@@ -418,6 +418,40 @@ class PrinterState {
     void set_printer_capabilities(const PrinterCapabilities& caps);
 
     /**
+     * @brief Set Klipper software version from printer.info
+     *
+     * Updates klipper_version_ subject for Settings panel About section.
+     * Called by main.cpp after MoonrakerClient::discover_printer() completes.
+     *
+     * @param version Version string (e.g., "v0.12.0-108-g2c7a9d58")
+     */
+    void set_klipper_version(const std::string& version);
+
+    /**
+     * @brief Set Moonraker software version from server.info
+     *
+     * Updates moonraker_version_ subject for Settings panel About section.
+     * Called by main.cpp after MoonrakerClient::discover_printer() completes.
+     *
+     * @param version Version string (e.g., "v0.8.0-143-g2c7a9d58")
+     */
+    void set_moonraker_version(const std::string& version);
+
+    /**
+     * @brief Get Klipper version subject for XML binding
+     */
+    lv_subject_t* get_klipper_version_subject() {
+        return &klipper_version_;
+    }
+
+    /**
+     * @brief Get Moonraker version subject for XML binding
+     */
+    lv_subject_t* get_moonraker_version_subject() {
+        return &moonraker_version_;
+    }
+
+    /**
      * @brief Get the capability overrides for external access
      *
      * Allows other components to check effective capability availability
@@ -483,6 +517,10 @@ class PrinterState {
     lv_subject_t printer_has_heater_bed_;   // Integer: 0=no, 1=yes (for PID bed tuning)
     lv_subject_t printer_has_led_;          // Integer: 0=no, 1=yes (for LED light control)
 
+    // Version subjects (for About section)
+    lv_subject_t klipper_version_;
+    lv_subject_t moonraker_version_;
+
     // Tracked LED name (e.g., "neopixel chamber_light")
     std::string tracked_led_name_;
 
@@ -491,6 +529,8 @@ class PrinterState {
     char print_state_buf_[32];
     char homed_axes_buf_[8];
     char printer_connection_message_buf_[128];
+    char klipper_version_buf_[64];
+    char moonraker_version_buf_[64];
 
     // JSON cache for complex data
     json json_state_;

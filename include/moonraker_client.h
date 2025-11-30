@@ -430,6 +430,28 @@ class MoonrakerClient : public hv::WebSocketClient {
     }
 
     /**
+     * @brief Get Klipper software version from printer.info
+     *
+     * Returns version string discovered during printer discovery sequence.
+     * Examples: "v0.12.0-108-g2c7a9d58", "v0.11.0"
+     * Empty string if discovery hasn't completed or printer.info unavailable.
+     */
+    const std::string& get_software_version() const {
+        return software_version_;
+    }
+
+    /**
+     * @brief Get Moonraker software version from server.info
+     *
+     * Returns version string discovered during printer discovery sequence.
+     * Examples: "v0.8.0-143-g2c7a9d58"
+     * Empty string if discovery hasn't completed or server.info unavailable.
+     */
+    const std::string& get_moonraker_version() const {
+        return moonraker_version_;
+    }
+
+    /**
      * @brief Get current connection state
      */
     ConnectionState get_connection_state() const {
@@ -543,6 +565,8 @@ class MoonrakerClient : public hv::WebSocketClient {
     std::vector<std::string> fans_;    // All fan types
     std::vector<std::string> leds_;    // LED outputs
     std::string hostname_;             // Printer hostname from printer.info
+    std::string software_version_;     // Klipper software version from printer.info
+    std::string moonraker_version_;    // Moonraker version from server.info
     PrinterCapabilities capabilities_; // QGL, Z-tilt, bed mesh, macros
 
     // Discovery callback (protected to allow mock to invoke it)

@@ -231,14 +231,25 @@ void SettingsPanel::populate_info_rows() {
         }
     }
 
-    // === Klipper Version (would come from Moonraker query) ===
+    // === Klipper Version (reactive binding from PrinterState) ===
     lv_obj_t* klipper_row = lv_obj_find_by_name(panel_, "row_klipper");
     if (klipper_row) {
         klipper_value_ = lv_obj_find_by_name(klipper_row, "value");
         if (klipper_value_) {
-            // Placeholder - would be updated after Moonraker connection
-            lv_label_set_text(klipper_value_, "—");
-            spdlog::debug("[{}]   ✓ Klipper version placeholder", get_name());
+            // Bind to reactive subject - updates automatically after discovery
+            lv_label_bind_text(klipper_value_, printer_state_.get_klipper_version_subject(), "%s");
+            spdlog::debug("[{}]   ✓ Klipper version bound to subject", get_name());
+        }
+    }
+
+    // === Moonraker Version (reactive binding from PrinterState) ===
+    lv_obj_t* moonraker_row = lv_obj_find_by_name(panel_, "row_moonraker");
+    if (moonraker_row) {
+        moonraker_value_ = lv_obj_find_by_name(moonraker_row, "value");
+        if (moonraker_value_) {
+            // Bind to reactive subject - updates automatically after discovery
+            lv_label_bind_text(moonraker_value_, printer_state_.get_moonraker_version_subject(), "%s");
+            spdlog::debug("[{}]   ✓ Moonraker version bound to subject", get_name());
         }
     }
 }
