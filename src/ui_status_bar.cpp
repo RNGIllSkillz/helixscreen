@@ -51,7 +51,7 @@ static int32_t cached_klippy_state = 0; // 0=READY, 1=STARTUP, 2=SHUTDOWN, 3=ERR
 static void update_printer_icon_combined();
 
 // Observer callback for network state changes
-static void network_status_observer(lv_observer_t* observer, lv_subject_t* subject) {
+static void network_status_observer([[maybe_unused]] lv_observer_t* observer, lv_subject_t* subject) {
     int32_t network_state = lv_subject_get_int(subject);
     spdlog::debug("[StatusBar] Network observer fired! State: {}", network_state);
 
@@ -61,14 +61,15 @@ static void network_status_observer(lv_observer_t* observer, lv_subject_t* subje
 }
 
 // Observer callback for printer connection state changes
-static void printer_connection_observer(lv_observer_t* observer, lv_subject_t* subject) {
+static void printer_connection_observer([[maybe_unused]] lv_observer_t* observer,
+                                        lv_subject_t* subject) {
     cached_connection_state = lv_subject_get_int(subject);
     spdlog::debug("[StatusBar] Connection state changed to: {}", cached_connection_state);
     update_printer_icon_combined();
 }
 
 // Observer callback for klippy state changes
-static void klippy_state_observer(lv_observer_t* observer, lv_subject_t* subject) {
+static void klippy_state_observer([[maybe_unused]] lv_observer_t* observer, lv_subject_t* subject) {
     cached_klippy_state = lv_subject_get_int(subject);
     spdlog::debug("[StatusBar] Klippy state changed to: {}", cached_klippy_state);
     update_printer_icon_combined();
@@ -127,7 +128,7 @@ static void update_printer_icon_combined() {
 static lv_obj_t* g_notification_panel_obj = nullptr;
 
 // Event callback for notification history button
-static void status_notification_history_clicked(lv_event_t* e) {
+static void status_notification_history_clicked([[maybe_unused]] lv_event_t* e) {
     spdlog::info("[StatusBar] Notification history button CLICKED!");
 
     // Prevent multiple panel instances - if panel already exists and is visible, ignore click

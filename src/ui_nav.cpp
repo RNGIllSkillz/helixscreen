@@ -655,14 +655,6 @@ void ui_nav_wire_status_icons(lv_obj_t* navbar) {
         return;
     }
 
-    // Determine responsive sizing based on screen height (same logic as nav icons)
-    lv_display_t* display = lv_display_get_default();
-    int32_t screen_height = lv_display_get_vertical_resolution(display);
-    uint16_t nav_icon_scale;
-
-    // Status icons are 25% smaller than nav icons
-    uint16_t status_icon_scale = (nav_icon_scale * 3) / 4;
-
     // Status icon button and icon names (must match XML and ui_status_bar_init() expectations)
     const char* button_names[] = {"status_btn_printer", "status_btn_network",
                                   "status_btn_notification"};
@@ -693,7 +685,6 @@ void ui_nav_wire_status_icons(lv_obj_t* navbar) {
         // Make button clickable
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
 
-        spdlog::debug("Status icon {} wired: scale={} (75% of nav)", button_names[i],
-                      status_icon_scale);
+        spdlog::debug("Status icon {} wired", button_names[i]);
     }
 }

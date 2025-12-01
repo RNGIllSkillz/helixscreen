@@ -145,7 +145,6 @@ struct bed_mesh_renderer {
 // Helper functions (forward declarations)
 static void compute_mesh_bounds(bed_mesh_renderer_t* renderer);
 static double compute_dynamic_z_scale(double z_range);
-static double compute_fov_scale(int rows, int cols, int canvas_width, int canvas_height);
 static void update_trig_cache(bed_mesh_view_state_t* view_state);
 static void project_and_cache_vertices(bed_mesh_renderer_t* renderer, int canvas_width,
                                        int canvas_height);
@@ -795,25 +794,6 @@ static double compute_dynamic_z_scale(double z_range) {
     return z_scale;
 }
 
-static double compute_fov_scale(int rows, int cols, int canvas_width, int canvas_height) {
-    // Compute mesh dimensions in world space
-    double mesh_width = (cols - 1) * BED_MESH_SCALE;
-    double mesh_height = (rows - 1) * BED_MESH_SCALE;
-
-    // Compute available canvas space (with padding factor)
-    double available_width = canvas_width * CANVAS_PADDING_FACTOR;
-    double available_height = canvas_height * CANVAS_PADDING_FACTOR;
-
-    // Calculate scale factors for width and height independently
-    double scale_x = (available_width * BED_MESH_CAMERA_DISTANCE) / mesh_width;
-    double scale_y = (available_height * BED_MESH_CAMERA_DISTANCE) / mesh_height;
-
-    // Use the MINIMUM scale to ensure mesh fits within BOTH dimensions
-    double fov_scale = std::min(scale_x, scale_y) / BED_MESH_CAMERA_ZOOM_LEVEL;
-
-    return fov_scale;
-}
-
 /**
  * Update cached trigonometric values when angles change
  * Call this once per frame before projection loop to eliminate redundant trig computations
@@ -998,7 +978,8 @@ static void compute_centering_offset(int mesh_min_x, int mesh_max_x, int mesh_mi
 }
 
 static void fill_triangle_solid(lv_layer_t* layer, int x1, int y1, int x2, int y2, int x3, int y3,
-                                int canvas_width, int canvas_height, lv_color_t color) {
+                                [[maybe_unused]] int canvas_width,
+                                [[maybe_unused]] int canvas_height, lv_color_t color) {
     // Sort vertices by Y coordinate
     sort_by_y(y1, x1, y2, x2, y3, x3);
 
@@ -1056,8 +1037,9 @@ static void interpolate_edge(int y, int y0, int x0, const bed_mesh_rgb_t& c0, in
 }
 
 static void fill_triangle_gradient(lv_layer_t* layer, int x1, int y1, lv_color_t c1, int x2, int y2,
-                                   lv_color_t c2, int x3, int y3, lv_color_t c3, int canvas_width,
-                                   int canvas_height) {
+                                   lv_color_t c2, int x3, int y3, lv_color_t c3,
+                                   [[maybe_unused]] int canvas_width,
+                                   [[maybe_unused]] int canvas_height) {
     // Sort vertices by Y coordinate, keeping colors aligned
     struct Vertex {
         int x, y;

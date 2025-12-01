@@ -403,7 +403,6 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     // DEBUG: Track segment Y range and vertex sharing statistics
     float seg_y_min = FLT_MAX, seg_y_max = -FLT_MAX;
     size_t segments_skipped = 0;
-    size_t segments_processed = 0;
     size_t segments_shared = 0;
     size_t sharing_candidates = 0; // Segments where prev_end_cap exists
 
@@ -426,8 +425,6 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
             segments_skipped++;
             continue;
         }
-
-        segments_processed++;
 
         // Determine layer index from segment Z-height
         int z_key = static_cast<int>(std::round(segment.start.z * 100.0f));

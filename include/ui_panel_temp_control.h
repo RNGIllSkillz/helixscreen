@@ -25,10 +25,11 @@ class TempControlPanel {
     TempControlPanel(PrinterState& printer_state, MoonrakerAPI* api);
     ~TempControlPanel() = default;
 
+    // Non-copyable, non-movable (has reference member and LVGL subject state)
     TempControlPanel(const TempControlPanel&) = delete;
     TempControlPanel& operator=(const TempControlPanel&) = delete;
-    TempControlPanel(TempControlPanel&&) noexcept = default;
-    TempControlPanel& operator=(TempControlPanel&&) noexcept = default;
+    TempControlPanel(TempControlPanel&&) = delete;
+    TempControlPanel& operator=(TempControlPanel&&) = delete;
 
     void setup_nozzle_panel(lv_obj_t* panel, lv_obj_t* parent_screen);
     void setup_bed_panel(lv_obj_t* panel, lv_obj_t* parent_screen);

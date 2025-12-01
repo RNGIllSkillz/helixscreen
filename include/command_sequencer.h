@@ -290,9 +290,10 @@ private:
     [[nodiscard]] std::string generate_gcode(const QueuedOperation& op) const;
 
     // Dependencies (references - must remain valid)
-    MoonrakerClient& client_;
+    // client_ and printer_state_ reserved for future state-aware sequencing
+    [[maybe_unused]] MoonrakerClient& client_;
     MoonrakerAPI& api_;
-    PrinterState& printer_state_;
+    [[maybe_unused]] PrinterState& printer_state_;
 
     // Queue and current operation
     std::queue<QueuedOperation> queue_;

@@ -33,6 +33,8 @@ std::string DetectedOperation::display_name() const {
             return "Chamber Soak";
         case OperationType::PURGE_LINE:
             return "Purge Line";
+        case OperationType::START_PRINT:
+            return "Start Print";
     }
     return "Unknown";
 }
@@ -86,6 +88,8 @@ std::string GCodeOpsDetector::operation_type_name(OperationType type) {
             return "chamber_soak";
         case OperationType::PURGE_LINE:
             return "purge_line";
+        case OperationType::START_PRINT:
+            return "start_print";
     }
     return "unknown";
 }

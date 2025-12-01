@@ -342,9 +342,7 @@ void MacroManager::add_include_to_config(SuccessCallback on_success, ErrorCallba
             // Strategy: Insert after the last existing [include ...] line, or at the very top
             std::string modified_content;
             std::istringstream input(content);
-            std::ostringstream output;
             std::string line;
-            bool inserted = false;
             size_t last_include_end = 0;
             size_t current_pos = 0;
 

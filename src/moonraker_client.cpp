@@ -229,7 +229,7 @@ int MoonrakerClient::connect(const char* url, std::function<void()> on_connected
                 return;
             }
 
-            const HttpResponsePtr& resp = getHttpResponse();
+            // Note: getHttpResponse() available here if needed for upgrade response inspection
             spdlog::debug("[Moonraker Client] WebSocket connected to {}", url);
             was_connected_ = true;
             set_connection_state(ConnectionState::CONNECTED);
