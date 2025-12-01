@@ -250,13 +250,35 @@ check-deps:
 	if [ $$ERROR -eq 1 ]; then \
 		echo "$(RED)$(BOLD)✗ Dependency check failed!$(RESET)"; \
 		echo ""; \
-		echo "$(CYAN)Quick fix:$(RESET) Run $(YELLOW)make install-deps$(RESET) to auto-install missing dependencies"; \
-		echo "$(CYAN)Or manually install:$(RESET)$$MISSING_DEPS"; \
-		exit 1; \
+		echo "$(CYAN)Missing:$(RESET)$$MISSING_DEPS"; \
+		echo ""; \
+		if [ -t 0 ]; then \
+			printf "$(YELLOW)Would you like to install missing dependencies automatically? [y/N]:$(RESET) "; \
+			read -r REPLY; \
+			if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
+				$(MAKE) install-deps; \
+			else \
+				echo ""; \
+				echo "$(CYAN)Manual fix:$(RESET) Run $(YELLOW)make install-deps$(RESET) when ready"; \
+				exit 1; \
+			fi; \
+		else \
+			echo "$(CYAN)Run$(RESET) $(YELLOW)make install-deps$(RESET) $(CYAN)to install missing dependencies$(RESET)"; \
+			exit 1; \
+		fi; \
 	elif [ $$WARN -eq 1 ]; then \
 		echo "$(YELLOW)⚠ Some optional dependencies missing:$(RESET)"; \
 		echo -e "$$WARN_MSGS"; \
-		echo "$(CYAN)Run$(RESET) $(YELLOW)make install-deps$(RESET) $(CYAN)to install them automatically$(RESET)"; \
+		if [ -t 0 ]; then \
+			echo ""; \
+			printf "$(YELLOW)Would you like to install them now? [y/N]:$(RESET) "; \
+			read -r REPLY; \
+			if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
+				$(MAKE) install-deps; \
+			fi; \
+		else \
+			echo "$(CYAN)Run$(RESET) $(YELLOW)make install-deps$(RESET) $(CYAN)to install them$(RESET)"; \
+		fi; \
 	else \
 		echo "$(GREEN)$(BOLD)✓ All dependencies satisfied!$(RESET)"; \
 	fi

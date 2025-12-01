@@ -69,14 +69,14 @@ endif
 		exit 1; \
 	}
 
-# Compile cpp-terminal library
+# Compile cpp-terminal library (use SUBMODULE_CXXFLAGS to suppress third-party warnings)
 $(OBJ_DIR)/cpp-terminal/%.o: $(CPP_TERMINAL_DIR)/%.cpp
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[CXX]$(RESET) $<"
 ifeq ($(V),1)
-	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(CPP_TERMINAL_INC) -c $< -o $@"
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(SUBMODULE_CXXFLAGS) $(CPP_TERMINAL_INC) -c $< -o $@"
 endif
-	$(Q)$(CXX) $(CXXFLAGS) $(CPP_TERMINAL_INC) -c $< -o $@ || { \
+	$(Q)$(CXX) $(SUBMODULE_CXXFLAGS) $(CPP_TERMINAL_INC) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}

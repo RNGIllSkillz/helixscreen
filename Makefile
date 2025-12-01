@@ -110,6 +110,11 @@ endif
 CFLAGS := -std=c11 -Wall -Wextra -O2 -g -D_GNU_SOURCE
 CXXFLAGS := -std=c++17 -Wall -Wextra -O2 -g
 
+# Submodule flags - suppress warnings from third-party code we don't control
+# Uses -w to completely silence warnings (cleaner build output)
+SUBMODULE_CFLAGS := -std=c11 -O2 -g -D_GNU_SOURCE -w
+SUBMODULE_CXXFLAGS := -std=c++17 -O2 -g -w
+
 # Platform detection (needed early for conditional compilation)
 UNAME_S := $(shell uname -s)
 
@@ -270,6 +275,8 @@ ifeq ($(UNAME_S),Darwin)
 
     CFLAGS += $(MACOS_DEPLOYMENT_TARGET)
     CXXFLAGS += $(MACOS_DEPLOYMENT_TARGET)
+    SUBMODULE_CFLAGS += $(MACOS_DEPLOYMENT_TARGET)
+    SUBMODULE_CXXFLAGS += $(MACOS_DEPLOYMENT_TARGET)
     LDFLAGS := $(LDFLAGS_COMMON) -framework Foundation -framework CoreFoundation -framework Security -framework CoreWLAN -framework CoreLocation -framework Cocoa -framework IOKit -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework Carbon -framework CoreAudio -framework Metal -liconv
     PLATFORM := macOS
     WPA_DEPS :=

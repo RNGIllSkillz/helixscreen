@@ -118,26 +118,26 @@ endif
 		exit 1; \
 	}
 
-# Compile LVGL sources
+# Compile LVGL sources (use SUBMODULE_CFLAGS to suppress third-party warnings)
 $(OBJ_DIR)/lvgl/%.o: $(LVGL_DIR)/%.c
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
 ifeq ($(V),1)
-	$(Q)echo "$(YELLOW)Command:$(RESET) $(CC) $(CFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(CC) $(SUBMODULE_CFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
 endif
-	$(Q)$(CC) $(CFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(CC) $(SUBMODULE_CFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
 
-# Compile LVGL C++ sources (ThorVG) - use PCH
+# Compile LVGL C++ sources (ThorVG) - use SUBMODULE_CXXFLAGS and PCH
 $(OBJ_DIR)/lvgl/%.o: $(LVGL_DIR)/%.cpp $(PCH)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CXX]$(RESET) $<"
 ifeq ($(V),1)
-	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
+	$(Q)echo "$(YELLOW)Command:$(RESET) $(CXX) $(SUBMODULE_CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@"
 endif
-	$(Q)$(CXX) $(CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
+	$(Q)$(CXX) $(SUBMODULE_CXXFLAGS) $(PCH_FLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@ || { \
 		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
 		exit 1; \
 	}
@@ -224,7 +224,7 @@ demo: $(LVGL_OBJS) $(THORVG_OBJS) $(LVGL_DEMO_OBJS)
 $(OBJ_DIR)/lvgl/demos/%.o: $(LVGL_DIR)/demos/%.c
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[DEMO]$(RESET) $<"
-	$(Q)$(CC) -c $< -o $@ $(LVGL_INC) $(CFLAGS)
+	$(Q)$(CC) -c $< -o $@ $(LVGL_INC) $(SUBMODULE_CFLAGS)
 
 # Generate compile_commands.json for IDE/LSP support
 compile_commands:
