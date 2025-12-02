@@ -87,7 +87,8 @@ class SettingsManager {
     /**
      * @brief Set dark mode state
      *
-     * Updates subject (UI reacts), applies theme change, and persists to Config.
+     * Updates subject (UI reacts) and persists to Config.
+     * Note: Theme change requires application restart to take effect.
      *
      * @param enabled true for dark mode, false for light mode
      */
@@ -313,7 +314,6 @@ class SettingsManager {
     ~SettingsManager() = default;
 
     // Apply immediate effects
-    void apply_dark_mode(bool enabled);
     void send_led_command(bool enabled);
 
     // LVGL subjects
