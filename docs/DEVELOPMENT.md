@@ -21,7 +21,7 @@ make venv-setup     # Set up Python venv with pypng and lz4 for icon conversion
 
 **Debian/Ubuntu (apt):**
 ```bash
-sudo apt install cmake bear imagemagick python3 clang make npm
+sudo apt install cmake bear imagemagick python3 python3-venv clang make npm
 # Optional (auto-built from submodules if not installed):
 #   sudo apt install libsdl2-dev spdlog libhv-dev
 npm install         # Install lv_font_conv and lv_img_conv
@@ -44,6 +44,7 @@ make venv-setup     # Set up Python venv with pypng and lz4 for icon conversion
 - **`cmake`** - Build system for SDL2 (version 3.16+)
 - **`make`** - GNU Make build system
 - **`python3`** - Icon generation scripts and build tools
+  - **`python3-venv`** - Python virtual environment support (required on Debian/Ubuntu; `sudo apt install python3-venv`)
   - **`pypng`** / **`lz4`** - Python packages for PNG to C array conversion (installed via `make venv-setup` into `.venv/`)
 - **`node`** / **`npm`** - Package manager for JavaScript dependencies
 - **`lv_font_conv`** - Font converter (installed via `npm install`)
