@@ -31,11 +31,11 @@
       <lv_obj-bind_flag_if_not_eq subject="toast_severity" flag="hidden" ref_value="3"/>
     </lv_label>
     <!-- Message text (wraps to fit content) -->
-    <lv_label name="toast_message" text="$message" style_text_font="#font_body" flex_grow="1" long_mode="wrap" style_pad_left="#space_sm" style_pad_right="#space_sm"/>
+    <text_body name="toast_message" text="$message" flex_grow="1" long_mode="wrap" style_pad_left="#space_sm" style_pad_right="#space_sm"/>
     <!-- Action button (hidden by default, shown via toast_action_visible subject) -->
     <lv_button name="toast_action_btn" width="content" height="36" style_min_width="72" style_radius="#border_radius" style_border_width="0" style_bg_color="#accent_color" style_pad_left="#space_lg" style_pad_right="#space_lg" hidden="true" clickable="true">
       <lv_obj-bind_flag_if_eq subject="toast_action_visible" flag="hidden" ref_value="0"/>
-      <lv_label name="toast_action_label" align="center" style_text_font="#font_body" style_text_color="#text_on_accent" bind_text="toast_action_text"/>
+      <text_body name="toast_action_label" align="center" style_text_color="#text_on_accent" bind_text="toast_action_text"/>
     </lv_button>
     <!-- Close button -->
     <lv_button name="toast_close_btn" width="32" height="32" style_radius="#border_radius" style_border_width="0" style_bg_opa="0" style_pad_all="0" clickable="true">

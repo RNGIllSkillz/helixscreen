@@ -124,18 +124,6 @@ const char* ui_theme_get_breakpoint_suffix(int32_t max_resolution);
 void ui_theme_register_responsive_spacing(lv_display_t* display);
 
 /**
- * @brief Register responsive padding styles (DEPRECATED)
- *
- * @deprecated Use ui_theme_register_responsive_spacing() and space_* tokens instead.
- *
- * Creates padding styles that adapt based on screen size breakpoints.
- * Maintained for backward compatibility during migration to space_* system.
- *
- * @param display LVGL display instance
- */
-void ui_theme_register_responsive_padding(lv_display_t* display);
-
-/**
  * @brief Register responsive font constants
  *
  * Selects font sizes based on screen size breakpoints.

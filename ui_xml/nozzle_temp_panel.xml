@@ -30,24 +30,24 @@
         </lv_obj>
         <!-- X-axis time labels (hidden until 60+ data points via reactive binding) -->
         <lv_obj name="x_axis_labels" width="100%" height="20" style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_left="48" style_pad_right="8" scrollable="false" flex_flow="row" style_flex_main_place="space_between">
-          <lv_label name="x_label_0" text="" style_text_font="#font_small">
+          <text_small name="x_label_0" text="">
             <lv_obj-bind_flag_if_lt subject="nozzle_graph_points" flag="hidden" ref_value="60"/>
-          </lv_label>
-          <lv_label name="x_label_1" text="" style_text_font="#font_small">
+          </text_small>
+          <text_small name="x_label_1" text="">
             <lv_obj-bind_flag_if_lt subject="nozzle_graph_points" flag="hidden" ref_value="60"/>
-          </lv_label>
-          <lv_label name="x_label_2" text="" style_text_font="#font_small">
+          </text_small>
+          <text_small name="x_label_2" text="">
             <lv_obj-bind_flag_if_lt subject="nozzle_graph_points" flag="hidden" ref_value="60"/>
-          </lv_label>
-          <lv_label name="x_label_3" text="" style_text_font="#font_small">
+          </text_small>
+          <text_small name="x_label_3" text="">
             <lv_obj-bind_flag_if_lt subject="nozzle_graph_points" flag="hidden" ref_value="60"/>
-          </lv_label>
-          <lv_label name="x_label_4" text="" style_text_font="#font_small">
+          </text_small>
+          <text_small name="x_label_4" text="">
             <lv_obj-bind_flag_if_lt subject="nozzle_graph_points" flag="hidden" ref_value="60"/>
-          </lv_label>
-          <lv_label name="x_label_5" text="" style_text_font="#font_small">
+          </text_small>
+          <text_small name="x_label_5" text="">
             <lv_obj-bind_flag_if_lt subject="nozzle_graph_points" flag="hidden" ref_value="60"/>
-          </lv_label>
+          </text_small>
         </lv_obj>
       </lv_obj>
       <!-- Right Column (33%): Controls -->
@@ -80,7 +80,7 @@
         </lv_obj>
         <!-- Custom Button -->
         <lv_button name="btn_custom" width="100%" height="48" style_radius="6" style_border_width="0">
-          <lv_label text="Custom..." style_text_font="#font_body" align="center"/>
+          <text_body text="Custom..." align="center"/>
         </lv_button>
         <!-- Status Message -->
         <text_small name="status_message" text="Heating nozzle to target temperature..." width="100%" style_text_align="center" scrollable="false"/>

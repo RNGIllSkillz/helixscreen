@@ -57,28 +57,6 @@
     <px name="space_xl_small" value="16"/>
     <px name="space_xl_medium" value="20"/>
     <px name="space_xl_large" value="24"/>
-    <!-- ===================================================================== -->
-    <!-- DEPRECATED: Old padding/gap tokens - migrate to space_* system       -->
-    <!-- These will be removed after XML migration is complete                -->
-    <!-- Migration: padding_normal → space_lg, padding_small → space_md,      -->
-    <!--            padding_tiny → space_xs, gap_normal → space_md,           -->
-    <!--            gap_small → space_sm, gap_tiny → space_xs                 -->
-    <!-- ===================================================================== -->
-    <!-- padding_normal variants (container padding) - USE space_lg INSTEAD -->
-    <px name="padding_normal_small" value="12"/>
-    <px name="padding_normal_medium" value="16"/>
-    <px name="padding_normal_large" value="20"/>
-    <!-- NO BASE padding_normal - registered at runtime -->
-    <!-- padding_small variants (compact padding) - USE space_md INSTEAD -->
-    <px name="padding_small_small" value="8"/>
-    <px name="padding_small_medium" value="10"/>
-    <px name="padding_small_large" value="12"/>
-    <!-- NO BASE padding_small - registered at runtime -->
-    <!-- padding_tiny variants (minimal padding) - USE space_xs INSTEAD -->
-    <px name="padding_tiny_small" value="2"/>
-    <px name="padding_tiny_medium" value="4"/>
-    <px name="padding_tiny_large" value="6"/>
-    <!-- NO BASE padding_tiny - registered at runtime -->
     <!-- printer_img_size moved to home_panel.xml -->
     <!-- accent_bar_width moved to home_panel.xml -->
     <px name="accent_bar_height" value="28"/>
@@ -160,12 +138,6 @@
     <!-- Icon bottom padding (was 16px) -->
     <px name="launcher_card_title_padding" value="6"/>
     <!-- Title bottom padding (was 8px) -->
-    <!-- Spacing and gaps - DEPRECATED, USE space_* INSTEAD -->
-    <!-- gap_normal variants (flex gap) - USE space_md INSTEAD -->
-    <px name="gap_normal_small" value="8"/>
-    <px name="gap_normal_medium" value="10"/>
-    <px name="gap_normal_large" value="12"/>
-    <!-- NO BASE gap_normal - registered at runtime -->
     <!-- ===================================================================== -->
     <!-- Typography - Responsive Semantic Fonts                              -->
     <!-- ===================================================================== -->
@@ -325,112 +297,6 @@
     <!-- U+F03A list -->
     <str name="icon_lock" value="&#xF023;"/>
     <!-- U+F023 lock (encrypted) -->
-    <str name="icon_power_off" value="&#xF011;"/>
-    <!-- U+F011 power-off -->
-    <str name="icon_question_circle" value="&#xF059;"/>
-    <!-- U+F059 circle-question -->
-    <str name="icon_settings" value="&#xF013;"/>
-    <!-- U+F013 gear -->
-    <str name="icon_signal_wifi_1" value="&#xF6AC;"/>
-    <!-- U+F6AC wifi-1 (0-25% signal) -->
-    <str name="icon_signal_wifi_2" value="&#xF6AA;"/>
-    <!-- U+F6AA wifi-2 (26-50% signal) -->
-    <str name="icon_signal_wifi_3" value="&#xF6AB;"/>
-    <!-- U+F6AB wifi-3 (51-75% signal) -->
-    <str name="icon_signal_wifi_4" value="&#xF1EB;"/>
-    <!-- U+F1EB wifi (76-100% signal) -->
-    <str name="icon_temperature" value="&#xF2C7;"/>
-    <!-- U+F2C7 thermometer-half -->
-    <str name="icon_th_large" value="&#xF009;"/>
-    <!-- U+F009 th-large -->
-    <str name="icon_trash" value="&#xF1F8;"/>
-    <!-- U+F1F8 trash -->
-    <str name="icon_triangle_exclamation" value="&#xF071;"/>
-    <!-- U+F071 triangle-exclamation (warning) -->
-    <str name="icon_wifi" value="&#xF1EB;"/>
-    <!-- U+F1EB wifi -->
-    <str name="icon_wifi_slash" value="&#xF127;"/>
-    <!-- U+F127 wifi-slash -->
-    <str name="icon_xmark_circle" value="&#xF057;"/>
-    <!-- U+F057 circle-xmark (error/failed) -->
-    <str name="icon_xmark" value="&#xF00D;"/>
-    <!-- U+F00D xmark (close) -->
-    <str name="icon_check" value="&#xF00C;"/>
-    <!-- U+F00C check (ok/success) -->
-    <str name="icon_info_circle" value="&#xF05A;"/>
-    <!-- U+F05A circle-info (info) -->
-    <!-- ===================================================================== -->
-    <!-- Subjects for reactive data binding                                   -->
-    <!-- Subjects are initialized in C++ code before XML loading              -->
-    <!-- ===================================================================== -->
-    <!-- ===================================================================== -->
-    <!-- FontAwesome icon constants - AUTO-GENERATED - DO NOT EDIT MANUALLY   -->
-    <!-- Run: python3 scripts/generate-icon-consts.py                         -->
-    <!-- ===================================================================== -->
-    <str name="icon_advanced" value="&#xF142;"/>
-    <!-- U+F142 ellipsis-vertical -->
-    <str name="icon_arrow_down" value="&#x2193;"/>
-    <!-- U+2193 downwards arrow -->
-    <str name="icon_arrow_down_left" value="&#x2199;"/>
-    <!-- U+2199 diagonal down-left -->
-    <str name="icon_arrow_down_right" value="&#x2198;"/>
-    <!-- U+2198 diagonal down-right -->
-    <str name="icon_arrow_down_to_line" value="&#xF33D;"/>
-    <!-- U+F33D arrow-down-to-line (load) -->
-    <str name="icon_arrow_left" value="&#x2190;"/>
-    <!-- U+2190 leftwards arrow -->
-    <str name="icon_arrow_right" value="&#x2192;"/>
-    <!-- U+2192 rightwards arrow -->
-    <str name="icon_arrow_up" value="&#x2191;"/>
-    <!-- U+2191 upwards arrow -->
-    <str name="icon_arrow_up_left" value="&#x2196;"/>
-    <!-- U+2196 diagonal up-left -->
-    <str name="icon_arrow_up_line" value="&#xF342;"/>
-    <!-- U+F342 arrow-up-from-line -->
-    <str name="icon_arrow_up_right" value="&#x2197;"/>
-    <!-- U+2197 diagonal up-right -->
-    <str name="icon_arrows_all" value="&#xF0B2;"/>
-    <!-- U+F0B2 arrows-up-down-left-right -->
-    <str name="icon_backspace" value="&#xF55A;"/>
-    <!-- U+F55A delete-left -->
-    <str name="icon_check_circle" value="&#xF058;"/>
-    <!-- U+F058 circle-check (connected) -->
-    <str name="icon_chevron_down" value="&#xF078;"/>
-    <!-- U+F078 chevron-down -->
-    <str name="icon_chevron_left" value="&#xF053;"/>
-    <!-- U+F053 chevron-left -->
-    <str name="icon_chevron_up" value="&#xF077;"/>
-    <!-- U+F077 chevron-up -->
-    <str name="icon_clock" value="&#xF017;"/>
-    <!-- U+F017 clock-o -->
-    <str name="icon_controls" value="&#xF1DE;"/>
-    <!-- U+F1DE sliders -->
-    <str name="icon_cube" value="&#xF1B2;"/>
-    <!-- U+F1B2 cube (PETG) -->
-    <str name="icon_droplet" value="&#xF043;"/>
-    <!-- U+F043 droplet (purge) -->
-    <str name="icon_edit" value="&#xF044;"/>
-    <!-- U+F044 edit (custom) -->
-    <str name="icon_ethernet" value="&#xF796;"/>
-    <!-- U+F796 ethernet -->
-    <str name="icon_fan" value="&#xF863;"/>
-    <!-- U+F863 fan -->
-    <str name="icon_filament" value="&#xF008;"/>
-    <!-- U+F008 film -->
-    <str name="icon_fire" value="&#xF06D;"/>
-    <!-- U+F06D fire -->
-    <str name="icon_folder" value="&#xF07C;"/>
-    <!-- U+F07C folder-open -->
-    <str name="icon_home" value="&#xF015;"/>
-    <!-- U+F015 house -->
-    <str name="icon_leaf" value="&#xF06C;"/>
-    <!-- U+F06C leaf -->
-    <str name="icon_lightbulb" value="&#xF0EB;"/>
-    <!-- U+F0EB lightbulb -->
-    <str name="icon_list" value="&#xF03A;"/>
-    <!-- U+F03A list -->
-    <str name="icon_lock" value="&#xF023;"/>
-    <!-- U+F023 lock (encrypted) -->
     <str name="icon_pause" value="&#xF04C;"/>
     <!-- U+F04C pause -->
     <str name="icon_play" value="&#xF04B;"/>
@@ -465,6 +331,12 @@
     <!-- U+F127 wifi-slash -->
     <str name="icon_xmark_circle" value="&#xF057;"/>
     <!-- U+F057 circle-xmark (error/failed) -->
+    <str name="icon_xmark" value="&#xF00D;"/>
+    <!-- U+F00D xmark (close) -->
+    <str name="icon_check" value="&#xF00C;"/>
+    <!-- U+F00C check (ok/success) -->
+    <str name="icon_info_circle" value="&#xF05A;"/>
+    <!-- U+F05A circle-info (info) -->
   </consts>
   <view extends="lv_obj"/>
 </component>

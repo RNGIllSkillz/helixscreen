@@ -53,8 +53,8 @@
         </icon>
 
         <!-- Title -->
-        <lv_label name="dialog_title" text="$title"
-                  style_text_font="#font_heading" style_text_align="left"
+        <text_heading name="dialog_title" text="$title"
+                  style_text_align="left"
                   flex_grow="1"/>
       </lv_obj>
 
@@ -66,8 +66,8 @@
               style_pad_left="#space_lg" style_pad_right="#space_lg"
               style_pad_top="0" style_pad_bottom="#space_lg"
               scrollable="true" scroll_snap_y="none">
-        <lv_label name="dialog_message" text="$message" width="100%"
-                  style_text_font="#font_body" style_text_align="left"
+        <text_body name="dialog_message" text="$message" width="100%"
+                  style_text_align="left"
                   long_mode="wrap"/>
       </lv_obj>
 
@@ -86,8 +86,7 @@
                    style_radius="#border_radius" style_border_width="0" style_shadow_width="0"
                    hidden="true" clickable="true">
           <lv_obj-bind_flag_if_eq subject="dialog_show_cancel" flag="hidden" ref_value="0"/>
-          <lv_label name="btn_secondary_label" align="center"
-                    style_text_font="#font_body"
+          <text_body name="btn_secondary_label" align="center"
                     bind_text="dialog_cancel_text"/>
         </lv_button>
 
@@ -103,8 +102,7 @@
         <lv_button name="btn_primary" flex_grow="1" height="100%"
                    style_radius="#border_radius" style_border_width="0" style_shadow_width="0"
                    clickable="true">
-          <lv_label name="btn_primary_label" align="center"
-                    style_text_font="#font_body"
+          <text_body name="btn_primary_label" align="center"
                     bind_text="dialog_primary_text"/>
         </lv_button>
       </lv_obj>

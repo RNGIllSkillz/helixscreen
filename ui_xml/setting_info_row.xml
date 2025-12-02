@@ -19,8 +19,8 @@
     <!-- Left side: Optional icon -->
     <icon name="row_icon" src="$icon" size="sm" variant="secondary"/>
     <!-- Middle: Label -->
-    <lv_label name="label" text="$label" style_text_font="#font_body" style_text_color="#text_primary" flex_grow="1"/>
+    <text_body name="label" text="$label" style_text_color="#text_primary" flex_grow="1"/>
     <!-- Right side: Value (secondary color) -->
-    <lv_label name="value" text="$value" style_text_font="#font_body" style_text_color="#text_secondary"/>
+    <text_body name="value" text="$value" style_text_color="#text_secondary"/>
   </view>
 </component>

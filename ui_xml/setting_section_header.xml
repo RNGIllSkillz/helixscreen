@@ -19,7 +19,7 @@
       <!-- Section icon (only shown if icon prop is set) -->
       <icon name="section_icon" src="$icon" size="xs" color="#header_text"/>
       <!-- Section title (uppercase style with letter-spacing for hierarchy) -->
-      <lv_label text="$title" style_text_font="#font_body" style_text_color="#header_text" style_text_letter_space="1"/>
+      <text_body text="$title" style_text_color="#header_text" style_text_letter_space="1"/>
     </lv_obj>
     <!-- Subtle divider line below title -->
     <lv_obj width="100%" height="1" style_bg_color="#text_secondary" style_bg_opa="30" style_border_width="0" style_margin_top="#space_xs" scrollable="false"/>

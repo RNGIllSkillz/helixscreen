@@ -21,9 +21,9 @@
     <icon name="row_icon" src="$icon" size="sm" variant="secondary"/>
     <!-- Middle: Label and optional description -->
     <lv_obj width="content" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" flex_grow="1" scrollable="false">
-      <lv_label name="label" text="$label" style_text_font="#font_body" style_text_color="#text_primary"/>
+      <text_body name="label" text="$label" style_text_color="#text_primary"/>
       <!-- Description shown only if provided -->
-      <lv_label name="description" text="$description" style_text_font="#font_small" style_text_color="#text_secondary"/>
+      <text_small name="description" text="$description" style_text_color="#text_secondary"/>
     </lv_obj>
     <!-- Right side: Dropdown -->
     <lv_dropdown name="dropdown" width="140" height="40" style_radius="#border_radius" style_border_width="0"/>

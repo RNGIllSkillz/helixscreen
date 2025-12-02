@@ -27,11 +27,11 @@
         <!-- Left side: Back button + Title -->
         <lv_obj height="content" width="content" style_bg_opa="0%" style_border_width="0" style_pad_all="0" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_md">
           <icon name="back_button" src="mat_back_img" size="sm" variant="primary" style_pad_all="#space_md" clickable="true" scrollable="false" align="center"/>
-          <lv_label name="keypad_title" text="Nozzle Temp" width="content" style_text_font="#font_heading" scrollable="false"/>
+          <text_heading name="keypad_title" text="Nozzle Temp" width="content" scrollable="false"/>
         </lv_obj>
         <!-- Right side: OK button -->
         <lv_button name="btn_ok" width="content" height="content" style_pad_row="8" style_pad_column="16" style_radius="#button_radius" style_border_width="0">
-          <lv_label text="OK" style_text_font="#font_heading" style_text_color="#text_primary" align="center"/>
+          <text_heading text="OK" style_text_color="#text_primary" align="center"/>
         </lv_button>
       </lv_obj>
       <!-- Input Display Card - Uses content sizing -->
@@ -45,37 +45,37 @@
         <!-- Row 1: [7] [8] [9] -->
         <lv_obj width="100%" flex_grow="1" style_bg_opa="0%" style_border_width="0" flex_flow="row" style_flex_main_place="space_evenly" style_flex_cross_place="center" style_pad_all="0" style_pad_bottom="2" name="row_1">
           <lv_button name="btn_7" flex_grow="1" height="100%" style_radius="#button_radius" style_border_width="0">
-            <lv_label text="7" style_text_font="#font_body" style_text_color="#text_primary" align="center"/>
+            <text_body text="7" style_text_color="#text_primary" align="center"/>
           </lv_button>
           <lv_button name="btn_8" flex_grow="1" height="100%" style_radius="#button_radius" style_border_width="0">
-            <lv_label text="8" style_text_font="#font_body" style_text_color="#text_primary" align="center"/>
+            <text_body text="8" style_text_color="#text_primary" align="center"/>
           </lv_button>
           <lv_button name="btn_9" flex_grow="1" height="100%" style_radius="#button_radius" style_border_width="0">
-            <lv_label text="9" style_text_font="#font_body" style_text_color="#text_primary" align="center"/>
+            <text_body text="9" style_text_color="#text_primary" align="center"/>
           </lv_button>
         </lv_obj>
         <!-- Row 2: [4] [5] [6] -->
         <lv_obj width="100%" flex_grow="1" style_bg_opa="0%" style_border_width="0" flex_flow="row" style_flex_main_place="space_evenly" style_flex_cross_place="center" style_pad_all="0" style_pad_bottom="2" name="row_2">
           <lv_button name="btn_4" flex_grow="1" height="100%" style_radius="#button_radius" style_border_width="0">
-            <lv_label text="4" style_text_font="#font_body" style_text_color="#text_primary" align="center"/>
+            <text_body text="4" style_text_color="#text_primary" align="center"/>
           </lv_button>
           <lv_button name="btn_5" flex_grow="1" height="100%" style_radius="#button_radius" style_border_width="0">
-            <lv_label text="5" style_text_font="#font_body" style_text_color="#text_primary" align="center"/>
+            <text_body text="5" style_text_color="#text_primary" align="center"/>
           </lv_button>
           <lv_button name="btn_6" flex_grow="1" height="100%" style_radius="#button_radius" style_border_width="0">
-            <lv_label text="6" style_text_font="#font_body" style_text_color="#text_primary" align="center"/>
+            <text_body text="6" style_text_color="#text_primary" align="center"/>
           </lv_button>
         </lv_obj>
         <!-- Row 3: [1] [2] [3] -->
         <lv_obj width="100%" flex_grow="1" style_bg_opa="0%" style_border_width="0" flex_flow="row" style_flex_main_place="space_evenly" style_flex_cross_place="center" style_pad_all="0" style_pad_bottom="2" name="row_3">
           <lv_button name="btn_1" flex_grow="1" height="100%" style_radius="#button_radius" style_border_width="0">
-            <lv_label text="1" style_text_font="#font_body" style_text_color="#text_primary" align="center"/>
+            <text_body text="1" style_text_color="#text_primary" align="center"/>
           </lv_button>
           <lv_button name="btn_2" flex_grow="1" height="100%" style_radius="#button_radius" style_border_width="0">
-            <lv_label text="2" style_text_font="#font_body" style_text_color="#text_primary" align="center"/>
+            <text_body text="2" style_text_color="#text_primary" align="center"/>
           </lv_button>
           <lv_button name="btn_3" flex_grow="1" height="100%" style_radius="#button_radius" style_border_width="0">
-            <lv_label text="3" style_text_font="#font_body" style_text_color="#text_primary" align="center"/>
+            <text_body text="3" style_text_color="#text_primary" align="center"/>
           </lv_button>
         </lv_obj>
         <!-- Row 4: [EMPTY] [0] [BACKSPACE] - 0 centered under 2 -->
@@ -83,7 +83,7 @@
           <!-- Empty spacer to align 0 under 2 -->
           <lv_obj flex_grow="1" height="100%" style_bg_opa="0%" style_border_width="0"/>
           <lv_button name="btn_0" flex_grow="1" height="100%" style_radius="#button_radius" style_border_width="0">
-            <lv_label text="0" style_text_font="#font_body" style_text_color="#text_primary" align="center"/>
+            <text_body text="0" style_text_color="#text_primary" align="center"/>
           </lv_button>
           <lv_button name="btn_backspace" flex_grow="1" height="100%" style_radius="#button_radius" style_border_width="0">
             <lv_label text="#icon_backspace" style_text_font="fa_icons_24" style_text_color="#text_primary" align="center"/>

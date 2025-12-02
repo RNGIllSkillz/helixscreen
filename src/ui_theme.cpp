@@ -216,65 +216,6 @@ void ui_theme_register_responsive_spacing(lv_display_t* display) {
                   size_label, greater_res, registered);
 }
 
-/**
- * Register responsive padding tokens (DEPRECATED - use space_* instead)
- *
- * This function maintains backward compatibility during migration from
- * padding_* and gap_* tokens to the unified space_* system.
- */
-void ui_theme_register_responsive_padding(lv_display_t* display) {
-    // Use custom breakpoints optimized for our hardware: max(hor_res, ver_res)
-    int32_t hor_res = lv_display_get_horizontal_resolution(display);
-    int32_t ver_res = lv_display_get_vertical_resolution(display);
-    int32_t greater_res = LV_MAX(hor_res, ver_res);
-
-    // Determine size suffix for variant lookup (using centralized breakpoints)
-    const char* size_suffix = ui_theme_get_breakpoint_suffix(greater_res);
-    const char* size_label = (greater_res <= UI_BREAKPOINT_SMALL_MAX)    ? "SMALL"
-                             : (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) ? "MEDIUM"
-                                                                         : "LARGE";
-
-    // Read size-specific variants from XML
-    char variant_name[64];
-
-    snprintf(variant_name, sizeof(variant_name), "padding_normal%s", size_suffix);
-    const char* padding_normal = lv_xml_get_const(NULL, variant_name);
-
-    snprintf(variant_name, sizeof(variant_name), "padding_small%s", size_suffix);
-    const char* padding_small = lv_xml_get_const(NULL, variant_name);
-
-    snprintf(variant_name, sizeof(variant_name), "padding_tiny%s", size_suffix);
-    const char* padding_tiny = lv_xml_get_const(NULL, variant_name);
-
-    snprintf(variant_name, sizeof(variant_name), "gap_normal%s", size_suffix);
-    const char* gap_normal = lv_xml_get_const(NULL, variant_name);
-
-    // Validate that variants were found
-    if (!padding_normal || !padding_small || !padding_tiny || !gap_normal) {
-        spdlog::error("[Theme] Failed to read padding variants for size: {} (normal={}, small={}, "
-                      "tiny={}, gap={})",
-                      size_label, padding_normal ? "found" : "NULL",
-                      padding_small ? "found" : "NULL", padding_tiny ? "found" : "NULL",
-                      gap_normal ? "found" : "NULL");
-        return;
-    }
-
-    // Register active constants (override defaults in globals scope)
-    lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
-    if (scope) {
-        lv_xml_register_const(scope, "padding_normal", padding_normal);
-        lv_xml_register_const(scope, "padding_small", padding_small);
-        lv_xml_register_const(scope, "padding_tiny", padding_tiny);
-        lv_xml_register_const(scope, "gap_normal", gap_normal);
-
-        spdlog::debug(
-            "[Theme] Responsive padding (deprecated): {} ({}px) - normal={}, small={}, tiny={}, gap={}",
-            size_label, greater_res, padding_normal, padding_small, padding_tiny, gap_normal);
-    } else {
-        spdlog::warn("[Theme] Failed to get globals scope for padding constants");
-    }
-}
-
 void ui_theme_register_responsive_fonts(lv_display_t* display) {
     // Use same breakpoints as padding for consistency
     int32_t hor_res = lv_display_get_horizontal_resolution(display);
@@ -426,7 +367,6 @@ void ui_theme_init(lv_display_t* display, bool use_dark_mode_param) {
 
         // Register responsive constants AFTER theme init
         ui_theme_register_responsive_spacing(display);
-        ui_theme_register_responsive_padding(display); // Deprecated, for backward compatibility
         ui_theme_register_responsive_fonts(display);
     } else {
         spdlog::error("[Theme] Failed to initialize HelixScreen theme");
