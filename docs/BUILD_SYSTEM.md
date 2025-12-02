@@ -4,6 +4,187 @@ This document describes the HelixScreen prototype build system, including automa
 
 **For common development tasks**, see **[DEVELOPMENT.md](../DEVELOPMENT.md)** - this document covers advanced build system internals.
 
+## Cross-Compilation (Embedded Targets)
+
+HelixScreen supports cross-compilation for embedded ARM targets using Docker-based toolchains. This allows building binaries for Raspberry Pi and other embedded displays directly from macOS or Linux development machines.
+
+### Quick Start
+
+```bash
+# Build for Raspberry Pi (aarch64/ARM64)
+make pi-docker
+
+# Build for Flashforge Adventurer 5M (armv7-a/ARM32)
+make ad5m-docker
+
+# Verify the binaries
+file build/pi/bin/helix-ui-proto    # ELF 64-bit LSB, ARM aarch64
+file build/ad5m/bin/helix-ui-proto  # ELF 32-bit LSB, ARM EABI5
+```
+
+Docker images are **automatically built** on first use - no manual setup required!
+
+### Supported Targets
+
+| Target | Command | Architecture | Display | Output Directory |
+|--------|---------|--------------|---------|------------------|
+| **Raspberry Pi** | `make pi-docker` | aarch64 (ARM64) | DRM/fbdev | `build/pi/` |
+| **Adventurer 5M** | `make ad5m-docker` | armv7-a (hard-float) | fbdev | `build/ad5m/` |
+| **Native (SDL)** | `make` | Host architecture | SDL2 | `build/` |
+
+### How It Works
+
+1. **Docker Toolchains**: Each target has a Dockerfile (`docker/Dockerfile.pi`, `docker/Dockerfile.ad5m`) that contains the cross-compiler, sysroot libraries, and build tools.
+
+2. **Auto-Build Images**: When you run `make pi-docker` or `make ad5m-docker`, the build system automatically:
+   - Checks if the Docker image exists
+   - Builds the image if missing (takes 2-5 minutes first time)
+   - Runs the cross-compilation inside the container
+
+3. **Volume Mounting**: Your source code is mounted into the container, so compiled binaries appear directly in your `build/` directory.
+
+4. **Display Backend Selection**: Cross-compilation automatically selects the appropriate display backend:
+   - **Pi**: DRM (preferred) with fbdev fallback
+   - **AD5M**: fbdev (800×480 framebuffer)
+
+### Build Targets
+
+```bash
+# Docker-based builds (recommended - no toolchain installation needed)
+make pi-docker           # Raspberry Pi via Docker
+make ad5m-docker         # Adventurer 5M via Docker
+make docker-toolchains   # Pre-build all Docker images
+
+# Direct cross-compilation (requires toolchain installed on host)
+make pi                  # Raspberry Pi (needs aarch64-linux-gnu-gcc)
+make ad5m                # Adventurer 5M (needs arm-linux-gnueabihf-gcc)
+
+# Information
+make cross-info          # Show cross-compilation help
+```
+
+### Target Specifications
+
+#### Raspberry Pi (Mainsail OS)
+- **CPU**: Cortex-A72/A76 (64-bit ARM)
+- **Toolchain**: `aarch64-linux-gnu-gcc` (GCC 12+)
+- **Display**: DRM preferred (hardware acceleration), fbdev fallback
+- **Input**: libinput for touch
+- **Docker Image**: `helixscreen/toolchain-pi` (Debian Bookworm)
+
+#### Flashforge Adventurer 5M
+- **CPU**: Cortex-A7 (32-bit ARM, hard-float)
+- **Toolchain**: `arm-linux-gnueabihf-gcc` (GCC 8.3)
+- **Display**: 800×480 framebuffer (`/dev/fb0`)
+- **Input**: evdev for touch (`/dev/input/event4`)
+- **C Library**: glibc 2.25 (requires older toolchain for compatibility)
+- **RAM**: 110MB total (~36MB available with Klipper running)
+- **Docker Image**: `helixscreen/toolchain-ad5m` (Debian Buster)
+
+### Dockerfile Architecture
+
+```
+docker/
+├── Dockerfile.pi      # Pi toolchain (Debian Bookworm, GCC 12)
+└── Dockerfile.ad5m    # AD5M toolchain (Debian Buster, GCC 8)
+```
+
+The Dockerfiles handle:
+- Cross-compiler installation (`crossbuild-essential-*`)
+- Target architecture libraries (`:arm64` / `:armhf` packages)
+- SSL/crypto libraries for Moonraker WebSocket
+- Environment variables for cross-compilation
+
+### Build System Integration
+
+Cross-compilation is handled by `mk/cross.mk`, which defines:
+
+```makefile
+# Set target platform (native, pi, ad5m)
+PLATFORM_TARGET ?= native
+
+# Cross-compiler configuration
+CROSS_COMPILE := arm-linux-gnueabihf-  # For AD5M
+CC := $(CROSS_COMPILE)gcc
+CXX := $(CROSS_COMPILE)g++
+
+# Target-specific flags
+TARGET_CFLAGS := -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard
+TARGET_LDFLAGS := -lstdc++fs  # GCC 8 requires this for std::filesystem
+
+# Display backend selection
+DISPLAY_BACKEND := fbdev  # or drm, sdl
+```
+
+### Troubleshooting
+
+**Docker not installed:**
+```bash
+# macOS - Option 1: Docker Desktop (GUI)
+brew install --cask docker
+
+# macOS - Option 2: Colima (lightweight, CLI-only, recommended)
+brew install colima docker
+colima start --cpu 4 --memory 8  # Start VM with 4 cores, 8GB RAM
+
+# Linux
+sudo apt install docker.io
+sudo usermod -aG docker $USER  # Logout/login after this
+```
+
+**Colima tips (macOS):**
+```bash
+colima start                    # Start with defaults
+colima start --cpu 4 --memory 8 # Custom resources (faster builds)
+colima stop                     # Stop VM when not needed
+colima status                   # Check if running
+```
+
+**Docker image build fails:**
+```bash
+# Rebuild with no cache
+docker build --no-cache -t helixscreen/toolchain-ad5m -f docker/Dockerfile.ad5m docker/
+```
+
+**"file format not recognized" linker error:**
+This means a library was built for the wrong architecture. Clean and rebuild:
+```bash
+rm -rf build/ad5m lib/wpa_supplicant/wpa_supplicant/*.a
+make ad5m-docker
+```
+
+**std::filesystem undefined references (AD5M only):**
+GCC 8 requires `-lstdc++fs` for std::filesystem. This is already configured in `mk/cross.mk` for AD5M target.
+
+### Deploying to Target
+
+After building, copy the binary to your target device:
+
+```bash
+# Raspberry Pi
+scp build/pi/bin/helix-ui-proto pi@mainsailos.local:~/
+
+# Adventurer 5M (via SSH or SD card)
+scp build/ad5m/bin/helix-ui-proto root@192.168.1.x:/usr/data/
+```
+
+### Display Backend Selection
+
+The build system automatically selects display backends:
+
+| Backend | Define | Libraries | Use Case |
+|---------|--------|-----------|----------|
+| **SDL** | `HELIX_DISPLAY_SDL` | SDL2 | Desktop development |
+| **DRM** | `HELIX_DISPLAY_DRM` | libdrm, libinput | Pi with KMS |
+| **fbdev** | `HELIX_DISPLAY_FBDEV` | (none) | Embedded framebuffer |
+
+Display backend is selected via `DISPLAY_BACKEND` in `mk/cross.mk` and controls:
+- LVGL driver compilation (`lv_conf.h` conditionals)
+- Display initialization in `display_backend.cpp`
+- Input driver selection (SDL mouse, evdev touch, libinput)
+
+---
+
 ## Build System Overview
 
 The project uses **GNU Make** with a modular architecture:
@@ -21,13 +202,14 @@ The project uses **GNU Make** with a modular architecture:
 
 The build system is organized into focused modules:
 
-- **`Makefile`** (349 lines) - Configuration, variables, platform detection, module includes
-- **`mk/deps.mk`** (431 lines) - Dependency checking, installation, libhv building
-- **`mk/tests.mk`** (266 lines) - All test targets (unit, integration, specialized)
-- **`mk/format.mk`** (100 lines) - Code and XML formatting (clang-format, xmllint)
-- **`mk/fonts.mk`** (107 lines) - Font/icon generation, Material icons, LVGL patches
-- **`mk/patches.mk`** (31 lines) - LVGL patch application
-- **`mk/rules.mk`** (179 lines) - Compilation rules, linking, main build targets
+- **`Makefile`** (~350 lines) - Configuration, variables, platform detection, module includes
+- **`mk/cross.mk`** (~200 lines) - Cross-compilation targets, toolchain setup, display backends
+- **`mk/deps.mk`** (~350 lines) - Dependency checking, installation, libhv/wpa_supplicant building
+- **`mk/tests.mk`** (~270 lines) - All test targets (unit, integration, specialized)
+- **`mk/format.mk`** (~100 lines) - Code and XML formatting (clang-format, xmllint)
+- **`mk/fonts.mk`** (~110 lines) - Font/icon generation, Material icons, LVGL patches
+- **`mk/patches.mk`** (~30 lines) - LVGL patch application
+- **`mk/rules.mk`** (~270 lines) - Compilation rules, linking, main build targets
 
 Each module is self-contained with GPL-3 copyright headers and clear separation of concerns.
 

@@ -1,9 +1,10 @@
 #####################################################################
 # C compiler
+# Use ?= to allow environment variable override for cross-compilation
 
 #CC= clang
 #CC=cc
-CC=gcc
+CC ?= gcc
 #CC=tcc
 #uncomment the following line for compiling the lib using tinyc.
 #note that the demos will fail to build with tinyc, but you can
@@ -41,9 +42,11 @@ else
 endif
 
 #CFLAGS= -Wall -O3 -std=c99 -DNDEBUG -march=native -Wno-unused-function
-CFLAGS= -Wall -O3 -std=c99 -DNDEBUG -march=native -Wno-unused-function $(PLATFORM_FLAGS) $(OPENMP_FLAGS)
+# Use ?= for CFLAGS to allow override from environment for cross-compilation
+# For native builds, -march=native is optimal; cross-compile sets target-specific flags
+CFLAGS ?= -Wall -O3 -std=c99 -DNDEBUG -march=native -Wno-unused-function $(PLATFORM_FLAGS) $(OPENMP_FLAGS)
 #CFLAGS_LIB= -Wall -O3 -std=c99 -pedantic -DNDEBUG -march=native -Wno-unused-function
-CFLAGS_LIB= -Wall -O3 -std=c99 -pedantic -DNDEBUG -march=native -Wno-unused-function $(PLATFORM_FLAGS) $(OPENMP_FLAGS)
+CFLAGS_LIB ?= -Wall -O3 -std=c99 -pedantic -DNDEBUG -Wno-unused-function $(PLATFORM_FLAGS) $(OPENMP_FLAGS)
 
 
 #CFLAGS= -Wall -Ofast -std=gnu99 -DNDEBUG -mtune=native

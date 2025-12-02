@@ -9,296 +9,28 @@ VENV := .venv
 VENV_PYTHON := $(VENV)/bin/python3
 VENV_PIP := $(VENV)/bin/pip3
 
-# Dependency checker - comprehensive validation with install instructions
+# Dependency checker - calls modular script for maintainability
+# Set SKIP_OPTIONAL_DEPS=1 for cross-compilation builds (minimal check)
+#
+# The script is organized into functions by dependency category:
+#   - check_essential: CC, CXX, make, pkg-config
+#   - check_submodules: LVGL, spdlog, libhv, wpa_supplicant
+#   - check_libraries: fmt, OpenSSL
+#   - check_desktop_tools: SDL2, npm, python venv, clang-format (--minimal skips)
+#   - check_canvas_libs: cairo, pango, libpng (--minimal skips)
+#
 check-deps:
-	$(ECHO) "$(CYAN)Checking build dependencies...$(RESET)"
-	@ERROR=0; WARN=0; MISSING_DEPS=""; WARN_MSGS=""; \
-	if ! command -v $(CC) >/dev/null 2>&1; then \
-		echo "$(RED)✗ $(CC) not found$(RESET)"; ERROR=1; \
-		MISSING_DEPS="$$MISSING_DEPS $(CC)"; \
-		echo "  Install: $(YELLOW)sudo apt install clang$(RESET) or $(YELLOW)sudo apt install gcc$(RESET) (Debian/Ubuntu)"; \
-		echo "         $(YELLOW)sudo dnf install clang$(RESET) or $(YELLOW)sudo dnf install gcc$(RESET) (Fedora/RHEL)"; \
-		echo "         $(YELLOW)brew install llvm$(RESET) or $(YELLOW)xcode-select --install$(RESET) (macOS)"; \
-	else \
-		echo "$(GREEN)✓ $(CC) found:$(RESET) $$($(CC) --version | head -n1)"; \
-	fi; \
-	if ! command -v $(CXX) >/dev/null 2>&1; then \
-		echo "$(RED)✗ $(CXX) not found$(RESET)"; ERROR=1; \
-		MISSING_DEPS="$$MISSING_DEPS $(CXX)"; \
-		echo "  Install: $(YELLOW)sudo apt install clang$(RESET) or $(YELLOW)sudo apt install g++$(RESET) (Debian/Ubuntu)"; \
-		echo "         $(YELLOW)sudo dnf install clang$(RESET) or $(YELLOW)sudo dnf install gcc-c++$(RESET) (Fedora/RHEL)"; \
-		echo "         $(YELLOW)brew install llvm$(RESET) or $(YELLOW)xcode-select --install$(RESET) (macOS)"; \
-	else \
-		echo "$(GREEN)✓ $(CXX) found:$(RESET) $$($(CXX) --version | head -n1)"; \
-	fi; \
-	if [ "$$(uname -s)" = "Darwin" ]; then \
-		MACOS_VERSION=$$(sw_vers -productVersion 2>/dev/null | cut -d. -f1-2); \
-		REQUIRED_VERSION="10.15"; \
-		if [ -n "$$MACOS_VERSION" ]; then \
-			MAJOR=$$(echo "$$MACOS_VERSION" | cut -d. -f1); \
-			MINOR=$$(echo "$$MACOS_VERSION" | cut -d. -f2); \
-			REQ_MAJOR=$$(echo "$$REQUIRED_VERSION" | cut -d. -f1); \
-			REQ_MINOR=$$(echo "$$REQUIRED_VERSION" | cut -d. -f2); \
-			if [ "$$MAJOR" -lt "$$REQ_MAJOR" ] || { [ "$$MAJOR" -eq "$$REQ_MAJOR" ] && [ "$$MINOR" -lt "$$REQ_MINOR" ]; }; then \
-				echo "$(RED)✗ macOS version $$MACOS_VERSION is too old$(RESET)"; ERROR=1; \
-				echo "  Required: macOS $$REQUIRED_VERSION (Catalina) or newer"; \
-				echo "  Reason: CoreWLAN/CoreLocation modern APIs for WiFi support"; \
-			else \
-				echo "$(GREEN)✓ macOS version $$MACOS_VERSION >= $$REQUIRED_VERSION$(RESET)"; \
-			fi; \
-		fi; \
-	fi; \
-	if command -v sdl2-config >/dev/null 2>&1; then \
-		echo "$(GREEN)✓ SDL2:$(RESET) Using system version $$(sdl2-config --version)"; \
-	else \
-		echo "$(GREEN)✓ SDL2:$(RESET) Will build from submodule (lib/sdl2/)"; \
-		if ! command -v cmake >/dev/null 2>&1; then \
-			echo "$(RED)✗ cmake not found (required for SDL2 build)$(RESET)"; ERROR=1; \
-			MISSING_DEPS="$$MISSING_DEPS cmake"; \
-			echo "  Install: $(YELLOW)brew install cmake$(RESET) (macOS)"; \
-			echo "         $(YELLOW)sudo apt install cmake$(RESET) (Debian/Ubuntu)"; \
-			echo "         $(YELLOW)sudo dnf install cmake$(RESET) (Fedora/RHEL)"; \
-		else \
-			echo "$(GREEN)✓ cmake found:$(RESET) $$(cmake --version | head -n1)"; \
-		fi; \
-	fi; \
-	if ! command -v make >/dev/null 2>&1; then \
-		echo "$(RED)✗ make not found$(RESET)"; ERROR=1; \
-		MISSING_DEPS="$$MISSING_DEPS make"; \
-		echo "  Install: $(YELLOW)sudo apt install make$(RESET) (Debian/Ubuntu)"; \
-		echo "         $(YELLOW)sudo dnf install make$(RESET) (Fedora/RHEL)"; \
-		echo "         $(YELLOW)xcode-select --install$(RESET) (macOS)"; \
-	else \
-		echo "$(GREEN)✓ make found:$(RESET) $$(make --version | head -n1)"; \
-	fi; \
-	if ! command -v python3 >/dev/null 2>&1; then \
-		echo "$(RED)✗ python3 not found$(RESET)"; ERROR=1; \
-		MISSING_DEPS="$$MISSING_DEPS python3"; \
-		echo "  Install: $(YELLOW)sudo apt install python3$(RESET) (Debian/Ubuntu)"; \
-		echo "         $(YELLOW)sudo dnf install python3$(RESET) (Fedora/RHEL)"; \
-		echo "         $(YELLOW)brew install python3$(RESET) (macOS)"; \
-	else \
-		echo "$(GREEN)✓ python3 found:$(RESET) $$(python3 --version)"; \
-		if ! python3 -c "import venv, ensurepip" 2>/dev/null; then \
-			echo "$(YELLOW)⚠ python3-venv not installed$(RESET)"; WARN=1; \
-			WARN_MSGS="$$WARN_MSGS\n  - python3-venv"; \
-			echo "  Install: $(YELLOW)sudo apt install python3-venv$(RESET) (Debian/Ubuntu)"; \
-			echo "         $(YELLOW)sudo dnf install python3-libs$(RESET) (Fedora/RHEL)"; \
-		elif [ ! -f "$(VENV_PYTHON)" ]; then \
-			echo "$(YELLOW)⚠ Python venv not set up$(RESET)"; WARN=1; \
-			WARN_MSGS="$$WARN_MSGS\n  - Python venv"; \
-			echo "  Run: $(YELLOW)make venv-setup$(RESET)"; \
-		else \
-			echo "$(GREEN)✓ Python venv:$(RESET) $(VENV)"; \
-			MISSING_PY_PKGS=""; \
-			if ! $(VENV_PYTHON) -c "import png" >/dev/null 2>&1; then \
-				MISSING_PY_PKGS="$$MISSING_PY_PKGS pypng"; \
-			fi; \
-			if ! $(VENV_PYTHON) -c "import lz4" >/dev/null 2>&1; then \
-				MISSING_PY_PKGS="$$MISSING_PY_PKGS lz4"; \
-			fi; \
-			if [ -n "$$MISSING_PY_PKGS" ]; then \
-				echo "$(YELLOW)⚠ Missing Python packages:$$MISSING_PY_PKGS$(RESET)"; WARN=1; \
-				WARN_MSGS="$$WARN_MSGS\n  - Python packages:$$MISSING_PY_PKGS"; \
-				echo "  Run: $(YELLOW)make venv-setup$(RESET)"; \
-			else \
-				echo "$(GREEN)✓ Python packages (pypng, lz4) installed$(RESET)"; \
-			fi; \
-		fi; \
-	fi; \
-	if ! command -v npm >/dev/null 2>&1; then \
-		echo "$(RED)✗ npm not found$(RESET) (needed for font generation)"; ERROR=1; \
-		MISSING_DEPS="$$MISSING_DEPS npm"; \
-		echo "  Install: $(YELLOW)brew install node$(RESET) (macOS)"; \
-		echo "         $(YELLOW)sudo apt install npm$(RESET) (Debian/Ubuntu)"; \
-		echo "         $(YELLOW)sudo dnf install npm$(RESET) (Fedora/RHEL)"; \
-	else \
-		echo "$(GREEN)✓ npm found:$(RESET) $$(npm --version)"; \
-		if [ ! -f "node_modules/.bin/lv_font_conv" ]; then \
-			echo "$(YELLOW)⚠ lv_font_conv not installed$(RESET)"; WARN=1; \
-			WARN_MSGS="$$WARN_MSGS\n  - lv_font_conv (npm package)"; \
-			echo "  Run: $(YELLOW)npm install$(RESET)"; \
-		else \
-			echo "$(GREEN)✓ lv_font_conv installed$(RESET)"; \
-		fi; \
-	fi; \
-	if ! command -v clang-format >/dev/null 2>&1; then \
-		echo "$(YELLOW)⚠ clang-format not found$(RESET) (needed for code formatting)"; WARN=1; \
-		WARN_MSGS="$$WARN_MSGS\n  - clang-format"; \
-		echo "  Install: $(YELLOW)brew install clang-format$(RESET) (macOS)"; \
-		echo "         $(YELLOW)sudo apt install clang-format$(RESET) (Debian/Ubuntu)"; \
-		echo "         $(YELLOW)sudo dnf install clang-tools-extra$(RESET) (Fedora/RHEL)"; \
-	else \
-		echo "$(GREEN)✓ clang-format found:$(RESET) $$(clang-format --version | head -n1)"; \
-	fi; \
-	if ! command -v xmllint >/dev/null 2>&1; then \
-		echo "$(YELLOW)⚠ xmllint not found$(RESET) (needed for XML validation/formatting)"; WARN=1; \
-		WARN_MSGS="$$WARN_MSGS\n  - xmllint"; \
-		echo "  Install: $(YELLOW)brew install libxml2$(RESET) (macOS)"; \
-		echo "         $(YELLOW)sudo apt install libxml2-utils$(RESET) (Debian/Ubuntu)"; \
-		echo "         $(YELLOW)sudo dnf install libxml2$(RESET) (Fedora/RHEL)"; \
-	else \
-		echo "$(GREEN)✓ xmllint found$(RESET)"; \
-	fi; \
-	if ! command -v pkg-config >/dev/null 2>&1; then \
-		echo "$(YELLOW)⚠ pkg-config not found$(RESET) (needed for canvas/lv_img_conv)"; WARN=1; \
-		WARN_MSGS="$$WARN_MSGS\n  - pkg-config"; \
-		echo "  Install: $(YELLOW)brew install pkg-config$(RESET) (macOS)"; \
-		echo "         $(YELLOW)sudo apt install pkg-config$(RESET) (Debian/Ubuntu)"; \
-		echo "         $(YELLOW)sudo dnf install pkgconfig$(RESET) (Fedora/RHEL)"; \
-	else \
-		echo "$(GREEN)✓ pkg-config found$(RESET)"; \
-		CANVAS_MISSING=""; \
-		if ! pkg-config --exists cairo 2>/dev/null; then \
-			echo "$(YELLOW)⚠ cairo not found$(RESET) (needed for canvas/lv_img_conv)"; WARN=1; \
-			WARN_MSGS="$$WARN_MSGS\n  - cairo"; \
-			CANVAS_MISSING="$$CANVAS_MISSING cairo"; \
-		else \
-			echo "$(GREEN)✓ cairo found:$(RESET) $$(pkg-config --modversion cairo)"; \
-		fi; \
-		if ! pkg-config --exists pango 2>/dev/null; then \
-			echo "$(YELLOW)⚠ pango not found$(RESET) (needed for canvas text rendering)"; WARN=1; \
-			WARN_MSGS="$$WARN_MSGS\n  - pango"; \
-			CANVAS_MISSING="$$CANVAS_MISSING pango"; \
-		else \
-			echo "$(GREEN)✓ pango found:$(RESET) $$(pkg-config --modversion pango)"; \
-		fi; \
-		if ! pkg-config --exists libpng 2>/dev/null; then \
-			echo "$(YELLOW)⚠ libpng not found$(RESET) (needed for PNG support)"; WARN=1; \
-			WARN_MSGS="$$WARN_MSGS\n  - libpng"; \
-			CANVAS_MISSING="$$CANVAS_MISSING libpng"; \
-		else \
-			echo "$(GREEN)✓ libpng found$(RESET)"; \
-		fi; \
-		if ! pkg-config --exists libjpeg 2>/dev/null; then \
-			echo "$(YELLOW)⚠ libjpeg not found$(RESET) (optional, for JPEG support)"; \
-			CANVAS_MISSING="$$CANVAS_MISSING libjpeg"; \
-		else \
-			echo "$(GREEN)✓ libjpeg found$(RESET)"; \
-		fi; \
-		if ! pkg-config --exists librsvg-2.0 2>/dev/null; then \
-			echo "$(YELLOW)⚠ librsvg not found$(RESET) (optional, for SVG support)"; \
-			CANVAS_MISSING="$$CANVAS_MISSING librsvg"; \
-		else \
-			echo "$(GREEN)✓ librsvg found$(RESET)"; \
-		fi; \
-		if [ -n "$$CANVAS_MISSING" ]; then \
-			echo "  $(CYAN)To install canvas dependencies:$(RESET)"; \
-			if [ "$(UNAME_S)" = "Darwin" ]; then \
-				echo "  $(YELLOW)brew install$$CANVAS_MISSING$(RESET)"; \
-			elif [ -f /etc/debian_version ]; then \
-				DEBIAN_PKGS=""; \
-				for lib in $$CANVAS_MISSING; do \
-					case $$lib in \
-						cairo) DEBIAN_PKGS="$$DEBIAN_PKGS libcairo2-dev";; \
-						pango) DEBIAN_PKGS="$$DEBIAN_PKGS libpango1.0-dev";; \
-						libpng) DEBIAN_PKGS="$$DEBIAN_PKGS libpng-dev";; \
-						libjpeg) DEBIAN_PKGS="$$DEBIAN_PKGS libjpeg-dev";; \
-						librsvg) DEBIAN_PKGS="$$DEBIAN_PKGS librsvg2-dev";; \
-					esac; \
-				done; \
-				echo "  $(YELLOW)sudo apt install$$DEBIAN_PKGS$(RESET)"; \
-			elif [ -f /etc/fedora-release ] || [ -f /etc/redhat-release ]; then \
-				FEDORA_PKGS=""; \
-				for lib in $$CANVAS_MISSING; do \
-					case $$lib in \
-						cairo) FEDORA_PKGS="$$FEDORA_PKGS cairo-devel";; \
-						pango) FEDORA_PKGS="$$FEDORA_PKGS pango-devel";; \
-						libpng) FEDORA_PKGS="$$FEDORA_PKGS libpng-devel";; \
-						libjpeg) FEDORA_PKGS="$$FEDORA_PKGS libjpeg-turbo-devel";; \
-						librsvg) FEDORA_PKGS="$$FEDORA_PKGS librsvg2-devel";; \
-					esac; \
-				done; \
-				echo "  $(YELLOW)sudo dnf install$$FEDORA_PKGS$(RESET)"; \
-			fi; \
-		fi; \
-	fi; \
-	if pkg-config --exists libhv 2>/dev/null; then \
-		echo "$(GREEN)✓ libhv:$(RESET) Using system version $$(pkg-config --modversion libhv 2>/dev/null || echo 'unknown')"; \
-	elif [ ! -f "$(LIBHV_DIR)/lib/libhv.a" ]; then \
-		echo "$(CYAN)ℹ libhv:$(RESET) Will be built from submodule"; \
-	else \
-		echo "$(GREEN)✓ libhv:$(RESET) Using submodule version"; \
-	fi; \
-	if [ -d "/usr/include/spdlog" ] || [ -d "/usr/local/include/spdlog" ] || [ -d "/opt/homebrew/include/spdlog" ]; then \
-		echo "$(GREEN)✓ spdlog:$(RESET) Using system version (header-only)"; \
-	elif [ ! -d "$(SPDLOG_DIR)/include" ]; then \
-		echo "$(RED)✗ spdlog not found$(RESET) (submodule)"; ERROR=1; \
-		echo "  Run: $(YELLOW)git submodule update --init --recursive$(RESET)"; \
-	else \
-		echo "$(GREEN)✓ spdlog:$(RESET) Using submodule version (header-only)"; \
-	fi; \
-	if pkg-config --exists fmt 2>/dev/null; then \
-		echo "$(GREEN)✓ fmt:$(RESET) Using system version $$(pkg-config --modversion fmt 2>/dev/null || echo 'unknown')"; \
-	else \
-		echo "$(YELLOW)⚠ fmt not found$(RESET) (required by header-only spdlog)"; WARN=1; \
-		WARN_MSGS="$$WARN_MSGS\n  - fmt"; \
-		echo "  Install: $(YELLOW)brew install fmt$(RESET) (macOS)"; \
-		echo "         $(YELLOW)sudo apt install libfmt-dev$(RESET) (Debian/Ubuntu)"; \
-		echo "         $(YELLOW)sudo dnf install fmt-devel$(RESET) (Fedora/RHEL)"; \
-	fi; \
-	if [ "$(UNAME_S)" != "Darwin" ]; then \
-		if pkg-config --exists openssl 2>/dev/null || pkg-config --exists libssl 2>/dev/null; then \
-			echo "$(GREEN)✓ OpenSSL:$(RESET) Using system version $$(pkg-config --modversion openssl 2>/dev/null || pkg-config --modversion libssl 2>/dev/null || echo 'unknown')"; \
-		elif [ -f "/usr/include/openssl/ssl.h" ] || [ -f "/usr/local/include/openssl/ssl.h" ]; then \
-			echo "$(GREEN)✓ OpenSSL:$(RESET) Found system headers"; \
-		else \
-			echo "$(RED)✗ OpenSSL development libraries not found$(RESET)"; ERROR=1; \
-			MISSING_DEPS="$$MISSING_DEPS openssl"; \
-			echo "  Install: $(YELLOW)sudo apt install libssl-dev$(RESET) (Debian/Ubuntu)"; \
-			echo "         $(YELLOW)sudo dnf install openssl-devel$(RESET) (Fedora/RHEL)"; \
-		fi; \
-	fi; \
-	if [ ! -d "$(LVGL_DIR)/src" ]; then \
-		echo "$(RED)✗ LVGL not found$(RESET) (submodule)"; ERROR=1; \
-		echo "  Run: $(YELLOW)git submodule update --init --recursive$(RESET)"; \
-	else \
-		echo "$(GREEN)✓ LVGL found:$(RESET) $(LVGL_DIR)"; \
-	fi; \
-	if [ "$(UNAME_S)" != "Darwin" ]; then \
-		if [ ! -d "$(WPA_DIR)/wpa_supplicant" ]; then \
-			echo "$(RED)✗ wpa_supplicant not found$(RESET) (submodule)"; ERROR=1; \
-			echo "  Run: $(YELLOW)git submodule update --init --recursive$(RESET)"; \
-		else \
-			echo "$(GREEN)✓ wpa_supplicant found:$(RESET) $(WPA_DIR)"; \
-		fi; \
-	fi; \
-	echo ""; \
-	if [ $$ERROR -eq 1 ]; then \
-		echo "$(RED)$(BOLD)✗ Dependency check failed!$(RESET)"; \
-		echo ""; \
-		echo "$(CYAN)Missing:$(RESET)$$MISSING_DEPS"; \
-		echo ""; \
-		if [ -t 0 ]; then \
-			printf "$(YELLOW)Would you like to install missing dependencies automatically? [y/N]:$(RESET) "; \
-			read -r REPLY; \
-			if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
-				$(MAKE) install-deps; \
-			else \
-				echo ""; \
-				echo "$(CYAN)Manual fix:$(RESET) Run $(YELLOW)make install-deps$(RESET) when ready"; \
-				exit 1; \
-			fi; \
-		else \
-			echo "$(CYAN)Run$(RESET) $(YELLOW)make install-deps$(RESET) $(CYAN)to install missing dependencies$(RESET)"; \
-			exit 1; \
-		fi; \
-	elif [ $$WARN -eq 1 ]; then \
-		echo "$(YELLOW)⚠ Some optional dependencies missing:$(RESET)"; \
-		echo -e "$$WARN_MSGS"; \
-		if [ -t 0 ]; then \
-			echo ""; \
-			printf "$(YELLOW)Would you like to install them now? [y/N]:$(RESET) "; \
-			read -r REPLY; \
-			if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
-				$(MAKE) install-deps; \
-			fi; \
-		else \
-			echo "$(CYAN)Run$(RESET) $(YELLOW)make install-deps$(RESET) $(CYAN)to install them$(RESET)"; \
-		fi; \
-	else \
-		echo "$(GREEN)$(BOLD)✓ All dependencies satisfied!$(RESET)"; \
-	fi
+ifeq ($(SKIP_OPTIONAL_DEPS),1)
+	@CC="$(CC)" CXX="$(CXX)" \
+		LVGL_DIR="$(LVGL_DIR)" SPDLOG_DIR="$(SPDLOG_DIR)" \
+		LIBHV_DIR="$(LIBHV_DIR)" WPA_DIR="$(WPA_DIR)" VENV="$(VENV)" \
+		./scripts/check-deps.sh --minimal
+else
+	@CC="$(CC)" CXX="$(CXX)" \
+		LVGL_DIR="$(LVGL_DIR)" SPDLOG_DIR="$(SPDLOG_DIR)" \
+		LIBHV_DIR="$(LIBHV_DIR)" WPA_DIR="$(WPA_DIR)" VENV="$(VENV)" \
+		./scripts/check-deps.sh
+endif
 
 # Auto-install missing dependencies (interactive, requires confirmation)
 install-deps:
@@ -484,9 +216,27 @@ install-deps:
 	echo "$(CYAN)Run$(RESET) $(YELLOW)make$(RESET) $(CYAN)to build the project$(RESET)"
 
 # Build libhv (configure + compile)
+# Supports native and cross-compilation via CROSS_COMPILE variable
+# Output: $(BUILD_DIR)/lib/libhv.a for architecture isolation
+# Note: libhv builds in-tree, so we must clean before cross-compilation
+# to avoid mixing object files from different architectures
 libhv-build:
 	$(ECHO) "$(CYAN)Building libhv...$(RESET)"
-ifeq ($(UNAME_S),Darwin)
+	$(Q)mkdir -p $(BUILD_DIR)/lib
+ifneq ($(CROSS_COMPILE),)
+	# Cross-compilation mode - clean in-tree artifacts first to avoid mixing architectures
+	$(Q)if [ -n "$$(find $(LIBHV_DIR) -name '*.o' 2>/dev/null | head -1)" ]; then \
+		echo "$(YELLOW)→ Cleaning libhv in-tree artifacts for cross-compilation...$(RESET)"; \
+		find $(LIBHV_DIR) -type f \( -name '*.o' -o -name '*.a' -o -name '*.so' -o -name '*.dylib' \) -delete; \
+	fi
+	# Pass cross-compiler to configure and make
+	$(Q)cd $(LIBHV_DIR) && \
+		CC=$(CC) CXX=$(CXX) AR=$(AR) \
+		CFLAGS="$(TARGET_CFLAGS)" \
+		CXXFLAGS="$(TARGET_CFLAGS)" \
+		./configure --with-http-client
+	$(Q)CC=$(CC) CXX=$(CXX) AR=$(AR) $(MAKE) -C $(LIBHV_DIR) libhv
+else ifeq ($(UNAME_S),Darwin)
 	$(Q)cd $(LIBHV_DIR) && \
 		MACOSX_DEPLOYMENT_TARGET=$(MACOS_MIN_VERSION) \
 		CFLAGS="$(MACOS_DEPLOYMENT_TARGET)" \
@@ -497,7 +247,10 @@ else
 	$(Q)cd $(LIBHV_DIR) && ./configure --with-http-client
 	$(Q)$(MAKE) -C $(LIBHV_DIR) libhv
 endif
-	$(ECHO) "$(GREEN)✓ libhv built successfully$(RESET)"
+	# Copy built library to architecture-specific output directory
+	$(Q)cp $(LIBHV_DIR)/lib/libhv.a $(BUILD_DIR)/lib/libhv.a 2>/dev/null || \
+		cp $(LIBHV_DIR)/libhv.a $(BUILD_DIR)/lib/libhv.a
+	$(ECHO) "$(GREEN)✓ libhv built: $(BUILD_DIR)/lib/libhv.a$(RESET)"
 
 # Build SDL2 from submodule (CMake build)
 sdl2-build:
@@ -529,10 +282,13 @@ endif
 $(SDL2_LIB):
 	$(Q)$(MAKE) sdl2-build
 
-# Build wpa_supplicant client library (Linux only)
+# Build wpa_supplicant client library (Linux and cross-compilation targets)
+# This is needed for WiFi control on embedded Linux systems
+# Output: $(BUILD_DIR)/lib/libwpa_client.a for architecture isolation
 ifneq ($(UNAME_S),Darwin)
 $(WPA_CLIENT_LIB):
 	$(ECHO) "$(BOLD)$(BLUE)[WPA]$(RESET) Building wpa_supplicant client library..."
+	$(Q)mkdir -p $(BUILD_DIR)/lib
 	$(Q)if [ ! -f "$(WPA_DIR)/wpa_supplicant/.config" ]; then \
 		if [ -f "$(WPA_DIR)/wpa_supplicant/defconfig" ]; then \
 			echo "$(CYAN)→ Creating .config from defconfig...$(RESET)"; \
@@ -543,8 +299,44 @@ $(WPA_CLIENT_LIB):
 			exit 1; \
 		fi; \
 	fi
+ifneq ($(CROSS_COMPILE),)
+	# Cross-compilation mode - clean in-tree artifacts first to avoid architecture mismatch
+	$(Q)if [ -f "$(WPA_DIR)/wpa_supplicant/libwpa_client.a" ]; then \
+		echo "$(YELLOW)→ Cleaning wpa_supplicant in-tree artifacts for cross-compilation...$(RESET)"; \
+		$(MAKE) -C $(WPA_DIR)/wpa_supplicant clean; \
+	fi
+	$(Q)CC=$(CC) CFLAGS="$(TARGET_CFLAGS)" $(MAKE) -C $(WPA_DIR)/wpa_supplicant libwpa_client.a
+else
 	$(Q)$(MAKE) -C $(WPA_DIR)/wpa_supplicant libwpa_client.a
-	$(ECHO) "$(GREEN)✓ libwpa_client.a built successfully$(RESET)"
+endif
+	# Copy to architecture-specific output directory and ensure index is present
+	$(Q)cp $(WPA_DIR)/wpa_supplicant/libwpa_client.a $(BUILD_DIR)/lib/libwpa_client.a
+	$(Q)$(RANLIB) $(BUILD_DIR)/lib/libwpa_client.a
+	$(ECHO) "$(GREEN)✓ libwpa_client.a built: $(BUILD_DIR)/lib/libwpa_client.a$(RESET)"
+else ifneq ($(CROSS_COMPILE),)
+# Cross-compilation from macOS to Linux - need wpa_supplicant
+$(WPA_CLIENT_LIB):
+	$(ECHO) "$(BOLD)$(BLUE)[WPA]$(RESET) Building wpa_supplicant client library (cross-compile)..."
+	$(Q)mkdir -p $(BUILD_DIR)/lib
+	$(Q)if [ ! -f "$(WPA_DIR)/wpa_supplicant/.config" ]; then \
+		if [ -f "$(WPA_DIR)/wpa_supplicant/defconfig" ]; then \
+			echo "$(CYAN)→ Creating .config from defconfig...$(RESET)"; \
+			cp "$(WPA_DIR)/wpa_supplicant/defconfig" "$(WPA_DIR)/wpa_supplicant/.config"; \
+		else \
+			echo "$(RED)✗ wpa_supplicant/.config not found and no defconfig$(RESET)"; \
+			exit 1; \
+		fi; \
+	fi
+	# Clean in-tree artifacts first to avoid architecture mismatch
+	$(Q)if [ -f "$(WPA_DIR)/wpa_supplicant/libwpa_client.a" ]; then \
+		echo "$(YELLOW)→ Cleaning wpa_supplicant in-tree artifacts for cross-compilation...$(RESET)"; \
+		$(MAKE) -C $(WPA_DIR)/wpa_supplicant clean; \
+	fi
+	$(Q)CC=$(CC) CFLAGS="$(TARGET_CFLAGS)" $(MAKE) -C $(WPA_DIR)/wpa_supplicant libwpa_client.a
+	# Copy to architecture-specific output directory and ensure index is present
+	$(Q)cp $(WPA_DIR)/wpa_supplicant/libwpa_client.a $(BUILD_DIR)/lib/libwpa_client.a
+	$(Q)$(RANLIB) $(BUILD_DIR)/lib/libwpa_client.a
+	$(ECHO) "$(GREEN)✓ libwpa_client.a built: $(BUILD_DIR)/lib/libwpa_client.a$(RESET)"
 endif
 
 # Python virtual environment setup

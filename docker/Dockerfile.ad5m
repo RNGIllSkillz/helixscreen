@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# HelixScreen - Adventurer 5M (armv7-a) Cross-Compilation Toolchain
+#
+# Build: docker build -t helixscreen/toolchain-ad5m -f Dockerfile.ad5m .
+# Usage: docker run --rm -v $(pwd):/src -w /src helixscreen/toolchain-ad5m make PLATFORM_TARGET=ad5m -j$(nproc)
+#
+# Target: Flashforge Adventurer 5M
+#   - CPU: Cortex-A7 (armv7-a hard-float)
+#   - Display: 800x480 framebuffer
+#   - RAM: 110MB total
+#   - C Library: glibc 2.25
+#
+# Strategy: Use Debian Buster (glibc 2.28, GCC 8) with static libstdc++ linking.
+# While the host has newer glibc, statically linking libstdc++ and using
+# -static-libgcc avoids most compatibility issues. The binary will still
+# dynamically link glibc, but glibc 2.25 on the device should be compatible
+# with most glibc 2.28 symbols (backwards compatible).
+#
+# If runtime issues occur, we can switch to a crosstool-ng based toolchain
+# or use a Debian Stretch sysroot.
+
+FROM debian:buster-slim
+
+LABEL maintainer="HelixScreen <dev@helixscreen.io>"
+LABEL description="Cross-compilation toolchain for Adventurer 5M (armv7-a Cortex-A7)"
+
+# Avoid interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Buster is now archived, update sources
+RUN sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list && \
+    sed -i 's|security.debian.org/debian-security|archive.debian.org/debian-security|g' /etc/apt/sources.list && \
+    sed -i '/buster-updates/d' /etc/apt/sources.list
+
+# Install base build tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    crossbuild-essential-armhf \
+    git \
+    pkg-config \
+    ca-certificates \
+    make \
+    cmake \
+    libssl-dev \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add armhf architecture and install target libraries
+RUN dpkg --add-architecture armhf && apt-get update && apt-get install -y --no-install-recommends \
+    libc6-dev:armhf \
+    libstdc++-8-dev:armhf \
+    libssl-dev:armhf \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up cross-compilation environment
+ENV CROSS_COMPILE=arm-linux-gnueabihf-
+ENV CC=arm-linux-gnueabihf-gcc
+ENV CXX=arm-linux-gnueabihf-g++
+ENV AR=arm-linux-gnueabihf-ar
+ENV STRIP=arm-linux-gnueabihf-strip
+ENV RANLIB=arm-linux-gnueabihf-ranlib
+ENV LD=arm-linux-gnueabihf-ld
+
+# Cortex-A7 specific optimization flags
+# Static link libstdc++ and libgcc to avoid C++ ABI compatibility issues
+ENV TARGET_CFLAGS="-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard -mtune=cortex-a7"
+
+# pkg-config for cross-compilation
+ENV PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig
+ENV PKG_CONFIG_SYSROOT_DIR=/
+
+# Create working directory
+WORKDIR /src
+
+# Default command: build for AD5M
+CMD ["make", "PLATFORM_TARGET=ad5m", "-j"]

@@ -64,10 +64,14 @@
 ## Quick Start
 
 ```bash
-make -j                              # Incremental build
+make -j                              # Incremental build (native/SDL)
 ./build/bin/helix-ui-proto           # Run (default: home panel, small screen)
 ./build/bin/helix-ui-proto -p motion -s large
 ./build/bin/helix-ui-proto --test    # Mock printer (REQUIRED without real printer!)
+
+# Cross-compilation (Docker-based, no toolchain needed)
+make pi-docker                       # Build for Raspberry Pi (aarch64)
+make ad5m-docker                     # Build for Adventurer 5M (armv7-a)
 ```
 
 **⚠️ IMPORTANT:** Always use `--test` when testing without a real printer. Without it, panels expecting printer data show nothing.
@@ -150,8 +154,10 @@ helixscreen/
 ├── assets/           # Fonts, images, icons
 ├── config/           # Config templates (helixconfig.json.template, printer_database.json)
 ├── scripts/          # Build/screenshot automation
+├── docker/           # Cross-compilation Dockerfiles (pi, ad5m)
+├── mk/               # Makefile modules (cross.mk, deps.mk, rules.mk, etc.)
 ├── docs/             # Documentation
-└── Makefile          # Build system
+└── Makefile          # Build system entry point
 ```
 
 ---

@@ -981,8 +981,21 @@
  * DEVICES
  *==================*/
 
+/*
+ * Display backend selection based on build target:
+ * - HELIX_DISPLAY_SDL:   Desktop development (macOS/Linux with SDL2)
+ * - HELIX_DISPLAY_FBDEV: Linux framebuffer (AD5M, older Pi)
+ * - HELIX_DISPLAY_DRM:   Linux DRM/KMS (Raspberry Pi 4/5)
+ *
+ * These macros are defined in mk/cross.mk based on PLATFORM_TARGET
+ */
+
 /*Use SDL to open window on PC and handle mouse and keyboard*/
-#define LV_USE_SDL              1
+#ifdef HELIX_DISPLAY_SDL
+    #define LV_USE_SDL              1
+#else
+    #define LV_USE_SDL              0
+#endif
 #if LV_USE_SDL
     #define LV_SDL_INCLUDE_PATH     <SDL.h>
     #define LV_SDL_RENDER_MODE      LV_DISPLAY_RENDER_MODE_DIRECT   /*LV_DISPLAY_RENDER_MODE_DIRECT is recommended for best performance*/
@@ -1012,11 +1025,15 @@
 #endif
 
 /*Driver for /dev/fb*/
-#define LV_USE_LINUX_FBDEV      0
+#ifdef HELIX_DISPLAY_FBDEV
+    #define LV_USE_LINUX_FBDEV      1
+#else
+    #define LV_USE_LINUX_FBDEV      0
+#endif
 #if LV_USE_LINUX_FBDEV
     #define LV_LINUX_FBDEV_BSD           0
     #define LV_LINUX_FBDEV_RENDER_MODE   LV_DISPLAY_RENDER_MODE_PARTIAL
-    #define LV_LINUX_FBDEV_BUFFER_COUNT  0
+    #define LV_LINUX_FBDEV_BUFFER_COUNT  2  /*Double buffering for smooth rendering*/
     #define LV_LINUX_FBDEV_BUFFER_SIZE   60
 #endif
 
@@ -1042,16 +1059,28 @@
 #endif
 
 /*Driver for /dev/dri/card*/
-#define LV_USE_LINUX_DRM        0
+#ifdef HELIX_DISPLAY_DRM
+    #define LV_USE_LINUX_DRM        1
+#else
+    #define LV_USE_LINUX_DRM        0
+#endif
 
 /*Interface for TFT_eSPI*/
 #define LV_USE_TFT_ESPI         0
 
-/*Driver for evdev input devices*/
-#define LV_USE_EVDEV    0
+/*Driver for evdev input devices (touch/mouse for embedded Linux)*/
+#if defined(HELIX_DISPLAY_FBDEV) || defined(HELIX_DISPLAY_DRM)
+    #define LV_USE_EVDEV    1
+#else
+    #define LV_USE_EVDEV    0
+#endif
 
-/*Driver for libinput input devices*/
-#define LV_USE_LIBINPUT    0
+/*Driver for libinput input devices (preferred for DRM on modern systems)*/
+#ifdef HELIX_DISPLAY_DRM
+    #define LV_USE_LIBINPUT    1
+#else
+    #define LV_USE_LIBINPUT    0
+#endif
 
 #if LV_USE_LIBINPUT
     #define LV_LIBINPUT_BSD    0

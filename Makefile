@@ -118,12 +118,18 @@ SUBMODULE_CXXFLAGS := -std=c++17 -O2 -g -w
 # Platform detection (needed early for conditional compilation)
 UNAME_S := $(shell uname -s)
 
+# Cross-compilation support (must come early to override CC/CXX)
+# Use TARGET=pi or TARGET=ad5m for cross-compilation
+include mk/cross.mk
+
 # Directories
 SRC_DIR := src
 INC_DIR := include
-BUILD_DIR := build
-BIN_DIR := $(BUILD_DIR)/bin
-OBJ_DIR := $(BUILD_DIR)/obj
+# BUILD_DIR, BIN_DIR, OBJ_DIR may be set by cross.mk for cross-compilation
+# Only set defaults if not already defined
+BUILD_DIR ?= build
+BIN_DIR ?= $(BUILD_DIR)/bin
+OBJ_DIR ?= $(BUILD_DIR)/obj
 
 # LVGL
 LVGL_DIR := lib/lvgl
@@ -172,20 +178,28 @@ FONT_OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(FONT_SRCS))
 MATERIAL_ICON_SRCS := $(wildcard assets/images/material/*.c)
 MATERIAL_ICON_OBJS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(MATERIAL_ICON_SRCS))
 
-# SDL2 - Use system version if available, otherwise build from submodule
-SDL2_SYSTEM_AVAILABLE := $(shell command -v sdl2-config 2>/dev/null)
-ifneq ($(SDL2_SYSTEM_AVAILABLE),)
-    # System SDL2 found - use it
-    SDL2_INC := $(shell sdl2-config --cflags)
-    SDL2_LIBS := $(shell sdl2-config --libs)
-    SDL2_LIB :=
+# SDL2 - Only needed for native desktop builds (not embedded targets)
+# Cross-compilation targets use framebuffer/DRM instead
+ifeq ($(ENABLE_SDL),yes)
+    SDL2_SYSTEM_AVAILABLE := $(shell command -v sdl2-config 2>/dev/null)
+    ifneq ($(SDL2_SYSTEM_AVAILABLE),)
+        # System SDL2 found - use it
+        SDL2_INC := $(shell sdl2-config --cflags)
+        SDL2_LIBS := $(shell sdl2-config --libs)
+        SDL2_LIB :=
+    else
+        # No system SDL2 - build from submodule
+        SDL2_DIR := lib/sdl2
+        SDL2_BUILD_DIR := $(SDL2_DIR)/build
+        SDL2_LIB := $(SDL2_BUILD_DIR)/libSDL2.a
+        SDL2_INC := -I$(SDL2_DIR)/include -I$(SDL2_BUILD_DIR)/include -I$(SDL2_BUILD_DIR)/include-config-release
+        SDL2_LIBS := $(SDL2_LIB)
+    endif
 else
-    # No system SDL2 - build from submodule
-    SDL2_DIR := lib/sdl2
-    SDL2_BUILD_DIR := $(SDL2_DIR)/build
-    SDL2_LIB := $(SDL2_BUILD_DIR)/libSDL2.a
-    SDL2_INC := -I$(SDL2_DIR)/include -I$(SDL2_BUILD_DIR)/include -I$(SDL2_BUILD_DIR)/include-config-release
-    SDL2_LIBS := $(SDL2_LIB)
+    # Embedded target - no SDL2
+    SDL2_INC :=
+    SDL2_LIBS :=
+    SDL2_LIB :=
 endif
 
 # libhv (WebSocket client for Moonraker) - Use system version if available, otherwise build from submodule
@@ -196,16 +210,11 @@ ifeq ($(LIBHV_PKG_CONFIG),yes)
     LIBHV_LIBS := $(shell pkg-config --libs libhv)
     LIBHV_LIB :=
 else
-    # No system libhv - build from submodule
+    # No system libhv - build from submodule to $(BUILD_DIR)/lib/ for architecture isolation
+    # This allows concurrent native/pi/ad5m builds without conflicts
     LIBHV_DIR := lib/libhv
     LIBHV_INC := -I$(LIBHV_DIR)/include -I$(LIBHV_DIR)/cpputil -I$(LIBHV_DIR)
-    # Check both possible locations for libhv.a (lib/ and root build directory)
-    LIBHV_LIB_PATHS := $(LIBHV_DIR)/lib/libhv.a $(LIBHV_DIR)/libhv.a
-    LIBHV_LIB := $(firstword $(wildcard $(LIBHV_LIB_PATHS)))
-    ifeq ($(LIBHV_LIB),)
-        # Neither exists yet - default to lib/ path for dependency rules
-        LIBHV_LIB := $(LIBHV_DIR)/lib/libhv.a
-    endif
+    LIBHV_LIB := $(BUILD_DIR)/lib/libhv.a
     LIBHV_LIBS := $(LIBHV_LIB)
 endif
 
@@ -237,7 +246,8 @@ ENABLE_TINYGL_3D ?= yes
 
 ifeq ($(ENABLE_TINYGL_3D),yes)
     TINYGL_DIR := lib/tinygl
-    TINYGL_LIB := $(TINYGL_DIR)/lib/libTinyGL.a
+    # Output to $(BUILD_DIR)/lib/ for architecture isolation (native/pi/ad5m)
+    TINYGL_LIB := $(BUILD_DIR)/lib/libTinyGL.a
     TINYGL_INC := -I$(TINYGL_DIR)/include
     TINYGL_DEFINES := -DENABLE_TINYGL_3D
 else
@@ -249,7 +259,8 @@ endif
 
 # wpa_supplicant (WiFi control via wpa_ctrl interface)
 WPA_DIR := lib/wpa_supplicant
-WPA_CLIENT_LIB := $(WPA_DIR)/wpa_supplicant/libwpa_client.a
+# Output to $(BUILD_DIR)/lib/ for architecture isolation (native/pi/ad5m)
+WPA_CLIENT_LIB := $(BUILD_DIR)/lib/libwpa_client.a
 WPA_INC := -I$(WPA_DIR)/src/common -I$(WPA_DIR)/src/utils
 
 # Precompiled header for LVGL (30-50% faster clean builds)
@@ -265,8 +276,29 @@ INCLUDES := -I. -I$(INC_DIR) -Ilib -Ilib/glm $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_I
 LDFLAGS_COMMON := $(SDL2_LIBS) $(LIBHV_LIBS) $(TINYGL_LIB) $(FMT_LIBS) -lm -lpthread
 
 # Platform-specific configuration
-ifeq ($(UNAME_S),Darwin)
-    # macOS - Uses CoreWLAN framework for WiFi (with fallback to mock)
+# Cross-compilation targets (pi, ad5m) are Linux-based embedded systems
+ifneq ($(CROSS_COMPILE),)
+    # Cross-compilation for embedded Linux targets
+    NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+    # Embedded targets link against libhv, wpa_supplicant, and OpenSSL
+    # No SDL2 - display handled by framebuffer/DRM
+    LDFLAGS := $(LIBHV_LIBS) $(TINYGL_LIB) $(FMT_LIBS) $(WPA_CLIENT_LIB) -lssl -lcrypto -ldl -lm -lpthread
+    # Add target-specific linker flags (e.g., -lstdc++fs for GCC 8)
+    LDFLAGS += $(TARGET_LDFLAGS)
+    # Add target-specific library path for cross-compilation
+    LDFLAGS += -L/usr/lib/$(TARGET_TRIPLE)
+    # DRM backend requires libdrm and libinput for LVGL display/input drivers
+    ifeq ($(DISPLAY_BACKEND),drm)
+        LDFLAGS += -ldrm -linput
+    endif
+    PLATFORM := Linux-$(TARGET_ARCH)
+    WPA_DEPS := $(WPA_CLIENT_LIB)
+    # Strip embedded binaries for size
+    ifeq ($(STRIP_BINARY),yes)
+        LDFLAGS += -s
+    endif
+else ifeq ($(UNAME_S),Darwin)
+    # macOS native build - Uses CoreWLAN framework for WiFi (with fallback to mock)
     NPROC := $(shell sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
     # Set minimum macOS version (10.15 Catalina for CoreWLAN/CoreLocation modern APIs)
@@ -277,11 +309,13 @@ ifeq ($(UNAME_S),Darwin)
     CXXFLAGS += $(MACOS_DEPLOYMENT_TARGET)
     SUBMODULE_CFLAGS += $(MACOS_DEPLOYMENT_TARGET)
     SUBMODULE_CXXFLAGS += $(MACOS_DEPLOYMENT_TARGET)
-    LDFLAGS := $(LDFLAGS_COMMON) -framework Foundation -framework CoreFoundation -framework Security -framework CoreWLAN -framework CoreLocation -framework Cocoa -framework IOKit -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework Carbon -framework CoreAudio -framework Metal -liconv
+    # -Wl,-w suppresses linker warnings about macOS version mismatches between
+    # our 10.15 deployment target and libraries built for newer versions
+    LDFLAGS := -Wl,-w $(LDFLAGS_COMMON) -framework Foundation -framework CoreFoundation -framework Security -framework CoreWLAN -framework CoreLocation -framework Cocoa -framework IOKit -framework CoreVideo -framework AudioToolbox -framework ForceFeedback -framework Carbon -framework CoreAudio -framework Metal -liconv
     PLATFORM := macOS
     WPA_DEPS :=
 else
-    # Linux - Include libwpa_client.a for WiFi control
+    # Linux native build - Include libwpa_client.a for WiFi control
     NPROC := $(shell nproc 2>/dev/null || echo 4)
     LDFLAGS := $(LDFLAGS_COMMON) $(WPA_CLIENT_LIB) -lssl -lcrypto -ldl
     PLATFORM := Linux

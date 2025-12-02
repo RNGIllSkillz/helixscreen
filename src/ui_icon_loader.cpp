@@ -23,12 +23,16 @@
 
 #include "ui_icon_loader.h"
 
-#include "helix_icon_data.h"
-#include "lvgl/src/drivers/sdl/lv_sdl_window.h"
-
 #include <spdlog/spdlog.h>
 
+// SDL window icon is only available when SDL is enabled
+#ifdef HELIX_DISPLAY_SDL
+#include "helix_icon_data.h"
+#include "lvgl/src/drivers/sdl/lv_sdl_window.h"
+#endif
+
 bool ui_set_window_icon(lv_display_t* disp) {
+#ifdef HELIX_DISPLAY_SDL
     spdlog::debug("[Icon] Setting window icon...");
 
     if (!disp) {
@@ -42,4 +46,9 @@ bool ui_set_window_icon(lv_display_t* disp) {
 
     spdlog::debug("[Icon] Window icon set (128x128 embedded data)");
     return true;
+#else
+    // Window icons are not supported on embedded displays (framebuffer/DRM)
+    (void)disp;
+    return false;
+#endif
 }

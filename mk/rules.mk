@@ -43,14 +43,32 @@ $(LIBHV_LIB):
 
 # Build TinyGL if not present (dependency rule)
 # Only build if ENABLE_TINYGL_3D=yes
+# Output: $(BUILD_DIR)/lib/libTinyGL.a for architecture isolation
+# Note: TinyGL builds in-tree, so we must clean before cross-compilation
 ifeq ($(ENABLE_TINYGL_3D),yes)
 # Track TinyGL source files so incremental builds detect changes
 TINYGL_SOURCES := $(wildcard $(TINYGL_DIR)/src/*.c $(TINYGL_DIR)/src/*.h $(TINYGL_DIR)/include/*.h $(TINYGL_DIR)/include/GL/*.h)
 
 $(TINYGL_LIB): $(TINYGL_SOURCES)
 	$(ECHO) "$(CYAN)$(BOLD)Building TinyGL...$(RESET)"
+	$(Q)mkdir -p $(BUILD_DIR)/lib
+ifneq ($(CROSS_COMPILE),)
+	# Cross-compilation mode - clean in-tree artifacts first
+	$(Q)if [ -f "$(TINYGL_DIR)/lib/libTinyGL.a" ]; then \
+		echo "$(YELLOW)→ Cleaning TinyGL in-tree artifacts for cross-compilation...$(RESET)"; \
+		cd $(TINYGL_DIR) && $(MAKE) clean; \
+	fi
+	# Pass CC and CFLAGS_LIB to override TinyGL's defaults for cross-compilation
+	# Build only the library (skip Raw_Demos which use -march=native and fail with cross-compiler)
+	$(Q)cd $(TINYGL_DIR) && CC="$(CC)" CFLAGS_LIB="-Wall -O3 -std=c99 -pedantic -DNDEBUG -Wno-unused-function $(TARGET_CFLAGS)" $(MAKE) lib/libTinyGL.a
+else ifeq ($(UNAME_S),Darwin)
 	$(Q)cd $(TINYGL_DIR) && MACOSX_DEPLOYMENT_TARGET=$(MACOS_MIN_VERSION) $(MAKE)
-	$(ECHO) "$(GREEN)✓ TinyGL built: $(TINYGL_LIB)$(RESET)"
+else
+	$(Q)cd $(TINYGL_DIR) && $(MAKE)
+endif
+	# Copy to architecture-specific output directory
+	$(Q)cp $(TINYGL_DIR)/lib/libTinyGL.a $(BUILD_DIR)/lib/libTinyGL.a
+	$(ECHO) "$(GREEN)✓ TinyGL built: $(BUILD_DIR)/lib/libTinyGL.a$(RESET)"
 endif
 
 # Link binary (SDL2_LIB is empty if using system SDL2)
@@ -166,6 +184,8 @@ run: $(TARGET)
 	$(Q)$(TARGET)
 
 # Clean build artifacts
+# Note: Libraries are built in-tree (lib/*/), then copied to $(BUILD_DIR)/lib/
+# Clean removes both the output directory AND the in-tree build artifacts
 clean:
 	$(ECHO) "$(YELLOW)Cleaning build artifacts...$(RESET)"
 	$(Q)if [ -d "$(BUILD_DIR)" ]; then \
@@ -186,13 +206,13 @@ clean:
 		find $(LIBHV_DIR) -type f \( -name '*.o' -o -name '*.a' -o -name '*.so' -o -name '*.dylib' \) -delete; \
 	fi
 ifeq ($(ENABLE_TINYGL_3D),yes)
-	$(Q)if [ -f "$(TINYGL_LIB)" ]; then \
+	$(Q)if [ -d "$(TINYGL_DIR)" ] && [ -f "$(TINYGL_DIR)/lib/libTinyGL.a" ]; then \
 		echo "$(YELLOW)→ Cleaning TinyGL...$(RESET)"; \
 		cd $(TINYGL_DIR) && $(MAKE) clean; \
 	fi
 endif
 ifneq ($(UNAME_S),Darwin)
-	$(Q)if [ -f "$(WPA_CLIENT_LIB)" ]; then \
+	$(Q)if [ -d "$(WPA_DIR)/wpa_supplicant" ] && [ -f "$(WPA_DIR)/wpa_supplicant/libwpa_client.a" ]; then \
 		echo "$(YELLOW)→ Cleaning wpa_supplicant...$(RESET)"; \
 		$(MAKE) -C $(WPA_DIR)/wpa_supplicant clean; \
 	fi

@@ -1,0 +1,446 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# HelixScreen - Modular Dependency Checker
+#
+# Usage:
+#   ./scripts/check-deps.sh           # Full check (desktop development)
+#   ./scripts/check-deps.sh --minimal # Essential deps only (cross-compilation)
+#
+# Environment Variables:
+#   CC, CXX     - Override compiler commands for cross-compilation check
+#   LVGL_DIR    - Override LVGL submodule path (default: lib/lvgl)
+#   SPDLOG_DIR  - Override spdlog submodule path (default: lib/spdlog)
+#   LIBHV_DIR   - Override libhv submodule path (default: lib/libhv)
+#   WPA_DIR     - Override wpa_supplicant submodule path (default: lib/wpa_supplicant)
+
+set -e
+
+# =============================================================================
+# Colors and Formatting
+# =============================================================================
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+RESET='\033[0m'
+BOLD='\033[1m'
+
+# =============================================================================
+# State Tracking
+# =============================================================================
+
+ERRORS=0
+WARNINGS=0
+MISSING=""
+
+# =============================================================================
+# Paths (can be overridden via environment)
+# =============================================================================
+
+LVGL_DIR="${LVGL_DIR:-lib/lvgl}"
+SPDLOG_DIR="${SPDLOG_DIR:-lib/spdlog}"
+LIBHV_DIR="${LIBHV_DIR:-lib/libhv}"
+WPA_DIR="${WPA_DIR:-lib/wpa_supplicant}"
+VENV="${VENV:-.venv}"
+
+# =============================================================================
+# Utility Functions
+# =============================================================================
+
+ok() {
+    echo -e "${GREEN}✓${RESET} $1"
+}
+
+fail() {
+    local msg="$1"
+    local dep_name="$2"
+    echo -e "${RED}✗${RESET} $msg"
+    ERRORS=$((ERRORS + 1))
+    [ -n "$dep_name" ] && MISSING="$MISSING $dep_name"
+}
+
+warn() {
+    echo -e "${YELLOW}⚠${RESET} $1"
+    WARNINGS=$((WARNINGS + 1))
+}
+
+skip() {
+    echo -e "${YELLOW}⊘${RESET} $1 (skipped)"
+}
+
+info() {
+    echo -e "${CYAN}ℹ${RESET} $1"
+}
+
+hint() {
+    # Print install hints for different package managers
+    local pkg="$1"
+    local brew_pkg="$2"
+    local apt_pkg="$3"
+    local dnf_pkg="$4"
+
+    echo "  Install: ${YELLOW}brew install ${brew_pkg:-$pkg}${RESET} (macOS)"
+    echo "         ${YELLOW}sudo apt install ${apt_pkg:-$pkg}${RESET} (Debian/Ubuntu)"
+    echo "         ${YELLOW}sudo dnf install ${dnf_pkg:-$pkg}${RESET} (Fedora/RHEL)"
+}
+
+# Check if a command exists and print version
+check_command() {
+    local cmd="$1"
+    local name="${2:-$1}"
+    local show_hint="${3:-}"
+
+    if command -v "$cmd" >/dev/null 2>&1; then
+        local version
+        version=$("$cmd" --version 2>&1 | head -n1)
+        ok "$name found: $version"
+        return 0
+    else
+        fail "$name not found" "$name"
+        [ -n "$show_hint" ] && eval "$show_hint"
+        return 1
+    fi
+}
+
+# Check if a pkg-config package exists
+check_pkg() {
+    local pkg="$1"
+    local name="${2:-$1}"
+
+    if pkg-config --exists "$pkg" 2>/dev/null; then
+        local version
+        version=$(pkg-config --modversion "$pkg" 2>/dev/null || echo "unknown")
+        ok "$name found: $version"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Check if a directory exists (for submodules)
+check_dir() {
+    local dir="$1"
+    local name="$2"
+    local required="${3:-true}"
+
+    if [ -d "$dir" ]; then
+        ok "$name found: $dir"
+        return 0
+    else
+        if [ "$required" = "true" ]; then
+            fail "$name not found" "$name"
+            echo "  Run: ${YELLOW}git submodule update --init --recursive${RESET}"
+        else
+            warn "$name not found (optional)"
+        fi
+        return 1
+    fi
+}
+
+# =============================================================================
+# Dependency Category Checks
+# =============================================================================
+
+check_essential() {
+    echo ""
+    echo -e "${BOLD}Essential Build Dependencies${RESET}"
+
+    # C Compiler
+    local cc_cmd="${CC:-cc}"
+    if command -v "$cc_cmd" >/dev/null 2>&1; then
+        ok "C compiler found: $($cc_cmd --version 2>&1 | head -n1)"
+    else
+        fail "C compiler ($cc_cmd) not found" "cc"
+        hint "clang" "llvm" "clang" "clang"
+    fi
+
+    # C++ Compiler
+    local cxx_cmd="${CXX:-c++}"
+    if command -v "$cxx_cmd" >/dev/null 2>&1; then
+        ok "C++ compiler found: $($cxx_cmd --version 2>&1 | head -n1)"
+    else
+        fail "C++ compiler ($cxx_cmd) not found" "c++"
+        hint "clang" "llvm" "g++" "gcc-c++"
+    fi
+
+    # Make
+    check_command "make" "make" 'hint "make" "make" "make" "make"'
+
+    # pkg-config
+    check_command "pkg-config" "pkg-config" 'hint "pkg-config" "pkg-config" "pkg-config" "pkgconfig"'
+}
+
+check_submodules() {
+    echo ""
+    echo -e "${BOLD}Submodules${RESET}"
+
+    check_dir "$LVGL_DIR/src" "LVGL" true
+    check_dir "$SPDLOG_DIR/include" "spdlog" true
+    check_dir "$LIBHV_DIR" "libhv" true
+
+    # wpa_supplicant only needed on Linux
+    if [ "$(uname -s)" != "Darwin" ]; then
+        check_dir "$WPA_DIR/wpa_supplicant" "wpa_supplicant" true
+    fi
+}
+
+check_libraries() {
+    echo ""
+    echo -e "${BOLD}Libraries${RESET}"
+
+    # fmt (required by spdlog)
+    if check_pkg fmt; then
+        :  # ok already printed
+    else
+        warn "fmt not found (required by spdlog)"
+        hint "fmt" "fmt" "libfmt-dev" "fmt-devel"
+    fi
+
+    # OpenSSL (Linux only - macOS uses system)
+    if [ "$(uname -s)" != "Darwin" ]; then
+        if check_pkg openssl || check_pkg libssl; then
+            :  # ok already printed
+        elif [ -f "/usr/include/openssl/ssl.h" ] || [ -f "/usr/local/include/openssl/ssl.h" ]; then
+            ok "OpenSSL found (system headers)"
+        else
+            fail "OpenSSL development libraries not found" "openssl"
+            hint "openssl" "openssl" "libssl-dev" "openssl-devel"
+        fi
+    fi
+
+    # libhv status
+    if check_pkg libhv 2>/dev/null; then
+        :  # system version
+    elif [ -f "$LIBHV_DIR/lib/libhv.a" ]; then
+        ok "libhv: Using submodule version"
+    else
+        info "libhv: Will be built from submodule"
+    fi
+}
+
+check_desktop_tools() {
+    echo ""
+    echo -e "${BOLD}Desktop Development Tools${RESET}"
+
+    # SDL2
+    if command -v sdl2-config >/dev/null 2>&1; then
+        ok "SDL2 found: $(sdl2-config --version)"
+    else
+        info "SDL2 not found - will build from submodule"
+        # cmake is required for SDL2 build
+        if ! check_command "cmake" "cmake (for SDL2 build)"; then
+            hint "cmake" "cmake" "cmake" "cmake"
+        fi
+    fi
+
+    # macOS version check
+    if [ "$(uname -s)" = "Darwin" ]; then
+        local macos_version
+        macos_version=$(sw_vers -productVersion 2>/dev/null | cut -d. -f1-2)
+        local major minor
+        major=$(echo "$macos_version" | cut -d. -f1)
+        minor=$(echo "$macos_version" | cut -d. -f2)
+
+        # Require 10.15+ for modern CoreWLAN/CoreLocation APIs
+        if [ "$major" -lt 10 ] || { [ "$major" -eq 10 ] && [ "$minor" -lt 15 ]; }; then
+            fail "macOS $macos_version is too old (need 10.15+)" "macos"
+            echo "  Reason: CoreWLAN/CoreLocation modern APIs for WiFi support"
+        else
+            ok "macOS version $macos_version >= 10.15"
+        fi
+    fi
+
+    # npm/node (for font generation)
+    if command -v npm >/dev/null 2>&1; then
+        ok "npm found: $(npm --version)"
+        if [ -f "node_modules/.bin/lv_font_conv" ]; then
+            ok "lv_font_conv installed"
+        else
+            warn "lv_font_conv not installed"
+            echo "  Run: ${YELLOW}npm install${RESET}"
+        fi
+    else
+        fail "npm not found (needed for font generation)" "npm"
+        hint "npm" "node" "npm" "npm"
+    fi
+
+    # Python (for image tools)
+    if command -v python3 >/dev/null 2>&1; then
+        ok "python3 found: $(python3 --version)"
+
+        # Check venv support
+        if ! python3 -c "import venv, ensurepip" 2>/dev/null; then
+            warn "python3-venv not installed"
+            echo "  Install: ${YELLOW}sudo apt install python3-venv${RESET} (Debian/Ubuntu)"
+        elif [ ! -f "$VENV/bin/python3" ]; then
+            warn "Python venv not set up"
+            echo "  Run: ${YELLOW}make venv-setup${RESET}"
+        else
+            ok "Python venv: $VENV"
+
+            # Check for required Python packages
+            local missing_pkgs=""
+            if ! "$VENV/bin/python3" -c "import png" >/dev/null 2>&1; then
+                missing_pkgs="$missing_pkgs pypng"
+            fi
+            if ! "$VENV/bin/python3" -c "import lz4" >/dev/null 2>&1; then
+                missing_pkgs="$missing_pkgs lz4"
+            fi
+
+            if [ -n "$missing_pkgs" ]; then
+                warn "Missing Python packages:$missing_pkgs"
+                echo "  Run: ${YELLOW}make venv-setup${RESET}"
+            else
+                ok "Python packages (pypng, lz4) installed"
+            fi
+        fi
+    else
+        fail "python3 not found" "python3"
+        hint "python3" "python3" "python3" "python3"
+    fi
+
+    # Formatting tools (warnings only)
+    if command -v clang-format >/dev/null 2>&1; then
+        ok "clang-format found: $(clang-format --version | head -n1)"
+    else
+        warn "clang-format not found (needed for code formatting)"
+        hint "clang-format" "clang-format" "clang-format" "clang-tools-extra"
+    fi
+
+    if command -v xmllint >/dev/null 2>&1; then
+        ok "xmllint found"
+    else
+        warn "xmllint not found (needed for XML validation)"
+        hint "xmllint" "libxml2" "libxml2-utils" "libxml2"
+    fi
+}
+
+check_canvas_libs() {
+    echo ""
+    echo -e "${BOLD}Canvas/Image Libraries (optional)${RESET}"
+
+    local canvas_missing=""
+
+    if check_pkg cairo; then
+        :
+    else
+        warn "cairo not found"
+        canvas_missing="$canvas_missing cairo"
+    fi
+
+    if check_pkg pango; then
+        :
+    else
+        warn "pango not found"
+        canvas_missing="$canvas_missing pango"
+    fi
+
+    if check_pkg libpng; then
+        :
+    else
+        warn "libpng not found"
+        canvas_missing="$canvas_missing libpng"
+    fi
+
+    # These are truly optional
+    if check_pkg libjpeg 2>/dev/null; then
+        :
+    else
+        info "libjpeg not found (optional, for JPEG support)"
+    fi
+
+    if check_pkg librsvg-2.0 librsvg 2>/dev/null; then
+        :
+    else
+        info "librsvg not found (optional, for SVG support)"
+    fi
+
+    if [ -n "$canvas_missing" ]; then
+        echo ""
+        echo -e "  ${CYAN}To install canvas dependencies:${RESET}"
+        if [ "$(uname -s)" = "Darwin" ]; then
+            echo "  ${YELLOW}brew install$canvas_missing${RESET}"
+        elif [ -f /etc/debian_version ]; then
+            local debian_pkgs=""
+            for lib in $canvas_missing; do
+                case $lib in
+                    cairo) debian_pkgs="$debian_pkgs libcairo2-dev" ;;
+                    pango) debian_pkgs="$debian_pkgs libpango1.0-dev" ;;
+                    libpng) debian_pkgs="$debian_pkgs libpng-dev" ;;
+                esac
+            done
+            echo "  ${YELLOW}sudo apt install$debian_pkgs${RESET}"
+        elif [ -f /etc/fedora-release ] || [ -f /etc/redhat-release ]; then
+            local fedora_pkgs=""
+            for lib in $canvas_missing; do
+                case $lib in
+                    cairo) fedora_pkgs="$fedora_pkgs cairo-devel" ;;
+                    pango) fedora_pkgs="$fedora_pkgs pango-devel" ;;
+                    libpng) fedora_pkgs="$fedora_pkgs libpng-devel" ;;
+                esac
+            done
+            echo "  ${YELLOW}sudo dnf install$fedora_pkgs${RESET}"
+        fi
+    fi
+}
+
+print_summary() {
+    echo ""
+
+    if [ $ERRORS -gt 0 ]; then
+        echo -e "${RED}${BOLD}✗ Missing required dependencies:${RESET}$MISSING"
+        echo ""
+        echo -e "Run: ${YELLOW}make install-deps${RESET}"
+        return 1
+    elif [ $WARNINGS -gt 0 ]; then
+        echo -e "${YELLOW}⚠ Some optional dependencies missing (build may still work)${RESET}"
+        return 0
+    else
+        echo -e "${GREEN}${BOLD}✓ All dependencies satisfied!${RESET}"
+        return 0
+    fi
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
+MINIMAL=0
+for arg in "$@"; do
+    case "$arg" in
+        --minimal|-m)
+            MINIMAL=1
+            ;;
+        --help|-h)
+            echo "Usage: $0 [--minimal]"
+            echo ""
+            echo "Options:"
+            echo "  --minimal, -m   Only check essential dependencies (for cross-compilation)"
+            echo "  --help, -h      Show this help message"
+            exit 0
+            ;;
+    esac
+done
+
+echo -e "${CYAN}${BOLD}Checking build dependencies...${RESET}"
+
+if [ $MINIMAL -eq 1 ]; then
+    info "Minimal mode: checking essential dependencies only"
+fi
+
+# Always check essential deps
+check_essential
+check_submodules
+check_libraries
+
+# Full check includes desktop tools
+if [ $MINIMAL -eq 0 ]; then
+    check_desktop_tools
+    check_canvas_libs
+fi
+
+# Print summary and exit with appropriate code
+print_summary
+exit $?

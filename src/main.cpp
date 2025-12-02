@@ -82,9 +82,13 @@
 #include "usb_backend_mock.h"
 #include "usb_manager.h"
 
+#include "display_backend.h"
+
 #include <spdlog/spdlog.h>
 
+#ifdef HELIX_DISPLAY_SDL
 #include <SDL.h>
+#endif
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -97,6 +101,25 @@
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
+#endif
+
+// Portable timing functions (SDL-independent for embedded builds)
+#ifdef HELIX_DISPLAY_SDL
+// Use SDL timing when available (more precise on desktop)
+inline uint32_t helix_get_ticks() { return SDL_GetTicks(); }
+inline void helix_delay(uint32_t ms) { SDL_Delay(ms); }
+#else
+// POSIX fallback for embedded Linux
+#include <time.h>
+inline uint32_t helix_get_ticks() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+}
+inline void helix_delay(uint32_t ms) {
+    struct timespec ts = {ms / 1000, (ms % 1000) * 1000000L};
+    nanosleep(&ts, nullptr);
+}
 #endif
 
 // Forward declarations for panel global accessor functions
@@ -178,7 +201,8 @@ static void ensure_project_root_cwd() {
     }
 }
 
-// LVGL display and input
+// Display backend and LVGL display/input
+static std::unique_ptr<DisplayBackend> g_display_backend;
 static lv_display_t* display = nullptr;
 static lv_indev_t* indev_mouse = nullptr;
 
@@ -945,38 +969,50 @@ static void initialize_subjects() {
     }
 }
 
-// Initialize LVGL with SDL
+// Initialize LVGL with auto-detected display backend
 static bool init_lvgl() {
     lv_init();
 
-    // LVGL's SDL driver handles window creation internally
-    display = lv_sdl_window_create(SCREEN_WIDTH, SCREEN_HEIGHT);
+    // Create display backend (auto-detects: DRM → framebuffer → SDL)
+    g_display_backend = DisplayBackend::create_auto();
+    if (!g_display_backend) {
+        spdlog::error("No display backend available");
+        lv_deinit();
+        return false;
+    }
+
+    spdlog::info("Using display backend: {}", g_display_backend->name());
+
+    // Create display
+    display = g_display_backend->create_display(SCREEN_WIDTH, SCREEN_HEIGHT);
     if (!display) {
-        spdlog::error("Failed to create LVGL SDL display");
-        lv_deinit(); // Clean up partial LVGL state
+        spdlog::error("Failed to create display");
+        g_display_backend.reset();
+        lv_deinit();
         return false;
     }
 
-    // Create mouse input device
-    indev_mouse = lv_sdl_mouse_create();
+    // Create pointer input device (mouse/touch)
+    indev_mouse = g_display_backend->create_input_pointer();
     if (!indev_mouse) {
-        spdlog::error("Failed to create LVGL SDL mouse input");
-        lv_deinit(); // Clean up partial LVGL state
-        return false;
+        spdlog::warn("No pointer input device created - touch/mouse disabled");
+        // Continue without pointer - some embedded scenarios may not have touch
     }
 
-    // Configure scroll behavior from config (improves touchpad scrolling feel)
+    // Configure scroll behavior from config (improves touchpad/touchscreen scrolling feel)
     // scroll_throw: momentum decay rate (1-99), higher = faster decay, default LVGL is 10
     // scroll_limit: pixels before scrolling starts, lower = more responsive, default LVGL is 10
-    Config* cfg = Config::get_instance();
-    int scroll_throw = cfg->get<int>("/input/scroll_throw", 25);
-    int scroll_limit = cfg->get<int>("/input/scroll_limit", 5);
-    lv_indev_set_scroll_throw(indev_mouse, static_cast<uint8_t>(scroll_throw));
-    lv_indev_set_scroll_limit(indev_mouse, static_cast<uint8_t>(scroll_limit));
-    spdlog::debug("Scroll config: throw={}, limit={}", scroll_throw, scroll_limit);
+    if (indev_mouse) {
+        Config* cfg = Config::get_instance();
+        int scroll_throw = cfg->get<int>("/input/scroll_throw", 25);
+        int scroll_limit = cfg->get<int>("/input/scroll_limit", 5);
+        lv_indev_set_scroll_throw(indev_mouse, static_cast<uint8_t>(scroll_throw));
+        lv_indev_set_scroll_limit(indev_mouse, static_cast<uint8_t>(scroll_limit));
+        spdlog::debug("Scroll config: throw={}, limit={}", scroll_throw, scroll_limit);
+    }
 
     // Create keyboard input device (optional - enables physical keyboard input)
-    lv_indev_t* indev_keyboard = lv_sdl_keyboard_create();
+    lv_indev_t* indev_keyboard = g_display_backend->create_input_keyboard();
     if (indev_keyboard) {
         spdlog::debug("Physical keyboard input enabled");
 
@@ -1062,12 +1098,12 @@ static void show_splash_screen() {
 
     // Run LVGL timer to process fade-in animation and keep splash visible
     // Total display time: 2 seconds (including 0.5s fade-in)
-    uint32_t splash_start = SDL_GetTicks();
+    uint32_t splash_start = helix_get_ticks();
     uint32_t splash_duration = 2000; // 2 seconds total
 
-    while (SDL_GetTicks() - splash_start < splash_duration) {
+    while (helix_get_ticks() - splash_start < splash_duration) {
         lv_timer_handler(); // Process animations and rendering
-        SDL_Delay(5);
+        helix_delay(5);
     }
 
     // Clean up splash screen
@@ -1394,7 +1430,8 @@ int main(int argc, char** argv) {
         spdlog::debug("Loaded theme preference from config: {}", dark_mode ? "dark" : "light");
     }
 
-    // Set window position environment variables for LVGL SDL driver
+#ifdef HELIX_DISPLAY_SDL
+    // Set window position environment variables for LVGL SDL driver (desktop only)
     if (display_num >= 0) {
         char display_str[32];
         snprintf(display_str, sizeof(display_str), "%d", display_num);
@@ -1416,8 +1453,9 @@ int main(int argc, char** argv) {
     } else if ((x_pos >= 0 && y_pos < 0) || (x_pos < 0 && y_pos >= 0)) {
         spdlog::warn("Both -x and -y must be specified for exact positioning. Ignoring.");
     }
+#endif
 
-    // Initialize LVGL (handles SDL internally)
+    // Initialize LVGL with display backend
     if (!init_lvgl()) {
         return 1;
     }
@@ -1485,9 +1523,9 @@ int main(int argc, char** argv) {
     // Initialize component systems (BEFORE XML registration)
     ui_component_header_bar_init();
 
-    // WORKAROUND: Add small delay to stabilize SDL/LVGL initialization
-    // Prevents race condition between SDL2 and LVGL 9 XML component registration
-    SDL_Delay(100);
+    // WORKAROUND: Add small delay to stabilize display/LVGL initialization
+    // Prevents race condition between display backend and LVGL 9 XML component registration
+    helix_delay(100);
 
     // Register remaining XML components (globals already registered for theme init)
     register_xml_components();
@@ -1879,21 +1917,23 @@ int main(int argc, char** argv) {
     }
 
     // Auto-screenshot timer (configurable delay after UI creation)
-    uint32_t screenshot_time = SDL_GetTicks() + (screenshot_delay_sec * 1000);
+    uint32_t screenshot_time = helix_get_ticks() + (screenshot_delay_sec * 1000);
     bool screenshot_taken = false;
 
     // Auto-quit timeout timer (if enabled)
-    uint32_t start_time = SDL_GetTicks();
+    uint32_t start_time = helix_get_ticks();
     uint32_t timeout_ms = timeout_sec * 1000;
 
     // Request timeout check timer (check every 2 seconds)
-    uint32_t last_timeout_check = SDL_GetTicks();
+    uint32_t last_timeout_check = helix_get_ticks();
     uint32_t timeout_check_interval =
         config->get<int>(config->df() + "moonraker_timeout_check_interval_ms", 2000);
 
-    // Main event loop - Let LVGL handle SDL events internally via lv_timer_handler()
+    // Main event loop - LVGL handles display events internally via lv_timer_handler()
     // Loop continues while display exists and quit not requested
     while (lv_display_get_next(NULL) && !app_quit_requested()) {
+#ifdef HELIX_DISPLAY_SDL
+        // Desktop keyboard shortcuts (SDL only)
         // Check for Cmd+Q (macOS) or Win+Q (Windows) to quit
         SDL_Keymod modifiers = SDL_GetModState();
         const Uint8* keyboard_state = SDL_GetKeyboardState(NULL);
@@ -1911,21 +1951,22 @@ int main(int argc, char** argv) {
         } else if (!keyboard_state[SDL_SCANCODE_T]) {
             t_key_was_pressed = false;
         }
+#endif
 
         // Auto-screenshot after configured delay (only if enabled)
-        if (screenshot_enabled && !screenshot_taken && SDL_GetTicks() >= screenshot_time) {
+        if (screenshot_enabled && !screenshot_taken && helix_get_ticks() >= screenshot_time) {
             save_screenshot();
             screenshot_taken = true;
         }
 
         // Auto-quit after timeout (if enabled)
-        if (timeout_sec > 0 && (SDL_GetTicks() - start_time) >= timeout_ms) {
+        if (timeout_sec > 0 && (helix_get_ticks() - start_time) >= timeout_ms) {
             spdlog::info("Timeout reached ({} seconds) - exiting...", timeout_sec);
             break;
         }
 
         // Check for request timeouts (using configured interval)
-        uint32_t current_time = SDL_GetTicks();
+        uint32_t current_time = helix_get_ticks();
         if (current_time - last_timeout_check >= timeout_check_interval) {
             moonraker_client->process_timeouts();
             last_timeout_check = current_time;
@@ -1959,10 +2000,10 @@ int main(int argc, char** argv) {
             }
         }
 
-        // Run LVGL tasks - internally polls SDL events and processes input
+        // Run LVGL tasks - handles display events and processes input
         lv_timer_handler();
         fflush(stdout);
-        SDL_Delay(5); // Small delay to prevent 100% CPU usage
+        helix_delay(5); // Small delay to prevent 100% CPU usage
     }
 
     // Cleanup

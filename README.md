@@ -196,6 +196,23 @@ make -j
 # Controls: Click navigation icons, press 'S' for screenshot
 ```
 
+### Cross-Compilation (Embedded Targets)
+
+Build for embedded ARM targets using Docker (no toolchain installation required):
+
+```bash
+# Build for Raspberry Pi (aarch64)
+make pi-docker
+
+# Build for Flashforge Adventurer 5M (armv7-a)
+make ad5m-docker
+
+# View all cross-compilation options
+make cross-info
+```
+
+Docker images are **automatically built** on first use. See [BUILD_SYSTEM.md](docs/BUILD_SYSTEM.md#cross-compilation-embedded-targets) for details.
+
 ### Test Mode
 
 The prototype includes a comprehensive test mode for development without hardware:
