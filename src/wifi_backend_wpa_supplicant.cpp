@@ -871,9 +871,12 @@ std::vector<WiFiNetwork> WifiBackendWpaSupplicant::parse_scan_results(const std:
             continue;
 
         // Parse tab-separated fields: BSSID\tfreq\tsignal\tflags\tSSID
+        // Note: Hidden networks may have only 4 fields (SSID completely absent)
         std::vector<std::string> fields = split_by_tabs(line);
-        if (fields.size() < 5) {
-            LOG_WARN_INTERNAL("Skipping malformed scan line: {}", line);
+        if (fields.size() < 4) {
+            // Truly malformed - need at least BSSID, freq, signal, flags
+            spdlog::trace("[WifiBackend] Skipping malformed scan line ({} fields): {}",
+                          fields.size(), line);
             continue;
         }
 
@@ -881,9 +884,10 @@ std::vector<WiFiNetwork> WifiBackendWpaSupplicant::parse_scan_results(const std:
         std::string freq_str = fields[1];
         std::string signal_str = fields[2];
         std::string flags = fields[3];
-        std::string ssid = fields[4];
+        // SSID may be missing entirely for hidden networks
+        std::string ssid = (fields.size() >= 5) ? fields[4] : "";
 
-        // Skip hidden networks (empty SSID)
+        // Skip hidden networks (empty or missing SSID)
         if (ssid.empty()) {
             spdlog::trace("[WifiBackend] Skipping hidden network: {}", bssid);
             continue;

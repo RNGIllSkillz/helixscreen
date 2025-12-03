@@ -475,6 +475,7 @@ static bool parse_command_line_args(
         } else if (strncmp(argv[i], "--splash-pid=", 13) == 0) {
             // External splash process PID - will send SIGUSR1 when display ready
             g_runtime_config.splash_pid = static_cast<pid_t>(atoi(argv[i] + 13));
+            spdlog::info("Splash PID received from launcher: {}", g_runtime_config.splash_pid);
         } else if (strcmp(argv[i], "--real-wifi") == 0) {
             g_runtime_config.use_real_wifi = true;
         } else if (strcmp(argv[i], "--real-ethernet") == 0) {

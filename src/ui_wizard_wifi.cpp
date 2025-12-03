@@ -241,6 +241,10 @@ void WizardWifiStep::populate_network_list(const std::vector<WiFiNetwork>& netwo
         return;
     }
 
+    // Save scroll position before clearing - prevents jarring UX when list refreshes
+    int32_t scroll_y = lv_obj_get_scroll_y(network_list_container_);
+    spdlog::trace("[{}] Saving scroll position: {}px", get_name(), scroll_y);
+
     clear_network_list();
 
     // Sort by signal strength
@@ -315,6 +319,12 @@ void WizardWifiStep::populate_network_list(const std::vector<WiFiNetwork>& netwo
         spdlog::debug("[{}] Added network: {} ({}%, {})", get_name(), network.ssid,
                       network.signal_strength, network.is_secured ? "secured" : "open");
     }
+
+    // Restore scroll position after repopulating
+    // Need to update layout first so LVGL knows the new content size
+    lv_obj_update_layout(network_list_container_);
+    lv_obj_scroll_to_y(network_list_container_, scroll_y, LV_ANIM_OFF);
+    spdlog::trace("[{}] Restored scroll position: {}px", get_name(), scroll_y);
 
     spdlog::debug("[{}] Populated {} network items", get_name(), sorted_networks.size());
 }
