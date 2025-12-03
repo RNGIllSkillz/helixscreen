@@ -90,13 +90,6 @@ class WizardWifiStep {
     void register_callbacks();
 
     /**
-     * @brief Register responsive constants for WiFi network list
-     *
-     * Registers WiFi-specific constants to component scopes.
-     */
-    void register_responsive_constants();
-
-    /**
      * @brief Create the WiFi setup UI from XML
      *
      * @param parent Parent container (wizard_content)
@@ -163,11 +156,7 @@ class WizardWifiStep {
 
     // Current network selection for password modal
     char current_ssid_[64];
-    bool current_secured_ = false;
-
-    // Theme-aware colors
-    lv_color_t wifi_item_bg_color_;
-    lv_color_t wifi_item_text_color_;
+    bool current_network_is_secured_ = false;
 
     // State tracking
     bool subjects_initialized_ = false;
@@ -183,8 +172,6 @@ class WizardWifiStep {
     void update_ethernet_status();
     void populate_network_list(const std::vector<WiFiNetwork>& networks);
     void clear_network_list();
-    void init_wifi_item_colors();
-    void apply_connected_network_highlight(lv_obj_t* item);
 
     // Static trampolines for LVGL callbacks
     static void on_wifi_toggle_changed_static(lv_event_t* e);

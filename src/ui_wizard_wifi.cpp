@@ -72,24 +72,6 @@ struct NetworkItemData {
 };
 
 // ============================================================================
-// Helper: Constant Registration
-// ============================================================================
-
-struct WifiConstant {
-    const char* name;
-    const char* value;
-};
-
-static void register_wifi_constants_to_scope(lv_xml_component_scope_t* scope,
-                                             const WifiConstant* constants) {
-    if (!scope)
-        return;
-    for (int i = 0; constants[i].name != NULL; i++) {
-        lv_xml_register_const(scope, constants[i].name, constants[i].value);
-    }
-}
-
-// ============================================================================
 // Constructor / Destructor
 // ============================================================================
 
@@ -141,8 +123,7 @@ WizardWifiStep::WizardWifiStep(WizardWifiStep&& other) noexcept
       wifi_password_modal_ssid_(other.wifi_password_modal_ssid_),
       wifi_connecting_(other.wifi_connecting_), wifi_manager_(std::move(other.wifi_manager_)),
       ethernet_manager_(std::move(other.ethernet_manager_)),
-      current_secured_(other.current_secured_), wifi_item_bg_color_(other.wifi_item_bg_color_),
-      wifi_item_text_color_(other.wifi_item_text_color_),
+      current_network_is_secured_(other.current_network_is_secured_),
       subjects_initialized_(other.subjects_initialized_) {
     std::memcpy(wifi_status_buffer_, other.wifi_status_buffer_, sizeof(wifi_status_buffer_));
     std::memcpy(ethernet_status_buffer_, other.ethernet_status_buffer_,
@@ -171,9 +152,7 @@ WizardWifiStep& WizardWifiStep::operator=(WizardWifiStep&& other) noexcept {
         wifi_connecting_ = other.wifi_connecting_;
         wifi_manager_ = std::move(other.wifi_manager_);
         ethernet_manager_ = std::move(other.ethernet_manager_);
-        current_secured_ = other.current_secured_;
-        wifi_item_bg_color_ = other.wifi_item_bg_color_;
-        wifi_item_text_color_ = other.wifi_item_text_color_;
+        current_network_is_secured_ = other.current_network_is_secured_;
         subjects_initialized_ = other.subjects_initialized_;
 
         std::memcpy(wifi_status_buffer_, other.wifi_status_buffer_, sizeof(wifi_status_buffer_));
@@ -226,49 +205,6 @@ const char* WizardWifiStep::get_wifi_signal_icon(int signal_strength, bool is_se
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-void WizardWifiStep::init_wifi_item_colors() {
-    lv_xml_component_scope_t* scope = lv_xml_component_get_scope("wifi_network_item");
-    if (scope) {
-        bool use_dark_mode = ui_theme_is_dark_mode();
-
-        const char* bg_str =
-            lv_xml_get_const(scope, use_dark_mode ? "wifi_item_bg_dark" : "wifi_item_bg_light");
-        wifi_item_bg_color_ = bg_str ? ui_theme_parse_color(bg_str) : lv_color_hex(0x262626);
-
-        const char* text_str =
-            lv_xml_get_const(scope, use_dark_mode ? "wifi_item_text_dark" : "wifi_item_text_light");
-        wifi_item_text_color_ = text_str ? ui_theme_parse_color(text_str) : lv_color_hex(0xE3E3E3);
-
-        spdlog::debug("[{}] Item colors loaded: bg={}, text={} ({})", get_name(),
-                      bg_str ? bg_str : "default", text_str ? text_str : "default",
-                      use_dark_mode ? "dark" : "light");
-    } else {
-        wifi_item_bg_color_ = lv_color_hex(0x262626);
-        wifi_item_text_color_ = lv_color_hex(0xE3E3E3);
-        LOG_WARN_INTERNAL("wifi_network_item component not registered - using defaults");
-    }
-}
-
-void WizardWifiStep::apply_connected_network_highlight(lv_obj_t* item) {
-    if (!item)
-        return;
-
-    lv_obj_set_style_border_side(item, LV_BORDER_SIDE_LEFT, LV_PART_MAIN);
-    lv_obj_set_style_border_width(item, 4, LV_PART_MAIN);
-    lv_color_t accent = ui_theme_get_color("primary_color");
-    lv_obj_set_style_border_color(item, accent, LV_PART_MAIN);
-
-    lv_obj_set_style_bg_color(item, wifi_item_bg_color_, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(item, LV_OPA_COVER, LV_PART_MAIN);
-
-    lv_obj_t* ssid_label = lv_obj_find_by_name(item, "ssid_label");
-    if (ssid_label) {
-        lv_obj_set_style_text_color(ssid_label, wifi_item_text_color_, LV_PART_MAIN);
-    }
-
-    spdlog::trace("[{}] Applied connected network highlight", get_name());
-}
 
 void WizardWifiStep::update_wifi_status(const char* status) {
     if (!status)
@@ -366,16 +302,15 @@ void WizardWifiStep::populate_network_list(const std::vector<WiFiNetwork>& netwo
                           network.signal_strength, network.is_secured ? "secured" : "open");
         }
 
-        // Highlight connected network
+        // Mark connected network with LV_STATE_CHECKED (styling handled by XML)
         bool is_connected = (!connected_ssid.empty() && network.ssid == connected_ssid);
         if (is_connected) {
-            apply_connected_network_highlight(item);
-            spdlog::debug("[{}] Highlighted connected network: {}", get_name(), network.ssid);
+            lv_obj_add_state(item, LV_STATE_CHECKED);
+            spdlog::debug("[{}] Marked connected network: {}", get_name(), network.ssid);
         }
 
-        // Store data and register click
+        // Store network data for click handler (callback registered via XML event_cb)
         lv_obj_set_user_data(item, item_data);
-        lv_obj_add_event_cb(item, on_network_item_clicked_static, LV_EVENT_CLICKED, this);
 
         spdlog::debug("[{}] Added network: {} ({}%, {})", get_name(), network.ssid,
                       network.signal_strength, network.is_secured ? "secured" : "open");
@@ -521,7 +456,7 @@ void WizardWifiStep::handle_network_item_clicked(lv_event_t* e) {
 
     strncpy(current_ssid_, network.ssid.c_str(), sizeof(current_ssid_) - 1);
     current_ssid_[sizeof(current_ssid_) - 1] = '\0';
-    current_secured_ = network.is_secured;
+    current_network_is_secured_ = network.is_secured;
 
     char status_buf[128];
     snprintf(status_buf, sizeof(status_buf), "%s%s", get_status_text("connecting"),
@@ -686,67 +621,6 @@ void WizardWifiStep::register_callbacks() {
 }
 
 // ============================================================================
-// Responsive Constants Registration
-// ============================================================================
-
-void WizardWifiStep::register_responsive_constants() {
-    spdlog::debug("[{}] Registering responsive constants", get_name());
-
-    lv_display_t* display = lv_display_get_default();
-    int32_t hor_res = lv_display_get_horizontal_resolution(display);
-    int32_t ver_res = lv_display_get_vertical_resolution(display);
-    int32_t greater_res = LV_MAX(hor_res, ver_res);
-
-    const char* list_item_padding;
-    const char* list_item_font;
-    const char* size_label;
-
-    static char list_item_height_buf[16];
-
-    if (greater_res <= UI_BREAKPOINT_SMALL_MAX) {
-        list_item_padding = "4";
-        list_item_font = "montserrat_14";
-        size_label = "SMALL";
-    } else if (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) {
-        list_item_padding = "6";
-        list_item_font = "montserrat_16";
-        size_label = "MEDIUM";
-    } else {
-        list_item_padding = "8";
-        list_item_font = lv_xml_get_const(NULL, "font_body");
-        size_label = "LARGE";
-    }
-
-    const lv_font_t* item_font_ptr = lv_xml_get_font(NULL, list_item_font);
-    if (item_font_ptr) {
-        int32_t font_height = ui_theme_get_font_height(item_font_ptr);
-        snprintf(list_item_height_buf, sizeof(list_item_height_buf), "%d", font_height);
-        spdlog::debug("[{}] Calculated list_item_height={}px", get_name(), font_height);
-    } else {
-        const char* fallback_height = (greater_res <= UI_BREAKPOINT_SMALL_MAX)    ? "60"
-                                      : (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) ? "80"
-                                                                                  : "100";
-        snprintf(list_item_height_buf, sizeof(list_item_height_buf), "%s", fallback_height);
-        LOG_WARN_INTERNAL("Failed to get font '{}', using fallback", list_item_font);
-    }
-
-    WifiConstant constants[] = {{"list_item_padding", list_item_padding},
-                                {"list_item_height", list_item_height_buf},
-                                {"list_item_font", list_item_font},
-                                {NULL, NULL}};
-
-    lv_xml_component_scope_t* item_scope = lv_xml_component_get_scope("wifi_network_item");
-    register_wifi_constants_to_scope(item_scope, constants);
-
-    lv_xml_component_scope_t* wifi_setup_scope = lv_xml_component_get_scope("wizard_wifi_setup");
-    register_wifi_constants_to_scope(wifi_setup_scope, constants);
-
-    init_wifi_item_colors();
-
-    spdlog::debug("[{}] Registered responsive constants ({})", get_name(), size_label);
-}
-
-// ============================================================================
 // Screen Creation
 // ============================================================================
 
@@ -772,8 +646,6 @@ lv_obj_t* WizardWifiStep::create(lv_obj_t* parent) {
         LOG_ERROR_INTERNAL("Failed to create wizard_wifi_setup from XML");
         return nullptr;
     }
-
-    register_responsive_constants();
 
     network_list_container_ = lv_obj_find_by_name(screen_root_, "network_list_container");
     if (!network_list_container_) {
@@ -906,7 +778,7 @@ void WizardWifiStep::cleanup() {
     password_modal_ = nullptr;
     network_list_container_ = nullptr;
     current_ssid_[0] = '\0';
-    current_secured_ = false;
+    current_network_is_secured_ = false;
 
     spdlog::debug("[{}] Cleanup complete", get_name());
 }
