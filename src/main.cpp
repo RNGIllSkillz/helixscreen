@@ -900,6 +900,7 @@ static void register_xml_components() {
 
     lv_xml_register_component_from_file("A:ui_xml/icon.xml");
     lv_xml_register_component_from_file("A:ui_xml/header_bar.xml");
+    lv_xml_register_component_from_file("A:ui_xml/overlay_backdrop.xml");   // Modal dimming layer
     lv_xml_register_component_from_file("A:ui_xml/overlay_panel_base.xml"); // Base styling only
     lv_xml_register_component_from_file(
         "A:ui_xml/overlay_panel.xml"); // Depends on header_bar + base
@@ -979,8 +980,9 @@ static void register_xml_components() {
 // Initialize all reactive subjects for data binding
 static void initialize_subjects() {
     spdlog::debug("Initializing reactive subjects...");
-    app_globals_init_subjects(); // Global subjects (notification subject, etc.)
-    ui_nav_init();               // Navigation system (icon colors, active panel)
+    app_globals_init_subjects();   // Global subjects (notification subject, etc.)
+    ui_nav_init();                 // Navigation system (icon colors, active panel)
+    ui_status_bar_init_subjects(); // Status bar subjects (printer/network icon states)
 
     // PrinterState must be initialized BEFORE panels that observe its subjects
     // (e.g., HomePanel observes led_state_, extruder_temp_, connection_state_)

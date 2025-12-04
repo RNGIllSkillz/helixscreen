@@ -16,7 +16,7 @@
  *   - src: Icon short name (e.g., "home", "wifi", "settings")
  *   - size: Semantic size string - "xs", "sm", "md", "lg", "xl"
  *   - variant: Color variant - "primary", "secondary", "accent", "disabled",
- *              "warning", "error", "none"
+ *              "success", "warning", "error", "none"
  *   - color: Custom color override (e.g., "0xFF0000", "#FF0000")
  *
  * Size mapping (uses mdi_icons_* fonts):
@@ -31,6 +31,7 @@
  *   secondary: Text color #text_secondary (100% opacity)
  *   accent:    Text color #primary_color (100% opacity)
  *   disabled:  Text color #text_primary (50% opacity)
+ *   success:   Text color #success_color (100% opacity)
  *   warning:   Text color #warning_color (100% opacity)
  *   error:     Text color #error_color (100% opacity)
  *   none:      Text color #text_primary (default)
@@ -65,7 +66,7 @@ void ui_icon_set_size(lv_obj_t* icon, const char* size_str);
  *
  * @param icon         Icon widget
  * @param variant_str  Variant string: "primary", "secondary", "accent",
- *                     "disabled", "warning", "error", or "none"
+ *                     "disabled", "success", "warning", "error", or "none"
  */
 void ui_icon_set_variant(lv_obj_t* icon, const char* variant_str);
 

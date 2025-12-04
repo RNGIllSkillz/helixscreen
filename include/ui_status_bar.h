@@ -53,12 +53,36 @@ enum class NotificationStatus {
 void ui_status_bar_register_callbacks();
 
 /**
+ * @brief Initialize status bar subjects for XML reactive bindings
+ *
+ * Must be called BEFORE app_layout XML is created so XML bindings can find subjects.
+ * Registers the following subjects:
+ * - printer_icon_state (int: 0=ready, 1=warning, 2=error, 3=disconnected)
+ * - network_icon_state (int: 0=connected, 1=connecting, 2=disconnected)
+ * - notification_count (int: badge count, 0=hidden)
+ * - notification_count_text (string: formatted count)
+ * - notification_severity (int: 0=info, 1=warning, 2=error)
+ * - overlay_backdrop_visible (int: 0=hidden, 1=visible)
+ */
+void ui_status_bar_init_subjects();
+
+/**
  * @brief Initialize the status bar system
  *
- * Must be called after the status_bar XML component is created.
- * Finds and caches references to status icon widgets.
+ * Sets up observers on PrinterState subjects to update status bar subjects.
+ * Should be called after XML is created.
  */
 void ui_status_bar_init();
+
+/**
+ * @brief Set overlay backdrop visibility
+ *
+ * Updates the overlay_backdrop_visible subject which controls the
+ * modal dimming backdrop visibility via XML binding.
+ *
+ * @param visible true to show backdrop, false to hide
+ */
+void ui_status_bar_set_backdrop_visible(bool visible);
 
 /**
  * @brief Update network status icon

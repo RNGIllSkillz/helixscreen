@@ -26,6 +26,7 @@
 #include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
 #include "ui_fonts.h"
+#include "ui_status_bar.h"
 #include "ui_theme.h"
 
 #include "lvgl/lvgl.h"
@@ -38,12 +39,6 @@
 // Active panel tracking
 static lv_subject_t active_panel_subject;
 static ui_panel_id_t active_panel = UI_PANEL_HOME;
-
-// Icon color subjects (one per navbar button)
-static lv_subject_t icon_color_subjects[UI_PANEL_COUNT];
-
-// Icon opacity subjects (one per navbar button) - used to dim inactive icons
-static lv_subject_t icon_opacity_subjects[UI_PANEL_COUNT];
 
 // Panel widget tracking for show/hide
 static lv_obj_t* panel_widgets[UI_PANEL_COUNT] = {nullptr};
@@ -66,21 +61,10 @@ static lv_obj_t* overlay_backdrop = nullptr;
 static constexpr uint32_t OVERLAY_ANIM_DURATION_MS = 200; // Fast but visible
 static constexpr int32_t OVERLAY_SLIDE_OFFSET = 400;      // Pixels to slide from off-screen
 
-// Observer callback - updates all icon colors when active panel changes
+// Observer callback - handles panel show/hide when active panel changes
+// Note: Icon colors are now handled reactively via XML bindings to active_panel subject
 static void active_panel_observer_cb(lv_observer_t* /*observer*/, lv_subject_t* subject) {
     int32_t new_active_panel = lv_subject_get_int(subject);
-
-    // Update all icon color and opacity subjects based on which panel is active
-    for (int i = 0; i < UI_PANEL_COUNT; i++) {
-        // All icons use primary color
-        lv_subject_set_color(&icon_color_subjects[i], UI_COLOR_PRIMARY);
-
-        if (i == new_active_panel) {
-            lv_subject_set_int(&icon_opacity_subjects[i], LV_OPA_COVER); // 100% opacity (active)
-        } else {
-            lv_subject_set_int(&icon_opacity_subjects[i], LV_OPA_50); // 50% opacity (inactive)
-        }
-    }
 
     // Show/hide panels if widgets are set
     for (int i = 0; i < UI_PANEL_COUNT; i++) {
@@ -92,30 +76,6 @@ static void active_panel_observer_cb(lv_observer_t* /*observer*/, lv_subject_t* 
             }
         }
     }
-}
-
-// Observer callback for icon color changes
-// Supports both image icons (recolor) and font-based icons (text color)
-static void icon_color_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
-    lv_obj_t* icon = (lv_obj_t*)lv_observer_get_target(observer);
-    lv_color_t color = lv_subject_get_color(subject);
-
-    if (lv_obj_check_type(icon, &lv_image_class)) {
-        // Image icons: Use recolor to tint white source
-        lv_obj_set_style_img_recolor(icon, color, LV_PART_MAIN);
-        lv_obj_set_style_img_recolor_opa(icon, LV_OPA_COVER, LV_PART_MAIN);
-    } else {
-        // Font-based icons (lv_label): Use text color
-        lv_obj_set_style_text_color(icon, color, LV_PART_MAIN);
-    }
-}
-
-// Observer callback for icon opacity changes
-// Works for both image and font-based icons
-static void icon_opacity_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
-    lv_obj_t* icon = (lv_obj_t*)lv_observer_get_target(observer);
-    int32_t opacity = lv_subject_get_int(subject);
-    lv_obj_set_style_opa(icon, static_cast<lv_opa_t>(opacity), LV_PART_MAIN);
 }
 
 // Button click event handler - switches active panel
@@ -190,39 +150,14 @@ void ui_nav_init() {
     spdlog::debug("Initializing navigation reactive subjects...");
 
     // Initialize active panel subject (starts at home)
+    // This subject drives the dual-icon visibility bindings in navigation_bar.xml
     lv_subject_init_int(&active_panel_subject, UI_PANEL_HOME);
 
-    // Initialize icon color and opacity subjects
-    for (int i = 0; i < UI_PANEL_COUNT; i++) {
-        // All icons use primary color
-        lv_subject_init_color(&icon_color_subjects[i], UI_COLOR_PRIMARY);
-
-        // Home icon starts active (100% opacity), others inactive (50% opacity)
-        if (i == UI_PANEL_HOME) {
-            lv_subject_init_int(&icon_opacity_subjects[i], LV_OPA_COVER); // Active: 100%
-        } else {
-            lv_subject_init_int(&icon_opacity_subjects[i], LV_OPA_50); // Inactive: 50%
-        }
-    }
-
-    // Register subjects for XML binding
+    // Register subject for XML binding
+    // Navigation bar icons use this to show primary (active) or secondary (inactive) variant
     lv_xml_register_subject(NULL, "active_panel", &active_panel_subject);
-    lv_xml_register_subject(NULL, "nav_icon_0_color", &icon_color_subjects[0]);
-    lv_xml_register_subject(NULL, "nav_icon_1_color", &icon_color_subjects[1]);
-    lv_xml_register_subject(NULL, "nav_icon_2_color", &icon_color_subjects[2]);
-    lv_xml_register_subject(NULL, "nav_icon_3_color", &icon_color_subjects[3]);
-    lv_xml_register_subject(NULL, "nav_icon_4_color", &icon_color_subjects[4]);
-    lv_xml_register_subject(NULL, "nav_icon_5_color", &icon_color_subjects[5]);
 
-    // Register opacity subjects (not used in XML, but available if needed)
-    lv_xml_register_subject(NULL, "nav_icon_0_opacity", &icon_opacity_subjects[0]);
-    lv_xml_register_subject(NULL, "nav_icon_1_opacity", &icon_opacity_subjects[1]);
-    lv_xml_register_subject(NULL, "nav_icon_2_opacity", &icon_opacity_subjects[2]);
-    lv_xml_register_subject(NULL, "nav_icon_3_opacity", &icon_opacity_subjects[3]);
-    lv_xml_register_subject(NULL, "nav_icon_4_opacity", &icon_opacity_subjects[4]);
-    lv_xml_register_subject(NULL, "nav_icon_5_opacity", &icon_opacity_subjects[5]);
-
-    // Add observer to active panel subject to update icon colors
+    // Add observer to handle panel show/hide
     lv_subject_add_observer(&active_panel_subject, active_panel_observer_cb, NULL);
 
     subjects_initialized = true;
@@ -241,33 +176,15 @@ void ui_nav_init_overlay_backdrop(lv_obj_t* screen) {
         return;
     }
 
-    // Create shared backdrop widget - full screen, semi-transparent black
-    overlay_backdrop = lv_obj_create(screen);
+    // Create backdrop from XML component - all styling is in the XML
+    // The component has a reactive binding to overlay_backdrop_visible subject
+    overlay_backdrop = static_cast<lv_obj_t*>(lv_xml_create(screen, "overlay_backdrop", nullptr));
     if (!overlay_backdrop) {
-        spdlog::error("Failed to create overlay backdrop widget");
+        spdlog::error("Failed to create overlay_backdrop from XML");
         return;
     }
 
-    // Configure backdrop to cover entire screen
-    lv_obj_set_size(overlay_backdrop, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_align(overlay_backdrop, LV_ALIGN_CENTER);
-
-    // Style: semi-transparent black background
-    // Note: LVGL software renderer doesn't support backdrop blur
-    // Using 60% opacity to dim content behind overlay panels
-    lv_obj_set_style_bg_color(overlay_backdrop, lv_color_black(), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(overlay_backdrop, 153, LV_PART_MAIN); // 60% opacity (153/255)
-    lv_obj_set_style_border_width(overlay_backdrop, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(overlay_backdrop, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(overlay_backdrop, 0, LV_PART_MAIN);
-
-    // Make clickable to prevent clicks from passing through to panels behind
-    lv_obj_add_flag(overlay_backdrop, LV_OBJ_FLAG_CLICKABLE);
-
-    // Hidden by default - shown when overlays are pushed
-    lv_obj_add_flag(overlay_backdrop, LV_OBJ_FLAG_HIDDEN);
-
-    spdlog::debug("Overlay backdrop initialized successfully");
+    spdlog::debug("Overlay backdrop created from XML successfully");
 }
 
 void ui_nav_set_app_layout(lv_obj_t* app_layout) {
@@ -289,72 +206,21 @@ void ui_nav_wire_events(lv_obj_t* navbar) {
     // Ensure navbar container doesn't block clicks to children
     lv_obj_remove_flag(navbar, LV_OBJ_FLAG_CLICKABLE);
 
-    // Determine responsive sizing based on screen height using theme constants
-    lv_display_t* display = lv_display_get_default();
-    int32_t screen_height = lv_display_get_vertical_resolution(display);
-    uint16_t icon_scale; // 256 = 100%, 128 = 50%, etc.
-    lv_coord_t nav_width;
-
-    if (screen_height <= UI_SCREEN_TINY_H) {
-        // Tiny screens (320px)
-        // Icons scaled to 60% (64px → 38px)
-        icon_scale = 154;
-        nav_width = UI_NAV_WIDTH_TINY;
-        spdlog::debug("Tiny nav sizing (h={}): width={}, icon_scale={}", screen_height, nav_width,
-                      icon_scale);
-    } else if (screen_height <= UI_SCREEN_SMALL_H) {
-        // Small screens (480px)
-        // Icons scaled to 60% (64px → 38px)
-        icon_scale = 154;
-        nav_width = UI_NAV_WIDTH_SMALL;
-        spdlog::debug("Small nav sizing (h={}): width={}", screen_height, nav_width);
-    } else if (screen_height <= UI_SCREEN_MEDIUM_H) {
-        // Medium screens (600px)
-        icon_scale = 192;
-        nav_width = UI_NAV_WIDTH_MEDIUM;
-        spdlog::debug("Medium nav sizing (h={}): width={}", screen_height, nav_width);
-    } else {
-        // Large screens (720px+)
-        icon_scale = 256;
-        nav_width = UI_NAV_WIDTH_LARGE;
-        spdlog::debug("Large nav sizing (h={}): width={}", screen_height, nav_width);
-    }
-
-    // Apply responsive width and padding to navbar container
-    lv_obj_set_width(navbar, nav_width);
-
-    // Name-based widget lookup for navigation buttons and icons (order matches ui_panel_id_t enum)
+    // Name-based widget lookup for navigation buttons
+    // Note: Icon colors are now handled via XML bindings to active_panel subject,
+    // so we only need to wire button click handlers here
     const char* button_names[] = {"nav_btn_home",     "nav_btn_print_select", "nav_btn_controls",
                                   "nav_btn_filament", "nav_btn_settings",     "nav_btn_advanced"};
-    const char* icon_names[] = {"nav_icon_home",     "nav_icon_print_select", "nav_icon_controls",
-                                "nav_icon_filament", "nav_icon_settings",     "nav_icon_advanced"};
 
-    // Bind colors to icon widgets and add click event handlers to buttons
     for (int i = 0; i < UI_PANEL_COUNT; i++) {
         lv_obj_t* btn = lv_obj_find_by_name(navbar, button_names[i]);
-        lv_obj_t* icon_widget = lv_obj_find_by_name(navbar, icon_names[i]);
 
-        if (!btn || !icon_widget) {
+        if (!btn) {
             // Some panels (like print_select) may not have navbar buttons - they're accessed via
             // other UI
-            spdlog::debug("Nav button/icon {} not found in navbar (may be intentional)", i);
+            spdlog::debug("Nav button {} not found in navbar (may be intentional)", i);
             continue;
         }
-
-        // Icons can be either image widgets (legacy) or label widgets (font-based)
-        // Both are supported via the unified observer callbacks
-
-        // Bind color to icon (works for both image recolor and text color)
-        lv_subject_add_observer_obj(&icon_color_subjects[i], icon_color_observer_cb, icon_widget,
-                                    NULL);
-
-        // Bind opacity to icon (works for both types)
-        lv_subject_add_observer_obj(&icon_opacity_subjects[i], icon_opacity_observer_cb,
-                                    icon_widget, NULL);
-
-        // Make icon widget non-clickable so clicks pass through to button
-        lv_obj_add_flag(icon_widget, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_remove_flag(icon_widget, LV_OBJ_FLAG_CLICKABLE);
 
         // Ensure button is clickable and add event handler
         // PRESS_LOCK prevents LVGL from re-searching for objects on every frame while pressed,
@@ -365,17 +231,7 @@ void ui_nav_wire_events(lv_obj_t* navbar) {
         lv_obj_add_event_cb(btn, nav_button_clicked_cb, LV_EVENT_CLICKED, (void*)(uintptr_t)i);
     }
 
-    // Force update all icon color and opacity subjects now that bindings exist
-    for (int i = 0; i < UI_PANEL_COUNT; i++) {
-        // All icons use primary color
-        lv_subject_set_color(&icon_color_subjects[i], UI_COLOR_PRIMARY);
-
-        if (i == active_panel) {
-            lv_subject_set_int(&icon_opacity_subjects[i], LV_OPA_COVER); // Active: 100%
-        } else {
-            lv_subject_set_int(&icon_opacity_subjects[i], LV_OPA_50); // Inactive: 50%
-        }
-    }
+    spdlog::debug("Navigation button events wired");
 }
 
 // Panel ID to name mapping for E-Stop visibility
@@ -540,7 +396,8 @@ void ui_nav_push_overlay(lv_obj_t* overlay_panel) {
     // Show shared backdrop if this is the first overlay
     // IMPORTANT: Backdrop must be AFTER app_layout but BEFORE overlay panels
     if (is_first_overlay && overlay_backdrop) {
-        lv_obj_remove_flag(overlay_backdrop, LV_OBJ_FLAG_HIDDEN);
+        // Use subject to show backdrop (XML binding handles visibility)
+        ui_status_bar_set_backdrop_visible(true);
 
         // Move backdrop to front first, then move overlay panel even further front
         // This ensures: app_layout < backdrop < overlay_panel in z-order
@@ -618,7 +475,8 @@ bool ui_nav_go_back() {
 
     // Hide backdrop if no more overlays remain (stack size <=1 means only main panel left)
     if (panel_stack.size() <= 1 && overlay_backdrop) {
-        lv_obj_add_flag(overlay_backdrop, LV_OBJ_FLAG_HIDDEN);
+        // Use subject to hide backdrop (XML binding handles visibility)
+        ui_status_bar_set_backdrop_visible(false);
         spdlog::debug("Hiding overlay backdrop (no more overlays)");
     }
 

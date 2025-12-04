@@ -28,7 +28,7 @@ enum class IconSize { XS, SM, MD, LG, XL };
 /**
  * Variant mapping: semantic name -> color styling
  */
-enum class IconVariant { NONE, PRIMARY, SECONDARY, ACCENT, DISABLED, WARNING, ERROR };
+enum class IconVariant { NONE, PRIMARY, SECONDARY, ACCENT, DISABLED, SUCCESS, WARNING, ERROR };
 
 /**
  * Parse size string to IconSize enum
@@ -106,6 +106,8 @@ static IconVariant parse_variant(const char* variant_str) {
         return IconVariant::ACCENT;
     } else if (strcmp(variant_str, "disabled") == 0) {
         return IconVariant::DISABLED;
+    } else if (strcmp(variant_str, "success") == 0) {
+        return IconVariant::SUCCESS;
     } else if (strcmp(variant_str, "warning") == 0) {
         return IconVariant::WARNING;
     } else if (strcmp(variant_str, "error") == 0) {
@@ -154,6 +156,10 @@ static void apply_variant(lv_obj_t* obj, IconVariant variant) {
         // Primary text color at 50% opacity
         color = UI_COLOR_TEXT_PRIMARY;
         opa = LV_OPA_50;
+        break;
+    case IconVariant::SUCCESS:
+        // Success color (green) from globals.xml
+        color = ui_theme_get_color("success_color");
         break;
     case IconVariant::WARNING:
         // Warning color (orange) from globals.xml

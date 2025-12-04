@@ -37,16 +37,35 @@
 // Forward declaration for class-based API
 NotificationHistoryPanel& get_global_notification_history_panel();
 
-// Cached widget references
-static lv_obj_t* network_icon = nullptr;
-static lv_obj_t* printer_icon = nullptr;
-static lv_obj_t* notification_icon = nullptr;
-static lv_obj_t* notification_badge = nullptr;
-static lv_obj_t* notification_badge_count = nullptr;
+// ============================================================================
+// Status Icon State Subjects (drive XML reactive bindings)
+// ============================================================================
+// These subjects expose computed state to XML. C++ computes WHAT state,
+// XML bindings determine HOW to display it (colors, visibility, etc.)
+
+// Printer icon state: 0=ready(green), 1=warning(orange), 2=error(red), 3=disconnected(gray)
+static lv_subject_t printer_icon_state_subject;
+
+// Network icon state: 0=connected(green), 1=connecting(orange), 2=disconnected(gray)
+static lv_subject_t network_icon_state_subject;
+
+// Notification badge: count (0 = hidden), text for display, severity for badge color
+static lv_subject_t notification_count_subject;
+static lv_subject_t notification_count_text_subject;
+static lv_subject_t notification_severity_subject; // 0=info, 1=warning, 2=error
+
+// Overlay backdrop visibility (for modal dimming)
+static lv_subject_t overlay_backdrop_visible_subject;
+
+// Track if subjects have been initialized
+static bool subjects_initialized = false;
 
 // Cached state for combined printer icon logic
 static int32_t cached_connection_state = 0;
 static int32_t cached_klippy_state = 0; // 0=READY, 1=STARTUP, 2=SHUTDOWN, 3=ERROR
+
+// Notification count text buffer (for string subject)
+static char notification_count_text_buf[8] = "0";
 
 // Forward declaration
 static void update_printer_icon_combined();
@@ -77,57 +96,57 @@ static void klippy_state_observer([[maybe_unused]] lv_observer_t* observer, lv_s
     update_printer_icon_combined();
 }
 
-// Combined logic to update printer icon based on both connection and klippy state
-static void update_printer_icon_combined() {
-    if (!printer_icon) {
-        return;
-    }
+// Printer icon state constants (match XML visibility bindings)
+enum PrinterIconState {
+    PRINTER_STATE_READY = 0,       // Green - connected and klippy ready
+    PRINTER_STATE_WARNING = 1,     // Orange - startup, reconnecting, was connected
+    PRINTER_STATE_ERROR = 2,       // Red - klippy error/shutdown, connection failed
+    PRINTER_STATE_DISCONNECTED = 3 // Gray - never connected
+};
 
+// Combined logic to update printer icon based on both connection and klippy state
+// Now updates subject instead of directly styling the widget
+static void update_printer_icon_combined() {
     // Klippy state takes precedence when connected
     // ConnectionState: 0=DISCONNECTED, 1=CONNECTING, 2=CONNECTED, 3=RECONNECTING, 4=FAILED
     // KlippyState: 0=READY, 1=STARTUP, 2=SHUTDOWN, 3=ERROR
 
-    lv_color_t color;
+    int32_t new_state;
 
     if (cached_connection_state == 2) { // CONNECTED to Moonraker
         // Check klippy state
         switch (cached_klippy_state) {
         case 1: // STARTUP (restarting)
-            color = ui_theme_parse_color(lv_xml_get_const(NULL, "warning_color"));
-            spdlog::debug("[StatusBar] Klippy STARTUP -> printer icon, orange");
+            new_state = PRINTER_STATE_WARNING;
+            spdlog::debug("[StatusBar] Klippy STARTUP -> printer state WARNING");
             break;
         case 2: // SHUTDOWN
         case 3: // ERROR
-            color = ui_theme_parse_color(lv_xml_get_const(NULL, "error_color"));
-            spdlog::debug("[StatusBar] Klippy SHUTDOWN/ERROR -> printer icon, red");
+            new_state = PRINTER_STATE_ERROR;
+            spdlog::debug("[StatusBar] Klippy SHUTDOWN/ERROR -> printer state ERROR");
             break;
         case 0: // READY
         default:
-            color = ui_theme_parse_color(lv_xml_get_const(NULL, "success_color"));
-            spdlog::debug("[StatusBar] Klippy READY -> printer icon, green");
+            new_state = PRINTER_STATE_READY;
+            spdlog::debug("[StatusBar] Klippy READY -> printer state READY");
             break;
         }
     } else if (cached_connection_state == 4) { // FAILED
-        color = ui_theme_parse_color(lv_xml_get_const(NULL, "error_color"));
-        spdlog::debug("[StatusBar] Connection FAILED -> printer icon, red");
+        new_state = PRINTER_STATE_ERROR;
+        spdlog::debug("[StatusBar] Connection FAILED -> printer state ERROR");
     } else { // DISCONNECTED, CONNECTING, RECONNECTING
         if (get_printer_state().was_ever_connected()) {
-            color = ui_theme_parse_color(lv_xml_get_const(NULL, "warning_color"));
-            spdlog::debug("[StatusBar] Disconnected (was connected) -> printer icon, yellow");
+            new_state = PRINTER_STATE_WARNING;
+            spdlog::debug("[StatusBar] Disconnected (was connected) -> printer state WARNING");
         } else {
-            color = ui_theme_parse_color(lv_xml_get_const(NULL, "text_secondary"));
-            spdlog::debug("[StatusBar] Never connected -> printer icon, gray");
+            new_state = PRINTER_STATE_DISCONNECTED;
+            spdlog::debug("[StatusBar] Never connected -> printer state DISCONNECTED");
         }
     }
 
-    // Support both image icons (recolor) and font-based icons (text color)
-    if (lv_obj_check_type(printer_icon, &lv_image_class)) {
-        // Legacy image icon: use recolor
-        lv_obj_set_style_image_recolor(printer_icon, color, 0);
-        lv_obj_set_style_image_recolor_opa(printer_icon, LV_OPA_COVER, 0);
-    } else {
-        // Font-based icon (lv_label): use text color
-        lv_obj_set_style_text_color(printer_icon, color, 0);
+    // Update subject - XML bindings will handle the visual update
+    if (subjects_initialized) {
+        lv_subject_set_int(&printer_icon_state_subject, new_state);
     }
 }
 
@@ -186,43 +205,52 @@ void ui_status_bar_register_callbacks() {
     spdlog::debug("[StatusBar] Event callbacks registered");
 }
 
-void ui_status_bar_init() {
-    spdlog::debug("[StatusBar] ui_status_bar_init() called");
-
-    // Status icons are now in the navigation bar (sidebar bottom)
-    // Search from screen root to find them anywhere in the widget tree
-    lv_obj_t* screen = lv_screen_active();
-
-    // Find status icons by name (search entire screen)
-    network_icon = lv_obj_find_by_name(screen, "status_network_icon");
-    printer_icon = lv_obj_find_by_name(screen, "status_printer_icon");
-
-    // Bell icon and badge are nested in status_notification_history_container
-    lv_obj_t* notif_container =
-        lv_obj_find_by_name(screen, "status_notification_history_container");
-    if (notif_container) {
-        notification_icon = lv_obj_find_by_name(notif_container, "status_notification_icon");
-        notification_badge = lv_obj_find_by_name(notif_container, "notification_badge");
-        if (notification_badge) {
-            notification_badge_count =
-                lv_obj_find_by_name(notification_badge, "notification_badge_count");
-        }
-    }
-
-    spdlog::debug(
-        "[StatusBar] Widget lookup: network_icon={}, printer_icon={}, notification_icon={}",
-        (void*)network_icon, (void*)printer_icon, (void*)notification_icon);
-
-    if (!network_icon || !printer_icon || !notification_icon) {
-        spdlog::error("[StatusBar] Failed to find status bar icon widgets");
+void ui_status_bar_init_subjects() {
+    if (subjects_initialized) {
+        spdlog::warn("[StatusBar] Subjects already initialized");
         return;
     }
 
-    if (!notification_badge || !notification_badge_count) {
-        spdlog::warn("[StatusBar] Failed to find notification badge widgets");
+    spdlog::debug("[StatusBar] Initializing status bar subjects...");
+
+    // Initialize all subjects with default values
+    // Printer starts disconnected (gray)
+    lv_subject_init_int(&printer_icon_state_subject, PRINTER_STATE_DISCONNECTED);
+
+    // Network starts disconnected (gray)
+    lv_subject_init_int(&network_icon_state_subject, 2); // DISCONNECTED
+
+    // Notification badge starts hidden (count = 0)
+    lv_subject_init_int(&notification_count_subject, 0);
+    lv_subject_init_pointer(&notification_count_text_subject, notification_count_text_buf);
+    lv_subject_init_int(&notification_severity_subject, 0); // INFO
+
+    // Overlay backdrop starts hidden
+    lv_subject_init_int(&overlay_backdrop_visible_subject, 0);
+
+    // Register subjects for XML binding
+    lv_xml_register_subject(NULL, "printer_icon_state", &printer_icon_state_subject);
+    lv_xml_register_subject(NULL, "network_icon_state", &network_icon_state_subject);
+    lv_xml_register_subject(NULL, "notification_count", &notification_count_subject);
+    lv_xml_register_subject(NULL, "notification_count_text", &notification_count_text_subject);
+    lv_xml_register_subject(NULL, "notification_severity", &notification_severity_subject);
+    lv_xml_register_subject(NULL, "overlay_backdrop_visible", &overlay_backdrop_visible_subject);
+
+    subjects_initialized = true;
+    spdlog::debug("[StatusBar] Subjects initialized and registered");
+}
+
+void ui_status_bar_init() {
+    spdlog::debug("[StatusBar] ui_status_bar_init() called");
+
+    // Ensure subjects are initialized (should be called before XML creation,
+    // but this is a safety check)
+    if (!subjects_initialized) {
+        ui_status_bar_init_subjects();
     }
 
-    // Observe network and printer states for reactive icon updates
+    // Observe network and printer states from PrinterState
+    // These observers update our local subjects, which drive XML bindings
     PrinterState& printer_state = get_printer_state();
 
     // Network status observer (fires immediately with current value on registration)
@@ -243,151 +271,122 @@ void ui_status_bar_init() {
                   (void*)klippy_subject);
     lv_subject_add_observer(klippy_subject, klippy_state_observer, nullptr);
 
-    // Set bell icon to neutral color (stays this way - badge color indicates severity)
-    // Unlike network/printer icons which change color based on state, bell stays neutral
-    if (notification_icon) {
-        lv_color_t neutral = ui_theme_parse_color(lv_xml_get_const(NULL, "text_secondary"));
-        // Support both image icons (recolor) and font-based icons (text color)
-        if (lv_obj_check_type(notification_icon, &lv_image_class)) {
-            lv_obj_set_style_image_recolor(notification_icon, neutral, 0);
-            lv_obj_set_style_image_recolor_opa(notification_icon, LV_OPA_COVER, 0);
-        } else {
-            lv_obj_set_style_text_color(notification_icon, neutral, 0);
-        }
-    }
+    // Note: Bell icon color is now set via XML (variant="secondary")
+    // No widget lookup or styling needed here
 
     spdlog::debug("[StatusBar] Initialization complete");
 }
 
+// Network icon state constants (match XML visibility bindings)
+enum NetworkIconState {
+    NETWORK_STATE_CONNECTED = 0,   // Green
+    NETWORK_STATE_CONNECTING = 1,  // Orange
+    NETWORK_STATE_DISCONNECTED = 2 // Gray
+};
+
 void ui_status_bar_update_network(NetworkStatus status) {
-    if (!network_icon) {
-        spdlog::warn("Status bar not initialized, cannot update network icon");
+    if (!subjects_initialized) {
+        spdlog::warn("[StatusBar] Subjects not initialized, cannot update network icon");
         return;
     }
 
-    // Network icon is a Material Design image (mat_lan - LAN network indicator)
-    lv_color_t color;
+    // Map NetworkStatus enum to our icon state
+    int32_t new_state;
 
     switch (status) {
     case NetworkStatus::CONNECTED:
-        color = ui_theme_parse_color(lv_xml_get_const(NULL, "success_color"));
+        new_state = NETWORK_STATE_CONNECTED;
+        spdlog::debug("[StatusBar] Network status CONNECTED -> state 0");
         break;
     case NetworkStatus::CONNECTING:
-        color = ui_theme_parse_color(lv_xml_get_const(NULL, "warning_color"));
+        new_state = NETWORK_STATE_CONNECTING;
+        spdlog::debug("[StatusBar] Network status CONNECTING -> state 1");
         break;
     case NetworkStatus::DISCONNECTED:
     default:
-        color = ui_theme_parse_color(lv_xml_get_const(NULL, "text_secondary"));
+        new_state = NETWORK_STATE_DISCONNECTED;
+        spdlog::debug("[StatusBar] Network status DISCONNECTED -> state 2");
         break;
     }
 
-    // Support both image icons (recolor) and font-based icons (text color)
-    if (lv_obj_check_type(network_icon, &lv_image_class)) {
-        lv_obj_set_style_image_recolor(network_icon, color, 0);
-        lv_obj_set_style_image_recolor_opa(network_icon, LV_OPA_COVER, 0);
-    } else {
-        lv_obj_set_style_text_color(network_icon, color, 0);
-    }
+    // Update subject - XML bindings will handle the visual update
+    lv_subject_set_int(&network_icon_state_subject, new_state);
 }
 
 void ui_status_bar_update_printer(PrinterStatus status) {
+    // Note: This function is now largely superseded by update_printer_icon_combined()
+    // which uses the connection + klippy state observers for more accurate state.
+    // Keeping this for API compatibility, but it just logs and delegates to the
+    // combined logic which updates the printer_icon_state_subject.
     spdlog::debug("[StatusBar] ui_status_bar_update_printer() called with status={}",
                   static_cast<int>(status));
 
-    if (!printer_icon) {
-        spdlog::warn("[StatusBar] printer_icon is NULL, cannot update");
-        return;
-    }
-
-    // Printer icon is a Material Design image (mat_printer_3d)
-    // Color indicates state: green=ready, blue=printing, red=error, yellow=was connected,
-    // gray=never connected
-    lv_color_t color;
-
-    switch (status) {
-    case PrinterStatus::READY:
-        color = ui_theme_parse_color(lv_xml_get_const(NULL, "success_color"));
-        spdlog::debug("[StatusBar] Setting printer icon to green (ready)");
-        break;
-    case PrinterStatus::PRINTING:
-        color = ui_theme_parse_color(lv_xml_get_const(NULL, "info_color"));
-        spdlog::debug("[StatusBar] Setting printer icon to blue (printing)");
-        break;
-    case PrinterStatus::ERROR:
-        color = ui_theme_parse_color(lv_xml_get_const(NULL, "error_color"));
-        spdlog::debug("[StatusBar] Setting printer icon to red (error)");
-        break;
-    case PrinterStatus::DISCONNECTED:
-    default:
-        // Distinguish "never connected" (neutral) from "lost connection" (warning)
-        if (get_printer_state().was_ever_connected()) {
-            // Was connected before - show warning
-            color = ui_theme_parse_color(lv_xml_get_const(NULL, "warning_color"));
-            spdlog::debug("[StatusBar] Setting printer icon to yellow (was connected)");
-        } else {
-            // Never connected - show neutral gray
-            color = ui_theme_parse_color(lv_xml_get_const(NULL, "text_secondary"));
-            spdlog::debug("[StatusBar] Setting printer icon to gray (never connected)");
-        }
-        break;
-    }
-
-    // Support both image icons (recolor) and font-based icons (text color)
-    if (lv_obj_check_type(printer_icon, &lv_image_class)) {
-        lv_obj_set_style_image_recolor(printer_icon, color, 0);
-        lv_obj_set_style_image_recolor_opa(printer_icon, LV_OPA_COVER, 0);
-    } else {
-        lv_obj_set_style_text_color(printer_icon, color, 0);
-    }
-    spdlog::debug("[StatusBar] Printer icon updated successfully");
+    // The combined observer-based logic in update_printer_icon_combined() handles
+    // the actual subject update. This function is called less frequently now.
+    // For now, just trigger a re-evaluation.
+    update_printer_icon_combined();
 }
 
+// Notification severity constants (match XML visibility bindings for badge color)
+enum NotificationSeverityState {
+    NOTIFICATION_SEVERITY_INFO = 0,    // Blue badge
+    NOTIFICATION_SEVERITY_WARNING = 1, // Orange badge
+    NOTIFICATION_SEVERITY_ERROR = 2    // Red badge
+};
+
 void ui_status_bar_update_notification(NotificationStatus status) {
-    if (!notification_badge) {
-        spdlog::warn("Status bar not initialized, cannot update notification badge");
+    if (!subjects_initialized) {
+        spdlog::warn("[StatusBar] Subjects not initialized, cannot update notification");
         return;
     }
 
-    // Badge background color indicates highest severity:
-    // red = error, yellow/orange = warning, blue = info
-    // Bell icon stays neutral - badge color alone communicates urgency
-    lv_color_t badge_color;
+    // Map NotificationStatus enum to severity state for badge color
+    int32_t severity;
 
     switch (status) {
     case NotificationStatus::ERROR:
-        badge_color = ui_theme_parse_color(lv_xml_get_const(NULL, "error_color"));
+        severity = NOTIFICATION_SEVERITY_ERROR;
+        spdlog::debug("[StatusBar] Notification severity ERROR -> state 2");
         break;
     case NotificationStatus::WARNING:
-        badge_color = ui_theme_parse_color(lv_xml_get_const(NULL, "warning_color"));
+        severity = NOTIFICATION_SEVERITY_WARNING;
+        spdlog::debug("[StatusBar] Notification severity WARNING -> state 1");
         break;
     case NotificationStatus::INFO:
-        badge_color = ui_theme_parse_color(lv_xml_get_const(NULL, "info_color"));
-        break;
     case NotificationStatus::NONE:
     default:
-        // Default to info color if somehow called with NONE but badge visible
-        badge_color = ui_theme_parse_color(lv_xml_get_const(NULL, "info_color"));
+        severity = NOTIFICATION_SEVERITY_INFO;
+        spdlog::debug("[StatusBar] Notification severity INFO -> state 0");
         break;
     }
 
-    // Update badge background color (not the bell icon)
-    lv_obj_set_style_bg_color(notification_badge, badge_color, 0);
+    // Update severity subject - XML bindings will update badge background color
+    lv_subject_set_int(&notification_severity_subject, severity);
 }
 
 void ui_status_bar_update_notification_count(size_t count) {
-    if (!notification_badge || !notification_badge_count) {
-        spdlog::trace("Notification badge widgets not available");
+    if (!subjects_initialized) {
+        spdlog::trace("[StatusBar] Subjects not initialized, cannot update notification count");
         return;
     }
 
-    if (count == 0) {
-        // Hide badge when no unread notifications
-        lv_obj_add_flag(notification_badge, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        // Show badge and update count
-        lv_obj_remove_flag(notification_badge, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text_fmt(notification_badge_count, "%zu", count);
+    // Update count subject (drives badge visibility: hidden when 0)
+    lv_subject_set_int(&notification_count_subject, static_cast<int32_t>(count));
+
+    // Update text subject for display
+    snprintf(notification_count_text_buf, sizeof(notification_count_text_buf), "%zu", count);
+    // Notify observers that the text changed (pointer didn't change, but content did)
+    lv_subject_set_pointer(&notification_count_text_subject, notification_count_text_buf);
+
+    spdlog::trace("[StatusBar] Notification count updated: {}", count);
+}
+
+void ui_status_bar_set_backdrop_visible(bool visible) {
+    if (!subjects_initialized) {
+        spdlog::warn("[StatusBar] Subjects not initialized, cannot set backdrop visibility");
+        return;
     }
 
-    spdlog::trace("Notification count updated: {}", count);
+    lv_subject_set_int(&overlay_backdrop_visible_subject, visible ? 1 : 0);
+    spdlog::debug("[StatusBar] Overlay backdrop visibility set to: {}", visible);
 }
