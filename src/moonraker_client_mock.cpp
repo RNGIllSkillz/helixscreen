@@ -111,51 +111,8 @@ static json build_mock_file_list_response(const std::string& path = "") {
             result_array.push_back(file_entry);
         }
 
-        // Add mock files that simulate subdirectory contents (as if listed recursively)
-        // Note: Moonraker's server.files.list only returns files, not directories
-        result_array.push_back({{"path", "calibration/temp_tower.gcode"},
-                                {"size", 125000},
-                                {"modified", 1698000000.0},
-                                {"permissions", "rw"}});
-        result_array.push_back({{"path", "calibration/bed_level_test.gcode"},
-                                {"size", 85000},
-                                {"modified", 1697500000.0},
-                                {"permissions", "rw"}});
-        result_array.push_back({{"path", "my_projects/custom_bracket.gcode"},
-                                {"size", 250000},
-                                {"modified", 1696000000.0},
-                                {"permissions", "rw"}});
-        result_array.push_back({{"path", "my_projects/keycaps/cherry_mx_cap.gcode"},
-                                {"size", 45000},
-                                {"modified", 1694000000.0},
-                                {"permissions", "rw"}});
-
-    } else if (path == "calibration") {
-        // Filtered to calibration directory
-        result_array.push_back({{"path", "calibration/temp_tower.gcode"},
-                                {"size", 125000},
-                                {"modified", 1698000000.0},
-                                {"permissions", "rw"}});
-        result_array.push_back({{"path", "calibration/bed_level_test.gcode"},
-                                {"size", 85000},
-                                {"modified", 1697500000.0},
-                                {"permissions", "rw"}});
-    } else if (path == "my_projects") {
-        // Filtered to my_projects directory
-        result_array.push_back({{"path", "my_projects/custom_bracket.gcode"},
-                                {"size", 250000},
-                                {"modified", 1696000000.0},
-                                {"permissions", "rw"}});
-        result_array.push_back({{"path", "my_projects/keycaps/cherry_mx_cap.gcode"},
-                                {"size", 45000},
-                                {"modified", 1694000000.0},
-                                {"permissions", "rw"}});
-    } else if (path == "my_projects/keycaps") {
-        // Filtered to nested subdirectory
-        result_array.push_back({{"path", "my_projects/keycaps/cherry_mx_cap.gcode"},
-                                {"size", 45000},
-                                {"modified", 1694000000.0},
-                                {"permissions", "rw"}});
+        // Note: We only return real files from TEST_GCODE_DIR
+        // Fake subdirectory entries were removed to prevent thumbnail extraction warnings
     }
     // Unknown paths return empty lists
 
