@@ -21,10 +21,10 @@
   </styles>
   <!-- Now references global constants from globals.xml -->
   <view extends="lv_obj" width="100%" height="100%" style_pad_all="0" style_border_width="0" flex_flow="column">
-    <!-- Top section: Printer visualization + Tip (60% of height via flex_grow="3") -->
-    <lv_obj width="100%" flex_grow="3" style_bg_opa="0%" style_border_width="0" style_pad_all="#space_lg" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" scrollable="false">
+    <!-- Top section: Printer visualization + Tip -->
+    <lv_obj width="100%" flex_grow="2" style_bg_opa="0%" style_border_width="0" style_pad_all="#space_lg" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" scrollable="false">
       <!-- Printer Image Container: fixed percentage width, image scales to fit via inner_align="contain" -->
-      <lv_obj name="printer_container" width="#printer_container_width" height="100%" style_bg_opa="0%" style_border_width="0" style_pad_all="0" style_pad_bottom="#space_lg" scrollable="false">
+      <lv_obj name="printer_container" width="#printer_container_width" height="100%" style_bg_opa="0%" style_border_width="0" style_pad_all="0" style_pad_bottom="#space_lg" scrollable="false" align="center">
         <lv_image name="printer_image" src="A:assets/images/printer_400.png" width="100%" height="100%" inner_align="contain">
           <!-- Dim image when disconnected (state 0) or connecting (state 1) -->
           <bind_style name="image_dimmed" subject="printer_connection_state" ref_value="0"/>
@@ -66,8 +66,70 @@
         <text_body text="Print Files"/>
         <event_cb trigger="clicked" callback="print_card_clicked_cb"/>
       </lv_button>
-      <!-- Status Card (Temperature, Network, Light) - uses flex to distribute space evenly -->
-      <ui_card name="status_card" flex_grow="2" height="100%" style_radius="#border_radius" style_pad_all="#space_md" flex_flow="row" style_flex_cross_place="center">
+      <!-- Status Card - Column layout with status row on top, info row below -->
+      <ui_card name="status_card" flex_grow="2" height="100%" style_radius="#border_radius" style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_sm">
+        <!-- Top Row: Spacer + Printer Status + Divider + Notification (aligned with bottom row) -->
+        <!-- Uses flex_grow="1" like bottom row so divider height="80%" works correctly -->
+        <lv_obj width="100%" flex_grow="1" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row" style_flex_cross_place="center">
+          <!-- Spacer to match temperature column -->
+          <lv_obj flex_grow="1" height="1" style_bg_opa="0" style_border_width="0"/>
+          <!-- Divider spacer (matches divider1 position) -->
+          <lv_obj width="1" height="1" style_bg_opa="0" style_border_width="0"/>
+          
+          <!-- Printer Status (above network column) -->
+          <lv_obj flex_grow="1" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="column" style_flex_main_place="center" style_flex_track_place="center">
+            <lv_button name="status_btn_printer" align="center" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_radius="0" style_pad_all="0">
+              <!-- Ready (green) - state 0 -->
+              <icon name="printer_icon_ready" src="printer_3d" size="#icon_size_card" variant="success" hidden="true">
+                <lv_obj-bind_flag_if_not_eq subject="printer_icon_state" flag="hidden" ref_value="0"/>
+              </icon>
+              <!-- Warning (orange) - state 1 -->
+              <icon name="printer_icon_warning" src="printer_3d" size="#icon_size_card" variant="warning" hidden="true">
+                <lv_obj-bind_flag_if_not_eq subject="printer_icon_state" flag="hidden" ref_value="1"/>
+              </icon>
+              <!-- Error (red) - state 2 -->
+              <icon name="printer_icon_error" src="printer_3d" size="#icon_size_card" variant="error" hidden="true">
+                <lv_obj-bind_flag_if_not_eq subject="printer_icon_state" flag="hidden" ref_value="2"/>
+              </icon>
+              <!-- Disconnected (gray) - state 3 (default) -->
+              <icon name="printer_icon_disconnected" src="printer_3d" size="#icon_size_card" variant="secondary">
+                <lv_obj-bind_flag_if_not_eq subject="printer_icon_state" flag="hidden" ref_value="3"/>
+              </icon>
+            </lv_button>
+          </lv_obj>
+          <!-- Vertical divider (above divider2) -->
+          <lv_obj name="status_divider" width="1" height="80%" style_bg_color="#text_secondary" style_bg_opa="128" style_border_width="0" style_pad_all="0"/>
+          <!-- Notification (above light column) -->
+          <lv_obj flex_grow="1" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="column" style_flex_main_place="center" style_flex_track_place="center">
+            <lv_obj name="status_notification_container" width="content" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0">
+              <lv_button name="status_btn_notification" align="center" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_radius="0" style_pad_all="0">
+                <event_cb trigger="clicked" callback="status_notification_history_clicked"/>
+                <icon name="status_notification_icon" src="notifications" size="#icon_size_card" variant="secondary" align="center"/>
+              </lv_button>
+              <!-- Notification Count Badge -->
+              <lv_obj name="notification_badge" width="18" height="18" align="top_right" x="4" y="-4" style_radius="9" style_border_width="0" style_pad_all="0" hidden="true" scrollable="false" clickable="true">
+                <lv_obj-bind_flag_if_eq subject="notification_count" flag="hidden" ref_value="0"/>
+                <event_cb trigger="clicked" callback="status_notification_history_clicked"/>
+                <!-- Info (blue) - severity 0 -->
+                <lv_obj name="badge_bg_info" width="100%" height="100%" style_radius="9" style_bg_color="#info_color" style_border_width="0">
+                  <lv_obj-bind_flag_if_not_eq subject="notification_severity" flag="hidden" ref_value="0"/>
+                </lv_obj>
+                <!-- Warning (orange) - severity 1 -->
+                <lv_obj name="badge_bg_warning" width="100%" height="100%" style_radius="9" style_bg_color="#warning_color" style_border_width="0" hidden="true">
+                  <lv_obj-bind_flag_if_not_eq subject="notification_severity" flag="hidden" ref_value="1"/>
+                </lv_obj>
+                <!-- Error (red) - severity 2 -->
+                <lv_obj name="badge_bg_error" width="100%" height="100%" style_radius="9" style_bg_color="#error_color" style_border_width="0" hidden="true">
+                  <lv_obj-bind_flag_if_not_eq subject="notification_severity" flag="hidden" ref_value="2"/>
+                </lv_obj>
+                <text_small name="notification_badge_count" bind_text="notification_count_text" style_pad_top="0" align="center" style_text_color="#keyboard_key_light"/>
+              </lv_obj>
+            </lv_obj>
+          </lv_obj>
+        </lv_obj>
+
+        <!-- Bottom Row: Temperature, Network, Light -->
+        <lv_obj width="100%" flex_grow="1" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row" style_flex_cross_place="center">
         <!-- Temperature display - icon on top, text below -->
         <lv_obj flex_grow="1" height="100%" style_bg_opa="0%" style_border_width="0" style_pad_all="0" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center">
           <icon name="temp_icon" src="heater" size="#icon_size_card" variant="secondary"/>
@@ -123,6 +185,7 @@
           </icon>
           <event_cb trigger="clicked" callback="light_toggle_cb"/>
         </lv_button>
+        </lv_obj>
       </ui_card>
     </lv_obj>
   </view>

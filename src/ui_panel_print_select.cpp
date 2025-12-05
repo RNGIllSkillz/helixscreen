@@ -89,9 +89,18 @@ PrintSelectPanel::PrintSelectPanel(PrinterState& printer_state, MoonrakerAPI* ap
 }
 
 PrintSelectPanel::~PrintSelectPanel() {
-    // CRITICAL: Do NOT call LVGL functions here - static destruction order!
-    // LVGL may already be destroyed when exit() is called.
-    // Just reset our pointers - the LVGL widget tree handles cleanup.
+    // CRITICAL: Cancel pending refresh timer to prevent use-after-free!
+    // The timer callback captures 'this' pointer, so if the timer fires after
+    // destruction, it would call methods on a dangling pointer causing crashes.
+    // This is safe during normal panel navigation when LVGL is running.
+    // During static destruction (app exit), LVGL may be gone but the timer
+    // would have been cleaned up already by lv_deinit().
+    if (refresh_timer_) {
+        lv_timer_delete(refresh_timer_);
+        refresh_timer_ = nullptr;
+    }
+
+    // Reset our pointers - the LVGL widget tree handles widget cleanup.
     card_view_container_ = nullptr;
     list_view_container_ = nullptr;
     list_rows_container_ = nullptr;
@@ -103,7 +112,6 @@ PrintSelectPanel::~PrintSelectPanel() {
     print_status_panel_widget_ = nullptr;
     source_printer_btn_ = nullptr;
     source_usb_btn_ = nullptr;
-    refresh_timer_ = nullptr; // Don't delete - LVGL timer system cleans up
 
     // NOTE: Do NOT log here - spdlog may be destroyed first
 }
@@ -840,6 +848,12 @@ void PrintSelectPanel::schedule_view_refresh() {
                 [](lv_timer_t* timer) {
                     auto* panel = static_cast<PrintSelectPanel*>(lv_timer_get_user_data(timer));
                     panel->refresh_timer_ = nullptr; // Clear before callback (timer auto-deletes)
+
+                    // Safety check: if containers are null, panel is likely being/been destroyed.
+                    // The destructor should have deleted this timer, but this is a safety belt.
+                    if (!panel->card_view_container_ && !panel->list_rows_container_) {
+                        return;
+                    }
 
                     spdlog::debug("[{}] Debounced view refresh triggered - refreshing cards with "
                                   "updated metadata",

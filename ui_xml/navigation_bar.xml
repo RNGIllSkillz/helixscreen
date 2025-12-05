@@ -2,30 +2,22 @@
 <!-- Copyright 2025 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
-  Navigation Bar Component - Vertical sidebar with nav buttons and status icons
+  Navigation Bar Component - Vertical sidebar with nav buttons
 
   Reactive Bindings:
     - Nav icons: bound to active_panel subject (0-5)
       Each button has dual icons (accent when active, secondary when inactive)
-    - Status icons: bound to printer_icon_state, network_icon_state subjects
-      Multiple stacked icons with visibility bindings for different states
-    - Notification badge: bound to notification_count and notification_severity
-
-  Icon State Mappings:
-    - printer_icon_state: 0=ready(green), 1=warning(orange), 2=error(red), 3=disconnected(gray)
-    - network_icon_state: 0=connected(green), 1=connecting(orange), 2=disconnected(gray)
-    - notification_severity: 0=info(blue), 1=warning(orange), 2=error(red)
 -->
 <component>
   <view extends="lv_obj" width="#nav_width" height="100%" style_pad_all="0" style_border_width="0" style_radius="0" flex_flow="column" scrollable="false" scrollbar_mode="off">
-    <lv_obj width="100%" height="content" flex_flow="column" style_flex_track_place="center" style_flex_cross_place="center" style_pad_all="0" style_pad_top="#space_sm" style_pad_gap="#space_xl" style_border_width="0" scrollable="false" scrollbar_mode="off">
+    <lv_obj width="100%" height="100%" flex_flow="column" style_flex_track_place="center" style_flex_cross_place="center" style_pad_all="0" style_pad_top="#space_sm" style_pad_gap="#space_xl" style_border_width="0" scrollable="false" scrollbar_mode="off">
 
       <!-- ================================================================== -->
       <!-- Navigation Buttons - Dual icon pattern (accent/secondary variants) -->
       <!-- ================================================================== -->
 
       <!-- Home Button (Panel 0) -->
-      <lv_button name="nav_btn_home" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_radius="0" style_pad_all="0">
+      <lv_obj name="nav_btn_home" width="100%" height="content" clickable="true" scrollable="false" style_bg_opa="0" style_border_width="0" style_pad_all="#space_sm" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center">
         <!-- Active icon (accent color) - shown when active_panel == 0 -->
         <icon name="nav_icon_home_active" src="home" size="lg" variant="accent" hidden="true">
           <lv_obj-bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="0"/>
@@ -34,127 +26,46 @@
         <icon name="nav_icon_home_inactive" src="home" size="lg" variant="secondary">
           <lv_obj-bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="0"/>
         </icon>
-      </lv_button>
+      </lv_obj>
 
       <!-- Controls Button (Panel 2 - note: print_select is panel 1 but has no nav button) -->
-      <lv_button name="nav_btn_controls" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_radius="0" style_pad_all="0">
+      <lv_obj name="nav_btn_controls" width="100%" height="content" clickable="true" scrollable="false" style_bg_opa="0" style_border_width="0" style_pad_all="#space_sm" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center">
         <icon name="nav_icon_controls_active" src="fine_tune" size="lg" variant="accent" hidden="true">
           <lv_obj-bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="2"/>
         </icon>
         <icon name="nav_icon_controls_inactive" src="fine_tune" size="lg" variant="secondary">
           <lv_obj-bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="2"/>
         </icon>
-      </lv_button>
+      </lv_obj>
 
       <!-- Filament Button (Panel 3) -->
-      <lv_button name="nav_btn_filament" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_radius="0" style_pad_all="0">
+      <lv_obj name="nav_btn_filament" width="100%" height="content" clickable="true" scrollable="false" style_bg_opa="0" style_border_width="0" style_pad_all="#space_sm" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center">
         <icon name="nav_icon_filament_active" src="filament" size="lg" variant="accent" hidden="true">
           <lv_obj-bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="3"/>
         </icon>
         <icon name="nav_icon_filament_inactive" src="filament" size="lg" variant="secondary">
           <lv_obj-bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="3"/>
         </icon>
-      </lv_button>
+      </lv_obj>
 
       <!-- Settings Button (Panel 4) -->
-      <lv_button name="nav_btn_settings" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_radius="0" style_pad_all="0">
+      <lv_obj name="nav_btn_settings" width="100%" height="content" clickable="true" scrollable="false" style_bg_opa="0" style_border_width="0" style_pad_all="#space_sm" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center">
         <icon name="nav_icon_settings_active" src="settings" size="lg" variant="accent" hidden="true">
           <lv_obj-bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="4"/>
         </icon>
         <icon name="nav_icon_settings_inactive" src="settings" size="lg" variant="secondary">
           <lv_obj-bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="4"/>
         </icon>
-      </lv_button>
+      </lv_obj>
 
       <!-- Advanced Button (Panel 5) -->
-      <lv_button name="nav_btn_advanced" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_radius="0" style_pad_all="0">
+      <lv_obj name="nav_btn_advanced" width="100%" height="content" clickable="true" scrollable="false" style_bg_opa="0" style_border_width="0" style_pad_all="#space_sm" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center">
         <icon name="nav_icon_advanced_active" src="dots_vertical" size="lg" variant="accent" hidden="true">
           <lv_obj-bind_flag_if_not_eq subject="active_panel" flag="hidden" ref_value="5"/>
         </icon>
         <icon name="nav_icon_advanced_inactive" src="dots_vertical" size="lg" variant="secondary">
           <lv_obj-bind_flag_if_eq subject="active_panel" flag="hidden" ref_value="5"/>
         </icon>
-      </lv_button>
-    </lv_obj>
-
-    <!-- Separator line -->
-    <lv_obj width="100%" height="2" style_margin_top="0" style_margin_bottom="0" style_margin_left="#space_xs" style_margin_right="#space_xs" style_pad_all="0"/>
-
-      <!-- ================================================================== -->
-      <!-- Status Icons - Multi-state visibility bindings                      -->
-      <!-- ================================================================== -->
-    <lv_obj width="100%" style_pad_all="0" style_border_width="0" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center">
-
-      <!-- Printer Status Button -->
-      <!-- States: 0=ready(green), 1=warning(orange), 2=error(red), 3=disconnected(gray) -->
-      <lv_button name="status_btn_printer" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_radius="0" style_pad_all="0">
-        <!-- Ready (green) - state 0 -->
-        <icon name="printer_icon_ready" src="printer_3d" size="sm" variant="success" hidden="true">
-          <lv_obj-bind_flag_if_not_eq subject="printer_icon_state" flag="hidden" ref_value="0"/>
-        </icon>
-        <!-- Warning (orange) - state 1 -->
-        <icon name="printer_icon_warning" src="printer_3d" size="sm" variant="warning" hidden="true">
-          <lv_obj-bind_flag_if_not_eq subject="printer_icon_state" flag="hidden" ref_value="1"/>
-        </icon>
-        <!-- Error (red) - state 2 -->
-        <icon name="printer_icon_error" src="printer_3d" size="sm" variant="error" hidden="true">
-          <lv_obj-bind_flag_if_not_eq subject="printer_icon_state" flag="hidden" ref_value="2"/>
-        </icon>
-        <!-- Disconnected (gray) - state 3 (default) -->
-        <icon name="printer_icon_disconnected" src="printer_3d" size="sm" variant="secondary">
-          <lv_obj-bind_flag_if_not_eq subject="printer_icon_state" flag="hidden" ref_value="3"/>
-        </icon>
-      </lv_button>
-
-      <!-- Network Status Button -->
-      <!-- States: 0=connected(green), 1=connecting(orange), 2=disconnected(gray) -->
-      <lv_button name="status_btn_network" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_radius="0" style_pad_all="0">
-        <!-- Connected (green) - state 0 -->
-        <icon name="network_icon_connected" src="lan" size="sm" variant="success" hidden="true">
-          <lv_obj-bind_flag_if_not_eq subject="network_icon_state" flag="hidden" ref_value="0"/>
-        </icon>
-        <!-- Connecting (orange) - state 1 -->
-        <icon name="network_icon_connecting" src="lan" size="sm" variant="warning" hidden="true">
-          <lv_obj-bind_flag_if_not_eq subject="network_icon_state" flag="hidden" ref_value="1"/>
-        </icon>
-        <!-- Disconnected (gray) - state 2 (default) -->
-        <icon name="network_icon_disconnected" src="lan" size="sm" variant="secondary">
-          <lv_obj-bind_flag_if_not_eq subject="network_icon_state" flag="hidden" ref_value="2"/>
-        </icon>
-      </lv_button>
-
-      <!-- Notification Button with Badge -->
-      <lv_obj name="status_notification_history_container" width="100%" height="50" style_bg_opa="0" style_border_width="0" style_pad_all="0">
-        <lv_button name="status_btn_notification" align="center" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_radius="0" style_pad_all="0" style_pad_bottom="0">
-          <event_cb trigger="clicked" callback="status_notification_history_clicked"/>
-          <!-- Bell icon always shows in secondary (neutral) color -->
-          <icon name="status_notification_icon" src="notifications" size="sm" variant="secondary" align="center"/>
-        </lv_button>
-
-        <!-- Notification Count Badge - visibility bound to notification_count -->
-        <!-- Badge background color determined by stacked colored backgrounds -->
-        <lv_obj name="notification_badge" width="18" height="18" align="center" x="10" y="-8" style_radius="9" style_border_width="0" style_pad_all="0" hidden="true" scrollable="false" clickable="true">
-          <!-- Bind visibility: hidden when notification_count == 0 -->
-          <lv_obj-bind_flag_if_eq subject="notification_count" flag="hidden" ref_value="0"/>
-          <event_cb trigger="clicked" callback="status_notification_history_clicked"/>
-
-          <!-- Stacked background colors for severity (only one visible at a time) -->
-          <!-- Info (blue) - severity 0 -->
-          <lv_obj name="badge_bg_info" width="100%" height="100%" style_radius="9" style_bg_color="#info_color" style_border_width="0">
-            <lv_obj-bind_flag_if_not_eq subject="notification_severity" flag="hidden" ref_value="0"/>
-          </lv_obj>
-          <!-- Warning (orange) - severity 1 -->
-          <lv_obj name="badge_bg_warning" width="100%" height="100%" style_radius="9" style_bg_color="#warning_color" style_border_width="0" hidden="true">
-            <lv_obj-bind_flag_if_not_eq subject="notification_severity" flag="hidden" ref_value="1"/>
-          </lv_obj>
-          <!-- Error (red) - severity 2 -->
-          <lv_obj name="badge_bg_error" width="100%" height="100%" style_radius="9" style_bg_color="#error_color" style_border_width="0" hidden="true">
-            <lv_obj-bind_flag_if_not_eq subject="notification_severity" flag="hidden" ref_value="2"/>
-          </lv_obj>
-
-          <!-- Badge count text - bound to notification_count_text subject -->
-          <text_small name="notification_badge_count" bind_text="notification_count_text" style_pad_top="0" align="center" style_text_color="#ffffff"/>
-        </lv_obj>
       </lv_obj>
     </lv_obj>
   </view>

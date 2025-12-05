@@ -83,9 +83,13 @@ LVGL_SAFE_EVENT_CB_WITH_EVENT(nav_button_clicked_cb, event, {
     lv_event_code_t code = lv_event_get_code(event);
     int panel_id = (int)(uintptr_t)lv_event_get_user_data(event);
 
+    spdlog::info("[NAV] nav_button_clicked_cb fired: code={}, panel_id={}, active_panel={}",
+                 static_cast<int>(code), panel_id, static_cast<int>(active_panel));
+
     if (code == LV_EVENT_CLICKED) {
         // Skip if already on this panel (prevents redundant work on repeated clicks)
         if (panel_id == static_cast<int>(active_panel)) {
+            spdlog::info("[NAV] Skipping - already on panel {}", panel_id);
             return;
         }
 
@@ -142,6 +146,7 @@ LVGL_SAFE_EVENT_CB_WITH_EVENT(nav_button_clicked_cb, event, {
         }
 
         // Update active panel state (triggers icon colors, etc.)
+        spdlog::info("[NAV] Switching to panel {}", panel_id);
         ui_nav_set_active((ui_panel_id_t)panel_id);
     }
 })
@@ -227,12 +232,7 @@ void ui_nav_wire_events(lv_obj_t* navbar) {
             continue;
         }
 
-        // Ensure button is clickable and add event handler
-        // PRESS_LOCK prevents LVGL from re-searching for objects on every frame while pressed,
-        // which would cause repeated LV_EVENT_CLICKED events as the pointer moves between
-        // button and child icon
-        lv_obj_add_flag(btn,
-                        static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_PRESS_LOCK));
+        // Add click event handler (clickable flag set in XML via clickable="true")
         lv_obj_add_event_cb(btn, nav_button_clicked_cb, LV_EVENT_CLICKED, (void*)(uintptr_t)i);
     }
 
