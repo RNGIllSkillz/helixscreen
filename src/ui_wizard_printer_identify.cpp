@@ -215,11 +215,17 @@ void WizardPrinterIdentifyStep::init_subjects() {
         MoonrakerClient* client = get_moonraker_client();
         if (client) {
             std::string hostname = client->get_hostname();
+            spdlog::debug("[{}] Moonraker hostname value: '{}' (empty={}, unknown={})", get_name(),
+                          hostname, hostname.empty(), hostname == "unknown");
             if (!hostname.empty() && hostname != "unknown") {
                 default_name = hostname;
                 spdlog::info("[{}] Auto-filled printer name from hostname: '{}'", get_name(),
                              default_name);
+            } else {
+                spdlog::debug("[{}] Hostname unavailable for auto-fill", get_name());
             }
+        } else {
+            spdlog::debug("[{}] No Moonraker client available for hostname auto-fill", get_name());
         }
     }
 
@@ -462,8 +468,11 @@ void WizardPrinterIdentifyStep::cleanup() {
     // Save current subject values to config
     Config* config = Config::get_instance();
     try {
-        // Get current name from subject buffer
-        std::string current_name(printer_name_buffer_);
+        // Get current name from SUBJECT (not buffer - buffer only updates on user typing)
+        // The subject contains the authoritative value including auto-fill
+        const char* subject_value =
+            static_cast<const char*>(lv_subject_get_pointer(&printer_name_));
+        std::string current_name(subject_value ? subject_value : "");
 
         // Trim whitespace
         current_name.erase(0, current_name.find_first_not_of(" \t\n\r\f\v"));
@@ -473,6 +482,8 @@ void WizardPrinterIdentifyStep::cleanup() {
         if (current_name.length() > 0) {
             config->set<std::string>(WizardConfigPaths::PRINTER_NAME, current_name);
             spdlog::debug("[{}] Saving printer name to config: '{}'", get_name(), current_name);
+        } else {
+            spdlog::debug("[{}] Printer name empty, not saving", get_name());
         }
 
         // Get current type index and convert to type name

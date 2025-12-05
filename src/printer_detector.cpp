@@ -333,11 +333,12 @@ PrinterDetectionResult execute_printer_heuristics(const json& printer,
 
 PrinterDetectionResult PrinterDetector::detect(const PrinterHardwareData& hardware) {
     try {
-        spdlog::debug("[PrinterDetector] Running detection with {} sensors, {} fans, hostname '{}'",
-                      hardware.sensors.size(), hardware.fans.size(), hardware.hostname);
-        spdlog::debug("[PrinterDetector]   printer_objects: {}, steppers: {}, kinematics: '{}'",
-                      hardware.printer_objects.size(), hardware.steppers.size(),
-                      hardware.kinematics);
+        // Verbose debug output for troubleshooting detection issues
+        spdlog::info("[PrinterDetector] Running detection with {} sensors, {} fans, hostname '{}'",
+                     hardware.sensors.size(), hardware.fans.size(), hardware.hostname);
+        spdlog::info("[PrinterDetector]   printer_objects: {}, steppers: {}, kinematics: '{}'",
+                     hardware.printer_objects.size(), hardware.steppers.size(),
+                     hardware.kinematics);
 
         // Load database if not already loaded
         if (!g_database.load()) {
@@ -358,10 +359,14 @@ PrinterDetectionResult PrinterDetector::detect(const PrinterHardwareData& hardwa
         for (const auto& printer : g_database.data["printers"]) {
             PrinterDetectionResult result = execute_printer_heuristics(printer, hardware);
 
+            // Log all matches for debugging (not just best)
+            if (result.confidence > 0) {
+                spdlog::info("[PrinterDetector] Candidate: '{}' scored {}% via: {}",
+                             result.type_name, result.confidence, result.reason);
+            }
+
             if (result.confidence > best_match.confidence) {
                 best_match = result;
-                spdlog::info("[PrinterDetector] New best match: {} (confidence: {})",
-                             result.type_name, result.confidence);
             }
         }
 
