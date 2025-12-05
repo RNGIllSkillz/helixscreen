@@ -84,6 +84,11 @@ LVGL_SAFE_EVENT_CB_WITH_EVENT(nav_button_clicked_cb, event, {
     int panel_id = (int)(uintptr_t)lv_event_get_user_data(event);
 
     if (code == LV_EVENT_CLICKED) {
+        // Skip if already on this panel (prevents redundant work on repeated clicks)
+        if (panel_id == static_cast<int>(active_panel)) {
+            return;
+        }
+
         // DEFENSIVE: Hide ALL visible overlay panels (not in panel_widgets)
         // This handles overlays shown via command line, push_overlay, or other means
         lv_obj_t* screen = lv_screen_active();
@@ -111,7 +116,7 @@ LVGL_SAFE_EVENT_CB_WITH_EVENT(nav_button_clicked_cb, event, {
                 // Hide any visible overlay panel
                 if (!is_main_panel) {
                     lv_obj_add_flag(child, LV_OBJ_FLAG_HIDDEN);
-                    spdlog::debug("Hiding overlay panel {} (nav button clicked)", (void*)child);
+                    spdlog::trace("Hiding overlay panel {} (nav button clicked)", (void*)child);
                 }
             }
         }
@@ -125,14 +130,14 @@ LVGL_SAFE_EVENT_CB_WITH_EVENT(nav_button_clicked_cb, event, {
 
         // Clear panel stack when switching via nav bar
         panel_stack.clear();
-        spdlog::debug("Panel stack cleared (nav button clicked)");
+        spdlog::trace("Panel stack cleared (nav button clicked)");
 
         // Show the clicked panel and add it to stack
         lv_obj_t* new_panel = panel_widgets[panel_id];
         if (new_panel) {
             lv_obj_remove_flag(new_panel, LV_OBJ_FLAG_HIDDEN);
             panel_stack.push_back(new_panel);
-            spdlog::debug("Showing panel {} (stack depth: {})", (void*)new_panel,
+            spdlog::trace("Showing panel {} (stack depth: {})", (void*)new_panel,
                           panel_stack.size());
         }
 
@@ -259,7 +264,7 @@ void ui_nav_set_active(ui_panel_id_t panel_id) {
     if (panel_widgets[panel_id]) {
         panel_stack.clear();
         panel_stack.push_back(panel_widgets[panel_id]);
-        spdlog::debug("Panel stack updated to panel {} (set_active)", static_cast<int>(panel_id));
+        spdlog::trace("Panel stack updated to panel {} (set_active)", static_cast<int>(panel_id));
     }
 
     // Update active panel subject - this triggers observer and icon color updates

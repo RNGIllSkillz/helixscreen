@@ -464,7 +464,7 @@ int HomePanel::compute_network_icon_state() {
     int signal = 0;
     if (wifi_manager_) {
         signal = wifi_manager_->get_signal_strength();
-        spdlog::debug("[{}] WiFi signal strength: {}%", get_name(), signal);
+        spdlog::trace("[{}] WiFi signal strength: {}%", get_name(), signal);
     } else {
         spdlog::warn("[{}] WiFiManager not available for signal query", get_name());
     }
@@ -480,7 +480,7 @@ int HomePanel::compute_network_icon_state() {
     else
         state = 4; // Strong
 
-    spdlog::debug("[{}] WiFi signal {}% -> state {}", get_name(), signal, state);
+    spdlog::trace("[{}] WiFi signal {}% -> state {}", get_name(), signal, state);
     return state;
 }
 

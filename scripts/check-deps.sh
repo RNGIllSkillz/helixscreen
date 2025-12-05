@@ -81,9 +81,9 @@ hint() {
     local apt_pkg="$3"
     local dnf_pkg="$4"
 
-    echo "  Install: ${YELLOW}brew install ${brew_pkg:-$pkg}${RESET} (macOS)"
-    echo "         ${YELLOW}sudo apt install ${apt_pkg:-$pkg}${RESET} (Debian/Ubuntu)"
-    echo "         ${YELLOW}sudo dnf install ${dnf_pkg:-$pkg}${RESET} (Fedora/RHEL)"
+    echo -e "  Install: ${YELLOW}brew install ${brew_pkg:-$pkg}${RESET} (macOS)"
+    echo -e "         ${YELLOW}sudo apt install ${apt_pkg:-$pkg}${RESET} (Debian/Ubuntu)"
+    echo -e "         ${YELLOW}sudo dnf install ${dnf_pkg:-$pkg}${RESET} (Fedora/RHEL)"
 }
 
 # Check if a command exists and print version
@@ -131,7 +131,7 @@ check_dir() {
     else
         if [ "$required" = "true" ]; then
             fail "$name not found" "$name"
-            echo "  Run: ${YELLOW}git submodule update --init --recursive${RESET}"
+            echo -e "  Run: ${YELLOW}git submodule update --init --recursive${RESET}"
         else
             warn "$name not found (optional)"
         fi
@@ -259,7 +259,7 @@ check_desktop_tools() {
             ok "lv_font_conv installed"
         else
             warn "lv_font_conv not installed"
-            echo "  Run: ${YELLOW}npm install${RESET}"
+            echo -e "  Run: ${YELLOW}npm install${RESET}"
         fi
     else
         fail "npm not found (needed for font generation)" "npm"
@@ -273,10 +273,10 @@ check_desktop_tools() {
         # Check venv support
         if ! python3 -c "import venv, ensurepip" 2>/dev/null; then
             warn "python3-venv not installed"
-            echo "  Install: ${YELLOW}sudo apt install python3-venv${RESET} (Debian/Ubuntu)"
+            echo -e "  Install: ${YELLOW}sudo apt install python3-venv${RESET} (Debian/Ubuntu)"
         elif [ ! -f "$VENV/bin/python3" ]; then
             warn "Python venv not set up"
-            echo "  Run: ${YELLOW}make venv-setup${RESET}"
+            echo -e "  Run: ${YELLOW}make venv-setup${RESET}"
         else
             ok "Python venv: $VENV"
 
@@ -291,7 +291,7 @@ check_desktop_tools() {
 
             if [ -n "$missing_pkgs" ]; then
                 warn "Missing Python packages:$missing_pkgs"
-                echo "  Run: ${YELLOW}make venv-setup${RESET}"
+                echo -e "  Run: ${YELLOW}make venv-setup${RESET}"
             else
                 ok "Python packages (pypng, lz4) installed"
             fi
@@ -335,17 +335,17 @@ check_docker_tools() {
             warn "docker buildx not found (needed for cross-compilation builds)"
             echo "  The legacy Docker builder is deprecated and will be removed."
             if [ "$(uname -s)" = "Darwin" ]; then
-                echo "  Install: ${YELLOW}brew install docker-buildx${RESET}"
+                echo -e "  Install: ${YELLOW}brew install docker-buildx${RESET}"
             else
-                echo "  Install: ${YELLOW}https://docs.docker.com/go/buildx/${RESET}"
+                echo -e "  Install: ${YELLOW}https://docs.docker.com/go/buildx/${RESET}"
             fi
         fi
     else
         info "docker not found (only needed for cross-compilation)"
         if [ "$(uname -s)" = "Darwin" ]; then
-            echo "  Install: ${YELLOW}brew install colima docker docker-buildx && colima start${RESET}"
+            echo -e "  Install: ${YELLOW}brew install colima docker docker-buildx && colima start${RESET}"
         else
-            echo "  Install: ${YELLOW}https://docs.docker.com/engine/install/${RESET}"
+            echo -e "  Install: ${YELLOW}https://docs.docker.com/engine/install/${RESET}"
         fi
     fi
 }
@@ -394,7 +394,7 @@ check_canvas_libs() {
         echo ""
         echo -e "  ${CYAN}To install canvas dependencies:${RESET}"
         if [ "$(uname -s)" = "Darwin" ]; then
-            echo "  ${YELLOW}brew install$canvas_missing${RESET}"
+            echo -e "  ${YELLOW}brew install$canvas_missing${RESET}"
         elif [ -f /etc/debian_version ]; then
             local debian_pkgs=""
             for lib in $canvas_missing; do
@@ -404,7 +404,7 @@ check_canvas_libs() {
                     libpng) debian_pkgs="$debian_pkgs libpng-dev" ;;
                 esac
             done
-            echo "  ${YELLOW}sudo apt install$debian_pkgs${RESET}"
+            echo -e "  ${YELLOW}sudo apt install$debian_pkgs${RESET}"
         elif [ -f /etc/fedora-release ] || [ -f /etc/redhat-release ]; then
             local fedora_pkgs=""
             for lib in $canvas_missing; do
@@ -414,7 +414,7 @@ check_canvas_libs() {
                     libpng) fedora_pkgs="$fedora_pkgs libpng-devel" ;;
                 esac
             done
-            echo "  ${YELLOW}sudo dnf install$fedora_pkgs${RESET}"
+            echo -e "  ${YELLOW}sudo dnf install$fedora_pkgs${RESET}"
         fi
     fi
 }
