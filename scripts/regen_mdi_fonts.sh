@@ -16,6 +16,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# Add node_modules/.bin to PATH so lv_font_conv is available
+# (same as how npm scripts work)
+export PATH="$PWD/node_modules/.bin:$PATH"
+
 FONT=assets/fonts/materialdesignicons-webfont.ttf
 
 # Check font exists

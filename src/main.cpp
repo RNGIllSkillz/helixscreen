@@ -824,11 +824,6 @@ static void register_fonts_and_images() {
     lv_xml_register_font(NULL, "mdi_icons_24", &mdi_icons_24);
     lv_xml_register_font(NULL, "mdi_icons_16", &mdi_icons_16);
 
-    // Arrow icon fonts (for directional controls)
-    lv_xml_register_font(NULL, "arrows_64", &arrows_64);
-    lv_xml_register_font(NULL, "arrows_48", &arrows_48);
-    lv_xml_register_font(NULL, "arrows_32", &arrows_32);
-
     // Montserrat text fonts - used by semantic text components:
     // - text_heading uses font_heading (20/26/28 for small/medium/large breakpoints)
     // - text_body uses font_body (14/18/20 for small/medium/large breakpoints)

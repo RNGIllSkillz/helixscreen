@@ -603,49 +603,55 @@ The build system uses `--output-sync=target` to prevent interleaved output durin
 
 ## Font Generation
 
-The build system includes automated font generation using `lv_font_conv` to convert TrueType fonts into LVGL-compatible C arrays.
+The build system uses `lv_font_conv` to convert TrueType fonts into LVGL-compatible C arrays.
+
+### Font Types
+
+**Material Design Icons (MDI):**
+- Source: `scripts/regen_mdi_fonts.sh` (single source of truth)
+- Font: `assets/fonts/materialdesignicons-webfont.ttf`
+- Output: `mdi_icons_16.c`, `mdi_icons_24.c`, `mdi_icons_32.c`, `mdi_icons_48.c`, `mdi_icons_64.c`
+- Codepoint mapping: `include/ui_icon_codepoints.h`
+
+**Noto Sans Text Fonts:**
+- Source: `package.json` npm scripts
+- Font: `assets/fonts/NotoSans-Regular.ttf`, `NotoSans-Bold.ttf`
+- Output: `noto_sans_*.c`, `noto_sans_bold_*.c`
 
 ### How It Works
 
-Fonts are automatically regenerated when `package.json` is modified (which contains the glyph ranges). The build system uses Make's dependency tracking to only regenerate when needed.
+MDI icon fonts are regenerated when `scripts/regen_mdi_fonts.sh` changes. The build system uses Make's dependency tracking to only regenerate when needed.
 
 **Automatic regeneration:**
 ```bash
-make          # Checks fonts and regenerates if package.json is newer
+make          # Checks fonts and regenerates if regen script is newer
 ```
 
 **Manual regeneration:**
 ```bash
-make generate-fonts    # Explicitly regenerate fonts
-npm run convert-all-fonts  # Direct npm script (bypasses Make)
+make regen-fonts       # Regenerate MDI icon fonts from regen script
+make generate-fonts    # Explicit font regeneration
 ```
 
-### Adding New Font Glyphs
+### Adding New Icon Glyphs
 
-To add new FontAwesome icons or glyphs:
+To add new Material Design Icons:
 
-1. **Find the Unicode codepoint** for the icon (e.g., `circle-question` = `0xF059`)
-2. **Edit `package.json`** and add the codepoint to the appropriate `convert-font-*` script's `--range` parameter:
-   ```json
-   "convert-font-24": "lv_font_conv ... --range 0xf008,0xf011,0xf059,..."
-   ```
-3. **Regenerate fonts:**
+1. **Find the icon** at https://pictogrammers.com/library/mdi/
+2. **Get the codepoint** (e.g., `wifi-strength-4` = `0xF0928`)
+3. **Edit `scripts/regen_mdi_fonts.sh`** and add the codepoint:
    ```bash
-   make generate-fonts
+   MDI_ICONS+=",0xF0928"    # wifi-strength-4
    ```
-   Or let the build system handle it automatically on next `make`.
-
-### Font Files
-
-**FontAwesome icons:**
-- `fa_icons_16.c` - 16px icons (small UI elements)
-- `fa_icons_24.c` - 24px icons (standard buttons/labels)
-- `fa_icons_32.c` - 32px icons (medium-sized elements)
-- `fa_icons_48.c` - 48px icons (large buttons/cards)
-- `fa_icons_64.c` - 64px icons (very large/hero elements)
-
-**Arrow glyphs (from Arial Unicode):**
-- `arrows_32.c`, `arrows_48.c`, `arrows_64.c` - Unicode directional arrows (U+2190-2193, U+2196-2199)
+4. **Add to codepoints header** (`include/ui_icon_codepoints.h`):
+   ```cpp
+   {"wifi_strength_4",    "\xF3\xB0\xA4\xA8"},  // F0928 wifi-strength-4
+   ```
+5. **Regenerate fonts:**
+   ```bash
+   make regen-fonts
+   make -j
+   ```
 
 ### Requirements
 
@@ -672,9 +678,15 @@ npm --version
 
 **Fonts not regenerating:**
 ```bash
-# Force regeneration by touching package.json
-touch package.json
+# Force regeneration by touching the regen script
+touch scripts/regen_mdi_fonts.sh
 make generate-fonts
+```
+
+**Missing icons:**
+```bash
+# Validate all icons in codepoints.h are in the font
+make validate-fonts
 ```
 
 **Manual font generation:**

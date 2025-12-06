@@ -4,20 +4,16 @@
 # HelixScreen UI Prototype - Font & Icon Generation Module
 # Handles font generation and Material Design icons
 
-# Generate fonts if package.json is newer than stamp file
-# Use stamp file pattern to avoid regenerating multiple times in parallel
-.fonts.stamp: package.json
+# Generate MDI icon fonts using the authoritative regen script
+# Triggered when regen_mdi_fonts.sh changes (single source of truth for icon codepoints)
+.fonts.stamp: scripts/regen_mdi_fonts.sh
 	$(ECHO) "$(CYAN)Checking font generation...$(RESET)"
 	$(Q)if ! command -v npm >/dev/null 2>&1; then \
 		echo "$(YELLOW)⚠ npm not found - skipping font generation$(RESET)"; \
 		touch $@; \
 	else \
-		echo "$(YELLOW)→ Regenerating MDI icon fonts from package.json...$(RESET)"; \
-		if [ "$(PLATFORM)" = "macOS" ]; then \
-			npm run convert-all-fonts && touch $@ && echo "$(GREEN)✓ Fonts regenerated successfully$(RESET)"; \
-		else \
-			npm run convert-fonts-ci && touch $@ && echo "$(GREEN)✓ Fonts regenerated successfully (arrow fonts skipped on Linux)$(RESET)"; \
-		fi \
+		echo "$(YELLOW)→ Regenerating MDI icon fonts from regen_mdi_fonts.sh...$(RESET)"; \
+		./scripts/regen_mdi_fonts.sh && touch $@ && echo "$(GREEN)✓ Fonts regenerated successfully$(RESET)"; \
 	fi
 
 # Fonts depend on stamp file to ensure they're regenerated when needed
