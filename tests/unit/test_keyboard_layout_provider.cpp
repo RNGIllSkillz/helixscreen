@@ -1,18 +1,13 @@
-/*
- * Copyright (C) 2025 356C LLC
- * Author: Preston Brown <pbrown@brown-house.net>
- *
- * This file is part of HelixScreen.
- *
- * HelixScreen is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- */
+// Copyright 2025 HelixScreen
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "ui_fonts.h"
+
+#include "keyboard_layout_provider.h"
+
+#include <cstring>
 
 #include "../catch_amalgamated.hpp"
-#include "keyboard_layout_provider.h"
-#include <cstring>
 
 // ============================================================================
 // Helper Functions
@@ -36,7 +31,7 @@ static size_t count_buttons(const char* const* map) {
  * @note Rows are delimited by "\n", final row has no trailing newline
  */
 static size_t count_rows(const char* const* map) {
-    size_t rows = 1;  // Start at 1 for the first row
+    size_t rows = 1; // Start at 1 for the first row
     for (size_t i = 0; map[i][0] != '\0'; i++) {
         if (strcmp(map[i], "\n") == 0) {
             rows++;
@@ -102,7 +97,7 @@ TEST_CASE("Keyboard Layout: Lowercase alphabet - basic structure", "[keyboard][l
 
     SECTION("Map is properly terminated") {
         bool found_sentinel = false;
-        for (size_t i = 0; i < 100; i++) {  // Safety limit
+        for (size_t i = 0; i < 100; i++) { // Safety limit
             if (map[i][0] == '\0') {
                 found_sentinel = true;
                 break;
@@ -150,13 +145,13 @@ TEST_CASE("Keyboard Layout: Lowercase alphabet - basic structure", "[keyboard][l
     }
 
     SECTION("Contains control buttons") {
-        REQUIRE(button_exists(map, LV_SYMBOL_UP));          // Shift
-        REQUIRE(button_exists(map, LV_SYMBOL_BACKSPACE));   // Backspace
-        REQUIRE(button_exists(map, "?123"));                 // Mode switch
-        REQUIRE(button_exists(map, LV_SYMBOL_KEYBOARD));    // Close
-        REQUIRE(button_exists(map, ","));                    // Comma
-        REQUIRE(button_exists(map, "."));                    // Period
-        REQUIRE(button_exists(map, LV_SYMBOL_NEW_LINE));    // Enter
+        REQUIRE(button_exists(map, ICON_KEYBOARD_SHIFT));  // Shift
+        REQUIRE(button_exists(map, ICON_BACKSPACE));       // Backspace
+        REQUIRE(button_exists(map, "?123"));               // Mode switch
+        REQUIRE(button_exists(map, ICON_KEYBOARD_CLOSE));  // Close
+        REQUIRE(button_exists(map, ","));                  // Comma
+        REQUIRE(button_exists(map, "."));                  // Period
+        REQUIRE(button_exists(map, ICON_KEYBOARD_RETURN)); // Enter
     }
 
     SECTION("Contains spacebar") {
@@ -165,7 +160,8 @@ TEST_CASE("Keyboard Layout: Lowercase alphabet - basic structure", "[keyboard][l
     }
 }
 
-TEST_CASE("Keyboard Layout: Lowercase alphabet - control map flags", "[keyboard][layout][alpha_lc]") {
+TEST_CASE("Keyboard Layout: Lowercase alphabet - control map flags",
+          "[keyboard][layout][alpha_lc]") {
     const char* const* map = keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false);
     const lv_buttonmatrix_ctrl_t* ctrl_map = keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALPHA_LC);
 
@@ -178,17 +174,17 @@ TEST_CASE("Keyboard Layout: Lowercase alphabet - control map flags", "[keyboard]
     }
 
     SECTION("Shift key has CUSTOM_1 flag (non-printing)") {
-        int idx = find_button_index(map, LV_SYMBOL_UP);
+        int idx = find_button_index(map, ICON_KEYBOARD_SHIFT);
         REQUIRE(idx >= 0);
         REQUIRE(has_flag(ctrl_map[idx], LV_BUTTONMATRIX_CTRL_CUSTOM_1));
-        REQUIRE(extract_width(ctrl_map[idx]) == 6);  // Wide key
+        REQUIRE(extract_width(ctrl_map[idx]) == 6); // Wide key
     }
 
     SECTION("Backspace key has CUSTOM_1 flag (non-printing)") {
-        int idx = find_button_index(map, LV_SYMBOL_BACKSPACE);
+        int idx = find_button_index(map, ICON_BACKSPACE);
         REQUIRE(idx >= 0);
         REQUIRE(has_flag(ctrl_map[idx], LV_BUTTONMATRIX_CTRL_CUSTOM_1));
-        REQUIRE(extract_width(ctrl_map[idx]) == 6);  // Wide key
+        REQUIRE(extract_width(ctrl_map[idx]) == 6); // Wide key
     }
 
     SECTION("Mode switch button has CUSTOM_1 flag") {
@@ -202,11 +198,11 @@ TEST_CASE("Keyboard Layout: Lowercase alphabet - control map flags", "[keyboard]
         int idx = find_button_index(map, spacebar);
         REQUIRE(idx >= 0);
         REQUIRE_FALSE(has_flag(ctrl_map[idx], LV_BUTTONMATRIX_CTRL_CUSTOM_1));
-        REQUIRE(extract_width(ctrl_map[idx]) == 12);  // Very wide
+        REQUIRE(extract_width(ctrl_map[idx]) == 12); // Very wide
     }
 
     SECTION("Enter key has CUSTOM_1 flag") {
-        int idx = find_button_index(map, LV_SYMBOL_NEW_LINE);
+        int idx = find_button_index(map, ICON_KEYBOARD_RETURN);
         REQUIRE(idx >= 0);
         REQUIRE(has_flag(ctrl_map[idx], LV_BUTTONMATRIX_CTRL_CUSTOM_1));
     }
@@ -217,7 +213,7 @@ TEST_CASE("Keyboard Layout: Lowercase alphabet - control map flags", "[keyboard]
 // ============================================================================
 
 TEST_CASE("Keyboard Layout: Uppercase alphabet - basic structure", "[keyboard][layout][alpha_uc]") {
-    SECTION("Caps lock mode (eject symbol)") {
+    SECTION("Caps lock mode (caps symbol)") {
         const char* const* map = keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_UC, true);
         REQUIRE(map != nullptr);
 
@@ -230,12 +226,12 @@ TEST_CASE("Keyboard Layout: Uppercase alphabet - basic structure", "[keyboard][l
         REQUIRE(button_exists(map, "Z"));
         REQUIRE(button_exists(map, "M"));
 
-        // Should have eject symbol for shift (caps lock active)
-        REQUIRE(button_exists(map, LV_SYMBOL_EJECT));
-        REQUIRE_FALSE(button_exists(map, LV_SYMBOL_UPLOAD));
+        // Should have caps symbol for shift (caps lock active)
+        REQUIRE(button_exists(map, ICON_KEYBOARD_CAPS));
+        REQUIRE_FALSE(button_exists(map, ICON_KEYBOARD_SHIFT));
     }
 
-    SECTION("One-shot mode (upload symbol)") {
+    SECTION("One-shot mode (shift symbol)") {
         const char* const* map = keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_UC, false);
         REQUIRE(map != nullptr);
 
@@ -244,9 +240,9 @@ TEST_CASE("Keyboard Layout: Uppercase alphabet - basic structure", "[keyboard][l
         REQUIRE(button_exists(map, "A"));
         REQUIRE(button_exists(map, "Z"));
 
-        // Should have upload symbol for shift (one-shot)
-        REQUIRE(button_exists(map, LV_SYMBOL_UPLOAD));
-        REQUIRE_FALSE(button_exists(map, LV_SYMBOL_EJECT));
+        // Should have shift symbol for shift (one-shot)
+        REQUIRE(button_exists(map, ICON_KEYBOARD_SHIFT));
+        REQUIRE_FALSE(button_exists(map, ICON_KEYBOARD_CAPS));
     }
 
     SECTION("Both modes use same control map") {
@@ -255,7 +251,7 @@ TEST_CASE("Keyboard Layout: Uppercase alphabet - basic structure", "[keyboard][l
         const lv_buttonmatrix_ctrl_t* ctrl_oneshot =
             keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALPHA_UC);
 
-        REQUIRE(ctrl_caps == ctrl_oneshot);  // Same pointer
+        REQUIRE(ctrl_caps == ctrl_oneshot); // Same pointer
     }
 
     SECTION("Has same 4-row structure as lowercase") {
@@ -264,7 +260,8 @@ TEST_CASE("Keyboard Layout: Uppercase alphabet - basic structure", "[keyboard][l
     }
 }
 
-TEST_CASE("Keyboard Layout: Uppercase vs lowercase - character mapping", "[keyboard][layout][alpha]") {
+TEST_CASE("Keyboard Layout: Uppercase vs lowercase - character mapping",
+          "[keyboard][layout][alpha]") {
     const char* const* lc_map = keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false);
     const char* const* uc_map = keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_UC, false);
 
@@ -281,8 +278,8 @@ TEST_CASE("Keyboard Layout: Uppercase vs lowercase - character mapping", "[keybo
     SECTION("Both have same control buttons") {
         REQUIRE(button_exists(lc_map, "?123"));
         REQUIRE(button_exists(uc_map, "?123"));
-        REQUIRE(button_exists(lc_map, LV_SYMBOL_KEYBOARD));
-        REQUIRE(button_exists(uc_map, LV_SYMBOL_KEYBOARD));
+        REQUIRE(button_exists(lc_map, ICON_KEYBOARD_CLOSE));
+        REQUIRE(button_exists(uc_map, ICON_KEYBOARD_CLOSE));
     }
 }
 
@@ -292,59 +289,64 @@ TEST_CASE("Keyboard Layout: Uppercase vs lowercase - character mapping", "[keybo
 
 TEST_CASE("Keyboard Layout: Numbers and symbols - structure", "[keyboard][layout][numbers]") {
     const char* const* map = keyboard_layout_get_map(KEYBOARD_LAYOUT_NUMBERS_SYMBOLS, false);
-    const lv_buttonmatrix_ctrl_t* ctrl_map = keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_NUMBERS_SYMBOLS);
+    const lv_buttonmatrix_ctrl_t* ctrl_map =
+        keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_NUMBERS_SYMBOLS);
 
     REQUIRE(map != nullptr);
     REQUIRE(ctrl_map != nullptr);
 
-    SECTION("Has 5 rows (more than alpha layouts)") {
-        REQUIRE(count_rows(map) == 5);
+    SECTION("Has 4 rows (same as alpha layouts)") {
+        REQUIRE(count_rows(map) == 4);
     }
 
-    SECTION("Contains special characters") {
-        REQUIRE(button_exists(map, "!"));
-        REQUIRE(button_exists(map, "@"));
-        REQUIRE(button_exists(map, "#"));
-        REQUIRE(button_exists(map, "$"));
-        REQUIRE(button_exists(map, "%"));
-        REQUIRE(button_exists(map, "^"));
-        REQUIRE(button_exists(map, "&"));
-        REQUIRE(button_exists(map, "*"));
-        REQUIRE(button_exists(map, "("));
-        REQUIRE(button_exists(map, ")"));
+    SECTION("Contains numbers 0-9") {
+        REQUIRE(button_exists(map, "1"));
+        REQUIRE(button_exists(map, "2"));
+        REQUIRE(button_exists(map, "3"));
+        REQUIRE(button_exists(map, "4"));
+        REQUIRE(button_exists(map, "5"));
+        REQUIRE(button_exists(map, "6"));
+        REQUIRE(button_exists(map, "7"));
+        REQUIRE(button_exists(map, "8"));
+        REQUIRE(button_exists(map, "9"));
+        REQUIRE(button_exists(map, "0"));
     }
 
-    SECTION("Contains punctuation") {
+    SECTION("Contains common symbols") {
         REQUIRE(button_exists(map, "-"));
         REQUIRE(button_exists(map, "/"));
         REQUIRE(button_exists(map, ":"));
         REQUIRE(button_exists(map, ";"));
+        REQUIRE(button_exists(map, "("));
+        REQUIRE(button_exists(map, ")"));
+        REQUIRE(button_exists(map, "$"));
+        REQUIRE(button_exists(map, "&"));
+        REQUIRE(button_exists(map, "@"));
+        REQUIRE(button_exists(map, "*"));
+    }
+
+    SECTION("Contains punctuation") {
+        REQUIRE(button_exists(map, "."));
+        REQUIRE(button_exists(map, ","));
         REQUIRE(button_exists(map, "?"));
         REQUIRE(button_exists(map, "!"));
-        REQUIRE(button_exists(map, "'"));
         REQUIRE(button_exists(map, "\""));
     }
 
-    SECTION("Contains brackets") {
-        REQUIRE(button_exists(map, "["));
-        REQUIRE(button_exists(map, "]"));
-        REQUIRE(button_exists(map, "{"));
-        REQUIRE(button_exists(map, "}"));
-    }
-
     SECTION("Contains mode switch buttons") {
-        REQUIRE(button_exists(map, "#+="));   // To alt symbols
-        REQUIRE(button_exists(map, "XYZ"));   // Back to alpha
+        REQUIRE(button_exists(map, "#+=")); // To alt symbols
+        REQUIRE(button_exists(map, "XYZ")); // Back to alpha
     }
 
     SECTION("Contains backspace") {
-        REQUIRE(button_exists(map, LV_SYMBOL_BACKSPACE));
+        REQUIRE(button_exists(map, ICON_BACKSPACE));
     }
 }
 
 TEST_CASE("Keyboard Layout: Numbers and symbols - control flags", "[keyboard][layout][numbers]") {
     const char* const* map = keyboard_layout_get_map(KEYBOARD_LAYOUT_NUMBERS_SYMBOLS, false);
-    const lv_buttonmatrix_ctrl_t* ctrl_map = keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_NUMBERS_SYMBOLS);
+    const lv_buttonmatrix_ctrl_t* ctrl_map =
+        keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_NUMBERS_SYMBOLS);
 
     SECTION("Symbol keys have POPOVER and NO_REPEAT") {
         int idx = find_button_index(map, "!");
@@ -366,10 +368,10 @@ TEST_CASE("Keyboard Layout: Numbers and symbols - control flags", "[keyboard][la
     }
 
     SECTION("Backspace has CUSTOM_1 flag and wider width") {
-        int idx = find_button_index(map, LV_SYMBOL_BACKSPACE);
+        int idx = find_button_index(map, ICON_BACKSPACE);
         REQUIRE(idx >= 0);
         REQUIRE(has_flag(ctrl_map[idx], LV_BUTTONMATRIX_CTRL_CUSTOM_1));
-        REQUIRE(extract_width(ctrl_map[idx]) >= 6);  // Wide key
+        REQUIRE(extract_width(ctrl_map[idx]) >= 6); // Wide key
     }
 }
 
@@ -379,13 +381,14 @@ TEST_CASE("Keyboard Layout: Numbers and symbols - control flags", "[keyboard][la
 
 TEST_CASE("Keyboard Layout: Alternative symbols - structure", "[keyboard][layout][alt_symbols]") {
     const char* const* map = keyboard_layout_get_map(KEYBOARD_LAYOUT_ALT_SYMBOLS, false);
-    const lv_buttonmatrix_ctrl_t* ctrl_map = keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALT_SYMBOLS);
+    const lv_buttonmatrix_ctrl_t* ctrl_map =
+        keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALT_SYMBOLS);
 
     REQUIRE(map != nullptr);
     REQUIRE(ctrl_map != nullptr);
 
-    SECTION("Has 5 rows") {
-        REQUIRE(count_rows(map) == 5);
+    SECTION("Has 4 rows") {
+        REQUIRE(count_rows(map) == 4);
     }
 
     SECTION("Contains brackets and math symbols") {
@@ -415,9 +418,11 @@ TEST_CASE("Keyboard Layout: Alternative symbols - structure", "[keyboard][layout
     }
 }
 
-TEST_CASE("Keyboard Layout: Alternative symbols - control flags", "[keyboard][layout][alt_symbols]") {
+TEST_CASE("Keyboard Layout: Alternative symbols - control flags",
+          "[keyboard][layout][alt_symbols]") {
     const char* const* map = keyboard_layout_get_map(KEYBOARD_LAYOUT_ALT_SYMBOLS, false);
-    const lv_buttonmatrix_ctrl_t* ctrl_map = keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALT_SYMBOLS);
+    const lv_buttonmatrix_ctrl_t* ctrl_map =
+        keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALT_SYMBOLS);
 
     SECTION("Symbol keys have POPOVER and NO_REPEAT") {
         int idx = find_button_index(map, "[");
@@ -453,7 +458,7 @@ TEST_CASE("Keyboard Layout: Spacebar text constant", "[keyboard][layout][spaceba
 
     SECTION("Same value returned on multiple calls") {
         const char* spacebar2 = keyboard_layout_get_spacebar_text();
-        REQUIRE(spacebar == spacebar2);  // Same pointer
+        REQUIRE(spacebar == spacebar2); // Same pointer
     }
 }
 
@@ -461,12 +466,13 @@ TEST_CASE("Keyboard Layout: Spacebar text constant", "[keyboard][layout][spaceba
 // Layout Consistency Tests
 // ============================================================================
 
-TEST_CASE("Keyboard Layout: All layouts have matching button and control counts", "[keyboard][layout][consistency]") {
+TEST_CASE("Keyboard Layout: All layouts have matching button and control counts",
+          "[keyboard][layout][consistency]") {
     SECTION("Lowercase alphabet") {
         const char* const* map = keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false);
         size_t btn_count = count_buttons(map);
         REQUIRE(btn_count > 0);
-        REQUIRE(btn_count < 100);  // Sanity check
+        REQUIRE(btn_count < 100); // Sanity check
     }
 
     SECTION("Uppercase alphabet (caps lock)") {
@@ -508,7 +514,8 @@ TEST_CASE("Keyboard Layout: All layouts have matching button and control counts"
 TEST_CASE("Keyboard Layout: Key widths are valid", "[keyboard][layout][widths]") {
     SECTION("Lowercase alphabet - regular keys are width 4") {
         const char* const* map = keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false);
-        const lv_buttonmatrix_ctrl_t* ctrl_map = keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALPHA_LC);
+        const lv_buttonmatrix_ctrl_t* ctrl_map =
+            keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALPHA_LC);
 
         int q_idx = find_button_index(map, "q");
         REQUIRE(extract_width(ctrl_map[q_idx]) == 4);
@@ -519,18 +526,20 @@ TEST_CASE("Keyboard Layout: Key widths are valid", "[keyboard][layout][widths]")
 
     SECTION("Lowercase alphabet - shift and backspace are width 6") {
         const char* const* map = keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false);
-        const lv_buttonmatrix_ctrl_t* ctrl_map = keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALPHA_LC);
+        const lv_buttonmatrix_ctrl_t* ctrl_map =
+            keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALPHA_LC);
 
-        int shift_idx = find_button_index(map, LV_SYMBOL_UP);
+        int shift_idx = find_button_index(map, ICON_KEYBOARD_SHIFT);
         REQUIRE(extract_width(ctrl_map[shift_idx]) == 6);
 
-        int bs_idx = find_button_index(map, LV_SYMBOL_BACKSPACE);
+        int bs_idx = find_button_index(map, ICON_BACKSPACE);
         REQUIRE(extract_width(ctrl_map[bs_idx]) == 6);
     }
 
     SECTION("Lowercase alphabet - spacebar is width 12") {
         const char* const* map = keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false);
-        const lv_buttonmatrix_ctrl_t* ctrl_map = keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALPHA_LC);
+        const lv_buttonmatrix_ctrl_t* ctrl_map =
+            keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALPHA_LC);
 
         const char* spacebar = keyboard_layout_get_spacebar_text();
         int space_idx = find_button_index(map, spacebar);
@@ -556,7 +565,8 @@ TEST_CASE("Keyboard Layout: Invalid mode falls back to lowercase", "[keyboard][l
 
     SECTION("get_ctrl_map with invalid mode returns lowercase") {
         const lv_buttonmatrix_ctrl_t* ctrl = keyboard_layout_get_ctrl_map(invalid_mode);
-        const lv_buttonmatrix_ctrl_t* lc_ctrl = keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALPHA_LC);
+        const lv_buttonmatrix_ctrl_t* lc_ctrl =
+            keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALPHA_LC);
 
         // Should return same pointer as lowercase
         REQUIRE(ctrl == lc_ctrl);
@@ -583,8 +593,9 @@ TEST_CASE("Keyboard Layout: Row structure validation", "[keyboard][layout][rows]
 
         // Skip to row 2 (after first newline)
         size_t idx = 0;
-        while (map[idx][0] != '\0' && strcmp(map[idx], "\n") != 0) idx++;
-        idx++;  // Skip newline
+        while (map[idx][0] != '\0' && strcmp(map[idx], "\n") != 0)
+            idx++;
+        idx++; // Skip newline
 
         int row2_count = 0;
         while (map[idx][0] != '\0' && strcmp(map[idx], "\n") != 0) {
@@ -599,12 +610,12 @@ TEST_CASE("Keyboard Layout: Row structure validation", "[keyboard][layout][rows]
             keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false),
             keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_UC, false),
             keyboard_layout_get_map(KEYBOARD_LAYOUT_NUMBERS_SYMBOLS, false),
-            keyboard_layout_get_map(KEYBOARD_LAYOUT_ALT_SYMBOLS, false)
-        };
+            keyboard_layout_get_map(KEYBOARD_LAYOUT_ALT_SYMBOLS, false)};
 
         for (const char* const* map : layouts) {
             size_t idx = 0;
-            while (map[idx][0] != '\0') idx++;
+            while (map[idx][0] != '\0')
+                idx++;
 
             // Should end with empty string
             REQUIRE(map[idx][0] == '\0');
@@ -617,13 +628,12 @@ TEST_CASE("Keyboard Layout: Row structure validation", "[keyboard][layout][rows]
 // Special Button Tests
 // ============================================================================
 
-TEST_CASE("Keyboard Layout: Special buttons present in all layouts", "[keyboard][layout][special]") {
-    const char* const* layouts[] = {
-        keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false),
-        keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_UC, false),
-        keyboard_layout_get_map(KEYBOARD_LAYOUT_NUMBERS_SYMBOLS, false),
-        keyboard_layout_get_map(KEYBOARD_LAYOUT_ALT_SYMBOLS, false)
-    };
+TEST_CASE("Keyboard Layout: Special buttons present in all layouts",
+          "[keyboard][layout][special]") {
+    const char* const* layouts[] = {keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false),
+                                    keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_UC, false),
+                                    keyboard_layout_get_map(KEYBOARD_LAYOUT_NUMBERS_SYMBOLS, false),
+                                    keyboard_layout_get_map(KEYBOARD_LAYOUT_ALT_SYMBOLS, false)};
 
     for (const char* const* map : layouts) {
         SECTION("Has spacebar") {
@@ -632,11 +642,11 @@ TEST_CASE("Keyboard Layout: Special buttons present in all layouts", "[keyboard]
         }
 
         SECTION("Has close button") {
-            REQUIRE(button_exists(map, LV_SYMBOL_KEYBOARD));
+            REQUIRE(button_exists(map, ICON_KEYBOARD_CLOSE));
         }
 
         SECTION("Has enter button") {
-            REQUIRE(button_exists(map, LV_SYMBOL_NEW_LINE));
+            REQUIRE(button_exists(map, ICON_KEYBOARD_RETURN));
         }
     }
 }
@@ -705,12 +715,10 @@ TEST_CASE("Keyboard Layout: Control flags are properly combined", "[keyboard][la
 
 TEST_CASE("Keyboard Layout: All printable ASCII available", "[keyboard][layout][completeness]") {
     // Collect all buttons from all layouts
-    const char* const* layouts[] = {
-        keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false),
-        keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_UC, false),
-        keyboard_layout_get_map(KEYBOARD_LAYOUT_NUMBERS_SYMBOLS, false),
-        keyboard_layout_get_map(KEYBOARD_LAYOUT_ALT_SYMBOLS, false)
-    };
+    const char* const* layouts[] = {keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false),
+                                    keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_UC, false),
+                                    keyboard_layout_get_map(KEYBOARD_LAYOUT_NUMBERS_SYMBOLS, false),
+                                    keyboard_layout_get_map(KEYBOARD_LAYOUT_ALT_SYMBOLS, false)};
 
     SECTION("All lowercase letters available") {
         const char* const* lc_map = keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false);
