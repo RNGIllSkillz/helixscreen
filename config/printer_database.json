@@ -74,7 +74,7 @@
     },
     {
       "id": "flashforge_ad5m_pro",
-      "name": "FlashForge AD5M Pro",
+      "name": "FlashForge Adventurer 5M Pro",
       "manufacturer": "FlashForge",
       "image": "flashforge-adventurer-5m-pro.png",
       "heuristics": [
@@ -2623,6 +2623,7 @@
       "name": "KAMP (Adaptive Meshing)",
       "manufacturer": "Generic",
       "image": "generic-klipper.png",
+      "show_in_roller": false,
       "note": "Klipper Adaptive Meshing & Purging macros detected - suggests advanced Klipper user",
       "heuristics": [
         {
@@ -2653,6 +2654,7 @@
       "name": "Klippain Shake&Tune",
       "manufacturer": "Generic",
       "image": "generic-klipper.png",
+      "show_in_roller": false,
       "note": "Klippain Shake&Tune input shaper calibration macros detected",
       "heuristics": [
         {
@@ -2683,6 +2685,7 @@
       "name": "ERCF/Happy Hare MMU",
       "manufacturer": "Generic",
       "image": "generic-klipper.png",
+      "show_in_roller": false,
       "note": "Enraged Rabbit or Happy Hare multi-material unit detected",
       "heuristics": [
         {
@@ -2720,6 +2723,7 @@
       "name": "Klicky Probe User",
       "manufacturer": "Generic",
       "image": "generic-klipper.png",
+      "show_in_roller": false,
       "note": "Klicky probe macros detected - common Voron modification",
       "heuristics": [
         {
@@ -2750,6 +2754,7 @@
       "name": "Ellis Print Tuning",
       "manufacturer": "Generic",
       "image": "generic-klipper.png",
+      "show_in_roller": false,
       "note": "Ellis tuning guide macros detected - advanced calibration setup",
       "heuristics": [
         {
@@ -2780,7 +2785,8 @@
       "name": "Bambu Lab (Klipper)",
       "manufacturer": "Bambu Lab",
       "image": "bambu-lab.png",
-      "note": "Bambu Lab printer running custom Klipper firmware",
+      "show_in_roller": false,
+      "note": "Bambu Lab printer running custom Klipper firmware (rare custom mod)",
       "heuristics": [
         {
           "type": "macro_match",

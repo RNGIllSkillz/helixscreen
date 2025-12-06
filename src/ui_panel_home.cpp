@@ -7,6 +7,7 @@
 #include "ui_event_safety.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
+#include "ui_panel_temp_control.h"
 #include "ui_subject_registry.h"
 
 #include "app_globals.h"
@@ -103,6 +104,9 @@ void HomePanel::init_subjects() {
     lv_xml_register_event_cb(nullptr, "light_toggle_cb", light_toggle_cb);
     lv_xml_register_event_cb(nullptr, "print_card_clicked_cb", print_card_clicked_cb);
     lv_xml_register_event_cb(nullptr, "tip_text_clicked_cb", tip_text_clicked_cb);
+    lv_xml_register_event_cb(nullptr, "temp_clicked_cb", temp_clicked_cb);
+    lv_xml_register_event_cb(nullptr, "printer_status_clicked_cb", printer_status_clicked_cb);
+    lv_xml_register_event_cb(nullptr, "network_clicked_cb", network_clicked_cb);
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Registered subjects and event callbacks", get_name());
@@ -290,6 +294,53 @@ void HomePanel::handle_tip_rotation_timer() {
     update_tip_of_day();
 }
 
+void HomePanel::handle_temp_clicked() {
+    spdlog::info("[{}] Temperature icon clicked - opening nozzle temp panel", get_name());
+
+    // Create nozzle temp panel on first access (lazy initialization)
+    if (!nozzle_temp_panel_ && parent_screen_) {
+        spdlog::debug("[{}] Creating nozzle temperature panel...", get_name());
+
+        // Create from XML
+        nozzle_temp_panel_ =
+            static_cast<lv_obj_t*>(lv_xml_create(parent_screen_, "nozzle_temp_panel", nullptr));
+        if (nozzle_temp_panel_) {
+            // Get TempControlPanel from global accessor and setup the panel
+            extern TempControlPanel& get_global_temp_control_panel();
+            get_global_temp_control_panel().setup_nozzle_panel(nozzle_temp_panel_, parent_screen_);
+
+            // Initially hidden
+            lv_obj_add_flag(nozzle_temp_panel_, LV_OBJ_FLAG_HIDDEN);
+            spdlog::info("[{}] Nozzle temp panel created and initialized", get_name());
+        } else {
+            spdlog::error("[{}] Failed to create nozzle temp panel from XML", get_name());
+            NOTIFY_ERROR("Failed to load temperature panel");
+            return;
+        }
+    }
+
+    // Push nozzle temp panel onto navigation history and show it
+    if (nozzle_temp_panel_) {
+        ui_nav_push_overlay(nozzle_temp_panel_);
+    }
+}
+
+void HomePanel::handle_printer_status_clicked() {
+    spdlog::info("[{}] Printer status icon clicked - navigating to advanced settings", get_name());
+
+    // Navigate to advanced settings panel
+    ui_nav_set_active(UI_PANEL_ADVANCED);
+}
+
+void HomePanel::handle_network_clicked() {
+    spdlog::info("[{}] Network icon clicked - navigating to settings panel", get_name());
+
+    // Navigate to settings panel (network settings is a sub-overlay there)
+    // For quick access, we navigate to settings first - user can tap Network row
+    // TODO: Add a dedicated NetworkSettingsPanel class to share overlay creation logic
+    ui_nav_set_active(UI_PANEL_SETTINGS);
+}
+
 void HomePanel::on_led_state_changed(int state) {
     // Update local light_on_ state from PrinterState's led_state subject
     light_on_ = (state != 0);
@@ -381,6 +432,30 @@ void HomePanel::tip_text_clicked_cb(lv_event_t* e) {
     (void)e;
     extern HomePanel& get_global_home_panel();
     get_global_home_panel().handle_tip_text_clicked();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void HomePanel::temp_clicked_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] temp_clicked_cb");
+    (void)e;
+    extern HomePanel& get_global_home_panel();
+    get_global_home_panel().handle_temp_clicked();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void HomePanel::printer_status_clicked_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] printer_status_clicked_cb");
+    (void)e;
+    extern HomePanel& get_global_home_panel();
+    get_global_home_panel().handle_printer_status_clicked();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void HomePanel::network_clicked_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] network_clicked_cb");
+    (void)e;
+    extern HomePanel& get_global_home_panel();
+    get_global_home_panel().handle_network_clicked();
     LVGL_SAFE_EVENT_CB_END();
 }
 

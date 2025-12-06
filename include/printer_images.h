@@ -4,10 +4,8 @@
 #pragma once
 
 #include "printer_detector.h"
-#include "printer_types.h"
 
 #include <filesystem>
-#include <sstream>
 #include <string>
 
 /**
@@ -36,21 +34,13 @@ inline constexpr const char* DEFAULT_IMAGE_FILENAME = "generic-corexy.png";
 /**
  * @brief Get printer name from type index
  *
- * @param printer_type_index Index from printer type roller (0-39)
+ * Uses the dynamic roller built from the printer database.
+ *
+ * @param printer_type_index Index from printer type roller
  * @return Printer name string (e.g., "Voron 2.4")
  */
 inline std::string get_printer_name(int printer_type_index) {
-    std::istringstream stream(PrinterTypes::PRINTER_TYPES_ROLLER);
-    std::string line;
-    int index = 0;
-
-    while (std::getline(stream, line)) {
-        if (index == printer_type_index) {
-            return line;
-        }
-        ++index;
-    }
-    return "Unknown";
+    return PrinterDetector::get_roller_name_at(printer_type_index);
 }
 
 /**
@@ -109,7 +99,7 @@ inline std::string get_image_path_for_name(const std::string& printer_name) {
  * Converts index to printer name, then looks up image in database.
  * Falls back to DEFAULT_IMAGE if not found or file doesn't exist.
  *
- * @param printer_type_index Index from printer type roller (0-39)
+ * @param printer_type_index Index from printer type roller
  * @return Full LVGL path to printer image
  */
 inline std::string get_image_path(int printer_type_index) {
@@ -123,7 +113,7 @@ inline std::string get_image_path(int printer_type_index) {
  * This is the primary function to use for displaying printer images.
  * It handles all lookup and validation logic internally.
  *
- * @param printer_type_index Index from printer type roller (0-39)
+ * @param printer_type_index Index from printer type roller
  * @return Full LVGL path to printer image (guaranteed to exist or be default)
  *
  * @note Returns a std::string that manages its own memory. The caller

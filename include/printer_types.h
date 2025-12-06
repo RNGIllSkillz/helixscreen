@@ -44,14 +44,12 @@ namespace PrinterTypes {
  * @brief Printer type names as newline-separated string for LVGL roller
  *
  * Format: Each line is a printer type option (sorted alphabetically by brand)
- * Default selection: Index 39 ("Unknown")
+ * Default selection: Index 26 ("Unknown")
  */
 inline constexpr const char* PRINTER_TYPES_ROLLER = "Anycubic Chiron\n"
                                                     "Anycubic i3 Mega\n"
                                                     "Anycubic Kobra\n"
                                                     "Anycubic Vyper\n"
-                                                    "Bambu Lab P1P\n"
-                                                    "Bambu Lab X1\n"
                                                     "Creality CR-10\n"
                                                     "Creality Ender 3\n"
                                                     "Creality Ender 5\n"
@@ -59,28 +57,17 @@ inline constexpr const char* PRINTER_TYPES_ROLLER = "Anycubic Chiron\n"
                                                     "Doron Velta\n"
                                                     "FlashForge Adventurer 5M\n"
                                                     "FlashForge Adventurer 5M Pro\n"
-                                                    "FlashForge Creator Pro\n"
-                                                    "FlashForge Dreamer\n"
                                                     "FLSUN Delta\n"
-                                                    "LulzBot Mini\n"
-                                                    "LulzBot TAZ\n"
-                                                    "MakerBot Replicator\n"
                                                     "Prusa i3 MK3\n"
-                                                    "Prusa i3 MK4\n"
+                                                    "Prusa MK4\n"
                                                     "Prusa Mini\n"
-                                                    "Prusa XL\n"
-                                                    "Qidi Tech X-Max\n"
-                                                    "Qidi Tech X-Plus\n"
-                                                    "Raise3D E2\n"
-                                                    "Raise3D Pro2\n"
+                                                    "Qidi X-Max 3\n"
+                                                    "Qidi X-Plus 3\n"
                                                     "RatRig V-Core 3\n"
                                                     "RatRig V-Minion\n"
-                                                    "Sovol SV01\n"
                                                     "Sovol SV06\n"
-                                                    "Ultimaker 2+\n"
-                                                    "Ultimaker 3\n"
-                                                    "Ultimaker S3\n"
-                                                    "Voron 0.1\n"
+                                                    "Sovol SV08\n"
+                                                    "Voron 0.2\n"
                                                     "Voron 2.4\n"
                                                     "Voron Switchwire\n"
                                                     "Voron Trident\n"
@@ -90,12 +77,12 @@ inline constexpr const char* PRINTER_TYPES_ROLLER = "Anycubic Chiron\n"
 /**
  * @brief Number of printer types in the list
  */
-inline constexpr int PRINTER_TYPE_COUNT = 40;
+inline constexpr int PRINTER_TYPE_COUNT = 27;
 
 /**
  * @brief Default printer type index (Unknown)
  */
-inline constexpr int DEFAULT_PRINTER_TYPE_INDEX = 39;
+inline constexpr int DEFAULT_PRINTER_TYPE_INDEX = 26;
 
 /**
  * @brief Find printer type index by name

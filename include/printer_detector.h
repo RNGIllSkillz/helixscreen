@@ -132,4 +132,51 @@ class PrinterDetector {
      * @return Image filename if found, empty string if not found
      */
     static std::string get_image_for_printer_id(const std::string& printer_id);
+
+    /**
+     * @brief Build roller options string from database
+     *
+     * Dynamically builds a newline-separated string of printer names suitable
+     * for LVGL roller widget. Only includes entries with `show_in_roller: true`
+     * (defaults to true if field is missing). Always appends "Custom/Other"
+     * and "Unknown" at the end.
+     *
+     * The string is cached after first build for performance.
+     *
+     * @return Newline-separated printer names for lv_roller_set_options()
+     */
+    static const std::string& get_roller_options();
+
+    /**
+     * @brief Get list of printer names from database
+     *
+     * Returns a vector of all printer names that should appear in the roller.
+     * Useful for index lookups and iteration.
+     *
+     * @return Vector of printer names (includes Custom/Other and Unknown)
+     */
+    static const std::vector<std::string>& get_roller_names();
+
+    /**
+     * @brief Find index of a printer name in the roller
+     *
+     * @param printer_name Name to search for
+     * @return Index if found, or index of "Unknown" if not found
+     */
+    static int find_roller_index(const std::string& printer_name);
+
+    /**
+     * @brief Get printer name at roller index
+     *
+     * @param index Roller index (0-based)
+     * @return Printer name, or "Unknown" if index out of bounds
+     */
+    static std::string get_roller_name_at(int index);
+
+    /**
+     * @brief Get the index of "Unknown" in the roller
+     *
+     * @return Index of the Unknown entry (last entry)
+     */
+    static int get_unknown_index();
 };

@@ -123,18 +123,8 @@ WizardPrinterIdentifyStep::operator=(WizardPrinterIdentifyStep&& other) noexcept
 // ============================================================================
 
 int WizardPrinterIdentifyStep::find_printer_type_index(const std::string& printer_name) {
-    std::istringstream stream(PrinterTypes::PRINTER_TYPES_ROLLER);
-    std::string line;
-    int index = 0;
-
-    while (std::getline(stream, line)) {
-        if (line == printer_name) {
-            return index;
-        }
-        index++;
-    }
-
-    return PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX; // "Unknown"
+    // Use dynamic roller from PrinterDetector (data-driven from database)
+    return PrinterDetector::find_roller_index(printer_name);
 }
 
 /**
@@ -146,7 +136,7 @@ static PrinterDetectionHint detect_printer_type() {
     MoonrakerClient* client = get_moonraker_client();
     if (!client) {
         spdlog::debug("[Wizard Printer] No MoonrakerClient available for auto-detection");
-        return {PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX, 0, "No printer connection available"};
+        return {PrinterDetector::get_unknown_index(), 0, "No printer connection available"};
     }
 
     // Build hardware data from MoonrakerClient discovery
@@ -178,17 +168,17 @@ static PrinterDetectionHint detect_printer_type() {
     PrinterDetectionResult result = PrinterDetector::detect(hardware);
 
     if (result.confidence == 0) {
-        return {PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX, 0, result.type_name};
+        return {PrinterDetector::get_unknown_index(), 0, result.type_name};
     }
 
     // Map detected type_name to roller index
     int type_index = WizardPrinterIdentifyStep::find_printer_type_index(result.type_name);
 
-    if (type_index == PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX && result.confidence > 0) {
+    if (type_index == PrinterDetector::get_unknown_index() && result.confidence > 0) {
         spdlog::warn(
-            "[Wizard Printer] Detected '{}' ({}% confident) but not found in PRINTER_TYPES_ROLLER",
+            "[Wizard Printer] Detected '{}' ({}% confident) but not found in printer database",
             result.type_name, result.confidence);
-        return {PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX, result.confidence,
+        return {PrinterDetector::get_unknown_index(), result.confidence,
                 result.type_name + " (not in dropdown list)"};
     }
 
@@ -208,7 +198,7 @@ void WizardPrinterIdentifyStep::init_subjects() {
     Config* config = Config::get_instance();
     std::string default_name = "";
     std::string saved_type = "";
-    int default_type = PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX;
+    int default_type = PrinterDetector::get_unknown_index();
 
     try {
         default_name = config->get<std::string>(WizardConfigPaths::PRINTER_NAME, "");
@@ -254,7 +244,7 @@ void WizardPrinterIdentifyStep::init_subjects() {
                                         "printer_name");
 
     // Run auto-detection if no saved type
-    PrinterDetectionHint hint{PrinterTypes::DEFAULT_PRINTER_TYPE_INDEX, 0, ""};
+    PrinterDetectionHint hint{PrinterDetector::get_unknown_index(), 0, ""};
     if (saved_type.empty()) {
         hint = detect_printer_type();
         if (hint.confidence >= 70) {
@@ -431,10 +421,11 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Find and set up the roller with printer types
+    // Find and set up the roller with printer types (dynamically built from database)
     lv_obj_t* roller = lv_obj_find_by_name(screen_root_, "printer_type_roller");
     if (roller) {
-        lv_roller_set_options(roller, PrinterTypes::PRINTER_TYPES_ROLLER, LV_ROLLER_MODE_NORMAL);
+        const std::string& roller_options = PrinterDetector::get_roller_options();
+        lv_roller_set_options(roller, roller_options.c_str(), LV_ROLLER_MODE_NORMAL);
 
         // Set to the saved selection
         int selected = lv_subject_get_int(&printer_type_selected_);
@@ -442,8 +433,8 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
 
         // Attach change handler with 'this' as user_data
         lv_obj_add_event_cb(roller, on_printer_type_changed_static, LV_EVENT_VALUE_CHANGED, this);
-        spdlog::debug("[{}] Roller configured with {} options", get_name(),
-                      PrinterTypes::PRINTER_TYPE_COUNT);
+        spdlog::debug("[{}] Roller configured with {} options (dynamic from database)", get_name(),
+                      PrinterDetector::get_roller_names().size());
     } else {
         spdlog::warn("[{}] Roller not found in XML", get_name());
     }
@@ -503,22 +494,9 @@ void WizardPrinterIdentifyStep::cleanup() {
             spdlog::debug("[{}] Printer name empty, not saving", get_name());
         }
 
-        // Get current type index and convert to type name
+        // Get current type index and convert to type name (via dynamic database lookup)
         int type_index = lv_subject_get_int(&printer_type_selected_);
-
-        // Extract type name from PRINTER_TYPES_ROLLER by index
-        std::istringstream stream(PrinterTypes::PRINTER_TYPES_ROLLER);
-        std::string line;
-        int idx = 0;
-        std::string type_name = "Unknown";
-
-        while (std::getline(stream, line)) {
-            if (idx == type_index) {
-                type_name = line;
-                break;
-            }
-            idx++;
-        }
+        std::string type_name = PrinterDetector::get_roller_name_at(type_index);
 
         // Save printer type name
         config->set<std::string>(WizardConfigPaths::PRINTER_TYPE, type_name);

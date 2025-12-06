@@ -488,108 +488,138 @@ void PrintSelectPanel::fetch_all_metadata() {
 
         api_->get_file_metadata(
             filename,
-            // Metadata success callback
+            // Metadata success callback (runs on background thread)
             [self, i, filename](const FileMetadata& metadata) {
-                // Bounds check (file_list could change during async operation)
-                if (i >= self->file_list_.size() || self->file_list_[i].filename != filename) {
-                    spdlog::warn("[{}] File list changed during metadata fetch for {}",
-                                 self->get_name(), filename);
-                    return;
-                }
-
-                // Update metadata fields
-                self->file_list_[i].print_time_minutes =
-                    static_cast<int>(metadata.estimated_time / 60.0);
-                self->file_list_[i].filament_grams =
-                    static_cast<float>(metadata.filament_weight_total);
-                self->file_list_[i].filament_type = metadata.filament_type;
-
-                // Update formatted strings
-                self->file_list_[i].print_time_str =
-                    format_print_time(self->file_list_[i].print_time_minutes);
-                self->file_list_[i].filament_str =
-                    format_filament_weight(self->file_list_[i].filament_grams);
-
-                spdlog::debug("[{}] Updated metadata for {}: {}min, {}g, type={}", self->get_name(),
-                              filename, self->file_list_[i].print_time_minutes,
-                              self->file_list_[i].filament_grams,
-                              self->file_list_[i].filament_type);
-
-                // Handle thumbnail if available - use largest for best quality
+                // Extract all values on background thread (safe - metadata is const ref)
+                int print_time_minutes = static_cast<int>(metadata.estimated_time / 60.0);
+                float filament_grams = static_cast<float>(metadata.filament_weight_total);
+                std::string filament_type = metadata.filament_type;
                 std::string thumb_path = metadata.get_largest_thumbnail();
-                if (!thumb_path.empty() && self->api_) {
-                    // Check if this is already a local file (mock mode returns local paths)
-                    // Mock paths: "build/thumbnail_cache/..."
-                    // Real Moonraker paths: ".thumbnails/..." (relative to gcodes)
-                    if (std::filesystem::exists(thumb_path)) {
-                        // Local file exists - use directly (mock mode)
-                        self->file_list_[i].thumbnail_path = "A:" + thumb_path;
-                        spdlog::debug("[{}] Using local thumbnail for {}: {}", self->get_name(),
-                                      filename, self->file_list_[i].thumbnail_path);
-                    } else {
-                        // Remote path - download from Moonraker
-                        std::hash<std::string> hasher;
-                        size_t hash = hasher(thumb_path);
-                        std::string cache_file =
-                            "/tmp/helix_thumbs/" + std::to_string(hash) + ".png";
 
-                        // Ensure cache directory exists
-                        std::filesystem::create_directories("/tmp/helix_thumbs");
+                // Format strings on background thread (uses standalone helper functions)
+                std::string print_time_str = format_print_time(print_time_minutes);
+                std::string filament_str = format_filament_weight(filament_grams);
 
-                        spdlog::debug("[{}] Downloading thumbnail for {}: {} -> {}",
-                                      self->get_name(), filename, thumb_path, cache_file);
+                // Check if thumbnail is a local file (background thread - filesystem OK)
+                bool thumb_is_local = !thumb_path.empty() && std::filesystem::exists(thumb_path);
 
-                        // Capture index for callback
-                        size_t file_idx = i;
-                        self->api_->download_thumbnail(
-                            thumb_path, cache_file,
-                            // Success callback
-                            [self, file_idx, filename](const std::string& local_path) {
-                                if (file_idx < self->file_list_.size()) {
-                                    // Add LVGL filesystem prefix
-                                    self->file_list_[file_idx].thumbnail_path = "A:" + local_path;
-                                    spdlog::debug("[{}] Thumbnail cached for {}: {}",
-                                                  self->get_name(), filename,
-                                                  self->file_list_[file_idx].thumbnail_path);
-                                    // Refresh view with new thumbnail
-                                    self->schedule_view_refresh();
-                                }
-                            },
-                            // Error callback
-                            [self, filename](const MoonrakerError& error) {
-                                spdlog::warn("[{}] Failed to download thumbnail for {}: {}",
-                                             self->get_name(), filename, error.message);
-                            });
-                    }
+                // Prepare cache path for remote thumbnails
+                std::string cache_file;
+                if (!thumb_path.empty() && !thumb_is_local) {
+                    std::hash<std::string> hasher;
+                    size_t hash = hasher(thumb_path);
+                    cache_file = "/tmp/helix_thumbs/" + std::to_string(hash) + ".png";
+                    std::filesystem::create_directories("/tmp/helix_thumbs");
                 }
 
-                // Schedule debounced view refresh (avoids O(n²) rebuilds)
-                // schedule_view_refresh is already thread-safe (uses lv_async_call internally)
-                self->schedule_view_refresh();
+                // CRITICAL: Dispatch file_list_ modifications to main thread to avoid race
+                // conditions with populate_card_view/populate_list_view reading file_list_
+                struct MetadataUpdate {
+                    PrintSelectPanel* panel;
+                    size_t index;
+                    std::string filename;
+                    int print_time_minutes;
+                    float filament_grams;
+                    std::string filament_type;
+                    std::string print_time_str;
+                    std::string filament_str;
+                    std::string thumb_path;
+                    std::string cache_file;
+                    bool thumb_is_local;
+                };
 
-                // Also update detail view if this file is currently selected
-                // Must dispatch to main thread since set_selected_file modifies LVGL widgets
-                if (strcmp(self->selected_filename_buffer_, filename.c_str()) == 0) {
-                    spdlog::debug("[{}] Updating detail view for selected file: {}",
-                                  self->get_name(), filename);
+                ui_async_call_safe<MetadataUpdate>(
+                    std::make_unique<MetadataUpdate>(MetadataUpdate{
+                        self, i, filename, print_time_minutes, filament_grams, filament_type,
+                        print_time_str, filament_str, thumb_path, cache_file, thumb_is_local}),
+                    [](MetadataUpdate* d) {
+                        auto* self = d->panel;
 
-                    // Capture values for async call (can't use references across threads)
-                    struct UpdateData {
-                        PrintSelectPanel* panel;
-                        std::string filename;
-                        std::string thumbnail;
-                        std::string time;
-                        std::string filament;
-                    };
-                    ui_async_call_safe<UpdateData>(
-                        std::make_unique<UpdateData>(UpdateData{
-                            self, filename, self->file_list_[i].thumbnail_path,
-                            self->file_list_[i].print_time_str, self->file_list_[i].filament_str}),
-                        [](UpdateData* d) {
-                            d->panel->set_selected_file(d->filename.c_str(), d->thumbnail.c_str(),
-                                                        d->time.c_str(), d->filament.c_str());
-                        });
-                }
+                        // Bounds check (file_list could change during async operation)
+                        if (d->index >= self->file_list_.size() ||
+                            self->file_list_[d->index].filename != d->filename) {
+                            spdlog::warn("[{}] File list changed during metadata fetch for {}",
+                                         self->get_name(), d->filename);
+                            return;
+                        }
+
+                        // Update metadata fields (now on main thread - safe!)
+                        self->file_list_[d->index].print_time_minutes = d->print_time_minutes;
+                        self->file_list_[d->index].filament_grams = d->filament_grams;
+                        self->file_list_[d->index].filament_type = d->filament_type;
+                        self->file_list_[d->index].print_time_str = d->print_time_str;
+                        self->file_list_[d->index].filament_str = d->filament_str;
+
+                        spdlog::debug("[{}] Updated metadata for {}: {}min, {}g, type={}",
+                                      self->get_name(), d->filename, d->print_time_minutes,
+                                      d->filament_grams, d->filament_type);
+
+                        // Handle thumbnail
+                        if (!d->thumb_path.empty() && self->api_) {
+                            if (d->thumb_is_local) {
+                                // Local file exists - use directly (mock mode)
+                                self->file_list_[d->index].thumbnail_path = "A:" + d->thumb_path;
+                                spdlog::debug("[{}] Using local thumbnail for {}: {}",
+                                              self->get_name(), d->filename,
+                                              self->file_list_[d->index].thumbnail_path);
+                            } else {
+                                // Remote path - download from Moonraker
+                                spdlog::debug("[{}] Downloading thumbnail for {}: {} -> {}",
+                                              self->get_name(), d->filename, d->thumb_path,
+                                              d->cache_file);
+
+                                size_t file_idx = d->index;
+                                std::string filename_copy = d->filename;
+                                self->api_->download_thumbnail(
+                                    d->thumb_path, d->cache_file,
+                                    // Success callback - also dispatch to main thread!
+                                    [self, file_idx, filename_copy](const std::string& local_path) {
+                                        struct ThumbUpdate {
+                                            PrintSelectPanel* panel;
+                                            size_t index;
+                                            std::string filename;
+                                            std::string local_path;
+                                        };
+                                        ui_async_call_safe<ThumbUpdate>(
+                                            std::make_unique<ThumbUpdate>(ThumbUpdate{
+                                                self, file_idx, filename_copy, local_path}),
+                                            [](ThumbUpdate* t) {
+                                                if (t->index < t->panel->file_list_.size() &&
+                                                    t->panel->file_list_[t->index].filename ==
+                                                        t->filename) {
+                                                    t->panel->file_list_[t->index].thumbnail_path =
+                                                        "A:" + t->local_path;
+                                                    spdlog::debug(
+                                                        "[{}] Thumbnail cached for {}: {}",
+                                                        t->panel->get_name(), t->filename,
+                                                        t->panel->file_list_[t->index]
+                                                            .thumbnail_path);
+                                                    t->panel->schedule_view_refresh();
+                                                }
+                                            });
+                                    },
+                                    // Error callback
+                                    [self, filename_copy](const MoonrakerError& error) {
+                                        spdlog::warn("[{}] Failed to download thumbnail for {}: {}",
+                                                     self->get_name(), filename_copy,
+                                                     error.message);
+                                    });
+                            }
+                        }
+
+                        // Schedule debounced view refresh
+                        self->schedule_view_refresh();
+
+                        // Update detail view if this file is currently selected
+                        if (strcmp(self->selected_filename_buffer_, d->filename.c_str()) == 0) {
+                            spdlog::debug("[{}] Updating detail view for selected file: {}",
+                                          self->get_name(), d->filename);
+                            self->set_selected_file(
+                                d->filename.c_str(),
+                                self->file_list_[d->index].thumbnail_path.c_str(),
+                                d->print_time_str.c_str(), d->filament_str.c_str());
+                        }
+                    });
             },
             // Metadata error callback
             [self, filename](const MoonrakerError& error) {

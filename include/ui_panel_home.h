@@ -10,8 +10,9 @@
 
 #include <memory>
 
-// Forward declaration
+// Forward declarations
 class WiFiManager;
+class TempControlPanel;
 
 /**
  * @brief Home panel - Main dashboard showing printer status and quick actions
@@ -94,6 +95,10 @@ class HomePanel : public PanelBase {
     lv_timer_t* signal_poll_timer_ = nullptr;   // Polls WiFi signal strength every 5s
     std::shared_ptr<WiFiManager> wifi_manager_; // For signal strength queries
 
+    // Lazily-created overlay panels (owned by LVGL parent, not us)
+    lv_obj_t* nozzle_temp_panel_ = nullptr;
+    lv_obj_t* network_settings_overlay_ = nullptr;
+
     void update_tip_of_day();
     int compute_network_icon_state(); // Maps network type + signal → 0-5
     void update_network_icon_state(); // Updates the subject
@@ -103,12 +108,18 @@ class HomePanel : public PanelBase {
     void handle_print_card_clicked();
     void handle_tip_text_clicked();
     void handle_tip_rotation_timer();
+    void handle_temp_clicked();
+    void handle_printer_status_clicked();
+    void handle_network_clicked();
     void on_extruder_temp_changed(int temp);
     void on_led_state_changed(int state);
 
     static void light_toggle_cb(lv_event_t* e);
     static void print_card_clicked_cb(lv_event_t* e);
     static void tip_text_clicked_cb(lv_event_t* e);
+    static void temp_clicked_cb(lv_event_t* e);
+    static void printer_status_clicked_cb(lv_event_t* e);
+    static void network_clicked_cb(lv_event_t* e);
     static void tip_rotation_timer_cb(lv_timer_t* timer);
     static void extruder_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
     static void led_state_observer_cb(lv_observer_t* observer, lv_subject_t* subject);

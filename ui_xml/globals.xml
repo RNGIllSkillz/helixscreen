@@ -222,15 +222,15 @@
     <!-- Primary text colors (theme-specific variants) -->
     <color name="text_primary_light" value="#565656"/>
     <!-- Light mode: dark gray -->
-    <color name="text_primary_dark" value="#C4C5C6"/>
+    <color name="text_primary_dark" value="#E6E8F0"/>
     <!-- Dark mode: light gray -->
     <!-- Header text colors (theme-specific variants) -->
     <color name="header_text_light" value="#1F1F1F"/>
     <!-- Light mode: very dark -->
-    <color name="header_text_dark" value="#E3E3E3"/>
+    <color name="header_text_dark" value="#FFFFFF"/>
     <!-- Dark mode: very light -->
     <!-- Secondary text color (same for both themes) -->
-    <color name="text_secondary" value="#AAAAAA"/>
+    <color name="text_secondary" value="#ADAEB8"/>
     <!-- Card background colors (theme-aware: light/dark modes) -->
     <color name="card_bg_light" value="#F0F3F9"/>
     <color name="card_bg_dark" value="#1F1F1F"/>

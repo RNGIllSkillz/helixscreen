@@ -484,3 +484,124 @@ std::string PrinterDetector::get_image_for_printer_id(const std::string& printer
     spdlog::debug("[PrinterDetector] No image found for printer ID '{}'", printer_id);
     return "";
 }
+
+// ============================================================================
+// Dynamic Roller Builder
+// ============================================================================
+
+namespace {
+// Cached roller data - built once and reused
+struct RollerCache {
+    std::string options;            // Newline-separated string for lv_roller_set_options()
+    std::vector<std::string> names; // Vector of names for index lookups
+    bool built = false;
+
+    void build() {
+        if (built)
+            return;
+
+        // Load database if not already loaded
+        if (!g_database.load()) {
+            spdlog::warn("[PrinterDetector] Cannot build roller without database");
+            // Fallback to just Custom/Other and Unknown
+            names = {"Custom/Other", "Unknown"};
+            options = "Custom/Other\nUnknown";
+            built = true;
+            return;
+        }
+
+        if (!g_database.data.contains("printers") || !g_database.data["printers"].is_array()) {
+            names = {"Custom/Other", "Unknown"};
+            options = "Custom/Other\nUnknown";
+            built = true;
+            return;
+        }
+
+        // Collect all printer names that should appear in roller
+        for (const auto& printer : g_database.data["printers"]) {
+            // Check show_in_roller flag (defaults to true if missing)
+            bool show = printer.value("show_in_roller", true);
+            if (!show) {
+                continue;
+            }
+
+            std::string name = printer.value("name", "");
+            if (!name.empty()) {
+                names.push_back(name);
+            }
+        }
+
+        // Sort alphabetically for consistent ordering
+        std::sort(names.begin(), names.end());
+
+        // Always append Custom/Other and Unknown at the end
+        names.push_back("Custom/Other");
+        names.push_back("Unknown");
+
+        // Build newline-separated string for LVGL roller
+        for (size_t i = 0; i < names.size(); ++i) {
+            options += names[i];
+            if (i < names.size() - 1) {
+                options += "\n";
+            }
+        }
+
+        spdlog::info("[PrinterDetector] Built roller with {} printer types", names.size());
+        built = true;
+    }
+};
+
+RollerCache g_roller_cache;
+} // namespace
+
+const std::string& PrinterDetector::get_roller_options() {
+    g_roller_cache.build();
+    return g_roller_cache.options;
+}
+
+const std::vector<std::string>& PrinterDetector::get_roller_names() {
+    g_roller_cache.build();
+    return g_roller_cache.names;
+}
+
+int PrinterDetector::find_roller_index(const std::string& printer_name) {
+    g_roller_cache.build();
+
+    // Case-insensitive search
+    std::string name_lower = printer_name;
+    std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    for (size_t i = 0; i < g_roller_cache.names.size(); ++i) {
+        std::string cached_lower = g_roller_cache.names[i];
+        std::transform(cached_lower.begin(), cached_lower.end(), cached_lower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+
+        if (cached_lower == name_lower) {
+            return static_cast<int>(i);
+        }
+    }
+
+    // Return Unknown index if not found
+    return get_unknown_index();
+}
+
+std::string PrinterDetector::get_roller_name_at(int index) {
+    g_roller_cache.build();
+
+    if (index < 0 || static_cast<size_t>(index) >= g_roller_cache.names.size()) {
+        return "Unknown";
+    }
+
+    return g_roller_cache.names[static_cast<size_t>(index)];
+}
+
+int PrinterDetector::get_unknown_index() {
+    g_roller_cache.build();
+
+    // Unknown is always the last entry
+    if (g_roller_cache.names.empty()) {
+        return 0;
+    }
+    return static_cast<int>(g_roller_cache.names.size() - 1);
+}
