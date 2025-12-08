@@ -301,19 +301,36 @@ class AmsBackend {
     // ========================================================================
 
     /**
-     * @brief Create appropriate backend for detected AMS type
+     * @brief Create appropriate backend for detected AMS type (mock only)
      *
-     * Factory method that creates the correct backend implementation:
-     * - HAPPY_HARE: AmsBackendHappyHare
-     * - AFC: AmsBackendAfc
-     * - NONE: nullptr (no AMS detected)
+     * Factory method that creates a mock backend for testing.
+     * For real backends, use the overload that accepts MoonrakerAPI and MoonrakerClient.
      *
      * In mock mode (RuntimeConfig::should_mock_ams()), returns AmsBackendMock.
      *
      * @param detected_type The detected AMS type from printer discovery
      * @return Unique pointer to backend instance, or nullptr if type is NONE
+     * @deprecated Use create(AmsType, MoonrakerAPI*, MoonrakerClient*) for real backends
      */
     static std::unique_ptr<AmsBackend> create(AmsType detected_type);
+
+    /**
+     * @brief Create appropriate backend for detected AMS type with dependencies
+     *
+     * Factory method that creates the correct backend implementation:
+     * - HAPPY_HARE: AmsBackendHappyHare (requires api and client)
+     * - AFC: AmsBackendAfc (requires api and client)
+     * - NONE: nullptr (no AMS detected)
+     *
+     * In mock mode (RuntimeConfig::should_mock_ams()), returns AmsBackendMock.
+     *
+     * @param detected_type The detected AMS type from printer discovery
+     * @param api Pointer to MoonrakerAPI for sending commands
+     * @param client Pointer to MoonrakerClient for subscriptions
+     * @return Unique pointer to backend instance, or nullptr if type is NONE
+     */
+    static std::unique_ptr<AmsBackend> create(AmsType detected_type, class MoonrakerAPI* api,
+                                              class MoonrakerClient* client);
 
     /**
      * @brief Create mock backend for testing

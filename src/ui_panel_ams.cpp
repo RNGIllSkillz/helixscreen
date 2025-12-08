@@ -333,28 +333,40 @@ void AmsPanel::on_home_clicked(lv_event_t* e) {
 
 void AmsPanel::on_gates_version_changed(lv_observer_t* observer, lv_subject_t* /*subject*/) {
     auto* self = static_cast<AmsPanel*>(lv_observer_get_user_data(observer));
-    if (self && self->subjects_initialized_ && self->panel_) {
-        spdlog::debug("[AmsPanel] Gates version changed - refreshing slots");
-        self->refresh_slots();
+    if (!self) {
+        return;
     }
+    if (!self->subjects_initialized_ || !self->panel_) {
+        return; // Not yet ready
+    }
+    spdlog::debug("[AmsPanel] Gates version changed - refreshing slots");
+    self->refresh_slots();
 }
 
 void AmsPanel::on_action_changed(lv_observer_t* observer, lv_subject_t* subject) {
     auto* self = static_cast<AmsPanel*>(lv_observer_get_user_data(observer));
-    if (self && self->subjects_initialized_ && self->panel_) {
-        auto action = static_cast<AmsAction>(lv_subject_get_int(subject));
-        spdlog::debug("[AmsPanel] Action changed: {}", ams_action_to_string(action));
-        self->update_action_display(action);
+    if (!self) {
+        return;
     }
+    if (!self->subjects_initialized_ || !self->panel_) {
+        return; // Not yet ready
+    }
+    auto action = static_cast<AmsAction>(lv_subject_get_int(subject));
+    spdlog::debug("[AmsPanel] Action changed: {}", ams_action_to_string(action));
+    self->update_action_display(action);
 }
 
 void AmsPanel::on_current_gate_changed(lv_observer_t* observer, lv_subject_t* subject) {
     auto* self = static_cast<AmsPanel*>(lv_observer_get_user_data(observer));
-    if (self && self->subjects_initialized_ && self->panel_) {
-        int gate = lv_subject_get_int(subject);
-        spdlog::debug("[AmsPanel] Current gate changed: {}", gate);
-        self->update_current_gate_highlight(gate);
+    if (!self) {
+        return;
     }
+    if (!self->subjects_initialized_ || !self->panel_) {
+        return; // Not yet ready
+    }
+    int gate = lv_subject_get_int(subject);
+    spdlog::debug("[AmsPanel] Current gate changed: {}", gate);
+    self->update_current_gate_highlight(gate);
 }
 
 // ============================================================================
@@ -372,25 +384,9 @@ void AmsPanel::handle_slot_tap(int slot_index) {
         return;
     }
 
-    AmsBackend* backend = AmsState::instance().get_backend();
-    if (!backend) {
-        NOTIFY_WARNING("AMS not available");
-        return;
-    }
-
-    // Check if backend is busy
-    AmsSystemInfo info = backend->get_system_info();
-    if (info.action != AmsAction::IDLE && info.action != AmsAction::ERROR) {
-        NOTIFY_WARNING("AMS is busy: {}", ams_action_to_string(info.action));
-        return;
-    }
-
-    // Load filament from selected gate
-    spdlog::info("[{}] Loading filament from gate {}", get_name(), slot_index);
-    AmsError error = backend->load_filament(slot_index);
-
-    if (error.result != AmsResult::SUCCESS) {
-        NOTIFY_ERROR("Load failed: {}", error.user_msg);
+    // Show context menu near the tapped slot
+    if (slot_index >= 0 && slot_index < MAX_VISIBLE_SLOTS && slot_widgets_[slot_index]) {
+        show_context_menu(slot_index, slot_widgets_[slot_index]);
     }
 }
 
@@ -422,6 +418,194 @@ void AmsPanel::handle_home() {
     if (error.result != AmsResult::SUCCESS) {
         NOTIFY_ERROR("Home failed: {}", error.user_msg);
     }
+}
+
+void AmsPanel::handle_context_load() {
+    if (context_menu_slot_ < 0) {
+        return;
+    }
+
+    spdlog::info("[{}] Context menu: Load from slot {}", get_name(), context_menu_slot_);
+    hide_context_menu();
+
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        NOTIFY_WARNING("AMS not available");
+        return;
+    }
+
+    // Check if backend is busy
+    AmsSystemInfo info = backend->get_system_info();
+    if (info.action != AmsAction::IDLE && info.action != AmsAction::ERROR) {
+        NOTIFY_WARNING("AMS is busy: {}", ams_action_to_string(info.action));
+        return;
+    }
+
+    AmsError error = backend->load_filament(context_menu_slot_);
+    if (error.result != AmsResult::SUCCESS) {
+        NOTIFY_ERROR("Load failed: {}", error.user_msg);
+    }
+}
+
+void AmsPanel::handle_context_unload() {
+    if (context_menu_slot_ < 0) {
+        return;
+    }
+
+    spdlog::info("[{}] Context menu: Unload slot {}", get_name(), context_menu_slot_);
+    hide_context_menu();
+
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        NOTIFY_WARNING("AMS not available");
+        return;
+    }
+
+    AmsError error = backend->unload_filament();
+    if (error.result != AmsResult::SUCCESS) {
+        NOTIFY_ERROR("Unload failed: {}", error.user_msg);
+    }
+}
+
+void AmsPanel::handle_context_edit() {
+    if (context_menu_slot_ < 0) {
+        return;
+    }
+
+    spdlog::info("[{}] Context menu: Edit slot {}", get_name(), context_menu_slot_);
+    hide_context_menu();
+
+    // TODO: Phase 3 - Open edit modal with Spoolman integration
+    NOTIFY_INFO("Edit feature coming in Phase 3");
+}
+
+// ============================================================================
+// Context Menu Management
+// ============================================================================
+
+void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget) {
+    // Hide any existing context menu first
+    hide_context_menu();
+
+    if (!parent_screen_ || !near_widget) {
+        return;
+    }
+
+    // Store which slot the menu is for
+    context_menu_slot_ = slot_index;
+
+    // Create context menu from XML component
+    context_menu_ =
+        static_cast<lv_obj_t*>(lv_xml_create(parent_screen_, "ams_context_menu", nullptr));
+    if (!context_menu_) {
+        spdlog::error("[{}] Failed to create context menu", get_name());
+        return;
+    }
+
+    // Find and wire up callbacks
+    lv_obj_t* backdrop = lv_obj_find_by_name(context_menu_, "context_backdrop");
+    lv_obj_t* menu_card = lv_obj_find_by_name(context_menu_, "context_menu");
+    lv_obj_t* btn_load = lv_obj_find_by_name(context_menu_, "btn_load");
+    lv_obj_t* btn_unload = lv_obj_find_by_name(context_menu_, "btn_unload");
+    lv_obj_t* btn_edit = lv_obj_find_by_name(context_menu_, "btn_edit");
+
+    if (backdrop) {
+        lv_obj_add_event_cb(backdrop, on_context_backdrop_clicked, LV_EVENT_CLICKED, this);
+    }
+    if (btn_load) {
+        lv_obj_add_event_cb(btn_load, on_context_load_clicked, LV_EVENT_CLICKED, this);
+    }
+    if (btn_unload) {
+        lv_obj_add_event_cb(btn_unload, on_context_unload_clicked, LV_EVENT_CLICKED, this);
+    }
+    if (btn_edit) {
+        lv_obj_add_event_cb(btn_edit, on_context_edit_clicked, LV_EVENT_CLICKED, this);
+    }
+
+    // Position the menu card near the tapped widget
+    if (menu_card) {
+        // Update layout to get accurate dimensions before positioning
+        lv_obj_update_layout(menu_card);
+
+        // Get the position of the slot widget in screen coordinates
+        lv_point_t slot_pos;
+        lv_obj_get_coords(near_widget, (lv_area_t*)&slot_pos);
+
+        // Position menu to the right of the slot, or left if near edge
+        int32_t screen_width = lv_obj_get_width(parent_screen_);
+        int32_t menu_width = lv_obj_get_width(menu_card);
+        int32_t slot_center_x = slot_pos.x + lv_obj_get_width(near_widget) / 2;
+        int32_t slot_center_y = slot_pos.y + lv_obj_get_height(near_widget) / 2;
+
+        int32_t menu_x = slot_center_x + 20; // Position to the right
+        if (menu_x + menu_width > screen_width - 10) {
+            menu_x = slot_center_x - menu_width - 20; // Position to the left instead
+        }
+
+        // Vertical: center on the slot
+        int32_t menu_y = slot_center_y - lv_obj_get_height(menu_card) / 2;
+
+        // Clamp to screen bounds
+        int32_t screen_height = lv_obj_get_height(parent_screen_);
+        if (menu_y < 10)
+            menu_y = 10;
+        if (menu_y + lv_obj_get_height(menu_card) > screen_height - 10) {
+            menu_y = screen_height - lv_obj_get_height(menu_card) - 10;
+        }
+
+        lv_obj_set_pos(menu_card, menu_x, menu_y);
+    }
+
+    spdlog::debug("[{}] Context menu shown for slot {}", get_name(), slot_index);
+}
+
+void AmsPanel::hide_context_menu() {
+    if (context_menu_) {
+        lv_obj_delete(context_menu_);
+        context_menu_ = nullptr;
+        context_menu_slot_ = -1;
+        spdlog::debug("[{}] Context menu hidden", get_name());
+    }
+}
+
+// ============================================================================
+// Context Menu Callbacks
+// ============================================================================
+
+void AmsPanel::on_context_backdrop_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[AmsPanel] on_context_backdrop_clicked");
+    auto* self = static_cast<AmsPanel*>(lv_event_get_user_data(e));
+    if (self) {
+        self->hide_context_menu();
+    }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void AmsPanel::on_context_load_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[AmsPanel] on_context_load_clicked");
+    auto* self = static_cast<AmsPanel*>(lv_event_get_user_data(e));
+    if (self) {
+        self->handle_context_load();
+    }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void AmsPanel::on_context_unload_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[AmsPanel] on_context_unload_clicked");
+    auto* self = static_cast<AmsPanel*>(lv_event_get_user_data(e));
+    if (self) {
+        self->handle_context_unload();
+    }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void AmsPanel::on_context_edit_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[AmsPanel] on_context_edit_clicked");
+    auto* self = static_cast<AmsPanel*>(lv_event_get_user_data(e));
+    if (self) {
+        self->handle_context_edit();
+    }
+    LVGL_SAFE_EVENT_CB_END();
 }
 
 // ============================================================================

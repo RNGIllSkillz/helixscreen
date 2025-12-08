@@ -178,28 +178,30 @@ Future Modals (Phase 3+):
 
 ---
 
-### 🔲 Phase 2: Basic Operations (NOT STARTED)
+### ✅ Phase 2: Basic Operations (COMPLETE)
 
 **Goal:** Real backend implementations, load/unload/select
 
-**Files to Create:**
-- [ ] `include/ams_backend_happy_hare.h`
-- [ ] `src/ams_backend_happy_hare.cpp`
-  - Commands: `T{n}`, `MMU_LOAD`, `MMU_UNLOAD`, `MMU_SELECT`, `MMU_RECOVER`
-  - Parse `printer.mmu.*` variables
-- [ ] `include/ams_backend_afc.h`
-- [ ] `src/ams_backend_afc.cpp`
-  - Lane-based commands
+**Files Created:**
+- [x] `include/ams_backend_happy_hare.h`
+- [x] `src/ams_backend_happy_hare.cpp`
+  - Commands: `T{n}`, `MMU_LOAD`, `MMU_UNLOAD`, `MMU_SELECT`, `MMU_RECOVER`, `MMU_HOME`
+  - Parses `printer.mmu.*` variables via status update callbacks
+- [x] `include/ams_backend_afc.h`
+- [x] `src/ams_backend_afc.cpp`
+  - Lane-based commands: `AFC_LOAD`, `AFC_UNLOAD`, `AFC_HOME`
   - Moonraker database for lane_data
-- [ ] `ui_xml/ams_context_menu.xml`
+- [x] `ui_xml/ams_context_menu.xml`
   - Load, Unload, Edit options
   - Positioned near tapped slot
 
-**Files to Modify:**
-- [ ] `src/ui_panel_ams.cpp` - Context menu on slot tap
-- [ ] `include/moonraker_api.h` - AMS command methods
+**Files Modified:**
+- [x] `src/ui_panel_ams.cpp` - Context menu on slot tap
+- [x] `src/ams_backend.cpp` - Factory creates real backends
+- [x] `include/ams_backend.h` - Factory overload with API/client params
+- [x] `src/main.cpp` - Context menu component registration
 
-**Happy Hare Variables to Parse:**
+**Happy Hare Variables Parsed:**
 ```
 printer.mmu.gate (current gate)
 printer.mmu.tool (current tool)
@@ -208,12 +210,20 @@ printer.mmu.gate_status (array: -1=unknown, 0=empty, 1=available, 2=from_buffer)
 printer.mmu.gate_color_rgb (array of RGB values)
 printer.mmu.gate_material (array of material strings)
 printer.mmu.action (current operation)
+printer.mmu.ttg_map (tool-to-gate mapping)
+printer.mmu.endless_spool_groups
 ```
 
 **Verification:**
-- [ ] Load command works with Happy Hare
-- [ ] Unload command works
-- [ ] Context menu appears on slot tap
+- [x] Build succeeds
+- [x] Context menu appears on slot tap
+- [ ] Live testing with Happy Hare printer (deferred)
+- [ ] Live testing with AFC printer (deferred)
+
+**TODO - Wizard Integration:**
+- [ ] Add AMS detection step to connection wizard
+- [ ] Show detected AMS type (Happy Hare / AFC / None)
+- [ ] Allow manual override in settings
 
 ---
 

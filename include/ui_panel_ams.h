@@ -90,6 +90,11 @@ class AmsPanel : public PanelBase {
     static constexpr int MAX_VISIBLE_SLOTS = 8; ///< Max slots displayed (2 rows of 4)
     lv_obj_t* slot_widgets_[MAX_VISIBLE_SLOTS] = {nullptr};
 
+    // === Context Menu ===
+
+    lv_obj_t* context_menu_ = nullptr; ///< Active context menu (nullptr if hidden)
+    int context_menu_slot_ = -1;       ///< Slot index for active context menu
+
     // === Observers (RAII cleanup via ObserverGuard) ===
 
     ObserverGuard gates_version_observer_;
@@ -121,11 +126,26 @@ class AmsPanel : public PanelBase {
     static void on_action_changed(lv_observer_t* observer, lv_subject_t* subject);
     static void on_current_gate_changed(lv_observer_t* observer, lv_subject_t* subject);
 
+    // === Context Menu Callbacks (static trampolines) ===
+
+    static void on_context_backdrop_clicked(lv_event_t* e);
+    static void on_context_load_clicked(lv_event_t* e);
+    static void on_context_unload_clicked(lv_event_t* e);
+    static void on_context_edit_clicked(lv_event_t* e);
+
+    // === Context Menu Management ===
+
+    void show_context_menu(int slot_index, lv_obj_t* near_widget);
+    void hide_context_menu();
+
     // === Action Handlers ===
 
     void handle_slot_tap(int slot_index);
     void handle_unload();
     void handle_home();
+    void handle_context_load();
+    void handle_context_unload();
+    void handle_context_edit();
 };
 
 /**

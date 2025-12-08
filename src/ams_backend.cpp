@@ -23,14 +23,13 @@
 
 #include "ams_backend.h"
 
+#include "ams_backend_afc.h"
+#include "ams_backend_happy_hare.h"
 #include "ams_backend_mock.h"
+#include "moonraker_api.h"
 #include "runtime_config.h"
 
 #include <spdlog/spdlog.h>
-
-// Forward declarations for real backends (to be implemented in Phase 2)
-// #include "ams_backend_happy_hare.h"
-// #include "ams_backend_afc.h"
 
 std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type) {
     // Check if mock mode is requested
@@ -39,16 +38,47 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type) {
         return std::make_unique<AmsBackendMock>(4);
     }
 
+    // Without API/client dependencies, we can only return mock backends
     switch (detected_type) {
     case AmsType::HAPPY_HARE:
-        spdlog::info("AmsBackend: Detected Happy Hare - using mock until Phase 2");
-        // TODO(Phase 2): return std::make_unique<AmsBackendHappyHare>();
+        spdlog::warn("AmsBackend: Happy Hare detected but no API/client provided - using mock");
         return std::make_unique<AmsBackendMock>(4);
 
     case AmsType::AFC:
-        spdlog::info("AmsBackend: Detected AFC - using mock until Phase 2");
-        // TODO(Phase 2): return std::make_unique<AmsBackendAfc>();
+        spdlog::warn("AmsBackend: AFC detected but no API/client provided - using mock");
         return std::make_unique<AmsBackendMock>(4);
+
+    case AmsType::NONE:
+    default:
+        spdlog::debug("AmsBackend: No AMS detected");
+        return nullptr;
+    }
+}
+
+std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, MoonrakerAPI* api,
+                                               MoonrakerClient* client) {
+    // Check if mock mode is requested
+    if (get_runtime_config().should_mock_ams()) {
+        spdlog::info("AmsBackend: Creating mock backend (mock mode enabled)");
+        return std::make_unique<AmsBackendMock>(4);
+    }
+
+    switch (detected_type) {
+    case AmsType::HAPPY_HARE:
+        if (!api || !client) {
+            spdlog::error("AmsBackend: Happy Hare requires MoonrakerAPI and MoonrakerClient");
+            return nullptr;
+        }
+        spdlog::info("AmsBackend: Creating Happy Hare backend");
+        return std::make_unique<AmsBackendHappyHare>(api, client);
+
+    case AmsType::AFC:
+        if (!api || !client) {
+            spdlog::error("AmsBackend: AFC requires MoonrakerAPI and MoonrakerClient");
+            return nullptr;
+        }
+        spdlog::info("AmsBackend: Creating AFC backend");
+        return std::make_unique<AmsBackendAfc>(api, client);
 
     case AmsType::NONE:
     default:
