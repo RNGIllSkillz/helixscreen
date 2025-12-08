@@ -4,6 +4,7 @@
 #include "ui_panel_history_dashboard.h"
 
 #include "ui_nav.h"
+#include "ui_panel_common.h"
 #include "ui_panel_history_list.h"
 #include "ui_theme.h"
 #include "ui_toast.h"
@@ -103,6 +104,9 @@ void HistoryDashboardPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                   stat_total_prints_ != nullptr, stat_print_time_ != nullptr,
                   stat_filament_ != nullptr, stat_success_rate_ != nullptr,
                   stat_longest_ != nullptr, stat_failed_ != nullptr);
+
+    // Wire up the back button in header_bar to navigate back
+    ui_panel_setup_back_button(panel_);
 
     spdlog::info("[{}] Setup complete", get_name());
 }
