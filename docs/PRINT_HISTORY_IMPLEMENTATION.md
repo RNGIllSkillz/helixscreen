@@ -643,8 +643,8 @@ Update this section as stages complete:
 |-------|--------|-------|
 | 1. Data Layer | ✅ Complete | Commit 62d6a22 |
 | 2. Dashboard Stats | ✅ Complete | Session 2025-12-08 |
-| 3. History List | 🔜 Next | |
-| 4. Search/Filter/Sort | Not Started | |
+| 3. History List | ✅ Complete | Session 2025-12-08 |
+| 4. Search/Filter/Sort | 🔜 Next | |
 | 5. Detail Overlay | Not Started | |
 | 6. Charts | Not Started | |
 | 7. Small Screen | Not Started | |
@@ -755,28 +755,80 @@ Update this section as stages complete:
 
 ---
 
-### Next Session: Stage 3 - History List Panel
+### Session: 2025-12-08 (Stage 3 Complete)
 
-**Goal:** Create full-screen list panel with print history items
+**Worktree:** `/Users/pbrown/Code/Printing/helixscreen-print-history`
+**Branch:** `feature/print-history`
+
+**Files Created:**
+- `ui_xml/history_list_panel.xml` - Full-screen list layout with header_bar and scrollable list container
+- `ui_xml/history_list_row.xml` - Row component with filename, date, duration, filament type, status
+- `include/ui_panel_history_list.h` - HistoryListPanel class header
+- `src/ui_panel_history_list.cpp` - Panel implementation with dynamic row creation
+
+**Files Modified:**
+- `src/ui_panel_history_dashboard.cpp` - Wired "View Full History" button, passes cached jobs to list panel
+- `src/main.cpp` - Registered XML components, added panel initialization and API injection
+
+**Key Fixes & Learnings:**
+
+1. **PanelBase Lifecycle with Overlays**
+   - ❌ Wrong: Assume `ui_nav_push_overlay()` triggers `on_activate()`
+   - ✅ Correct: Manually call `panel.on_activate()` after `setup()` for programmatically created overlays
+   - `ui_nav_push_overlay()` handles LVGL widget transitions, not PanelBase lifecycle
+
+2. **Back Button Wiring**
+   - ❌ Wrong: Assume header_bar back button has built-in navigation
+   - ✅ Correct: Call `ui_panel_setup_back_button(panel_)` in `setup()` method
+   - Uses `ui_panel_common.h` helper that wires button to `ui_nav_go_back()`
+
+3. **Dynamic Row Creation Pattern**
+   ```cpp
+   const char* attrs[] = {
+       "filename", job.filename.c_str(),
+       "date", job.date_str.c_str(),
+       // ... more attributes
+       NULL  // Sentinel required!
+   };
+   lv_obj_t* row = static_cast<lv_obj_t*>(
+       lv_xml_create(list_rows_, "history_list_row", attrs));
+   ```
+
+4. **Job Data Passing Between Panels**
+   - Dashboard caches jobs from API response
+   - List panel receives jobs via `set_jobs()` before `on_activate()`
+   - Avoids redundant API calls when navigating
+
+**Validation:**
+```bash
+./build/bin/helix-screen --test -p print-history -vv
+# Navigate: Dashboard → View Full History → List with 20 rows
+# Back button returns to dashboard
+# All 59 unit test assertions pass
+```
+
+---
+
+### Next Session: Stage 4 - Search, Filter, Sort
+
+**Goal:** Add search box, status filter dropdown, and sort functionality to list
 
 **Quick Start:**
 ```bash
 cd /Users/pbrown/Code/Printing/helixscreen-print-history
-git log --oneline -3  # Verify on feature/print-history branch
 make -j && ./build/bin/helix-screen --test -p print-history -vv
 ```
 
-**Files to Create:**
-- `ui_xml/history_list_panel.xml` - Full-screen list layout
-- `ui_xml/history_list_row.xml` - List item component
-- `include/ui_panel_history_list.h` - Panel class header
-- `src/ui_panel_history_list.cpp` - Panel implementation
-
 **Files to Modify:**
-- `src/ui_panel_history_dashboard.cpp` - Wire "View Full History" button navigation
-- `src/main.cpp` - Register XML component
+- `ui_xml/history_list_panel.xml` - Add filter/search row above list
+- `src/ui_panel_history_list.cpp` - Implement filtering and sorting logic
+
+**Implementation Notes:**
+- Search: Filter by filename substring (case-insensitive), debounce 300ms
+- Status filter: All / Completed / Failed / Cancelled dropdown
+- Sort: Date (default) / Duration / Filename / Status
+- Chain: search → status filter → sort → display
 
 **Reference Patterns:**
-- `ui_xml/print_file_list_row.xml` - Row component pattern
-- `src/ui_panel_print_select.cpp:761-792` - Dynamic list population
-- `src/ui_panel_print_select.cpp:974-983` - Row click handlers
+- `src/ui_panel_print_select.cpp:262-285` - Sort implementation
+- `ui_xml/print_select_panel.xml` - Header with sort indicators

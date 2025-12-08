@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<!-- Copyright 2025 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  History List Panel
+
+  Full-screen panel showing scrollable list of print history jobs.
+  Accessed via "View Full History" button on the History Dashboard.
+
+  Navigation:
+    - Back button → Returns to History Dashboard
+    - Row click → Opens Detail Overlay (Stage 5)
+
+  Note: Search, filter, and sort controls will be added in Stage 4.
+        This panel implements the basic scrollable list structure.
+-->
+<component>
+  <!-- Full-screen overlay panel structure (extends lv_obj to avoid recursion) -->
+  <view extends="lv_obj" name="history_list_panel"
+        width="100%" height="100%"
+        flex_flow="column"
+        style_pad_all="0"
+        style_bg_opa="255"
+        style_radius="0"
+        style_border_width="0">
+
+    <!-- Header bar with back button and title -->
+    <header_bar name="header"
+                title="Print History"
+                show_back="true"/>
+
+    <!-- Content area - scrollable list container -->
+    <lv_obj name="list_content"
+            width="100%" height="content"
+            flex_grow="1"
+            flex_flow="column"
+            style_pad_top="#space_md"
+            style_pad_bottom="#space_md"
+            style_pad_left="#space_md"
+            style_pad_right="#space_md"
+            style_flex_gap_row="#space_sm"
+            style_bg_opa="0"
+            style_border_width="0"
+            scrollable="true"
+            scroll_dir="ver">
+
+      <!-- List rows container (populated dynamically) -->
+      <lv_obj name="list_rows"
+              width="100%" height="content"
+              flex_flow="column"
+              style_flex_gap_row="#space_sm"
+              style_pad_all="0"
+              style_bg_opa="0"
+              style_border_width="0"/>
+
+      <!-- Empty state (shown when no history) -->
+      <lv_obj name="empty_state"
+              width="100%" height="200"
+              flex_flow="column"
+              style_flex_main_place="center"
+              style_flex_cross_place="center"
+              style_flex_gap_row="#space_md"
+              style_pad_all="#space_xl"
+              style_bg_opa="0"
+              style_border_width="0">
+        <!-- Bind hidden state to history_list_has_jobs subject -->
+        <lv_obj-bind_flag_if_eq subject="history_list_has_jobs" value="1" flag="hidden"/>
+
+        <!-- Empty state icon -->
+        <lv_label name="empty_icon"
+                  text=""
+                  style_text_font="mdi_icons_48"
+                  style_text_color="#text_secondary"/>
+
+        <!-- Empty state message -->
+        <text_body name="empty_message"
+                   text="No print history found"
+                   style_text_color="#text_secondary"
+                   style_text_align="center"/>
+
+        <text_small name="empty_hint"
+                    text="Completed prints will appear here"
+                    style_text_color="#text_tertiary"
+                    style_text_align="center"/>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

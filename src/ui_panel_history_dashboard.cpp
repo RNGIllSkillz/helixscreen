@@ -4,6 +4,7 @@
 #include "ui_panel_history_dashboard.h"
 
 #include "ui_nav.h"
+#include "ui_panel_history_list.h"
 #include "ui_theme.h"
 #include "ui_toast.h"
 
@@ -383,6 +384,33 @@ void HistoryDashboardPanel::on_filter_all_clicked(lv_event_t* e) {
 void HistoryDashboardPanel::on_view_history_clicked(lv_event_t* e) {
     (void)e;
     spdlog::debug("[History Dashboard] View Full History clicked");
-    // TODO: Stage 3 - Navigate to HistoryListPanel
-    ui_toast_show(ToastSeverity::INFO, "Full history list: Coming in Stage 3", 2000);
+
+    // Get the list panel instance
+    auto& list_panel = get_global_history_list_panel();
+
+    // Pass the cached jobs to avoid redundant API calls
+    const auto& dashboard = get_global_history_dashboard_panel();
+    list_panel.set_jobs(dashboard.get_cached_jobs());
+
+    // Create the list panel widget
+    lv_obj_t* screen = lv_screen_active();
+    lv_obj_t* list_widget =
+        static_cast<lv_obj_t*>(lv_xml_create(screen, "history_list_panel", NULL));
+
+    if (!list_widget) {
+        spdlog::error("[History Dashboard] Failed to create history list panel widget");
+        ui_toast_show(ToastSeverity::ERROR, "Failed to open history list", 2000);
+        return;
+    }
+
+    // Setup the panel with the widget
+    list_panel.setup(list_widget, screen);
+
+    // Push as overlay (slides in from right)
+    ui_nav_push_overlay(list_widget);
+
+    // Manually trigger activation since ui_nav_push_overlay doesn't know about PanelBase
+    list_panel.on_activate();
+
+    spdlog::debug("[History Dashboard] History list panel opened");
 }

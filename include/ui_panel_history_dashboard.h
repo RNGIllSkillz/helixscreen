@@ -105,6 +105,16 @@ class HistoryDashboardPanel : public PanelBase {
         return current_filter_;
     }
 
+    /**
+     * @brief Get the cached jobs from the last fetch
+     *
+     * Returns the jobs retrieved from the API during the last refresh.
+     * Used by HistoryListPanel to avoid redundant API calls.
+     */
+    const std::vector<PrintHistoryJob>& get_cached_jobs() const {
+        return cached_jobs_;
+    }
+
     //
     // === Static Event Callbacks (registered with lv_xml_register_event_cb) ===
     // Must be public for LVGL XML system registration

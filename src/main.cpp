@@ -50,6 +50,7 @@
 #include "ui_panel_gcode_test.h"
 #include "ui_panel_glyphs.h"
 #include "ui_panel_history_dashboard.h"
+#include "ui_panel_history_list.h"
 #include "ui_panel_home.h"
 #include "ui_panel_motion.h"
 #include "ui_panel_notification_history.h"
@@ -1071,6 +1072,8 @@ static void register_xml_components() {
     // Note: factory_reset_dialog.xml removed - use modal_dialog instead
     lv_xml_register_component_from_file("A:ui_xml/advanced_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/history_dashboard_panel.xml");
+    lv_xml_register_component_from_file("A:ui_xml/history_list_row.xml");
+    lv_xml_register_component_from_file("A:ui_xml/history_list_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/test_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/print_select_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/step_progress_test.xml");
@@ -1119,7 +1122,10 @@ static void initialize_subjects() {
     init_global_history_dashboard_panel(get_printer_state(),
                                         nullptr);         // Initialize history dashboard
     get_global_history_dashboard_panel().init_subjects(); // History dashboard subjects
-    ui_wizard_init_subjects();                            // Wizard subjects (for first-run config)
+    init_global_history_list_panel(get_printer_state(),
+                                   nullptr);         // Initialize history list panel
+    get_global_history_list_panel().init_subjects(); // History list panel subjects
+    ui_wizard_init_subjects();                       // Wizard subjects (for first-run config)
     ui_keypad_init_subjects(); // Keypad display subject (for reactive binding)
 
     // Panels that need MoonrakerAPI - store pointers for deferred set_api()
@@ -1557,6 +1563,7 @@ static void initialize_moonraker_client(Config* config) {
         bed_mesh_panel->set_api(moonraker_api.get());
     }
     get_global_history_dashboard_panel().set_api(moonraker_api.get());
+    get_global_history_list_panel().set_api(moonraker_api.get());
 
     // Initialize E-Stop overlay with dependencies (creates the floating button)
     EmergencyStopOverlay::instance().init(get_printer_state(), moonraker_api.get());
