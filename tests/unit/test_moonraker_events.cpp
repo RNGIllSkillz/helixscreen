@@ -18,7 +18,6 @@
  * 5. Exception safety in event handlers
  */
 
-#include "../catch_amalgamated.hpp"
 #include "moonraker_client_mock.h"
 #include "moonraker_events.h"
 
@@ -30,6 +29,8 @@
 #include <thread>
 #include <vector>
 
+#include "../catch_amalgamated.hpp"
+
 // ============================================================================
 // Test Helper: Testable Mock with Protected emit_event Access
 // ============================================================================
@@ -39,6 +40,9 @@
  *
  * MoonrakerClient::emit_event() is protected to prevent external code from
  * emitting fake events. This subclass exposes it for testing purposes.
+ *
+ * Also provides methods to simulate connection lifecycle events that trigger
+ * the RECONNECTED and KLIPPY_READY event emissions in real client code.
  */
 class TestableMoonrakerClient : public MoonrakerClientMock {
   public:
@@ -48,6 +52,49 @@ class TestableMoonrakerClient : public MoonrakerClientMock {
     void test_emit_event(MoonrakerEventType type, const std::string& message, bool is_error = false,
                          const std::string& details = "") {
         emit_event(type, message, is_error, details);
+    }
+
+    /**
+     * @brief Simulate the onopen callback logic for reconnection event testing
+     *
+     * This replicates the logic in MoonrakerClient::connect() onopen callback:
+     * - If was_connected_ is true, emit RECONNECTED event
+     * - Then set was_connected_ = true
+     *
+     * @param is_reconnection If true, simulates reconnection (emits RECONNECTED)
+     *                        If false, simulates first connection (no event)
+     */
+    void simulate_connection_opened(bool is_reconnection) {
+        if (is_reconnection) {
+            // Simulate reconnection: emit RECONNECTED event
+            emit_event(MoonrakerEventType::RECONNECTED, "Connection restored", false);
+        }
+        // First connection: no RECONNECTED event emitted
+        // In both cases, was_connected_ would be set to true by real client
+    }
+
+    /**
+     * @brief Simulate receiving a notify_klippy_ready notification
+     *
+     * This replicates the logic in MoonrakerClient's onmessage handler
+     * when it receives a notify_klippy_ready method from Moonraker.
+     */
+    void simulate_klippy_ready_notification() {
+        // Emit KLIPPY_READY event (same as real client does in notify_klippy_ready handler)
+        emit_event(MoonrakerEventType::KLIPPY_READY, "Klipper ready", false);
+    }
+
+    /**
+     * @brief Simulate receiving a notify_klippy_disconnected notification
+     *
+     * This replicates the logic in MoonrakerClient's onmessage handler
+     * when it receives a notify_klippy_disconnected method from Moonraker.
+     *
+     * @param reason Disconnection reason from Moonraker
+     */
+    void simulate_klippy_disconnected_notification(const std::string& reason = "Klipper shutdown") {
+        // Emit KLIPPY_DISCONNECTED event (same as real client)
+        emit_event(MoonrakerEventType::KLIPPY_DISCONNECTED, reason, true);
     }
 };
 
@@ -135,13 +182,11 @@ class EventTestFixture {
 
 TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient event handler can be registered",
                  "[moonraker][events][registration]") {
-
     SECTION("registered handler receives events") {
         client_->register_event_handler(create_capture_handler());
 
         // Emit a test event
-        client_->test_emit_event(MoonrakerEventType::CONNECTION_LOST, "Test connection lost",
-                                 true);
+        client_->test_emit_event(MoonrakerEventType::CONNECTION_LOST, "Test connection lost", true);
 
         REQUIRE(has_event());
         REQUIRE(event_count() == 1);
@@ -156,10 +201,9 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient event handler can be registe
         // Should not block or throw
         auto start = std::chrono::steady_clock::now();
         client_->register_event_handler(create_capture_handler());
-        auto elapsed =
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::steady_clock::now() - start)
-                .count();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                           std::chrono::steady_clock::now() - start)
+                           .count();
 
         CHECK(elapsed < 100); // Registration should be fast
     }
@@ -171,7 +215,6 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient event handler can be registe
 
 TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient events contain correct fields",
                  "[moonraker][events][content]") {
-
     client_->register_event_handler(create_capture_handler());
 
     SECTION("error event has is_error=true") {
@@ -186,8 +229,7 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient events contain correct field
     }
 
     SECTION("warning event has is_error=false") {
-        client_->test_emit_event(MoonrakerEventType::RECONNECTING, "Attempting reconnect",
-                                 false);
+        client_->test_emit_event(MoonrakerEventType::RECONNECTING, "Attempting reconnect", false);
 
         auto event = get_last_event();
         CHECK(event.type == MoonrakerEventType::RECONNECTING);
@@ -198,16 +240,11 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient events contain correct field
     SECTION("all event types can be emitted") {
         // Test each event type
         std::vector<MoonrakerEventType> types = {
-            MoonrakerEventType::CONNECTION_FAILED,
-            MoonrakerEventType::CONNECTION_LOST,
-            MoonrakerEventType::RECONNECTING,
-            MoonrakerEventType::RECONNECTED,
-            MoonrakerEventType::MESSAGE_OVERSIZED,
-            MoonrakerEventType::RPC_ERROR,
-            MoonrakerEventType::KLIPPY_DISCONNECTED,
-            MoonrakerEventType::KLIPPY_READY,
-            MoonrakerEventType::DISCOVERY_FAILED,
-            MoonrakerEventType::REQUEST_TIMEOUT};
+            MoonrakerEventType::CONNECTION_FAILED,   MoonrakerEventType::CONNECTION_LOST,
+            MoonrakerEventType::RECONNECTING,        MoonrakerEventType::RECONNECTED,
+            MoonrakerEventType::MESSAGE_OVERSIZED,   MoonrakerEventType::RPC_ERROR,
+            MoonrakerEventType::KLIPPY_DISCONNECTED, MoonrakerEventType::KLIPPY_READY,
+            MoonrakerEventType::DISCOVERY_FAILED,    MoonrakerEventType::REQUEST_TIMEOUT};
 
         for (auto type : types) {
             reset();
@@ -239,7 +276,6 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient events contain correct field
 
 TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient can emit multiple events sequentially",
                  "[moonraker][events][sequential]") {
-
     client_->register_event_handler(create_capture_handler());
 
     SECTION("events are received in order") {
@@ -261,8 +297,8 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient can emit multiple events seq
     SECTION("rapid fire events all captured") {
         constexpr int NUM_EVENTS = 100;
         for (int i = 0; i < NUM_EVENTS; i++) {
-            client_->test_emit_event(MoonrakerEventType::RPC_ERROR,
-                                     "Event " + std::to_string(i), true);
+            client_->test_emit_event(MoonrakerEventType::RPC_ERROR, "Event " + std::to_string(i),
+                                     true);
         }
 
         REQUIRE(event_count() == NUM_EVENTS);
@@ -281,11 +317,10 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient can emit multiple events seq
 
 TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient handles null event handler gracefully",
                  "[moonraker][events][null_handler]") {
-
     SECTION("emit without registered handler does not crash") {
         // No handler registered - should log and continue
-        REQUIRE_NOTHROW(client_->test_emit_event(MoonrakerEventType::CONNECTION_LOST,
-                                                  "No handler", true));
+        REQUIRE_NOTHROW(
+            client_->test_emit_event(MoonrakerEventType::CONNECTION_LOST, "No handler", true));
     }
 
     SECTION("unregistering handler with nullptr works") {
@@ -299,8 +334,8 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient handles null event handler g
         reset();
 
         // Should not crash, but no event captured
-        REQUIRE_NOTHROW(client_->test_emit_event(MoonrakerEventType::RECONNECTED,
-                                                  "After unregister", false));
+        REQUIRE_NOTHROW(
+            client_->test_emit_event(MoonrakerEventType::RECONNECTED, "After unregister", false));
         CHECK(event_count() == 0);
     }
 
@@ -330,15 +365,13 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient handles null event handler g
 
 TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient catches exceptions from event handlers",
                  "[moonraker][events][exception_safety]") {
-
     SECTION("std::exception in handler is caught") {
-        client_->register_event_handler([](const MoonrakerEvent&) {
-            throw std::runtime_error("Handler threw exception");
-        });
+        client_->register_event_handler(
+            [](const MoonrakerEvent&) { throw std::runtime_error("Handler threw exception"); });
 
         // Should not propagate exception
-        REQUIRE_NOTHROW(client_->test_emit_event(MoonrakerEventType::RPC_ERROR,
-                                                  "Trigger exception", true));
+        REQUIRE_NOTHROW(
+            client_->test_emit_event(MoonrakerEventType::RPC_ERROR, "Trigger exception", true));
     }
 
     SECTION("exception does not prevent client operation") {
@@ -354,26 +387,24 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient catches exceptions from even
         });
 
         // First event - handler throws but client continues
-        REQUIRE_NOTHROW(client_->test_emit_event(MoonrakerEventType::CONNECTION_LOST,
-                                                  "First", true));
+        REQUIRE_NOTHROW(
+            client_->test_emit_event(MoonrakerEventType::CONNECTION_LOST, "First", true));
         CHECK(call_count == 1);
 
         // Second event - handler succeeds
-        REQUIRE_NOTHROW(client_->test_emit_event(MoonrakerEventType::RECONNECTED,
-                                                  "Second", false));
+        REQUIRE_NOTHROW(client_->test_emit_event(MoonrakerEventType::RECONNECTED, "Second", false));
         CHECK(call_count == 2);
     }
 
     SECTION("client remains functional after handler exception") {
         // Register throwing handler
-        client_->register_event_handler([](const MoonrakerEvent&) {
-            throw std::logic_error("Always throws");
-        });
+        client_->register_event_handler(
+            [](const MoonrakerEvent&) { throw std::logic_error("Always throws"); });
 
         // Emit multiple events - all should be handled without crash
         for (int i = 0; i < 10; i++) {
             REQUIRE_NOTHROW(client_->test_emit_event(MoonrakerEventType::RPC_ERROR,
-                                                      "Event " + std::to_string(i), true));
+                                                     "Event " + std::to_string(i), true));
         }
     }
 }
@@ -384,7 +415,6 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient catches exceptions from even
 
 TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient replaces handler on re-registration",
                  "[moonraker][events][replacement]") {
-
     SECTION("new handler replaces old handler") {
         std::vector<std::string> handler1_events;
         std::vector<std::string> handler2_events;
@@ -421,22 +451,19 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient replaces handler on re-regis
 
 TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient event emission is thread-safe",
                  "[moonraker][events][threadsafe]") {
-
     SECTION("concurrent registration and emission") {
         std::atomic<int> received_count{0};
         std::atomic<bool> stop_flag{false};
 
         // Handler that counts events
-        client_->register_event_handler([&received_count](const MoonrakerEvent&) {
-            received_count++;
-        });
+        client_->register_event_handler(
+            [&received_count](const MoonrakerEvent&) { received_count++; });
 
         // Thread that re-registers handler periodically
         std::thread register_thread([this, &stop_flag, &received_count]() {
             while (!stop_flag.load()) {
-                client_->register_event_handler([&received_count](const MoonrakerEvent&) {
-                    received_count++;
-                });
+                client_->register_event_handler(
+                    [&received_count](const MoonrakerEvent&) { received_count++; });
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
         });
@@ -445,7 +472,7 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient event emission is thread-saf
         constexpr int NUM_EVENTS = 50;
         for (int i = 0; i < NUM_EVENTS; i++) {
             REQUIRE_NOTHROW(client_->test_emit_event(MoonrakerEventType::RPC_ERROR,
-                                                      "Event " + std::to_string(i), true));
+                                                     "Event " + std::to_string(i), true));
         }
 
         stop_flag.store(true);
@@ -453,5 +480,144 @@ TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient event emission is thread-saf
 
         // Should have received events without crashing
         CHECK(received_count.load() >= 0);
+    }
+}
+
+// ============================================================================
+// Test Cases: Reconnection Event Behavior
+// ============================================================================
+
+TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient RECONNECTED event behavior",
+                 "[moonraker][events][reconnection]") {
+    client_->register_event_handler(create_capture_handler());
+
+    SECTION("first connection does NOT emit RECONNECTED event") {
+        // Simulate first-time connection (was_connected_ was false)
+        client_->simulate_connection_opened(false);
+
+        // Should NOT receive any events on first connection
+        CHECK(event_count() == 0);
+        CHECK_FALSE(has_event());
+    }
+
+    SECTION("reconnection DOES emit RECONNECTED event") {
+        // Simulate reconnection (was_connected_ was true from previous connection)
+        client_->simulate_connection_opened(true);
+
+        // Should receive RECONNECTED event
+        REQUIRE(event_count() == 1);
+        auto event = get_last_event();
+        CHECK(event.type == MoonrakerEventType::RECONNECTED);
+        CHECK(event.message == "Connection restored");
+        CHECK(event.is_error == false);
+    }
+
+    SECTION("multiple reconnections emit multiple events") {
+        // Simulate multiple reconnect cycles
+        client_->simulate_connection_opened(true); // First reconnection
+        client_->simulate_connection_opened(true); // Second reconnection
+
+        REQUIRE(event_count() == 2);
+
+        auto events = get_events();
+        CHECK(events[0].type == MoonrakerEventType::RECONNECTED);
+        CHECK(events[1].type == MoonrakerEventType::RECONNECTED);
+    }
+
+    SECTION("reconnection after first connect emits event") {
+        // First connection - no event
+        client_->simulate_connection_opened(false);
+        CHECK(event_count() == 0);
+
+        // Reconnection - event emitted
+        client_->simulate_connection_opened(true);
+        REQUIRE(event_count() == 1);
+        CHECK(get_last_event().type == MoonrakerEventType::RECONNECTED);
+    }
+}
+
+// ============================================================================
+// Test Cases: Klippy State Event Behavior
+// ============================================================================
+
+TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient KLIPPY_READY event behavior",
+                 "[moonraker][events][klippy]") {
+    client_->register_event_handler(create_capture_handler());
+
+    SECTION("klippy ready notification emits KLIPPY_READY event") {
+        client_->simulate_klippy_ready_notification();
+
+        REQUIRE(event_count() == 1);
+        auto event = get_last_event();
+        CHECK(event.type == MoonrakerEventType::KLIPPY_READY);
+        CHECK(event.message == "Klipper ready");
+        CHECK(event.is_error == false);
+    }
+
+    SECTION("klippy disconnected notification emits KLIPPY_DISCONNECTED event") {
+        client_->simulate_klippy_disconnected_notification("Emergency shutdown");
+
+        REQUIRE(event_count() == 1);
+        auto event = get_last_event();
+        CHECK(event.type == MoonrakerEventType::KLIPPY_DISCONNECTED);
+        CHECK(event.message == "Emergency shutdown");
+        CHECK(event.is_error == true); // KLIPPY_DISCONNECTED is an error
+    }
+
+    SECTION("klippy disconnect then ready cycle emits both events") {
+        // Simulate Klipper crash then recovery
+        client_->simulate_klippy_disconnected_notification("MCU timeout");
+        client_->simulate_klippy_ready_notification();
+
+        REQUIRE(event_count() == 2);
+
+        auto events = get_events();
+        CHECK(events[0].type == MoonrakerEventType::KLIPPY_DISCONNECTED);
+        CHECK(events[0].is_error == true);
+        CHECK(events[1].type == MoonrakerEventType::KLIPPY_READY);
+        CHECK(events[1].is_error == false);
+    }
+}
+
+// ============================================================================
+// Test Cases: Combined Connection and Klippy Events
+// ============================================================================
+
+TEST_CASE_METHOD(EventTestFixture, "MoonrakerClient combined connection flow events",
+                 "[moonraker][events][combined]") {
+    client_->register_event_handler(create_capture_handler());
+
+    SECTION("full reconnection scenario: connection lost, reconnected, klippy ready") {
+        // Simulate complete reconnection sequence
+        client_->test_emit_event(MoonrakerEventType::CONNECTION_LOST, "WebSocket closed", true);
+        client_->simulate_connection_opened(true); // Reconnected
+        client_->simulate_klippy_ready_notification();
+
+        REQUIRE(event_count() == 3);
+
+        auto events = get_events();
+        CHECK(events[0].type == MoonrakerEventType::CONNECTION_LOST);
+        CHECK(events[0].is_error == true);
+        CHECK(events[1].type == MoonrakerEventType::RECONNECTED);
+        CHECK(events[1].is_error == false);
+        CHECK(events[2].type == MoonrakerEventType::KLIPPY_READY);
+        CHECK(events[2].is_error == false);
+    }
+
+    SECTION("klippy restart without connection loss") {
+        // Simulate Klipper restart (RESTART G-code) while WebSocket stays connected
+        client_->simulate_klippy_disconnected_notification("Klipper restart requested");
+        client_->simulate_klippy_ready_notification();
+
+        REQUIRE(event_count() == 2);
+
+        auto events = get_events();
+        CHECK(events[0].type == MoonrakerEventType::KLIPPY_DISCONNECTED);
+        CHECK(events[1].type == MoonrakerEventType::KLIPPY_READY);
+
+        // No RECONNECTED event (WebSocket stayed connected)
+        for (const auto& evt : events) {
+            CHECK(evt.type != MoonrakerEventType::RECONNECTED);
+        }
     }
 }

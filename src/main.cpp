@@ -1481,19 +1481,40 @@ static void initialize_moonraker_client(Config* config) {
     // Register event handler to translate transport events to UI notifications
     // This decouples the transport layer (MoonrakerClient) from the UI layer
     moonraker_client->register_event_handler([](const MoonrakerEvent& evt) {
-        const char* title = nullptr;
-        if (evt.type == MoonrakerEventType::CONNECTION_FAILED) {
-            title = "Connection Failed";
-        } else if (evt.type == MoonrakerEventType::KLIPPY_DISCONNECTED) {
-            title = "Printer Firmware Disconnected";
-        }
-
-        if (evt.is_error) {
-            ui_notification_error(title, evt.message.c_str(),
-                                  evt.type == MoonrakerEventType::CONNECTION_FAILED ||
-                                      evt.type == MoonrakerEventType::KLIPPY_DISCONNECTED);
-        } else {
+        switch (evt.type) {
+        case MoonrakerEventType::CONNECTION_LOST:
+            // Warning toast for connection loss
             ui_notification_warning(evt.message.c_str());
+            break;
+
+        case MoonrakerEventType::RECONNECTED:
+            // Success toast for reconnection
+            ui_notification_success(evt.message.c_str());
+            break;
+
+        case MoonrakerEventType::KLIPPY_DISCONNECTED:
+            // Modal error for Klipper firmware disconnect (serious issue)
+            ui_notification_error("Printer Firmware Disconnected", evt.message.c_str(), true);
+            break;
+
+        case MoonrakerEventType::KLIPPY_READY:
+            // Success toast for Klipper ready
+            ui_notification_success(evt.message.c_str());
+            break;
+
+        case MoonrakerEventType::CONNECTION_FAILED:
+            // Modal error for connection failure
+            ui_notification_error("Connection Failed", evt.message.c_str(), true);
+            break;
+
+        default:
+            // Fallback for other events (RPC_ERROR, DISCOVERY_FAILED, etc.)
+            if (evt.is_error) {
+                ui_notification_error(nullptr, evt.message.c_str(), false);
+            } else {
+                ui_notification_warning(evt.message.c_str());
+            }
+            break;
         }
     });
 

@@ -232,6 +232,13 @@ int MoonrakerClient::connect(const char* url, std::function<void()> on_connected
 
             // Note: getHttpResponse() available here if needed for upgrade response inspection
             spdlog::debug("[Moonraker Client] WebSocket connected to {}", url);
+
+            // Check if this is a reconnection (was_connected_ is true from previous session)
+            // Emit RECONNECTED event BEFORE updating was_connected_
+            if (was_connected_.load()) {
+                emit_event(MoonrakerEventType::RECONNECTED, "Connection restored", false);
+            }
+
             was_connected_ = true;
             set_connection_state(ConnectionState::CONNECTED);
 
@@ -440,6 +447,9 @@ int MoonrakerClient::connect(const char* url, std::function<void()> on_connected
 
                     // Update klippy state in PrinterState (READY = firmware ready)
                     get_printer_state().set_klippy_state(KlippyState::READY);
+
+                    // Emit event for UI layer to show success toast
+                    emit_event(MoonrakerEventType::KLIPPY_READY, "Klipper ready", false);
 
                     // Invoke user callback with exception safety
                     try {
