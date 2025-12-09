@@ -1,0 +1,183 @@
+// Copyright 2025 HelixScreen
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#ifndef UI_FILAMENT_PATH_CANVAS_H
+#define UI_FILAMENT_PATH_CANVAS_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "lvgl/lvgl.h"
+
+/**
+ * @file ui_filament_path_canvas.h
+ * @brief Filament path visualization widget for AMS panel
+ *
+ * Draws a schematic view of the filament path from spool storage through
+ * hub/selector to the nozzle. Supports both Happy Hare (linear/selector)
+ * and AFC (hub/merger) topologies.
+ *
+ * Visual layout (vertical, top to bottom):
+ *   - Entry points at top (one per gate, connecting to ams_slot widgets)
+ *   - Prep sensors (AFC) or gate markers
+ *   - Lane/gate lines converging to center
+ *   - Hub/Selector box
+ *   - Output tube
+ *   - Toolhead sensor
+ *   - Nozzle at bottom
+ *
+ * Visual states:
+ *   - Idle lane: Thin gray dashed line
+ *   - Available: Thin gray solid line
+ *   - Active/loaded: Thick line in filament color
+ *   - Loading: Animated gradient moving downward
+ *   - Unloading: Animated gradient moving upward
+ *   - Error segment: Thick red pulsing line
+ *
+ * The widget works alongside existing ams_slot widgets - the slots show
+ * individual filament colors/status, while this shows the path routing.
+ *
+ * XML usage:
+ * @code{.xml}
+ * <filament_path_canvas name="path_view"
+ *                       width="100%" height="200"
+ *                       topology="hub"
+ *                       gate_count="4"
+ *                       active_gate="2"/>
+ * @endcode
+ *
+ * XML attributes:
+ *   - topology: "linear" (Happy Hare) or "hub" (AFC) - default "hub"
+ *   - gate_count: Number of gates (1-16) - default 4
+ *   - active_gate: Currently active gate (-1 = none) - default -1
+ *   - filament_segment: Current position (0-7, PathSegment enum)
+ *   - error_segment: Error location (0-7, PathSegment enum, 0=none)
+ *   - anim_progress: Animation progress 0-100
+ *   - filament_color: Active filament color (0xRRGGBB)
+ */
+
+/**
+ * @brief Register the filament_path_canvas widget with LVGL's XML system
+ *
+ * Must be called AFTER AmsState::init_subjects() and BEFORE any XML files
+ * using <filament_path_canvas> are registered.
+ */
+void ui_filament_path_canvas_register(void);
+
+/**
+ * @brief Create a filament path canvas widget programmatically
+ *
+ * @param parent Parent LVGL object
+ * @return Created widget or NULL on failure
+ */
+lv_obj_t* ui_filament_path_canvas_create(lv_obj_t* parent);
+
+/**
+ * @brief Set the path topology (LINEAR or HUB)
+ *
+ * @param obj The filament_path_canvas widget
+ * @param topology 0=LINEAR (selector), 1=HUB (merger)
+ */
+void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology);
+
+/**
+ * @brief Set the number of gates
+ *
+ * @param obj The filament_path_canvas widget
+ * @param count Number of gates (1-16)
+ */
+void ui_filament_path_canvas_set_gate_count(lv_obj_t* obj, int count);
+
+/**
+ * @brief Set the active gate (whose path is highlighted)
+ *
+ * @param obj The filament_path_canvas widget
+ * @param gate Gate index (0+), or -1 for none
+ */
+void ui_filament_path_canvas_set_active_gate(lv_obj_t* obj, int gate);
+
+/**
+ * @brief Set the current filament segment position
+ *
+ * @param obj The filament_path_canvas widget
+ * @param segment PathSegment enum value (0-7)
+ */
+void ui_filament_path_canvas_set_filament_segment(lv_obj_t* obj, int segment);
+
+/**
+ * @brief Set the error segment (highlighted in red)
+ *
+ * @param obj The filament_path_canvas widget
+ * @param segment PathSegment enum value (0-7), 0=NONE for no error
+ */
+void ui_filament_path_canvas_set_error_segment(lv_obj_t* obj, int segment);
+
+/**
+ * @brief Set animation progress (for load/unload animations)
+ *
+ * @param obj The filament_path_canvas widget
+ * @param progress Progress 0-100
+ */
+void ui_filament_path_canvas_set_anim_progress(lv_obj_t* obj, int progress);
+
+/**
+ * @brief Set the active filament color
+ *
+ * @param obj The filament_path_canvas widget
+ * @param color RGB color (0xRRGGBB)
+ */
+void ui_filament_path_canvas_set_filament_color(lv_obj_t* obj, uint32_t color);
+
+/**
+ * @brief Force redraw of the path visualization
+ *
+ * @param obj The filament_path_canvas widget
+ */
+void ui_filament_path_canvas_refresh(lv_obj_t* obj);
+
+/**
+ * @brief Set click callback for gate selection
+ *
+ * When user taps on a gate's entry point, this callback is invoked.
+ *
+ * @param obj The filament_path_canvas widget
+ * @param cb Callback function (gate_index, user_data)
+ * @param user_data User data passed to callback
+ */
+typedef void (*filament_path_gate_cb_t)(int gate_index, void* user_data);
+void ui_filament_path_canvas_set_gate_callback(lv_obj_t* obj, filament_path_gate_cb_t cb,
+                                               void* user_data);
+
+/**
+ * @brief Start segment transition animation
+ *
+ * Animates the filament tip moving from one segment to another.
+ * Called automatically when filament_segment changes via set_filament_segment().
+ *
+ * @param obj The filament_path_canvas widget
+ * @param from_segment Starting PathSegment (0-7)
+ * @param to_segment Target PathSegment (0-7)
+ */
+void ui_filament_path_canvas_animate_segment(lv_obj_t* obj, int from_segment, int to_segment);
+
+/**
+ * @brief Check if animation is currently active
+ *
+ * @param obj The filament_path_canvas widget
+ * @return true if segment or error animation is running
+ */
+bool ui_filament_path_canvas_is_animating(lv_obj_t* obj);
+
+/**
+ * @brief Stop all animations
+ *
+ * @param obj The filament_path_canvas widget
+ */
+void ui_filament_path_canvas_stop_animations(lv_obj_t* obj);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // UI_FILAMENT_PATH_CANVAS_H

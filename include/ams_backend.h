@@ -177,6 +177,42 @@ class AmsBackend {
     [[nodiscard]] virtual bool is_filament_loaded() const = 0;
 
     // ========================================================================
+    // Filament Path Visualization
+    // ========================================================================
+
+    /**
+     * @brief Get the path topology for this AMS system
+     *
+     * Determines how the filament path is rendered:
+     * - LINEAR: Selector picks from multiple gates (Happy Hare ERCF)
+     * - HUB: Multiple lanes merge through a hub (AFC Box Turtle)
+     *
+     * @return PathTopology enum value
+     */
+    [[nodiscard]] virtual PathTopology get_topology() const = 0;
+
+    /**
+     * @brief Get current filament position in the path
+     *
+     * Returns which segment the filament is currently at/in.
+     * Used for highlighting the active portion of the path visualization.
+     *
+     * @return PathSegment enum value (NONE if no filament in system)
+     */
+    [[nodiscard]] virtual PathSegment get_filament_segment() const = 0;
+
+    /**
+     * @brief Infer which segment has an error
+     *
+     * When an error occurs, this determines which segment of the path
+     * is most likely the problem area based on sensor states and
+     * current operation. Used for visual error highlighting.
+     *
+     * @return PathSegment enum value (NONE if no error or can't determine)
+     */
+    [[nodiscard]] virtual PathSegment infer_error_segment() const = 0;
+
+    // ========================================================================
     // Filament Operations
     // ========================================================================
 
@@ -249,14 +285,15 @@ class AmsBackend {
     virtual AmsError recover() = 0;
 
     /**
-     * @brief Home the selector (async)
+     * @brief Reset the AMS system (async)
      *
-     * Homes the selector mechanism to known position.
-     * Useful after manual intervention or errors.
+     * Resets the system to a known good state.
+     * - Happy Hare: Calls MMU_HOME to home the selector
+     * - AFC: Calls AFC_RESET to reset the system
      *
      * @return AmsError indicating if operation was started
      */
-    virtual AmsError home() = 0;
+    virtual AmsError reset() = 0;
 
     /**
      * @brief Cancel current operation

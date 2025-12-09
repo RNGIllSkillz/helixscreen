@@ -183,7 +183,7 @@ enum class AmsAction {
     LOADING = 1,     ///< Loading filament to extruder
     UNLOADING = 2,   ///< Unloading filament from extruder
     SELECTING = 3,   ///< Selecting tool/gate
-    HOMING = 4,      ///< Homing selector
+    RESETTING = 4,   ///< Resetting system (MMU_HOME for HH, AFC_RESET for AFC)
     FORMING_TIP = 5, ///< Forming filament tip for retraction
     HEATING = 6,     ///< Heating for operation
     CHECKING = 7,    ///< Checking gates
@@ -206,8 +206,8 @@ inline const char* ams_action_to_string(AmsAction action) {
         return "Unloading";
     case AmsAction::SELECTING:
         return "Selecting";
-    case AmsAction::HOMING:
-        return "Homing";
+    case AmsAction::RESETTING:
+        return "Resetting";
     case AmsAction::FORMING_TIP:
         return "Forming Tip";
     case AmsAction::HEATING:
@@ -237,8 +237,8 @@ inline AmsAction ams_action_from_string(std::string_view action_str) {
         return AmsAction::UNLOADING;
     if (action_str == "Selecting")
         return AmsAction::SELECTING;
-    if (action_str == "Homing")
-        return AmsAction::HOMING;
+    if (action_str == "Homing" || action_str == "Resetting")
+        return AmsAction::RESETTING;
     if (action_str == "Forming Tip")
         return AmsAction::FORMING_TIP;
     if (action_str == "Heating")
@@ -251,6 +251,160 @@ inline AmsAction ams_action_from_string(std::string_view action_str) {
     if (action_str.find("Error") != std::string_view::npos)
         return AmsAction::ERROR;
     return AmsAction::IDLE;
+}
+
+// ============================================================================
+// Filament Path Visualization Types
+// ============================================================================
+
+/**
+ * @brief Path topology - affects visual rendering of the filament path
+ *
+ * Both Happy Hare and AFC map to these same logical segments but are rendered
+ * differently based on their physical topology:
+ * - LINEAR: Selector picks one input from multiple gates (Happy Hare ERCF)
+ * - HUB: Multiple lanes merge into a common hub/merger (AFC Box Turtle)
+ */
+enum class PathTopology {
+    LINEAR = 0, ///< Happy Hare: selector picks one input
+    HUB = 1     ///< AFC: merger combines inputs through hub
+};
+
+/**
+ * @brief Get string name for path topology
+ * @param topology The topology enum value
+ * @return Human-readable string for the topology
+ */
+inline const char* path_topology_to_string(PathTopology topology) {
+    switch (topology) {
+    case PathTopology::LINEAR:
+        return "Linear (Selector)";
+    case PathTopology::HUB:
+        return "Hub (Merger)";
+    default:
+        return "Unknown";
+    }
+}
+
+/**
+ * @brief Unified path segments (AFC-inspired naming)
+ *
+ * Both Happy Hare and AFC map to these same logical segments. The path
+ * canvas widget draws them differently based on PathTopology.
+ *
+ * Physical filament path (top to bottom in UI):
+ *   SPOOL → PREP → LANE → HUB → OUTPUT → TOOLHEAD → NOZZLE
+ *
+ * Happy Hare mapping:
+ *   SPOOL=Gate storage, PREP=Gate sensor, LANE=Gate-to-selector,
+ *   HUB=Selector, OUTPUT=Bowden tube, TOOLHEAD=Extruder sensor, NOZZLE=Loaded
+ *
+ * AFC mapping:
+ *   SPOOL=Lane spool, PREP=Prep sensor, LANE=Lane tube,
+ *   HUB=Hub/Merger, OUTPUT=Output tube, TOOLHEAD=Toolhead sensor, NOZZLE=Loaded
+ */
+enum class PathSegment {
+    NONE = 0,     ///< No segment / idle / filament not present
+    SPOOL = 1,    ///< At spool (filament storage area)
+    PREP = 2,     ///< At entry sensor (prep/gate sensor)
+    LANE = 3,     ///< In lane/gate-to-router segment
+    HUB = 4,      ///< At router (selector or hub/merger)
+    OUTPUT = 5,   ///< In output tube (bowden or hub output)
+    TOOLHEAD = 6, ///< At toolhead sensor
+    NOZZLE = 7    ///< Fully loaded in nozzle
+};
+
+/// Number of path segments for iteration (NONE through NOZZLE)
+constexpr int PATH_SEGMENT_COUNT = 8;
+
+/**
+ * @brief Get string name for path segment
+ * @param segment The segment enum value
+ * @return Human-readable string for the segment
+ */
+inline const char* path_segment_to_string(PathSegment segment) {
+    switch (segment) {
+    case PathSegment::NONE:
+        return "None";
+    case PathSegment::SPOOL:
+        return "Spool";
+    case PathSegment::PREP:
+        return "Prep Sensor";
+    case PathSegment::LANE:
+        return "Lane";
+    case PathSegment::HUB:
+        return "Hub/Selector";
+    case PathSegment::OUTPUT:
+        return "Output Tube";
+    case PathSegment::TOOLHEAD:
+        return "Toolhead";
+    case PathSegment::NOZZLE:
+        return "Nozzle";
+    default:
+        return "Unknown";
+    }
+}
+
+/**
+ * @brief Convert Happy Hare filament_pos to unified PathSegment
+ *
+ * Happy Hare filament_pos values:
+ *   0 = unloaded (at spool)
+ *   1 = homed at gate
+ *   2 = in gate
+ *   3 = in bowden
+ *   4 = end of bowden
+ *   5 = homed at extruder
+ *   6 = extruder entry
+ *   7 = in extruder
+ *   8 = fully loaded
+ *
+ * @param filament_pos Happy Hare filament_pos value
+ * @return Corresponding PathSegment
+ */
+inline PathSegment path_segment_from_happy_hare_pos(int filament_pos) {
+    switch (filament_pos) {
+    case 0:
+        return PathSegment::SPOOL;
+    case 1:
+    case 2:
+        return PathSegment::PREP; // Gate area
+    case 3:
+        return PathSegment::LANE; // Moving through
+    case 4:
+        return PathSegment::HUB; // At selector
+    case 5:
+        return PathSegment::OUTPUT; // In bowden
+    case 6:
+        return PathSegment::TOOLHEAD; // At extruder
+    case 7:
+    case 8:
+        return PathSegment::NOZZLE; // Loaded
+    default:
+        return PathSegment::NONE;
+    }
+}
+
+/**
+ * @brief Infer PathSegment from AFC sensor states
+ *
+ * AFC uses binary sensor states to determine filament position.
+ * Logic: filament is at or past the last sensor that detects it.
+ *
+ * @param prep_sensor Prep sensor triggered (filament at lane entry)
+ * @param hub_sensor Hub sensor triggered (filament in hub)
+ * @param toolhead_sensor Toolhead sensor triggered (filament at extruder)
+ * @return Inferred PathSegment based on sensor states
+ */
+inline PathSegment path_segment_from_afc_sensors(bool prep_sensor, bool hub_sensor,
+                                                 bool toolhead_sensor) {
+    if (toolhead_sensor)
+        return PathSegment::NOZZLE;
+    if (hub_sensor)
+        return PathSegment::TOOLHEAD; // Past hub, approaching toolhead
+    if (prep_sensor)
+        return PathSegment::HUB; // Past prep, approaching hub
+    return PathSegment::SPOOL;   // Not yet at prep
 }
 
 /**

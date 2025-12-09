@@ -262,69 +262,106 @@ The path canvas widget receives `ams_path_error_segment` (a PathSegment value) a
 
 ## Implementation Phases
 
-### Phase 1: Setup & Integration (30 min)
-1. Pull existing AMS code from blackmac.local
-2. Verify build passes
-3. Test `./build/bin/helix-screen --test -p ams -vv`
-4. Commit pulled files
+### Phase 1: Setup & Integration ✅ COMPLETE
+1. ✅ Pull existing AMS code from blackmac.local
+2. ✅ Verify build passes
+3. ✅ Test `./build/bin/helix-screen --test -p ams -vv`
+4. ✅ Commit pulled files
 
-### Phase 2: Data Model Extensions (1 hr)
-1. Add `PathTopology`, `PathSegment` enums to `ams_types.h`
-2. Add path subjects to `AmsState`
-3. Add `get_topology()`, `infer_error_segment()` to `AmsBackend` interface
-4. Implement in `AmsBackendMock`
+### Phase 2: Data Model Extensions ✅ COMPLETE
+1. ✅ Add `PathTopology`, `PathSegment` enums to `ams_types.h`
+   - Added enums with helper functions: `path_topology_to_string()`, `path_segment_to_string()`
+   - Added `path_segment_from_happy_hare_pos()` for Happy Hare filament_pos conversion
+   - Added `path_segment_from_afc_sensors()` for AFC sensor state inference
+2. ✅ Add path subjects to `AmsState`
+   - `ams_path_topology`, `ams_path_active_gate`, `ams_path_filament_segment`
+   - `ams_path_error_segment`, `ams_path_anim_progress`
+   - All registered with XML system for reactive binding
+3. ✅ Add `get_topology()`, `get_filament_segment()`, `infer_error_segment()` to `AmsBackend` interface
+4. ✅ Implement in `AmsBackendMock`, `AmsBackendHappyHare`, `AmsBackendAfc`
+5. ✅ Updated `sync_from_backend()` to sync path subjects
 
-### Phase 3: Path Canvas Widget (2-3 hrs)
-**Files to create:**
+### Phase 3: Path Canvas Widget ✅ COMPLETE
+**Files created:**
 - `include/ui_filament_path_canvas.h`
 - `src/ui_filament_path_canvas.cpp`
 
-**Implementation:**
-1. Register as LVGL XML widget (follow `ui_jog_pad.cpp` pattern)
-2. Store state in widget user_data struct
-3. Draw via `LV_EVENT_DRAW_POST` callback
-4. Handle tap events for spool selection
-5. Support XML attributes: `topology`, `gate_count`, `active_gate`
+**Implementation completed:**
+1. ✅ Registered as LVGL XML widget `<filament_path_canvas>`
+2. ✅ Theme-aware: Uses responsive fonts, colors, and spacing from globals.xml
+3. ✅ Draw via `LV_EVENT_DRAW_POST` callback
+4. ✅ Handle tap events for spool/gate selection with callback
+5. ✅ XML attributes: `topology`, `gate_count`, `active_gate`, `filament_segment`, `error_segment`, `anim_progress`, `filament_color`
 
-**Vertical Layout Drawing (top to bottom):**
-1. **Spool row** (top): Horizontal row of spool icons with filament colors
-   - Use existing `spool_canvas` or simplified circles
-   - Tappable - `LV_EVENT_CLICKED` triggers gate selection
-2. **Lane lines**: Vertical lines from each spool down
-3. **Prep sensors** (AFC): Small circles on lane lines
-4. **Merge point**: Lines curve inward to center
-5. **Hub/Selector**: Rounded rectangle in center
-6. **Hub sensor**: Small circle below hub
-7. **Output tube**: Single/double vertical line down
-8. **Toolhead sensor**: Small circle near bottom
-9. **Extruder/Nozzle**: Nozzle icon at bottom
+**Visual layout (vertical, top to bottom):**
+- Gate entry points at top (one per gate, distributed horizontally)
+- Prep sensor dots (AFC/HUB topology only)
+- Lane lines converging diagonally to center
+- Hub/Selector box with label
+- Output sensor dot
+- Toolhead sensor dot
+- Nozzle icon at bottom
 
-**Drawing primitives:**
-- `lv_draw_line()` for path segments (with rounded caps)
-- `lv_draw_arc()` for curved merge paths
-- `lv_draw_rect()` for hub/selector/extruder boxes
-- `lv_draw_arc()` or custom for spool circles
-- Theme colors from `ui_theme_parse_color()`
+**Visual states implemented:**
+- Idle: Thin gray lines (theme-aware color)
+- Active: Thick lines in filament color
+- Error: Thick lines in error color
 
-### Phase 4: State Binding (1 hr)
-1. Add observers in `ui_panel_ams.cpp` for path subjects
-2. Call `ui_filament_path_canvas_set_*()` APIs on state changes
-3. Invalidate canvas on `ams_path_version` change
+**Theme integration:**
+- Colors from `ui_theme_get_color()` with dark/light mode support
+- Sizes from `ui_theme_get_spacing()` for responsiveness
+- Font from `lv_xml_get_const("font_small")` for responsive typography
 
-### Phase 5: Animation (1-2 hrs)
-1. Use LVGL `lv_anim_t` for progress animation
-2. Draw animated "filament segment" moving along path during load/unload
-3. Pulse animation for error segments
+**Registered in main.cpp** alongside other AMS widgets.
 
-### Phase 6: Real Backend Integration (1-2 hrs)
-1. Parse `printer.mmu.filament_pos` in Happy Hare backend
-2. Parse AFC sensor states
-3. Implement `infer_error_segment()` in real backends
+### Phase 4: Panel Integration & State Binding ✅ COMPLETE
 
-### Phase 7: Polish (1 hr)
-1. Responsive sizing for different screens
-2. Touch feedback (tap segment to see info?)
-3. Update `AMS_IMPLEMENTATION_PLAN.md`
+**Goal:** Add the path canvas to the AMS panel and wire it to state subjects.
+
+**Completed:**
+1. ✅ Modified `ui_xml/ams_panel.xml`:
+   - Added `<filament_path_canvas>` below the slot grid in left column
+   - No border/card styling - tight integration with slots above
+   - Reduced gap spacing (`space_xs`) between slot card and path canvas
+2. ✅ Modified `src/ui_panel_ams.cpp`:
+   - Added `path_canvas_` member and `setup_path_canvas()` method
+   - Added observers for `path_filament_segment` and `path_topology` subjects
+   - Implemented `update_path_canvas_from_backend()` to sync all path state
+   - Wired gate click callback to trigger filament load
+3. ✅ Updated `AmsBackendMock` to cycle through path segments during load/unload:
+   - Load: SPOOL → PREP → LANE → HUB → OUTPUT → TOOLHEAD → NOZZLE
+   - Unload: NOZZLE → TOOLHEAD → OUTPUT → HUB → LANE → PREP → SPOOL → NONE
+   - Emits STATE_CHANGED events at each segment for animation
+
+**Extruder/Print Head Visual (Bambu-style):**
+- Tall rectangular body with 2:1 height-to-width ratio
+- Large circular fan duct on front face (dark blade area, lighter center hub)
+- Proper isometric 3D projection:
+  - Front face: rectangle with vertical gradient
+  - Side face: parallelogram with vertical edges, diagonal top/bottom tilting up-right
+  - Top face: parallelogram tilting up-right, matching side face angle
+- Small tapered nozzle tip at bottom
+- Extruder shifted left so filament line bisects center of top surface
+- All dimensions responsive via `extruder_scale` (derived from `space_md`)
+
+### Phase 5: Animation ✅ COMPLETE
+1. ✅ Used LVGL `lv_anim_t` for progress animation
+2. ✅ Draw animated "filament segment" moving along path during load/unload
+3. ✅ Pulse animation for error segments
+4. ✅ Thread-safety: AmsState uses recursive_mutex, lv_async_call for UI updates
+
+### Phase 6: Real Backend Integration ✅ COMPLETE
+1. ✅ Parse AFC sensor states (`AFC_stepper`, `AFC_hub`, `AFC_extruder`)
+2. ✅ Implement `compute_filament_segment_unlocked()` with real sensor logic
+3. ✅ Implement `infer_error_segment()` in AFC backend
+4. ✅ AFC version detection via `afc-install` database namespace
+5. ✅ Renamed "Home" → "Reset" (universal terminology for HH/AFC)
+6. ✅ Added 31 unit tests for AFC backend
+
+### Phase 7: Polish (REMAINING)
+1. [ ] Live testing with real BoxTurtle at 192.168.1.112
+2. [ ] Responsive sizing verification for different screens
+3. [ ] Update `AMS_IMPLEMENTATION_PLAN.md` with final status
 
 ---
 

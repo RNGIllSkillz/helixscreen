@@ -1,9 +1,9 @@
 # Multi-Filament/AMS Support Implementation Plan
 
-**Feature Branch:** `feature/ams-support`
-**Worktree:** `/Users/pbrown/Code/Printing/helixscreen-ams-feature`
+**Feature Branch:** `feature/ams`
+**Repository:** `/Users/pbrown/code/helixscreen-ams`
 **Started:** 2025-12-07
-**Last Updated:** 2025-12-08 (Session 3: Enhanced spool rendering)
+**Last Updated:** 2025-12-09 (Phase 6: Real AFC Backend Integration Complete)
 
 ---
 
@@ -77,7 +77,7 @@ ams_panel.xml (main panel)
 │   └── status_label (bound to ams_action_detail)
 └── action_buttons
     ├── btn_unload
-    └── btn_home
+    └── btn_reset
 
 Future Modals (Phase 3+):
 ├── ams_context_menu.xml (Edit/Load/Unload)
@@ -298,7 +298,7 @@ printer.mmu.endless_spool_groups
 
 ---
 
-### 🔲 Phase 2.6: Configurable Visualization (IN PROGRESS)
+### 🔲 Phase 2.6: Configurable Visualization (DEFERRED)
 
 **Goal:** Allow users to choose between visualization styles
 
@@ -307,23 +307,52 @@ printer.mmu.endless_spool_groups
 |---------|--------|-------------|
 | `ams_spool_style` | `"3d"` / `"flat"` | Pseudo-3D canvas or flat concentric rings |
 
-**Files to Modify:**
-- [ ] `config/helixconfig.json.template` - Add `ams_spool_style` option
-- [ ] `include/helix_config.h` - Config accessor for spool style
-- [ ] `src/helix_config.cpp` - Parse spool style from JSON
-- [ ] `src/ui_ams_slot.cpp` - Conditional widget creation based on config
-- [ ] `ui_xml/ams_panel.xml` - Support both visualization types
+**Deferred:** Will implement after path visualization is complete.
 
-**Implementation:**
-- Keep existing `ams_slot` flat visualization as fallback
-- Default to `"3d"` for new installations
-- Runtime switchable (recreate slots on config change)
+---
+
+### ✅ Phase 2.7: Filament Path Data Model (COMPLETE)
+
+**Goal:** Add data model for filament path visualization
+
+**Files Modified:**
+- [x] `include/ams_types.h` - Added:
+  - `PathTopology` enum (LINEAR for Happy Hare, HUB for AFC)
+  - `PathSegment` enum (NONE, SPOOL, PREP, LANE, HUB, OUTPUT, TOOLHEAD, NOZZLE)
+  - `path_topology_to_string()`, `path_segment_to_string()` helpers
+  - `path_segment_from_happy_hare_pos()` - converts filament_pos to PathSegment
+  - `path_segment_from_afc_sensors()` - infers PathSegment from sensor states
+- [x] `include/ams_state.h` / `src/ams_state.cpp` - Added path subjects:
+  - `ams_path_topology` (int) - PathTopology enum
+  - `ams_path_active_gate` (int) - Currently loaded gate
+  - `ams_path_filament_segment` (int) - PathSegment where filament is
+  - `ams_path_error_segment` (int) - PathSegment with error for highlighting
+  - `ams_path_anim_progress` (int) - Animation progress 0-100
+  - All registered with XML system for reactive binding
+  - `sync_from_backend()` updated to sync path subjects
+- [x] `include/ams_backend.h` - Added pure virtual methods:
+  - `get_topology()` - Returns PathTopology
+  - `get_filament_segment()` - Returns current filament position
+  - `infer_error_segment()` - Returns error location for highlighting
+- [x] `include/ams_backend_mock.h` / `src/ams_backend_mock.cpp`:
+  - Implemented path methods (default HUB topology)
+  - Updates `filament_segment_` during load/unload
+  - Updates `error_segment_` during `simulate_error()`
+- [x] `include/ams_backend_happy_hare.h` / `src/ams_backend_happy_hare.cpp`:
+  - LINEAR topology
+  - Tracks `filament_pos_` from Moonraker status updates
+  - Uses `path_segment_from_happy_hare_pos()` for conversion
+- [x] `include/ams_backend_afc.h` / `src/ams_backend_afc.cpp`:
+  - HUB topology
+  - Tracks sensor states (`prep_sensor_`, `hub_sensor_`, `toolhead_sensor_`)
+  - Uses `path_segment_from_afc_sensors()` for position inference
 
 **Verification:**
-- [ ] Config option parsed correctly
-- [ ] `"3d"` shows spool_canvas widget
-- [ ] `"flat"` shows concentric ring widget
-- [ ] Settings panel allows switching
+- [x] Build succeeds
+- [x] Path subjects registered (5 path subjects logged)
+- [x] `sync_from_backend()` logs segment state
+
+**Next:** Phase 3 - Path Canvas Widget (see `docs/FILAMENT_PATH_VISUALIZATION_PLAN.md`)
 
 ---
 
@@ -353,27 +382,65 @@ printer.mmu.endless_spool_groups
 
 ---
 
-### 🔲 Phase 4: Rich Feedback (NOT STARTED)
+### ✅ Phase 4: Rich Feedback (COMPLETE)
 
-**Goal:** Filament path animations
+**Goal:** Filament path visualization with animations
 
-**Files to Create:**
-- [ ] `include/ui_ams_path_animator.h`
-- [ ] `src/ui_ams_path_animator.cpp`
-  - Canvas-based path drawing
-  - Animated colored segment
-- [ ] `ui_xml/ams_operation_overlay.xml`
+**Implementation:** See `docs/FILAMENT_PATH_VISUALIZATION_PLAN.md` for details.
 
-**Animation States:**
-- IDLE: Gray paths shown
-- LOADING: Colored segment slot→extruder
-- UNLOADING: Colored segment extruder→slot
-- CHANGING: Sequential unload/load
+**Files Created:**
+- [x] `include/ui_filament_path_canvas.h` - Path canvas widget header
+- [x] `src/ui_filament_path_canvas.cpp` - Custom LVGL XML widget
+  - Theme-aware schematic path drawing
+  - Supports HUB (AFC) and LINEAR (Happy Hare) topologies
+  - Gates at top → prep sensors → hub/selector → output → toolhead → nozzle
+  - Click callback for gate selection
+- [x] Bambu-style isometric 3D extruder visualization
+
+**Animation Features:**
+- [x] Segment transition animation with glowing filament tip
+- [x] Error pulse animation (opacity modulation)
+- [x] Thread-safe: AmsState uses recursive_mutex, lv_async_call for UI updates
 
 **Verification:**
-- [ ] Smooth path animations during load
-- [ ] Progress visible during operations
-- [ ] No UI freeze
+- [x] Smooth path animations during load/unload
+- [x] Progress visible during operations
+- [x] No UI freeze or deadlocks
+
+---
+
+### ✅ Phase 4.5: Real AFC Backend Integration (COMPLETE)
+
+**Goal:** Parse real sensor data from AFC/BoxTurtle to drive path visualization
+
+**Implementation:** See `docs/archive/AFC_BACKEND_INTEGRATION_PLAN.md` for original plan.
+
+**Part A: UI Cleanup - "Home" → "Reset"**
+- [x] Renamed `AmsAction::HOMING` → `AmsAction::RESETTING` in `ams_types.h`
+- [x] Renamed `home()` → `reset()` in abstract backend interface
+- [x] Updated all backends (Mock, Happy Hare, AFC)
+- [x] Renamed `btn_home` → `btn_reset` in `ams_panel.xml` with "refresh" icon
+
+**Part B: AFC Version Detection**
+- [x] Added `detect_afc_version()` querying `afc-install` database namespace
+- [x] Added `version_at_least()` for semantic version comparison
+- [x] Sets `has_lane_data_db_` capability flag for v1.0.32+
+
+**Part C: Real Sensor Data Parsing**
+- [x] Added `LaneSensors` struct for per-lane sensor states (prep, load, loaded_to_hub)
+- [x] Implemented `parse_afc_stepper()`, `parse_afc_hub()`, `parse_afc_extruder()`
+- [x] Implemented `compute_filament_segment_unlocked()` with sensor→segment mapping
+- [x] Fixed potential deadlock by using internal unlocked helper
+
+**Unit Tests:**
+- [x] Added 31 unit tests in `tests/unit/test_ams_backend_afc.cpp`
+- [x] Tests for `version_at_least()` (11 tests)
+- [x] Tests for `compute_filament_segment_unlocked()` (20 tests)
+
+**Verification:**
+- [x] Build succeeds
+- [x] All 31 AFC unit tests pass
+- [ ] Live testing with real BoxTurtle at 192.168.1.112
 
 ---
 
@@ -480,7 +547,7 @@ enum class GateStatus {
 };
 
 enum class AmsAction {
-    IDLE = 0, LOADING, UNLOADING, SELECTING, HOMING,
+    IDLE = 0, LOADING, UNLOADING, SELECTING, RESETTING,
     FORMING_TIP, CUTTING, PAUSED, ERROR
 };
 

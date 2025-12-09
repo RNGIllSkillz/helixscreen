@@ -88,6 +88,11 @@ class AmsBackendHappyHare : public AmsBackend {
     [[nodiscard]] int get_current_gate() const override;
     [[nodiscard]] bool is_filament_loaded() const override;
 
+    // Path visualization
+    [[nodiscard]] PathTopology get_topology() const override;
+    [[nodiscard]] PathSegment get_filament_segment() const override;
+    [[nodiscard]] PathSegment infer_error_segment() const override;
+
     // Operations
     AmsError load_filament(int gate_index) override;
     AmsError unload_filament() override;
@@ -96,7 +101,7 @@ class AmsBackendHappyHare : public AmsBackend {
 
     // Recovery
     AmsError recover() override;
-    AmsError home() override;
+    AmsError reset() override;
     AmsError cancel() override;
 
     // Configuration
@@ -180,4 +185,8 @@ class AmsBackendHappyHare : public AmsBackend {
     // Cached MMU state
     AmsSystemInfo system_info_;     ///< Current system state
     bool gates_initialized_{false}; ///< Have we seen gate_status yet?
+
+    // Path visualization state
+    int filament_pos_{0};                          ///< Happy Hare filament_pos value
+    PathSegment error_segment_{PathSegment::NONE}; ///< Inferred error location
 };

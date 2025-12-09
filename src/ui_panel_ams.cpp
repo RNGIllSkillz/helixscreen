@@ -6,12 +6,14 @@
 #include "ui_ams_slot.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
+#include "ui_filament_path_canvas.h"
 #include "ui_nav.h"
 #include "ui_panel_common.h"
 #include "ui_theme.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
+#include "ams_types.h"
 #include "app_globals.h"
 #include "moonraker_api.h"
 #include "printer_state.h"
@@ -35,10 +37,10 @@ static void on_unload_clicked_xml(lv_event_t* e) {
     }
 }
 
-static void on_home_clicked_xml(lv_event_t* e) {
+static void on_reset_clicked_xml(lv_event_t* e) {
     LV_UNUSED(e);
     if (g_ams_panel_instance) {
-        g_ams_panel_instance->handle_home();
+        g_ams_panel_instance->handle_reset();
     }
 }
 
@@ -96,6 +98,12 @@ void AmsPanel::init_subjects() {
     gate_count_observer_ =
         ObserverGuard(AmsState::instance().get_gate_count_subject(), on_gate_count_changed, this);
 
+    // Path state observers for filament path visualization
+    path_segment_observer_ = ObserverGuard(AmsState::instance().get_path_filament_segment_subject(),
+                                           on_path_state_changed, this);
+    path_topology_observer_ = ObserverGuard(AmsState::instance().get_path_topology_subject(),
+                                            on_path_state_changed, this);
+
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized via AmsState + observers registered", get_name());
 }
@@ -118,6 +126,7 @@ void AmsPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     setup_slots();
     setup_action_buttons();
     setup_status_display();
+    setup_path_canvas();
 
     // Initial UI sync from backend state
     refresh_slots();
@@ -219,7 +228,7 @@ void AmsPanel::setup_action_buttons() {
     // Register XML event callbacks for buttons
     // These callbacks are referenced in ams_panel.xml via <event_cb> elements
     lv_xml_register_event_cb(nullptr, "ams_unload_clicked_cb", on_unload_clicked_xml);
-    lv_xml_register_event_cb(nullptr, "ams_home_clicked_cb", on_home_clicked_xml);
+    lv_xml_register_event_cb(nullptr, "ams_reset_clicked_cb", on_reset_clicked_xml);
 
     // Store panel pointer for static callbacks to access
     g_ams_panel_instance = this;
@@ -234,6 +243,64 @@ void AmsPanel::setup_status_display() {
     if (status_label) {
         spdlog::debug("[{}] Status label found - bound to ams_action_detail", get_name());
     }
+}
+
+void AmsPanel::setup_path_canvas() {
+    path_canvas_ = lv_obj_find_by_name(panel_, "path_canvas");
+    if (!path_canvas_) {
+        spdlog::warn("[{}] path_canvas not found in XML", get_name());
+        return;
+    }
+
+    // Set gate click callback to trigger filament load
+    ui_filament_path_canvas_set_gate_callback(path_canvas_, on_path_gate_clicked, this);
+
+    // Initial configuration from backend
+    update_path_canvas_from_backend();
+
+    spdlog::debug("[{}] Path canvas setup complete", get_name());
+}
+
+void AmsPanel::update_path_canvas_from_backend() {
+    if (!path_canvas_) {
+        return;
+    }
+
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        return;
+    }
+
+    // Get system info for gate count and topology
+    AmsSystemInfo info = backend->get_system_info();
+
+    // Set gate count from backend
+    ui_filament_path_canvas_set_gate_count(path_canvas_, info.total_gates);
+
+    // Set topology from backend
+    PathTopology topology = backend->get_topology();
+    ui_filament_path_canvas_set_topology(path_canvas_, static_cast<int>(topology));
+
+    // Set active gate
+    ui_filament_path_canvas_set_active_gate(path_canvas_, info.current_gate);
+
+    // Set filament segment position
+    PathSegment segment = backend->get_filament_segment();
+    ui_filament_path_canvas_set_filament_segment(path_canvas_, static_cast<int>(segment));
+
+    // Set error segment if any
+    PathSegment error_seg = backend->infer_error_segment();
+    ui_filament_path_canvas_set_error_segment(path_canvas_, static_cast<int>(error_seg));
+
+    // Set filament color from current gate's filament
+    if (info.current_gate >= 0) {
+        GateInfo gate_info = backend->get_gate_info(info.current_gate);
+        ui_filament_path_canvas_set_filament_color(path_canvas_, gate_info.color_rgb);
+    }
+
+    spdlog::trace("[{}] Path canvas updated: gates={}, topology={}, active={}, segment={}",
+                  get_name(), info.total_gates, static_cast<int>(topology), info.current_gate,
+                  static_cast<int>(segment));
 }
 
 // ============================================================================
@@ -372,7 +439,7 @@ void AmsPanel::update_action_display(AmsAction action) {
     }
 
     bool show_progress = (action == AmsAction::LOADING || action == AmsAction::UNLOADING ||
-                          action == AmsAction::SELECTING || action == AmsAction::HOMING);
+                          action == AmsAction::SELECTING || action == AmsAction::RESETTING);
 
     if (show_progress) {
         lv_obj_remove_flag(progress, LV_OBJ_FLAG_HIDDEN);
@@ -461,6 +528,34 @@ void AmsPanel::update_current_loaded_display(int gate_index) {
 // Event Callbacks
 // ============================================================================
 
+void AmsPanel::on_path_gate_clicked(int gate_index, void* user_data) {
+    auto* self = static_cast<AmsPanel*>(user_data);
+    if (!self) {
+        return;
+    }
+
+    spdlog::info("[AmsPanel] Path gate {} clicked - triggering load", gate_index);
+
+    // Trigger filament load for the clicked gate
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        NOTIFY_WARNING("AMS not available");
+        return;
+    }
+
+    // Check if backend is busy
+    AmsSystemInfo info = backend->get_system_info();
+    if (info.action != AmsAction::IDLE && info.action != AmsAction::ERROR) {
+        NOTIFY_WARNING("AMS is busy: {}", ams_action_to_string(info.action));
+        return;
+    }
+
+    AmsError error = backend->load_filament(gate_index);
+    if (error.result != AmsResult::SUCCESS) {
+        NOTIFY_ERROR("Load failed: {}", error.user_msg);
+    }
+}
+
 void AmsPanel::on_slot_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[AmsPanel] on_slot_clicked");
     auto* self = static_cast<AmsPanel*>(lv_event_get_user_data(e));
@@ -481,11 +576,11 @@ void AmsPanel::on_unload_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-void AmsPanel::on_home_clicked(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[AmsPanel] on_home_clicked");
+void AmsPanel::on_reset_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[AmsPanel] on_reset_clicked");
     auto* self = static_cast<AmsPanel*>(lv_event_get_user_data(e));
     if (self) {
-        self->handle_home();
+        self->handle_reset();
     }
     LVGL_SAFE_EVENT_CB_END();
 }
@@ -530,6 +625,21 @@ void AmsPanel::on_current_gate_changed(lv_observer_t* observer, lv_subject_t* su
     int gate = lv_subject_get_int(subject);
     spdlog::debug("[AmsPanel] Current gate changed: {}", gate);
     self->update_current_gate_highlight(gate);
+
+    // Also update path canvas when current gate changes
+    self->update_path_canvas_from_backend();
+}
+
+void AmsPanel::on_path_state_changed(lv_observer_t* observer, lv_subject_t* /*subject*/) {
+    auto* self = static_cast<AmsPanel*>(lv_observer_get_user_data(observer));
+    if (!self) {
+        return;
+    }
+    if (!self->subjects_initialized_ || !self->panel_) {
+        return; // Not yet ready
+    }
+    spdlog::debug("[AmsPanel] Path state changed - updating path canvas");
+    self->update_path_canvas_from_backend();
 }
 
 // ============================================================================
@@ -568,8 +678,8 @@ void AmsPanel::handle_unload() {
     }
 }
 
-void AmsPanel::handle_home() {
-    spdlog::info("[{}] Home requested", get_name());
+void AmsPanel::handle_reset() {
+    spdlog::info("[{}] Reset requested", get_name());
 
     AmsBackend* backend = AmsState::instance().get_backend();
     if (!backend) {
@@ -577,9 +687,9 @@ void AmsPanel::handle_home() {
         return;
     }
 
-    AmsError error = backend->home();
+    AmsError error = backend->reset();
     if (error.result != AmsResult::SUCCESS) {
-        NOTIFY_ERROR("Home failed: {}", error.user_msg);
+        NOTIFY_ERROR("Reset failed: {}", error.user_msg);
     }
 }
 
@@ -588,7 +698,9 @@ void AmsPanel::handle_context_load() {
         return;
     }
 
-    spdlog::info("[{}] Context menu: Load from slot {}", get_name(), context_menu_slot_);
+    // Capture slot before hiding menu (hide_context_menu resets context_menu_slot_)
+    int slot_to_load = context_menu_slot_;
+    spdlog::info("[{}] Context menu: Load from slot {}", get_name(), slot_to_load);
     hide_context_menu();
 
     AmsBackend* backend = AmsState::instance().get_backend();
@@ -604,7 +716,7 @@ void AmsPanel::handle_context_load() {
         return;
     }
 
-    AmsError error = backend->load_filament(context_menu_slot_);
+    AmsError error = backend->load_filament(slot_to_load);
     if (error.result != AmsResult::SUCCESS) {
         NOTIFY_ERROR("Load failed: {}", error.user_msg);
     }

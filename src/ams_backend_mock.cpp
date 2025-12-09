@@ -149,7 +149,17 @@ AmsBackendMock::AmsBackendMock(int gate_count) {
 }
 
 AmsBackendMock::~AmsBackendMock() {
+    // Signal shutdown and wait for any running operation thread
+    shutdown_requested_ = true;
+    shutdown_cv_.notify_all();
+    wait_for_operation_thread();
     stop();
+}
+
+void AmsBackendMock::wait_for_operation_thread() {
+    if (operation_thread_.joinable()) {
+        operation_thread_.join();
+    }
 }
 
 AmsError AmsBackendMock::start() {
@@ -240,6 +250,21 @@ bool AmsBackendMock::is_filament_loaded() const {
     return system_info_.filament_loaded;
 }
 
+PathTopology AmsBackendMock::get_topology() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return topology_;
+}
+
+PathSegment AmsBackendMock::get_filament_segment() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return filament_segment_;
+}
+
+PathSegment AmsBackendMock::infer_error_segment() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return error_segment_;
+}
+
 AmsError AmsBackendMock::load_filament(int gate_index) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -264,6 +289,7 @@ AmsError AmsBackendMock::load_filament(int gate_index) {
         // Start loading
         system_info_.action = AmsAction::LOADING;
         system_info_.operation_detail = "Loading from gate " + std::to_string(gate_index);
+        filament_segment_ = PathSegment::SPOOL; // Start at spool
         spdlog::info("AmsBackendMock: Loading from gate {}", gate_index);
     }
 
@@ -293,6 +319,7 @@ AmsError AmsBackendMock::unload_filament() {
         // Start unloading
         system_info_.action = AmsAction::UNLOADING;
         system_info_.operation_detail = "Unloading filament";
+        filament_segment_ = PathSegment::NOZZLE; // Start at nozzle (working backwards)
         spdlog::info("AmsBackendMock: Unloading filament");
     }
 
@@ -370,6 +397,7 @@ AmsError AmsBackendMock::recover() {
         // Reset to idle state
         system_info_.action = AmsAction::IDLE;
         system_info_.operation_detail.clear();
+        error_segment_ = PathSegment::NONE; // Clear error location
         spdlog::info("AmsBackendMock: Recovery complete");
     }
 
@@ -377,7 +405,7 @@ AmsError AmsBackendMock::recover() {
     return AmsErrorHelper::success();
 }
 
-AmsError AmsBackendMock::home() {
+AmsError AmsBackendMock::reset() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -389,26 +417,16 @@ AmsError AmsBackendMock::home() {
             return AmsErrorHelper::busy(ams_action_to_string(system_info_.action));
         }
 
-        system_info_.action = AmsAction::HOMING;
-        system_info_.operation_detail = "Homing selector";
-        spdlog::info("AmsBackendMock: Homing");
+        system_info_.action = AmsAction::RESETTING;
+        system_info_.operation_detail = "Resetting system";
+        spdlog::info("AmsBackendMock: Resetting");
     }
 
     emit_event(EVENT_STATE_CHANGED);
 
-    // Schedule completion
-    std::thread([this]() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(operation_delay_ms_));
-
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            system_info_.action = AmsAction::IDLE;
-            system_info_.operation_detail.clear();
-            system_info_.current_gate = -1;
-        }
-
-        emit_event(EVENT_STATE_CHANGED);
-    }).detach();
+    // Use schedule_completion for thread-safe operation
+    // RESETTING action will be handled by the "else" branch which just waits and completes
+    schedule_completion(AmsAction::RESETTING, EVENT_STATE_CHANGED);
 
     return AmsErrorHelper::success();
 }
@@ -497,6 +515,17 @@ void AmsBackendMock::simulate_error(AmsResult error) {
         std::lock_guard<std::mutex> lock(mutex_);
         system_info_.action = AmsAction::ERROR;
         system_info_.operation_detail = ams_result_to_string(error);
+
+        // Infer error segment based on error type
+        if (error == AmsResult::FILAMENT_JAM || error == AmsResult::ENCODER_ERROR) {
+            error_segment_ = PathSegment::HUB; // Jam typically in selector/hub
+        } else if (error == AmsResult::SENSOR_ERROR || error == AmsResult::LOAD_FAILED) {
+            error_segment_ = PathSegment::TOOLHEAD; // Detection issues at toolhead
+        } else if (error == AmsResult::GATE_BLOCKED || error == AmsResult::GATE_NOT_AVAILABLE) {
+            error_segment_ = PathSegment::PREP; // Gate issues at prep/entry
+        } else {
+            error_segment_ = filament_segment_; // Error at current position
+        }
     }
 
     emit_event(EVENT_ERROR, ams_result_to_string(error));
@@ -532,28 +561,84 @@ void AmsBackendMock::emit_event(const std::string& event, const std::string& dat
 
 void AmsBackendMock::schedule_completion(AmsAction action, const std::string& complete_event,
                                          int gate_index) {
-    // Simulate operation delay in background thread
-    std::thread([this, action, complete_event, gate_index]() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(operation_delay_ms_));
+    // Wait for any previous operation to complete first
+    wait_for_operation_thread();
 
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
+    // Reset shutdown flag for new operation
+    shutdown_requested_ = false;
 
-            // Update state based on operation
-            if (action == AmsAction::LOADING) {
+    // Simulate operation delay in background thread with path segment progression
+    operation_thread_ = std::thread([this, action, complete_event, gate_index]() {
+        // Helper lambda for interruptible sleep
+        auto interruptible_sleep = [this](int ms) -> bool {
+            std::unique_lock<std::mutex> lock(shutdown_mutex_);
+            return !shutdown_cv_.wait_for(lock, std::chrono::milliseconds(ms),
+                                          [this] { return shutdown_requested_.load(); });
+        };
+
+        // Calculate delay per segment for smooth animation
+        int segment_delay = operation_delay_ms_ / 6; // 6 segments to traverse
+
+        if (action == AmsAction::LOADING) {
+            // Progress through segments: SPOOL → PREP → LANE → HUB → OUTPUT → TOOLHEAD → NOZZLE
+            const PathSegment load_sequence[] = {
+                PathSegment::SPOOL,  PathSegment::PREP,     PathSegment::LANE,  PathSegment::HUB,
+                PathSegment::OUTPUT, PathSegment::TOOLHEAD, PathSegment::NOZZLE};
+
+            for (auto seg : load_sequence) {
+                if (shutdown_requested_)
+                    return; // Early exit on shutdown
+
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    filament_segment_ = seg;
+                    system_info_.current_gate =
+                        gate_index; // Set active gate early for visualization
+                }
+                emit_event(EVENT_STATE_CHANGED);
+                if (!interruptible_sleep(segment_delay))
+                    return; // Exit if shutdown signaled
+            }
+
+            // Final state
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
                 system_info_.filament_loaded = true;
+                filament_segment_ = PathSegment::NOZZLE;
                 if (gate_index >= 0) {
                     system_info_.current_gate = gate_index;
-                    system_info_.current_tool = gate_index; // Assuming 1:1 mapping
-
-                    // Mark gate as loaded
+                    system_info_.current_tool = gate_index;
                     auto* gate = system_info_.get_gate_global(gate_index);
                     if (gate) {
                         gate->status = GateStatus::LOADED;
                     }
                 }
-            } else if (action == AmsAction::UNLOADING) {
-                // Mark previous gate as available again
+                system_info_.action = AmsAction::IDLE;
+                system_info_.operation_detail.clear();
+            }
+        } else if (action == AmsAction::UNLOADING) {
+            // Progress through segments in reverse: NOZZLE → TOOLHEAD → OUTPUT → HUB → LANE → PREP
+            // → SPOOL → NONE
+            const PathSegment unload_sequence[] = {
+                PathSegment::NOZZLE, PathSegment::TOOLHEAD, PathSegment::OUTPUT, PathSegment::HUB,
+                PathSegment::LANE,   PathSegment::PREP,     PathSegment::SPOOL,  PathSegment::NONE};
+
+            for (auto seg : unload_sequence) {
+                if (shutdown_requested_)
+                    return; // Early exit on shutdown
+
+                {
+                    std::lock_guard<std::mutex> lock(mutex_);
+                    filament_segment_ = seg;
+                }
+                emit_event(EVENT_STATE_CHANGED);
+                if (!interruptible_sleep(segment_delay))
+                    return; // Exit if shutdown signaled
+            }
+
+            // Final state
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
                 if (system_info_.current_gate >= 0) {
                     auto* gate = system_info_.get_gate_global(system_info_.current_gate);
                     if (gate) {
@@ -561,15 +646,28 @@ void AmsBackendMock::schedule_completion(AmsAction action, const std::string& co
                     }
                 }
                 system_info_.filament_loaded = false;
+                system_info_.current_gate = -1;
+                filament_segment_ = PathSegment::NONE;
+                system_info_.action = AmsAction::IDLE;
+                system_info_.operation_detail.clear();
             }
-
-            system_info_.action = AmsAction::IDLE;
-            system_info_.operation_detail.clear();
+        } else {
+            // For other actions, just wait and complete
+            if (!interruptible_sleep(operation_delay_ms_))
+                return;
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                system_info_.action = AmsAction::IDLE;
+                system_info_.operation_detail.clear();
+            }
         }
+
+        if (shutdown_requested_)
+            return; // Final check before emitting
 
         emit_event(complete_event, gate_index >= 0 ? std::to_string(gate_index) : "");
         emit_event(EVENT_STATE_CHANGED);
-    }).detach();
+    });
 }
 
 // ============================================================================

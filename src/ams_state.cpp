@@ -27,6 +27,24 @@
 
 #include <cstring>
 
+// Async callback data for thread-safe LVGL updates
+namespace {
+struct AsyncSyncData {
+    bool full_sync;
+    int gate_index; // Only used if full_sync == false
+};
+
+void async_sync_callback(void* data) {
+    auto* sync_data = static_cast<AsyncSyncData*>(data);
+    if (sync_data->full_sync) {
+        AmsState::instance().sync_from_backend();
+    } else {
+        AmsState::instance().update_gate(sync_data->gate_index);
+    }
+    delete sync_data;
+}
+} // namespace
+
 AmsState& AmsState::instance() {
     static AmsState instance;
     return instance;
@@ -43,7 +61,7 @@ AmsState::~AmsState() {
 }
 
 void AmsState::init_subjects(bool register_xml) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     if (initialized_) {
         return;
@@ -64,6 +82,13 @@ void AmsState::init_subjects(bool register_xml) {
     lv_subject_init_string(&ams_action_detail_, action_detail_buf_, nullptr,
                            sizeof(action_detail_buf_), "");
 
+    // Filament path visualization subjects
+    lv_subject_init_int(&path_topology_, static_cast<int>(PathTopology::HUB));
+    lv_subject_init_int(&path_active_gate_, -1);
+    lv_subject_init_int(&path_filament_segment_, static_cast<int>(PathSegment::NONE));
+    lv_subject_init_int(&path_error_segment_, static_cast<int>(PathSegment::NONE));
+    lv_subject_init_int(&path_anim_progress_, 0);
+
     // Per-gate subjects
     for (int i = 0; i < MAX_GATES; ++i) {
         lv_subject_init_int(&gate_colors_[i], static_cast<int>(AMS_DEFAULT_GATE_COLOR));
@@ -81,6 +106,13 @@ void AmsState::init_subjects(bool register_xml) {
         lv_xml_register_subject(NULL, "ams_gate_count", &gate_count_);
         lv_xml_register_subject(NULL, "ams_gates_version", &gates_version_);
 
+        // Filament path visualization subjects
+        lv_xml_register_subject(NULL, "ams_path_topology", &path_topology_);
+        lv_xml_register_subject(NULL, "ams_path_active_gate", &path_active_gate_);
+        lv_xml_register_subject(NULL, "ams_path_filament_segment", &path_filament_segment_);
+        lv_xml_register_subject(NULL, "ams_path_error_segment", &path_error_segment_);
+        lv_xml_register_subject(NULL, "ams_path_anim_progress", &path_anim_progress_);
+
         // Register per-gate subjects with indexed names
         char name_buf[32];
         for (int i = 0; i < MAX_GATES; ++i) {
@@ -91,21 +123,22 @@ void AmsState::init_subjects(bool register_xml) {
             lv_xml_register_subject(NULL, name_buf, &gate_statuses_[i]);
         }
 
-        spdlog::info("AmsState: Registered {} system subjects and {} per-gate subjects", 8,
-                     MAX_GATES * 2);
+        spdlog::info(
+            "AmsState: Registered {} system subjects, {} path subjects, {} per-gate subjects", 8, 5,
+            MAX_GATES * 2);
     }
 
     initialized_ = true;
 }
 
 void AmsState::reset_for_testing() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     initialized_ = false;
     backend_.reset();
 }
 
 void AmsState::set_backend(std::unique_ptr<AmsBackend> backend) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     // Stop existing backend
     if (backend_) {
@@ -125,12 +158,12 @@ void AmsState::set_backend(std::unique_ptr<AmsBackend> backend) {
 }
 
 AmsBackend* AmsState::get_backend() const {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     return backend_.get();
 }
 
 bool AmsState::is_available() const {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     return backend_ && backend_->get_type() != AmsType::NONE;
 }
 
@@ -149,7 +182,7 @@ lv_subject_t* AmsState::get_gate_status_subject(int gate_index) {
 }
 
 void AmsState::sync_from_backend() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     if (!backend_) {
         return;
@@ -172,6 +205,13 @@ void AmsState::sync_from_backend() {
         lv_subject_copy_string(&ams_action_detail_, ams_action_to_string(info.action));
     }
 
+    // Update path visualization subjects
+    lv_subject_set_int(&path_topology_, static_cast<int>(backend_->get_topology()));
+    lv_subject_set_int(&path_active_gate_, info.current_gate);
+    lv_subject_set_int(&path_filament_segment_, static_cast<int>(backend_->get_filament_segment()));
+    lv_subject_set_int(&path_error_segment_, static_cast<int>(backend_->infer_error_segment()));
+    // Note: path_anim_progress_ is controlled by UI animation, not synced from backend
+
     // Update per-gate subjects
     for (int i = 0; i < std::min(info.total_gates, MAX_GATES); ++i) {
         const GateInfo* gate = info.get_gate_global(i);
@@ -189,13 +229,14 @@ void AmsState::sync_from_backend() {
 
     bump_gates_version();
 
-    spdlog::debug("AmsState: Synced from backend - type={}, gates={}, action={}",
+    spdlog::debug("AmsState: Synced from backend - type={}, gates={}, action={}, segment={}",
                   ams_type_to_string(info.type), info.total_gates,
-                  ams_action_to_string(info.action));
+                  ams_action_to_string(info.action),
+                  path_segment_to_string(backend_->get_filament_segment()));
 }
 
 void AmsState::update_gate(int gate_index) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     if (!backend_ || gate_index < 0 || gate_index >= MAX_GATES) {
         return;
@@ -215,31 +256,45 @@ void AmsState::update_gate(int gate_index) {
 void AmsState::on_backend_event(const std::string& event, const std::string& data) {
     spdlog::debug("AmsState: Received event '{}' data='{}'", event, data);
 
+    // Use lv_async_call to post updates to LVGL's main thread
+    // This is required because backend events may come from background threads
+    // and LVGL is not thread-safe
+
+    // Helper to safely queue async call with error handling
+    auto queue_sync = [](bool full_sync, int gate_index) {
+        auto* sync_data = new AsyncSyncData{full_sync, gate_index};
+        lv_result_t res = lv_async_call(async_sync_callback, sync_data);
+        if (res != LV_RESULT_OK) {
+            delete sync_data;
+            spdlog::warn("AmsState: lv_async_call failed, state update dropped");
+        }
+    };
+
     if (event == AmsBackend::EVENT_STATE_CHANGED) {
-        sync_from_backend();
+        queue_sync(true, -1);
     } else if (event == AmsBackend::EVENT_GATE_CHANGED) {
         // Parse gate index from data
         if (!data.empty()) {
             try {
                 int gate_index = std::stoi(data);
-                update_gate(gate_index);
+                queue_sync(false, gate_index);
             } catch (...) {
                 // Invalid data, do full sync
-                sync_from_backend();
+                queue_sync(true, -1);
             }
         }
     } else if (event == AmsBackend::EVENT_LOAD_COMPLETE ||
                event == AmsBackend::EVENT_UNLOAD_COMPLETE ||
                event == AmsBackend::EVENT_TOOL_CHANGED) {
         // These events indicate state change, sync everything
-        sync_from_backend();
+        queue_sync(true, -1);
     } else if (event == AmsBackend::EVENT_ERROR) {
         // Error occurred, sync to get error state
-        sync_from_backend();
+        queue_sync(true, -1);
         spdlog::warn("AmsState: Backend error - {}", data);
     } else if (event == AmsBackend::EVENT_ATTENTION_REQUIRED) {
         // User intervention needed
-        sync_from_backend();
+        queue_sync(true, -1);
         spdlog::warn("AmsState: Attention required - {}", data);
     }
 }

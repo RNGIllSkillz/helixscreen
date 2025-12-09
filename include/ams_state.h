@@ -180,6 +180,59 @@ class AmsState {
     }
 
     // ========================================================================
+    // Filament Path Visualization Subjects
+    // ========================================================================
+
+    /**
+     * @brief Get path topology subject
+     * @return Subject holding PathTopology enum as int (0=linear, 1=hub)
+     */
+    lv_subject_t* get_path_topology_subject() {
+        return &path_topology_;
+    }
+
+    /**
+     * @brief Get path active gate subject
+     * @return Subject holding gate index whose path is being shown (-1=none)
+     */
+    lv_subject_t* get_path_active_gate_subject() {
+        return &path_active_gate_;
+    }
+
+    /**
+     * @brief Get path filament segment subject
+     *
+     * Indicates where the filament currently is along the path.
+     *
+     * @return Subject holding PathSegment enum as int
+     */
+    lv_subject_t* get_path_filament_segment_subject() {
+        return &path_filament_segment_;
+    }
+
+    /**
+     * @brief Get path error segment subject
+     *
+     * Indicates which segment has an error (for highlighting).
+     *
+     * @return Subject holding PathSegment enum as int (NONE if no error)
+     */
+    lv_subject_t* get_path_error_segment_subject() {
+        return &path_error_segment_;
+    }
+
+    /**
+     * @brief Get path animation progress subject
+     *
+     * Used for load/unload animations.
+     *
+     * @return Subject holding progress 0-100
+     */
+    lv_subject_t* get_path_anim_progress_subject() {
+        return &path_anim_progress_;
+    }
+
+    // ========================================================================
     // Per-Gate Subject Accessors
     // ========================================================================
 
@@ -240,7 +293,7 @@ class AmsState {
      */
     void bump_gates_version();
 
-    mutable std::mutex mutex_;
+    mutable std::recursive_mutex mutex_;
     std::unique_ptr<AmsBackend> backend_;
     bool initialized_ = false;
 
@@ -256,6 +309,13 @@ class AmsState {
     // String subject for action detail (needs buffer)
     lv_subject_t ams_action_detail_;
     char action_detail_buf_[64];
+
+    // Filament path visualization subjects
+    lv_subject_t path_topology_;
+    lv_subject_t path_active_gate_;
+    lv_subject_t path_filament_segment_;
+    lv_subject_t path_error_segment_;
+    lv_subject_t path_anim_progress_;
 
     // Per-gate subjects (color and status)
     lv_subject_t gate_colors_[MAX_GATES];

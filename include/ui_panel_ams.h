@@ -101,17 +101,25 @@ class AmsPanel : public PanelBase {
     ObserverGuard action_observer_;
     ObserverGuard current_gate_observer_;
     ObserverGuard gate_count_observer_;
+    ObserverGuard path_segment_observer_;
+    ObserverGuard path_topology_observer_;
 
     // === Dynamic Slot State ===
 
     int current_slot_count_ = 0;    ///< Number of slots currently created
     lv_obj_t* slot_grid_ = nullptr; ///< Container for dynamically created slots
 
+    // === Filament Path Canvas ===
+
+    lv_obj_t* path_canvas_ = nullptr; ///< Filament path visualization widget
+
     // === Setup Helpers ===
 
     void setup_slots();
     void setup_action_buttons();
     void setup_status_display();
+    void setup_path_canvas();
+    void update_path_canvas_from_backend();
 
     /**
      * @brief Create slot widgets dynamically based on gate count
@@ -138,13 +146,18 @@ class AmsPanel : public PanelBase {
 
     static void on_slot_clicked(lv_event_t* e);
     static void on_unload_clicked(lv_event_t* e);
-    static void on_home_clicked(lv_event_t* e);
+    static void on_reset_clicked(lv_event_t* e);
 
     // === Observer Callbacks ===
 
     static void on_gates_version_changed(lv_observer_t* observer, lv_subject_t* subject);
     static void on_action_changed(lv_observer_t* observer, lv_subject_t* subject);
     static void on_current_gate_changed(lv_observer_t* observer, lv_subject_t* subject);
+    static void on_path_state_changed(lv_observer_t* observer, lv_subject_t* subject);
+
+    // === Path Canvas Callback ===
+
+    static void on_path_gate_clicked(int gate_index, void* user_data);
 
     // === Context Menu Callbacks (static trampolines) ===
 
@@ -162,7 +175,7 @@ class AmsPanel : public PanelBase {
   public:
     void handle_slot_tap(int slot_index);
     void handle_unload();
-    void handle_home();
+    void handle_reset();
 
   private:
     void handle_context_load();

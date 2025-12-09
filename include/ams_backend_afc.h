@@ -26,6 +26,7 @@
 #include "ams_backend.h"
 #include "moonraker_client.h"
 
+#include <array>
 #include <atomic>
 #include <mutex>
 #include <unordered_map>
@@ -95,6 +96,11 @@ class AmsBackendAfc : public AmsBackend {
     [[nodiscard]] int get_current_gate() const override;
     [[nodiscard]] bool is_filament_loaded() const override;
 
+    // Path visualization
+    [[nodiscard]] PathTopology get_topology() const override;
+    [[nodiscard]] PathSegment get_filament_segment() const override;
+    [[nodiscard]] PathSegment infer_error_segment() const override;
+
     // Operations
     AmsError load_filament(int gate_index) override;
     AmsError unload_filament() override;
@@ -103,12 +109,16 @@ class AmsBackendAfc : public AmsBackend {
 
     // Recovery
     AmsError recover() override;
-    AmsError home() override;
+    AmsError reset() override;
     AmsError cancel() override;
 
     // Configuration
     AmsError set_gate_info(int gate_index, const GateInfo& info) override;
     AmsError set_tool_mapping(int tool_number, int gate_index) override;
+
+  protected:
+    // Allow test helper access to private members
+    friend class AmsBackendAfcTestHelper;
 
   private:
     /**
@@ -148,6 +158,44 @@ class AmsBackendAfc : public AmsBackend {
     void parse_lane_data(const nlohmann::json& lane_data);
 
     /**
+     * @brief Detect AFC version by querying afc-install database namespace
+     *
+     * Queries Moonraker's database for the afc-install namespace which
+     * contains version information. Sets afc_version_ and capability flags.
+     */
+    void detect_afc_version();
+
+    /**
+     * @brief Check if installed AFC version meets minimum requirement
+     *
+     * @param required Minimum version string (e.g., "1.0.32")
+     * @return true if installed version >= required version
+     */
+    bool version_at_least(const std::string& required) const;
+
+    /**
+     * @brief Parse AFC_stepper lane object for sensor states and filament info
+     *
+     * @param lane_name Lane identifier (e.g., "lane1")
+     * @param data JSON object from AFC_stepper lane{N}
+     */
+    void parse_afc_stepper(const std::string& lane_name, const nlohmann::json& data);
+
+    /**
+     * @brief Parse AFC_hub object for hub sensor state
+     *
+     * @param data JSON object from AFC_hub
+     */
+    void parse_afc_hub(const nlohmann::json& data);
+
+    /**
+     * @brief Parse AFC_extruder object for toolhead sensor states
+     *
+     * @param data JSON object from AFC_extruder
+     */
+    void parse_afc_extruder(const nlohmann::json& data);
+
+    /**
      * @brief Initialize lane structures based on discovered lanes
      *
      * Called when we first receive lane data to create the correct
@@ -166,6 +214,16 @@ class AmsBackendAfc : public AmsBackend {
      * @return Lane name or empty string if invalid
      */
     std::string get_lane_name(int gate_index) const;
+
+    /**
+     * @brief Compute filament segment from sensor states (no locking)
+     *
+     * Internal helper called from locked contexts to avoid deadlock.
+     * Uses lane_sensors_[], hub_sensor_, tool_start_sensor_, tool_end_sensor_.
+     *
+     * @return PathSegment indicating filament position
+     */
+    [[nodiscard]] PathSegment compute_filament_segment_unlocked() const;
 
     /**
      * @brief Emit event to registered callback
@@ -218,4 +276,29 @@ class AmsBackendAfc : public AmsBackend {
 
     // Lane name to gate index mapping
     std::unordered_map<std::string, int> lane_name_to_index_;
+
+    // Version detection
+    std::string afc_version_{"unknown"}; ///< Detected AFC version (e.g., "1.0.0")
+    bool has_lane_data_db_{false};       ///< v1.0.32+ has lane_data in Moonraker DB
+
+    // Per-lane sensor state (from AFC_stepper objects)
+    struct LaneSensors {
+        bool prep = false;          ///< Prep sensor triggered
+        bool load = false;          ///< Load sensor triggered
+        bool loaded_to_hub = false; ///< Filament reached hub
+    };
+    std::array<LaneSensors, 16> lane_sensors_{}; ///< Sensor state for each lane
+
+    // Hub and toolhead sensors (from AFC_hub and AFC_extruder objects)
+    bool hub_sensor_{false};        ///< Hub sensor triggered
+    bool tool_start_sensor_{false}; ///< Toolhead entry sensor
+    bool tool_end_sensor_{false};   ///< Toolhead exit/nozzle sensor
+
+    // Global state
+    bool error_state_{false};            ///< AFC error state
+    std::string current_lane_name_;      ///< Currently active lane name
+    std::vector<std::string> hub_names_; ///< Discovered hub names
+
+    // Path visualization state
+    PathSegment error_segment_{PathSegment::NONE}; ///< Inferred error location
 };

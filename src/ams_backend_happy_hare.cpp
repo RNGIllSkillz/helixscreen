@@ -186,6 +186,22 @@ bool AmsBackendHappyHare::is_filament_loaded() const {
     return system_info_.filament_loaded;
 }
 
+PathTopology AmsBackendHappyHare::get_topology() const {
+    // Happy Hare uses a linear selector topology (ERCF-style)
+    return PathTopology::LINEAR;
+}
+
+PathSegment AmsBackendHappyHare::get_filament_segment() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // Convert Happy Hare filament_pos to unified PathSegment
+    return path_segment_from_happy_hare_pos(filament_pos_);
+}
+
+PathSegment AmsBackendHappyHare::infer_error_segment() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return error_segment_;
+}
+
 // ============================================================================
 // Moonraker Status Update Handling
 // ============================================================================
@@ -249,10 +265,29 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
     // Values: "Idle", "Loading", "Unloading", "Forming Tip", "Heating", "Checking", etc.
     if (mmu_data.contains("action") && mmu_data["action"].is_string()) {
         std::string action_str = mmu_data["action"].get<std::string>();
+        AmsAction prev_action = system_info_.action;
         system_info_.action = ams_action_from_string(action_str);
         system_info_.operation_detail = action_str;
         spdlog::trace("[AMS HappyHare] Action: {} ({})", ams_action_to_string(system_info_.action),
                       action_str);
+
+        // Clear error segment when recovering to idle
+        if (prev_action == AmsAction::ERROR && system_info_.action == AmsAction::IDLE) {
+            error_segment_ = PathSegment::NONE;
+        }
+        // Infer error segment on error state
+        if (system_info_.action == AmsAction::ERROR && prev_action != AmsAction::ERROR) {
+            error_segment_ = path_segment_from_happy_hare_pos(filament_pos_);
+        }
+    }
+
+    // Parse filament_pos: printer.mmu.filament_pos
+    // Values: 0=unloaded, 1-2=gate area, 3=in bowden, 4=end bowden, 5=homed extruder,
+    //         6=extruder entry, 7-8=loaded
+    if (mmu_data.contains("filament_pos") && mmu_data["filament_pos"].is_number_integer()) {
+        filament_pos_ = mmu_data["filament_pos"].get<int>();
+        spdlog::trace("[AMS HappyHare] Filament pos: {} -> {}", filament_pos_,
+                      path_segment_to_string(path_segment_from_happy_hare_pos(filament_pos_)));
     }
 
     // Parse gate_status array: printer.mmu.gate_status
@@ -544,7 +579,7 @@ AmsError AmsBackendHappyHare::recover() {
     return execute_gcode("MMU_RECOVER");
 }
 
-AmsError AmsBackendHappyHare::home() {
+AmsError AmsBackendHappyHare::reset() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -554,7 +589,8 @@ AmsError AmsBackendHappyHare::home() {
         }
     }
 
-    spdlog::info("[AMS HappyHare] Homing selector");
+    // Happy Hare uses MMU_HOME to reset to a known state
+    spdlog::info("[AMS HappyHare] Resetting (homing selector)");
     return execute_gcode("MMU_HOME");
 }
 
@@ -581,33 +617,36 @@ AmsError AmsBackendHappyHare::cancel() {
 // ============================================================================
 
 AmsError AmsBackendHappyHare::set_gate_info(int gate_index, const GateInfo& info) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
 
-    if (gate_index < 0 || gate_index >= system_info_.total_gates) {
-        return AmsErrorHelper::invalid_gate(gate_index, system_info_.total_gates - 1);
+        if (gate_index < 0 || gate_index >= system_info_.total_gates) {
+            return AmsErrorHelper::invalid_gate(gate_index, system_info_.total_gates - 1);
+        }
+
+        auto* gate = system_info_.get_gate_global(gate_index);
+        if (!gate) {
+            return AmsErrorHelper::invalid_gate(gate_index, system_info_.total_gates - 1);
+        }
+
+        // Update local state
+        gate->color_name = info.color_name;
+        gate->color_rgb = info.color_rgb;
+        gate->material = info.material;
+        gate->brand = info.brand;
+        gate->spoolman_id = info.spoolman_id;
+        gate->spool_name = info.spool_name;
+        gate->remaining_weight_g = info.remaining_weight_g;
+        gate->total_weight_g = info.total_weight_g;
+        gate->nozzle_temp_min = info.nozzle_temp_min;
+        gate->nozzle_temp_max = info.nozzle_temp_max;
+        gate->bed_temp = info.bed_temp;
+
+        spdlog::info("[AMS HappyHare] Updated gate {} info: {} {}", gate_index, info.material,
+                     info.color_name);
     }
 
-    auto* gate = system_info_.get_gate_global(gate_index);
-    if (!gate) {
-        return AmsErrorHelper::invalid_gate(gate_index, system_info_.total_gates - 1);
-    }
-
-    // Update local state
-    gate->color_name = info.color_name;
-    gate->color_rgb = info.color_rgb;
-    gate->material = info.material;
-    gate->brand = info.brand;
-    gate->spoolman_id = info.spoolman_id;
-    gate->spool_name = info.spool_name;
-    gate->remaining_weight_g = info.remaining_weight_g;
-    gate->total_weight_g = info.total_weight_g;
-    gate->nozzle_temp_min = info.nozzle_temp_min;
-    gate->nozzle_temp_max = info.nozzle_temp_max;
-    gate->bed_temp = info.bed_temp;
-
-    spdlog::info("[AMS HappyHare] Updated gate {} info: {} {}", gate_index, info.material,
-                 info.color_name);
-
+    // Emit OUTSIDE the lock to avoid deadlock with callbacks
     emit_event(EVENT_GATE_CHANGED, std::to_string(gate_index));
 
     // Happy Hare stores gate info via MMU_GATE_MAP command

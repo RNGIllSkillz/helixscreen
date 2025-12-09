@@ -26,7 +26,9 @@
 #include "ams_backend.h"
 
 #include <atomic>
+#include <condition_variable>
 #include <mutex>
+#include <thread>
 
 /**
  * @file ams_backend_mock.h
@@ -68,6 +70,11 @@ class AmsBackendMock : public AmsBackend {
     [[nodiscard]] int get_current_gate() const override;
     [[nodiscard]] bool is_filament_loaded() const override;
 
+    // Path visualization
+    [[nodiscard]] PathTopology get_topology() const override;
+    [[nodiscard]] PathSegment get_filament_segment() const override;
+    [[nodiscard]] PathSegment infer_error_segment() const override;
+
     // Operations
     AmsError load_filament(int gate_index) override;
     AmsError unload_filament() override;
@@ -76,7 +83,7 @@ class AmsBackendMock : public AmsBackend {
 
     // Recovery
     AmsError recover() override;
-    AmsError home() override;
+    AmsError reset() override;
     AmsError cancel() override;
 
     // Configuration
@@ -128,10 +135,26 @@ class AmsBackendMock : public AmsBackend {
     void schedule_completion(AmsAction action, const std::string& complete_event,
                              int gate_index = -1);
 
+    /**
+     * @brief Wait for any active operation thread to complete
+     */
+    void wait_for_operation_thread();
+
     mutable std::mutex mutex_;         ///< Protects state access
     std::atomic<bool> running_{false}; ///< Backend running state
     EventCallback event_callback_;     ///< Registered event handler
 
     AmsSystemInfo system_info_;    ///< Simulated system state
     int operation_delay_ms_ = 500; ///< Simulated operation delay
+
+    // Path visualization state
+    PathTopology topology_ = PathTopology::HUB;        ///< Simulated topology (default hub for AFC)
+    PathSegment filament_segment_ = PathSegment::NONE; ///< Current filament position
+    PathSegment error_segment_ = PathSegment::NONE;    ///< Error location (if any)
+
+    // Thread-safe shutdown support
+    std::thread operation_thread_;                ///< Current operation thread (if any)
+    std::atomic<bool> shutdown_requested_{false}; ///< Signal thread to exit
+    std::condition_variable shutdown_cv_;         ///< For interruptible sleep
+    mutable std::mutex shutdown_mutex_;           ///< Protects shutdown_cv_ wait
 };
