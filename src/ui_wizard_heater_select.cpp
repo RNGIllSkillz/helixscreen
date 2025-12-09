@@ -92,8 +92,8 @@ void WizardHeaterSelectStep::init_subjects() {
 
     // Initialize subjects with default index 0
     // Actual selection will be restored from config during create() after hardware is discovered
-    WizardHelpers::init_int_subject(&bed_heater_selected_, 0, "bed_heater_selected");
-    WizardHelpers::init_int_subject(&hotend_heater_selected_, 0, "hotend_heater_selected");
+    helix::ui::wizard::init_int_subject(&bed_heater_selected_, 0, "bed_heater_selected");
+    helix::ui::wizard::init_int_subject(&hotend_heater_selected_, 0, "hotend_heater_selected");
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
@@ -138,7 +138,7 @@ lv_obj_t* WizardHeaterSelectStep::create(lv_obj_t* parent) {
         [](MoonrakerClient* c) -> const auto& { return c->get_heaters(); },
         "bed", // Filter for bed-related heaters
         true,  // Allow "None" option
-        WizardConfigPaths::BED_HEATER, [](MoonrakerAPI* api) { return api->guess_bed_heater(); },
+        helix::wizard::BED_HEATER, [](MoonrakerAPI* api) { return api->guess_bed_heater(); },
         "[Wizard Heater]");
 
     // Attach bed heater dropdown callback programmatically
@@ -154,8 +154,8 @@ lv_obj_t* WizardHeaterSelectStep::create(lv_obj_t* parent) {
         [](MoonrakerClient* c) -> const auto& { return c->get_heaters(); },
         "extruder", // Filter for extruder-related heaters
         true,       // Allow "None" option
-        WizardConfigPaths::HOTEND_HEATER,
-        [](MoonrakerAPI* api) { return api->guess_hotend_heater(); }, "[Wizard Heater]");
+        helix::wizard::HOTEND_HEATER, [](MoonrakerAPI* api) { return api->guess_hotend_heater(); },
+        "[Wizard Heater]");
 
     // Attach hotend heater dropdown callback programmatically
     lv_obj_t* hotend_heater_dropdown = lv_obj_find_by_name(screen_root_, "hotend_heater_dropdown");
@@ -183,28 +183,28 @@ void WizardHeaterSelectStep::cleanup() {
 
     // Save bed heater selection
     // Store the heater name to BOTH heater and sensor paths (Klipper heaters provide temp readings)
-    WizardHelpers::save_dropdown_selection(&bed_heater_selected_, bed_heater_items_,
-                                           WizardConfigPaths::BED_HEATER, "[Wizard Heater]");
+    helix::ui::wizard::save_dropdown_selection(&bed_heater_selected_, bed_heater_items_,
+                                               helix::wizard::BED_HEATER, "[Wizard Heater]");
 
     // Get the selected bed heater name and also save it as the sensor
     int32_t bed_idx = lv_subject_get_int(&bed_heater_selected_);
     if (bed_idx >= 0 && static_cast<size_t>(bed_idx) < bed_heater_items_.size()) {
         const std::string& bed_heater_name = bed_heater_items_[static_cast<size_t>(bed_idx)];
-        config->set<std::string>(WizardConfigPaths::BED_SENSOR, bed_heater_name);
+        config->set<std::string>(helix::wizard::BED_SENSOR, bed_heater_name);
         spdlog::debug("[{}] Bed sensor set to: {}", get_name(), bed_heater_name);
     }
 
     // Save hotend heater selection
     // Store the heater name to BOTH heater and sensor paths
-    WizardHelpers::save_dropdown_selection(&hotend_heater_selected_, hotend_heater_items_,
-                                           WizardConfigPaths::HOTEND_HEATER, "[Wizard Heater]");
+    helix::ui::wizard::save_dropdown_selection(&hotend_heater_selected_, hotend_heater_items_,
+                                               helix::wizard::HOTEND_HEATER, "[Wizard Heater]");
 
     // Get the selected hotend heater name and also save it as the sensor
     int32_t hotend_idx = lv_subject_get_int(&hotend_heater_selected_);
     if (hotend_idx >= 0 && static_cast<size_t>(hotend_idx) < hotend_heater_items_.size()) {
         const std::string& hotend_heater_name =
             hotend_heater_items_[static_cast<size_t>(hotend_idx)];
-        config->set<std::string>(WizardConfigPaths::HOTEND_SENSOR, hotend_heater_name);
+        config->set<std::string>(helix::wizard::HOTEND_SENSOR, hotend_heater_name);
         spdlog::debug("[{}] Hotend sensor set to: {}", get_name(), hotend_heater_name);
     }
 

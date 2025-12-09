@@ -17,6 +17,7 @@
 #include <limits>
 #include <unordered_map>
 
+namespace helix {
 namespace gcode {
 
 // ============================================================================
@@ -1161,3 +1162,4 @@ uint32_t GeometryBuilder::compute_segment_color(const ToolpathSegment& segment, 
 }
 
 } // namespace gcode
+} // namespace helix

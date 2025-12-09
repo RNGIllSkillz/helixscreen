@@ -133,8 +133,8 @@ std::string WizardSummaryStep::format_bed_summary() {
     Config* config = Config::get_instance();
     std::stringstream ss;
 
-    std::string heater = config->get<std::string>(WizardConfigPaths::BED_HEATER, "None");
-    std::string sensor = config->get<std::string>(WizardConfigPaths::BED_SENSOR, "None");
+    std::string heater = config->get<std::string>(helix::wizard::BED_HEATER, "None");
+    std::string sensor = config->get<std::string>(helix::wizard::BED_SENSOR, "None");
 
     ss << "Heater: " << (heater == "None" ? "None" : heater);
     ss << ", Sensor: " << (sensor == "None" ? "None" : sensor);
@@ -146,8 +146,8 @@ std::string WizardSummaryStep::format_hotend_summary() {
     Config* config = Config::get_instance();
     std::stringstream ss;
 
-    std::string heater = config->get<std::string>(WizardConfigPaths::HOTEND_HEATER, "None");
-    std::string sensor = config->get<std::string>(WizardConfigPaths::HOTEND_SENSOR, "None");
+    std::string heater = config->get<std::string>(helix::wizard::HOTEND_HEATER, "None");
+    std::string sensor = config->get<std::string>(helix::wizard::HOTEND_SENSOR, "None");
 
     ss << "Heater: " << (heater == "None" ? "None" : heater);
     ss << ", Sensor: " << (sensor == "None" ? "None" : sensor);
@@ -167,7 +167,7 @@ void WizardSummaryStep::init_subjects() {
 
     // Printer name
     std::string printer_name =
-        config ? config->get<std::string>(WizardConfigPaths::PRINTER_NAME, "Unnamed Printer")
+        config ? config->get<std::string>(helix::wizard::PRINTER_NAME, "Unnamed Printer")
                : "Unnamed Printer";
     spdlog::debug("[{}] Printer name from config: '{}'", get_name(), printer_name);
     strncpy(printer_name_buffer_, printer_name.c_str(), sizeof(printer_name_buffer_) - 1);
@@ -175,14 +175,14 @@ void WizardSummaryStep::init_subjects() {
 
     // Printer type
     std::string printer_type =
-        config ? config->get<std::string>(WizardConfigPaths::PRINTER_TYPE, "Unknown") : "Unknown";
+        config ? config->get<std::string>(helix::wizard::PRINTER_TYPE, "Unknown") : "Unknown";
     spdlog::debug("[{}] Printer type from config: '{}'", get_name(), printer_type);
     strncpy(printer_type_buffer_, printer_type.c_str(), sizeof(printer_type_buffer_) - 1);
     printer_type_buffer_[sizeof(printer_type_buffer_) - 1] = '\0';
 
     // WiFi SSID
     std::string wifi_ssid =
-        config ? config->get<std::string>(WizardConfigPaths::WIFI_SSID, "Not configured")
+        config ? config->get<std::string>(helix::wizard::WIFI_SSID, "Not configured")
                : "Not configured";
     spdlog::debug("[{}] WiFi SSID from config: '{}'", get_name(), wifi_ssid);
     strncpy(wifi_ssid_buffer_, wifi_ssid.c_str(), sizeof(wifi_ssid_buffer_) - 1);
@@ -190,9 +190,9 @@ void WizardSummaryStep::init_subjects() {
 
     // Moonraker connection (host:port)
     std::string moonraker_host =
-        config ? config->get<std::string>(WizardConfigPaths::MOONRAKER_HOST, "Not configured")
+        config ? config->get<std::string>(helix::wizard::MOONRAKER_HOST, "Not configured")
                : "Not configured";
-    int moonraker_port = config ? config->get<int>(WizardConfigPaths::MOONRAKER_PORT, 7125) : 7125;
+    int moonraker_port = config ? config->get<int>(helix::wizard::MOONRAKER_PORT, 7125) : 7125;
     spdlog::debug("[{}] Moonraker host from config: '{}', port: {}", get_name(), moonraker_host,
                   moonraker_port);
     std::stringstream moonraker_ss;
@@ -219,21 +219,21 @@ void WizardSummaryStep::init_subjects() {
 
     // Part cooling fan
     std::string part_fan =
-        config ? config->get<std::string>(WizardConfigPaths::PART_FAN, "None") : "None";
+        config ? config->get<std::string>(helix::wizard::PART_FAN, "None") : "None";
     strncpy(part_fan_buffer_, part_fan.c_str(), sizeof(part_fan_buffer_) - 1);
     part_fan_buffer_[sizeof(part_fan_buffer_) - 1] = '\0';
     int part_fan_visible = (part_fan != "None") ? 1 : 0;
 
     // Hotend cooling fan
     std::string hotend_fan =
-        config ? config->get<std::string>(WizardConfigPaths::HOTEND_FAN, "None") : "None";
+        config ? config->get<std::string>(helix::wizard::HOTEND_FAN, "None") : "None";
     strncpy(hotend_fan_buffer_, hotend_fan.c_str(), sizeof(hotend_fan_buffer_) - 1);
     hotend_fan_buffer_[sizeof(hotend_fan_buffer_) - 1] = '\0';
     int hotend_fan_visible = (hotend_fan != "None") ? 1 : 0;
 
     // LED strip
     std::string led_strip =
-        config ? config->get<std::string>(WizardConfigPaths::LED_STRIP, "None") : "None";
+        config ? config->get<std::string>(helix::wizard::LED_STRIP, "None") : "None";
     strncpy(led_strip_buffer_, led_strip.c_str(), sizeof(led_strip_buffer_) - 1);
     led_strip_buffer_[sizeof(led_strip_buffer_) - 1] = '\0';
     int led_strip_visible = (led_strip != "None") ? 1 : 0;

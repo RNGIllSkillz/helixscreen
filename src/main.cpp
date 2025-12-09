@@ -201,8 +201,8 @@ static void ensure_project_root_cwd() {
 // LVGL context is local to main() - see helix::LvglContext
 
 // Screen dimensions (configurable via command line, default to small = 800x480)
-static int SCREEN_WIDTH = UI_SCREEN_SMALL_W;
-static int SCREEN_HEIGHT = UI_SCREEN_SMALL_H;
+static int g_screen_width = UI_SCREEN_SMALL_W;
+static int g_screen_height = UI_SCREEN_SMALL_H;
 
 // Local instances (registered with app_globals via setters)
 // Note: PrinterState is now a singleton accessed via get_printer_state()
@@ -640,7 +640,7 @@ int main(int argc, char** argv) {
 
     // Parse command-line arguments into structured result
     helix::CliArgs args;
-    if (!helix::parse_cli_args(argc, argv, args, SCREEN_WIDTH, SCREEN_HEIGHT)) {
+    if (!helix::parse_cli_args(argc, argv, args, g_screen_width, g_screen_height)) {
         return 0; // Help shown or parse error
     }
 
@@ -706,14 +706,14 @@ int main(int argc, char** argv) {
 
     spdlog::info("HelixScreen UI Prototype");
     spdlog::info("========================");
-    spdlog::debug("Target: {}x{}", SCREEN_WIDTH, SCREEN_HEIGHT);
+    spdlog::debug("Target: {}x{}", g_screen_width, g_screen_height);
     spdlog::debug("DPI: {}{}", (args.dpi > 0 ? args.dpi : LV_DPI_DEF),
                   (args.dpi > 0 ? " (custom)" : " (default)"));
-    spdlog::debug("Nav Width: {} pixels", UI_NAV_WIDTH(SCREEN_WIDTH));
+    spdlog::debug("Nav Width: {} pixels", UI_NAV_WIDTH(g_screen_width));
     spdlog::debug("Initial Panel: {}", args.initial_panel);
 
     // Cleanup stale temp files from G-code modifications (older than 1 hour)
-    size_t cleaned = gcode::GCodeFileModifier::cleanup_temp_files();
+    size_t cleaned = helix::gcode::GCodeFileModifier::cleanup_temp_files();
     if (cleaned > 0) {
         spdlog::info("Cleaned up {} stale G-code temp file(s)", cleaned);
     }
@@ -780,7 +780,7 @@ int main(int argc, char** argv) {
 
     // Initialize LVGL with display backend
     helix::LvglContext lvgl_ctx;
-    if (!helix::init_lvgl(SCREEN_WIDTH, SCREEN_HEIGHT, lvgl_ctx)) {
+    if (!helix::init_lvgl(g_screen_width, g_screen_height, lvgl_ctx)) {
         return 1;
     }
 
@@ -828,7 +828,7 @@ int main(int argc, char** argv) {
     // Show splash screen AFTER theme init (skip if requested via --skip-splash or --test)
     // Theme must be initialized first so app_bg_color runtime constant is available
     if (!g_runtime_config.should_skip_splash()) {
-        helix::show_splash_screen(SCREEN_WIDTH, SCREEN_HEIGHT);
+        helix::show_splash_screen(g_screen_width, g_screen_height);
     }
 
     // Register custom widgets (must be before XML component registration)
@@ -848,7 +848,7 @@ int main(int argc, char** argv) {
 
     // WORKAROUND: Add small delay to stabilize display/LVGL initialization
     // Prevents race condition between display backend and LVGL 9 XML component registration
-    helix_delay(100);
+    helix::timing::delay(100);
 
     // Register remaining XML components (globals already registered for theme init)
     helix::register_xml_components();
@@ -1174,15 +1174,15 @@ int main(int argc, char** argv) {
 
     // Auto-screenshot timer (configurable delay after UI creation)
     uint32_t screenshot_time =
-        helix_get_ticks() + (static_cast<uint32_t>(args.screenshot_delay_sec) * 1000U);
+        helix::timing::get_ticks() + (static_cast<uint32_t>(args.screenshot_delay_sec) * 1000U);
     bool screenshot_taken = false;
 
     // Auto-quit timeout timer (if enabled)
-    uint32_t start_time = helix_get_ticks();
+    uint32_t start_time = helix::timing::get_ticks();
     uint32_t timeout_ms = static_cast<uint32_t>(args.timeout_sec) * 1000U;
 
     // Request timeout check timer (check every 2 seconds)
-    uint32_t last_timeout_check = helix_get_ticks();
+    uint32_t last_timeout_check = helix::timing::get_ticks();
     uint32_t timeout_check_interval = static_cast<uint32_t>(
         config->get<int>(config->df() + "moonraker_timeout_check_interval_ms", 2000));
 
@@ -1202,19 +1202,20 @@ int main(int argc, char** argv) {
 #endif
 
         // Auto-screenshot after configured delay (only if enabled)
-        if (args.screenshot_enabled && !screenshot_taken && helix_get_ticks() >= screenshot_time) {
+        if (args.screenshot_enabled && !screenshot_taken &&
+            helix::timing::get_ticks() >= screenshot_time) {
             helix::save_screenshot();
             screenshot_taken = true;
         }
 
         // Auto-quit after timeout (if enabled)
-        if (args.timeout_sec > 0 && (helix_get_ticks() - start_time) >= timeout_ms) {
+        if (args.timeout_sec > 0 && (helix::timing::get_ticks() - start_time) >= timeout_ms) {
             spdlog::info("Timeout reached ({} seconds) - exiting...", args.timeout_sec);
             break;
         }
 
         // Check for request timeouts (using configured interval)
-        uint32_t current_time = helix_get_ticks();
+        uint32_t current_time = helix::timing::get_ticks();
         if (current_time - last_timeout_check >= timeout_check_interval) {
             moonraker_client->process_timeouts();
             last_timeout_check = current_time;
@@ -1260,7 +1261,7 @@ int main(int argc, char** argv) {
         // Run LVGL tasks - handles display events and processes input
         lv_timer_handler();
         fflush(stdout);
-        helix_delay(5); // Small delay to prevent 100% CPU usage
+        helix::timing::delay(5); // Small delay to prevent 100% CPU usage
     }
 
     // Cleanup

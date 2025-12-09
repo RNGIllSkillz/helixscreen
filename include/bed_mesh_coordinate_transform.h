@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BED_MESH_COORDINATE_TRANSFORM_H
-#define BED_MESH_COORDINATE_TRANSFORM_H
+#pragma once
 
 /**
  * @file bed_mesh_coordinate_transform.h
@@ -37,7 +36,8 @@
  * eliminating duplication across multiple rendering functions.
  */
 
-namespace BedMeshCoordinateTransform {
+namespace helix {
+namespace mesh {
 
 /**
  * @brief Convert mesh column index to centered world X coordinate
@@ -101,6 +101,5 @@ double compute_mesh_z_center(double mesh_min_z, double mesh_max_z);
  */
 double compute_grid_z(double z_center, double z_scale);
 
-} // namespace BedMeshCoordinateTransform
-
-#endif // BED_MESH_COORDINATE_TRANSFORM_H
+} // namespace mesh
+} // namespace helix

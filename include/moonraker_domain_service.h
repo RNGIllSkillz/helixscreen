@@ -1,8 +1,7 @@
 // Copyright 2025 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef MOONRAKER_DOMAIN_SERVICE_H
-#define MOONRAKER_DOMAIN_SERVICE_H
+#pragma once
 
 #include <set>
 #include <string>
@@ -176,5 +175,3 @@ class IMoonrakerDomainService {
      */
     virtual std::vector<std::string> get_available_objects() const = 0;
 };
-
-#endif // MOONRAKER_DOMAIN_SERVICE_H

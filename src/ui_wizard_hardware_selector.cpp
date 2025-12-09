@@ -80,7 +80,7 @@ bool wizard_populate_hardware_dropdown(
     }
 
     // Build dropdown options string
-    std::string options_str = WizardHelpers::build_dropdown_options(
+    std::string options_str = helix::ui::wizard::build_dropdown_options(
         items_out,
         nullptr, // No additional filter (already filtered above)
         allow_none);
@@ -109,8 +109,8 @@ bool wizard_populate_hardware_dropdown(
     lv_obj_set_style_text_font(dropdown, icon_font, LV_PART_INDICATOR);
 
     // Restore saved selection with guessing fallback (now uses MoonrakerAPI)
-    WizardHelpers::restore_dropdown_selection(dropdown, subject, items_out, config_key, api,
-                                              guess_fallback, log_prefix);
+    helix::ui::wizard::restore_dropdown_selection(dropdown, subject, items_out, config_key, api,
+                                                  guess_fallback, log_prefix);
 
     spdlog::debug("{} Populated dropdown '{}' with {} items", log_prefix, dropdown_name,
                   items_out.size());

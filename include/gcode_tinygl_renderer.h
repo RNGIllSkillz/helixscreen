@@ -17,6 +17,7 @@
 #include <optional>
 #include <unordered_set>
 
+namespace helix {
 namespace gcode {
 
 /**
@@ -420,3 +421,4 @@ class GCodeTinyGLRenderer {
 };
 
 } // namespace gcode
+} // namespace helix

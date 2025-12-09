@@ -45,12 +45,12 @@
 class GCodeViewerState {
   public:
     GCodeViewerState() {
-        camera_ = std::make_unique<gcode::GCodeCamera>();
+        camera_ = std::make_unique<helix::gcode::GCodeCamera>();
 #ifdef ENABLE_TINYGL_3D
-        renderer_ = std::make_unique<gcode::GCodeTinyGLRenderer>();
+        renderer_ = std::make_unique<helix::gcode::GCodeTinyGLRenderer>();
         spdlog::info("GCode viewer using TinyGL 3D renderer");
 #else
-        renderer_ = std::make_unique<gcode::GCodeRenderer>();
+        renderer_ = std::make_unique<helix::gcode::GCodeRenderer>();
         spdlog::info("GCode viewer using LVGL 2D renderer");
 #endif
     }
@@ -127,15 +127,15 @@ class GCodeViewerState {
     // ========================================================================
 
     // G-code data
-    std::unique_ptr<gcode::ParsedGCodeFile> gcode_file;
+    std::unique_ptr<helix::gcode::ParsedGCodeFile> gcode_file;
     gcode_viewer_state_enum_t viewer_state{GCODE_VIEWER_STATE_EMPTY};
 
     // Rendering components (exposed for callbacks)
-    std::unique_ptr<gcode::GCodeCamera> camera_;
+    std::unique_ptr<helix::gcode::GCodeCamera> camera_;
 #ifdef ENABLE_TINYGL_3D
-    std::unique_ptr<gcode::GCodeTinyGLRenderer> renderer_;
+    std::unique_ptr<helix::gcode::GCodeTinyGLRenderer> renderer_;
 #else
-    std::unique_ptr<gcode::GCodeRenderer> renderer_;
+    std::unique_ptr<helix::gcode::GCodeRenderer> renderer_;
 #endif
 
     // Gesture state
@@ -580,8 +580,8 @@ lv_obj_t* ui_gcode_viewer_create(lv_obj_t* parent) {
 
 // Result structure for async geometry building
 struct AsyncBuildResult {
-    std::unique_ptr<gcode::ParsedGCodeFile> gcode_file;
-    std::unique_ptr<gcode::RibbonGeometry> geometry;
+    std::unique_ptr<helix::gcode::ParsedGCodeFile> gcode_file;
+    std::unique_ptr<helix::gcode::RibbonGeometry> geometry;
     std::string error_msg;
     bool success{true};
 };
@@ -641,7 +641,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 result->success = false;
                 result->error_msg = "Failed to open file: " + path;
             } else {
-                gcode::GCodeParser parser;
+                helix::gcode::GCodeParser parser;
                 std::string line;
 
                 while (std::getline(file, line)) {
@@ -650,7 +650,8 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 
                 file.close();
 
-                result->gcode_file = std::make_unique<gcode::ParsedGCodeFile>(parser.finalize());
+                result->gcode_file =
+                    std::make_unique<helix::gcode::ParsedGCodeFile>(parser.finalize());
                 result->gcode_file->filename = path;
 
                 spdlog::info("GCodeViewer: Parsed {} layers, {} segments",
@@ -658,8 +659,8 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 
                 // PHASE 2: Build geometry (slow, 1-5s for large files)
                 // This is thread-safe - no OpenGL calls, just CPU work
-                gcode::GeometryBuilder builder;
-                gcode::SimplificationOptions opts{.tolerance_mm = 0.15f};
+                helix::gcode::GeometryBuilder builder;
+                helix::gcode::SimplificationOptions opts{.tolerance_mm = 0.15f};
 
                 // Configure builder with metadata
                 // Set tool color palette for multicolor prints
@@ -677,7 +678,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 
                 builder.set_layer_height(result->gcode_file->layer_height_mm);
 
-                result->geometry = std::make_unique<gcode::RibbonGeometry>(
+                result->geometry = std::make_unique<helix::gcode::RibbonGeometry>(
                     builder.build(*result->gcode_file, opts));
 
                 spdlog::info("GCodeViewer: Built geometry with {} vertices, {} triangles",
@@ -803,7 +804,7 @@ void ui_gcode_viewer_set_gcode_data(lv_obj_t* obj, void* gcode_data) {
         return;
 
     // Take ownership of the data (caller must use new to allocate)
-    st->gcode_file.reset(static_cast<gcode::ParsedGCodeFile*>(gcode_data));
+    st->gcode_file.reset(static_cast<helix::gcode::ParsedGCodeFile*>(gcode_data));
 
     // Fit camera to model (uses current camera orientation from reset())
     st->camera_->fit_to_bounds(st->gcode_file->global_bounding_box);
@@ -1152,8 +1153,8 @@ void ui_gcode_viewer_set_ghost_mode(lv_obj_t* obj, int mode) {
         return;
 
     // Map int to enum (0=Dimmed, 1=Stipple)
-    gcode::GhostRenderMode render_mode =
-        (mode == 1) ? gcode::GhostRenderMode::Stipple : gcode::GhostRenderMode::Dimmed;
+    helix::gcode::GhostRenderMode render_mode = (mode == 1) ? helix::gcode::GhostRenderMode::Stipple
+                                                            : helix::gcode::GhostRenderMode::Dimmed;
 
     st->renderer_->set_ghost_render_mode(render_mode);
     lv_obj_invalidate(obj);

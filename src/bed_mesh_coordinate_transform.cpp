@@ -23,7 +23,8 @@
 
 #include "bed_mesh_coordinate_transform.h"
 
-namespace BedMeshCoordinateTransform {
+namespace helix {
+namespace mesh {
 
 double mesh_col_to_world_x(int col, int cols, double scale) {
     return (col - (cols - 1) / 2.0) * scale;
@@ -45,4 +46,5 @@ double compute_grid_z(double z_center, double z_scale) {
     return -z_center * z_scale;
 }
 
-} // namespace BedMeshCoordinateTransform
+} // namespace mesh
+} // namespace helix

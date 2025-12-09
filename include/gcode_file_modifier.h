@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
+namespace helix {
 namespace gcode {
 
 /**
@@ -319,3 +320,4 @@ class GCodeFileModifier {
 };
 
 } // namespace gcode
+} // namespace helix

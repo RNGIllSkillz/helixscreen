@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef WIZARD_CONFIG_PATHS_H
-#define WIZARD_CONFIG_PATHS_H
+#pragma once
 
 /**
  * @file wizard_config_paths.h
@@ -35,7 +34,8 @@
  * with the expected structure checked by Config::is_wizard_required().
  */
 
-namespace WizardConfigPaths {
+namespace helix {
+namespace wizard {
 // Printer identification
 constexpr const char* DEFAULT_PRINTER = "/default_printer";
 constexpr const char* PRINTER_NAME = "/printers/default_printer/name";
@@ -64,6 +64,5 @@ constexpr const char* MOONRAKER_HOST = "/printers/default_printer/moonraker_host
 constexpr const char* MOONRAKER_PORT = "/printers/default_printer/moonraker_port";
 constexpr const char* WIFI_SSID = "/wifi/ssid";
 constexpr const char* WIFI_PASSWORD = "/wifi/password";
-} // namespace WizardConfigPaths
-
-#endif // WIZARD_CONFIG_PATHS_H
+} // namespace wizard
+} // namespace helix

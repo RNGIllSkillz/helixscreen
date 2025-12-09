@@ -1,8 +1,7 @@
 // Copyright 2025 HelixScreen
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef UI_OBSERVER_GUARD_H
-#define UI_OBSERVER_GUARD_H
+#pragma once
 
 #include "lvgl/lvgl.h"
 
@@ -63,5 +62,3 @@ class ObserverGuard {
   private:
     lv_observer_t* observer_ = nullptr;
 };
-
-#endif // UI_OBSERVER_GUARD_H

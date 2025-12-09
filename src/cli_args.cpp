@@ -15,8 +15,8 @@
 #include <memory>
 
 // External globals that CLI args modify
-extern int SCREEN_WIDTH;
-extern int SCREEN_HEIGHT;
+extern int g_screen_width;
+extern int g_screen_height;
 extern std::string g_log_dest_cli;
 extern std::string g_log_file_cli;
 

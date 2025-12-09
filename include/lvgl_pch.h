@@ -9,8 +9,7 @@
 // 2. Rarely change (external libraries, stable APIs)
 // 3. Heavy to parse (LVGL, STL containers)
 
-#ifndef LVGL_PCH_H
-#define LVGL_PCH_H
+#pragma once
 
 // LVGL core headers (processed 200+ times without PCH)
 #include "lvgl/lvgl.h"
@@ -28,5 +27,3 @@
 // spdlog (used in nearly every file)
 #include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
-
-#endif // LVGL_PCH_H

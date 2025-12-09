@@ -7,7 +7,9 @@
 
 #include <cstdio>
 
-namespace UITemperatureUtils {
+namespace helix {
+namespace ui {
+namespace temperature {
 
 bool validate_and_clamp(int& temp, int min_temp, int max_temp, const char* context,
                         const char* temp_type) {
@@ -43,4 +45,6 @@ const char* get_extrusion_safety_status(int current_temp, int min_extrusion_temp
     return status_buf;
 }
 
-} // namespace UITemperatureUtils
+} // namespace temperature
+} // namespace ui
+} // namespace helix

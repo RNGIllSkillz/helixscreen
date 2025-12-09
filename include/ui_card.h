@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_CARD_H
-#define UI_CARD_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,5 +41,3 @@ void ui_card_register(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // UI_CARD_H

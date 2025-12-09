@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_AMS_SLOT_H
-#define UI_AMS_SLOT_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -109,5 +108,3 @@ float ui_ams_slot_get_fill_level(lv_obj_t* obj);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // UI_AMS_SLOT_H

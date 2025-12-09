@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+namespace helix {
 namespace gcode {
 
 /**
@@ -212,3 +213,4 @@ class GCodeOpsDetector {
 };
 
 } // namespace gcode
+} // namespace helix

@@ -22,8 +22,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MOONRAKER_CLIENT_H
-#define MOONRAKER_CLIENT_H
+#pragma once
 
 #include "hv/WebSocketClient.h"
 #include "moonraker_domain_service.h"
@@ -758,5 +757,3 @@ class MoonrakerClient : public hv::WebSocketClient {
     MoonrakerEventCallback event_handler_;
     mutable std::mutex event_handler_mutex_;
 };
-
-#endif // MOONRAKER_CLIENT_H

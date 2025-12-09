@@ -12,8 +12,7 @@
  * These constants are usable by both UI components and backend services.
  */
 
-#ifndef APP_CONSTANTS_H
-#define APP_CONSTANTS_H
+#pragma once
 
 #include "lvgl.h"
 
@@ -74,5 +73,3 @@ constexpr int ABS = 250;
 constexpr int CUSTOM_DEFAULT = 200;
 } // namespace MaterialPresets
 } // namespace AppConstants
-
-#endif // APP_CONSTANTS_H

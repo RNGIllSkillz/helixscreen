@@ -96,8 +96,8 @@ void WizardFanSelectStep::init_subjects() {
 
     // Initialize subjects with default index 0
     // Actual selection will be restored from config during create() after hardware is discovered
-    WizardHelpers::init_int_subject(&hotend_fan_selected_, 0, "hotend_fan_selected");
-    WizardHelpers::init_int_subject(&part_fan_selected_, 0, "part_fan_selected");
+    helix::ui::wizard::init_int_subject(&hotend_fan_selected_, 0, "hotend_fan_selected");
+    helix::ui::wizard::init_int_subject(&part_fan_selected_, 0, "part_fan_selected");
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
@@ -151,7 +151,7 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
 
     // Build dropdown options string with "None" option
     std::string hotend_options_str =
-        WizardHelpers::build_dropdown_options(hotend_fan_items_, nullptr, true);
+        helix::ui::wizard::build_dropdown_options(hotend_fan_items_, nullptr, true);
 
     // Add "None" to items vector to match dropdown
     hotend_fan_items_.push_back("None");
@@ -171,7 +171,7 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
 
     // Build dropdown options string with "None" option
     std::string part_options_str =
-        WizardHelpers::build_dropdown_options(part_fan_items_, nullptr, true);
+        helix::ui::wizard::build_dropdown_options(part_fan_items_, nullptr, true);
 
     // Add "None" to items vector to match dropdown
     part_fan_items_.push_back("None");
@@ -191,11 +191,11 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
         lv_obj_set_style_text_font(hotend_dropdown, icon_font, LV_PART_INDICATOR);
 
         // Restore saved selection (no guessing method for fans)
-        WizardHelpers::restore_dropdown_selection(hotend_dropdown, &hotend_fan_selected_,
-                                                  hotend_fan_items_, WizardConfigPaths::HOTEND_FAN,
-                                                  api,
-                                                  nullptr, // No guessing method for hotend fans
-                                                  "[Wizard Fan]");
+        helix::ui::wizard::restore_dropdown_selection(hotend_dropdown, &hotend_fan_selected_,
+                                                      hotend_fan_items_, helix::wizard::HOTEND_FAN,
+                                                      api,
+                                                      nullptr, // No guessing method for hotend fans
+                                                      "[Wizard Fan]");
     }
 
     // Attach hotend fan dropdown callback programmatically
@@ -216,10 +216,10 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
         lv_obj_set_style_text_font(part_dropdown, part_icon_font, LV_PART_INDICATOR);
 
         // Restore saved selection (no guessing method for fans)
-        WizardHelpers::restore_dropdown_selection(part_dropdown, &part_fan_selected_,
-                                                  part_fan_items_, WizardConfigPaths::PART_FAN, api,
-                                                  nullptr, // No guessing method for part fans
-                                                  "[Wizard Fan]");
+        helix::ui::wizard::restore_dropdown_selection(part_dropdown, &part_fan_selected_,
+                                                      part_fan_items_, helix::wizard::PART_FAN, api,
+                                                      nullptr, // No guessing method for part fans
+                                                      "[Wizard Fan]");
     }
 
     // Attach part fan dropdown callback programmatically
@@ -240,11 +240,11 @@ void WizardFanSelectStep::cleanup() {
     spdlog::debug("[{}] Cleaning up resources", get_name());
 
     // Save current selections to config before cleanup (deferred save pattern)
-    WizardHelpers::save_dropdown_selection(&hotend_fan_selected_, hotend_fan_items_,
-                                           WizardConfigPaths::HOTEND_FAN, "[Wizard Fan]");
+    helix::ui::wizard::save_dropdown_selection(&hotend_fan_selected_, hotend_fan_items_,
+                                               helix::wizard::HOTEND_FAN, "[Wizard Fan]");
 
-    WizardHelpers::save_dropdown_selection(&part_fan_selected_, part_fan_items_,
-                                           WizardConfigPaths::PART_FAN, "[Wizard Fan]");
+    helix::ui::wizard::save_dropdown_selection(&part_fan_selected_, part_fan_items_,
+                                               helix::wizard::PART_FAN, "[Wizard Fan]");
 
     // Persist to disk
     Config* config = Config::get_instance();

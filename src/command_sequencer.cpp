@@ -10,6 +10,7 @@
 
 #include <sstream>
 
+namespace helix {
 namespace gcode {
 
 // ============================================================================
@@ -559,3 +560,4 @@ std::string sequencer_state_name(SequencerState state) {
 }
 
 } // namespace gcode
+} // namespace helix

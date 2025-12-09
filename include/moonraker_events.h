@@ -1,8 +1,7 @@
 // Copyright 2025 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef MOONRAKER_EVENTS_H
-#define MOONRAKER_EVENTS_H
+#pragma once
 
 #include <functional>
 #include <string>
@@ -40,5 +39,3 @@ struct MoonrakerEvent {
  * @brief Callback type for event handlers
  */
 using MoonrakerEventCallback = std::function<void(const MoonrakerEvent&)>;
-
-#endif // MOONRAKER_EVENTS_H

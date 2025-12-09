@@ -8,8 +8,7 @@
  * lv_async_call() to prevent memory leaks if callbacks are never executed.
  */
 
-#ifndef UI_ASYNC_CALLBACK_H
-#define UI_ASYNC_CALLBACK_H
+#pragma once
 
 #include "lvgl/lvgl.h"
 
@@ -66,5 +65,3 @@ void ui_async_call_safe(std::unique_ptr<T> data, std::function<void(T*)> callbac
         },
         package);
 }
-
-#endif // UI_ASYNC_CALLBACK_H

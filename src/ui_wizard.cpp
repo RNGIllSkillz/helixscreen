@@ -569,8 +569,8 @@ void ui_wizard_complete() {
         return;
     }
 
-    std::string moonraker_host = config->get<std::string>(WizardConfigPaths::MOONRAKER_HOST, "");
-    int moonraker_port = config->get<int>(WizardConfigPaths::MOONRAKER_PORT, 7125);
+    std::string moonraker_host = config->get<std::string>(helix::wizard::MOONRAKER_HOST, "");
+    int moonraker_port = config->get<int>(helix::wizard::MOONRAKER_PORT, 7125);
 
     if (moonraker_host.empty()) {
         spdlog::warn("[Wizard] No Moonraker host configured, skipping connection");

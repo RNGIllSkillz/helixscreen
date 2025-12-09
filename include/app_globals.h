@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef APP_GLOBALS_H
-#define APP_GLOBALS_H
+#pragma once
 
 #include "lvgl.h"
 
@@ -136,5 +135,3 @@ void app_request_restart_for_theme();
  * @return true if app_request_quit() or app_request_restart() was called
  */
 bool app_quit_requested();
-
-#endif // APP_GLOBALS_H

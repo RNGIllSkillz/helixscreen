@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MOONRAKER_REQUEST_H
-#define MOONRAKER_REQUEST_H
+#pragma once
 
 #include "moonraker_error.h"
 
@@ -70,5 +69,3 @@ struct PendingRequest {
         return static_cast<uint32_t>(elapsed.count());
     }
 };
-
-#endif // MOONRAKER_REQUEST_H

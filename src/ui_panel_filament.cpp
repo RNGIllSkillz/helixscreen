@@ -146,8 +146,8 @@ void FilamentPanel::update_temp_display() {
 void FilamentPanel::update_status() {
     const char* status_msg;
 
-    if (UITemperatureUtils::is_extrusion_safe(nozzle_current_,
-                                              AppConstants::Temperature::MIN_EXTRUSION_TEMP)) {
+    if (helix::ui::temperature::is_extrusion_safe(nozzle_current_,
+                                                  AppConstants::Temperature::MIN_EXTRUSION_TEMP)) {
         // Hot enough - ready to load
         status_msg = "✓ Ready to load";
     } else if (nozzle_target_ >= AppConstants::Temperature::MIN_EXTRUSION_TEMP) {
@@ -170,7 +170,7 @@ void FilamentPanel::update_warning_text() {
 }
 
 void FilamentPanel::update_safety_state() {
-    bool allowed = UITemperatureUtils::is_extrusion_safe(
+    bool allowed = helix::ui::temperature::is_extrusion_safe(
         nozzle_current_, AppConstants::Temperature::MIN_EXTRUSION_TEMP);
 
     // Update reactive subjects
@@ -423,8 +423,8 @@ void FilamentPanel::custom_temp_keypad_cb(float value, void* user_data) {
 
 void FilamentPanel::set_temp(int current, int target) {
     // Validate temperature ranges
-    UITemperatureUtils::validate_and_clamp_pair(current, target, nozzle_min_temp_, nozzle_max_temp_,
-                                                "Filament");
+    helix::ui::temperature::validate_and_clamp_pair(current, target, nozzle_min_temp_,
+                                                    nozzle_max_temp_, "Filament");
 
     nozzle_current_ = current;
     nozzle_target_ = target;
@@ -460,8 +460,8 @@ void FilamentPanel::set_material(int material_id) {
 }
 
 bool FilamentPanel::is_extrusion_allowed() const {
-    return UITemperatureUtils::is_extrusion_safe(nozzle_current_,
-                                                 AppConstants::Temperature::MIN_EXTRUSION_TEMP);
+    return helix::ui::temperature::is_extrusion_safe(nozzle_current_,
+                                                     AppConstants::Temperature::MIN_EXTRUSION_TEMP);
 }
 
 void FilamentPanel::set_limits(int min_temp, int max_temp) {

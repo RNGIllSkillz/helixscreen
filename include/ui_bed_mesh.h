@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_BED_MESH_H
-#define UI_BED_MESH_H
+#pragma once
 
 #include "lvgl/lvgl.h"
 
@@ -92,5 +91,3 @@ void ui_bed_mesh_redraw(lv_obj_t* canvas);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // UI_BED_MESH_H

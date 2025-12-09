@@ -86,7 +86,7 @@ void WizardLedSelectStep::init_subjects() {
 
     // Initialize subject with default index 0
     // Actual selection will be restored from config during create() after hardware is discovered
-    WizardHelpers::init_int_subject(&led_strip_selected_, 0, "led_strip_selected");
+    helix::ui::wizard::init_int_subject(&led_strip_selected_, 0, "led_strip_selected");
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
@@ -128,7 +128,7 @@ lv_obj_t* WizardLedSelectStep::create(lv_obj_t* parent) {
         [](MoonrakerClient* c) -> const auto& { return c->get_leds(); },
         nullptr, // No filter - include all LEDs
         true,    // Allow "None" option
-        WizardConfigPaths::LED_STRIP,
+        helix::wizard::LED_STRIP,
         nullptr, // No guessing method for LED strips
         "[Wizard LED]");
 
@@ -151,8 +151,8 @@ void WizardLedSelectStep::cleanup() {
     spdlog::debug("[{}] Cleaning up resources", get_name());
 
     // Save current selection to config before cleanup (deferred save pattern)
-    WizardHelpers::save_dropdown_selection(&led_strip_selected_, led_strip_items_,
-                                           WizardConfigPaths::LED_STRIP, "[Wizard LED]");
+    helix::ui::wizard::save_dropdown_selection(&led_strip_selected_, led_strip_items_,
+                                               helix::wizard::LED_STRIP, "[Wizard LED]");
 
     // Persist to disk
     Config* config = Config::get_instance();

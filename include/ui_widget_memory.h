@@ -66,8 +66,7 @@
  * @endcode
  */
 
-#ifndef UI_WIDGET_MEMORY_H
-#define UI_WIDGET_MEMORY_H
+#pragma once
 
 #include "lvgl/lvgl.h"
 
@@ -133,5 +132,3 @@ template <typename T> inline lvgl_unique_ptr<T> lvgl_make_unique_array(size_t co
     memset(ptr, 0, count * sizeof(T));
     return lvgl_unique_ptr<T>(ptr);
 }
-
-#endif // UI_WIDGET_MEMORY_H

@@ -40,6 +40,7 @@
  * @see docs/GCODE_VISUALIZATION.md for complete design
  */
 
+namespace helix {
 namespace gcode {
 
 /**
@@ -363,3 +364,4 @@ class GCodeRenderer {
 };
 
 } // namespace gcode
+} // namespace helix

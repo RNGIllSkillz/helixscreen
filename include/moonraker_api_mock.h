@@ -1,8 +1,7 @@
 // Copyright 2025 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef MOONRAKER_API_MOCK_H
-#define MOONRAKER_API_MOCK_H
+#pragma once
 
 #include "moonraker_api.h"
 
@@ -167,5 +166,3 @@ class MoonrakerAPIMock : public MoonrakerAPI {
     /// Fallback path prefixes to search (from various CWDs)
     static const std::vector<std::string> PATH_PREFIXES;
 };
-
-#endif // MOONRAKER_API_MOCK_H

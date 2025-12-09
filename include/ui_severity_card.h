@@ -1,8 +1,7 @@
 // Copyright 2025 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef UI_SEVERITY_CARD_H
-#define UI_SEVERITY_CARD_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,5 +54,3 @@ lv_color_t ui_severity_get_color(const char* severity);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // UI_SEVERITY_CARD_H

@@ -21,6 +21,7 @@
 #include <sstream>
 #include <sys/stat.h>
 
+namespace helix {
 namespace gcode {
 
 // ============================================================================
@@ -1353,3 +1354,4 @@ GCodeHeaderMetadata extract_header_metadata(const std::string& filepath) {
 }
 
 } // namespace gcode
+} // namespace helix

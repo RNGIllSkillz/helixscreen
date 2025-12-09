@@ -1,8 +1,7 @@
 // Copyright 2025 HelixScreen
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef __HELIX_TIPS_MANAGER_H__
-#define __HELIX_TIPS_MANAGER_H__
+#pragma once
 
 #include "spdlog/spdlog.h"
 
@@ -201,5 +200,3 @@ class TipsManager {
      */
     static TipsManager* get_instance();
 };
-
-#endif // __HELIX_TIPS_MANAGER_H__

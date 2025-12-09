@@ -17,8 +17,7 @@
  * Just call these helpers instead of duplicating discovery/populate logic.
  */
 
-#ifndef UI_WIZARD_HARDWARE_SELECTOR_H
-#define UI_WIZARD_HARDWARE_SELECTOR_H
+#pragma once
 
 #include "lvgl/lvgl.h"
 
@@ -69,5 +68,3 @@ bool wizard_populate_hardware_dropdown(
     std::function<const std::vector<std::string>&(MoonrakerClient*)> moonraker_getter,
     const char* prefix_filter, bool allow_none, const char* config_key,
     std::function<std::string(MoonrakerAPI*)> guess_fallback, const char* log_prefix);
-
-#endif // UI_WIZARD_HARDWARE_SELECTOR_H

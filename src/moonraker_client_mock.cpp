@@ -142,10 +142,10 @@ static json build_mock_file_metadata_response(const std::string& filename) {
     }
 
     // Extract metadata from G-code header
-    auto header_meta = gcode::extract_header_metadata(full_path);
+    auto header_meta = helix::gcode::extract_header_metadata(full_path);
 
     // Get cached thumbnail path (creates cache if needed)
-    std::string thumbnail_path = gcode::get_cached_thumbnail(full_path, THUMBNAIL_CACHE_DIR);
+    std::string thumbnail_path = helix::gcode::get_cached_thumbnail(full_path, THUMBNAIL_CACHE_DIR);
 
     json thumbnails = json::array();
     if (!thumbnail_path.empty()) {
@@ -1561,7 +1561,7 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
     std::string full_path = std::string(TEST_GCODE_DIR) + "/" + filename;
 
     // Extract metadata from G-code file
-    auto meta = gcode::extract_header_metadata(full_path);
+    auto meta = helix::gcode::extract_header_metadata(full_path);
 
     // Populate simulation metadata
     {

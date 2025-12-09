@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_ICON_LOADER_H
-#define UI_ICON_LOADER_H
+#pragma once
 
 #include "lvgl/lvgl.h"
 
@@ -42,5 +41,3 @@ bool ui_set_window_icon(lv_display_t* disp);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // UI_ICON_LOADER_H

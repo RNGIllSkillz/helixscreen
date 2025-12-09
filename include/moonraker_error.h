@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MOONRAKER_ERROR_H
-#define MOONRAKER_ERROR_H
+#pragma once
 
 #include <string>
 
@@ -194,5 +193,3 @@ struct MoonrakerError {
         return err;
     }
 };
-
-#endif // MOONRAKER_ERROR_H

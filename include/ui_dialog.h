@@ -1,8 +1,7 @@
 // Copyright 2025 HelixScreen
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef UI_DIALOG_H
-#define UI_DIALOG_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,5 +22,3 @@ void ui_dialog_register(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // UI_DIALOG_H

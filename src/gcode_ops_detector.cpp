@@ -11,6 +11,7 @@
 #include <regex>
 #include <sstream>
 
+namespace helix {
 namespace gcode {
 
 // ============================================================================
@@ -480,3 +481,4 @@ void GCodeOpsDetector::parse_start_print_params(const std::string& line, size_t 
 }
 
 } // namespace gcode
+} // namespace helix

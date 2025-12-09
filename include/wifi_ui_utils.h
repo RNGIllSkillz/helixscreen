@@ -10,7 +10,9 @@
  * Shared utility functions for WiFi UI components (wizard, settings panel, etc.)
  * Provides signal strength icon calculations and device information.
  */
-namespace wifi_ui {
+namespace helix {
+namespace ui {
+namespace wifi {
 
 /**
  * @brief Compute signal icon state from signal strength and security status
@@ -59,4 +61,6 @@ int wifi_compute_signal_icon_state(int strength_percent, bool secured);
  */
 std::string wifi_get_device_mac(const std::string& interface = "wlan0");
 
-} // namespace wifi_ui
+} // namespace wifi
+} // namespace ui
+} // namespace helix

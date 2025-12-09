@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MOONRAKER_API_H
-#define MOONRAKER_API_H
+#pragma once
 
 #include "advanced_panel_types.h"
 #include "moonraker_client.h"
@@ -965,5 +964,3 @@ class MoonrakerAPI {
      */
     std::string generate_absolute_move_gcode(char axis, double position, double feedrate);
 };
-
-#endif // MOONRAKER_API_H
