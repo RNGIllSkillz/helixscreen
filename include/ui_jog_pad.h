@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_JOG_PAD_H
-#define UI_JOG_PAD_H
+#pragma once
 
 #include "ui_panel_motion.h" // For jog_direction_t and jog_distance_t enums
 
@@ -95,5 +94,3 @@ jog_distance_t ui_jog_pad_get_distance(lv_obj_t* obj);
  * @param obj Jog pad object
  */
 void ui_jog_pad_refresh_colors(lv_obj_t* obj);
-
-#endif // UI_JOG_PAD_H

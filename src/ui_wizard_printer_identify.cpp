@@ -207,8 +207,8 @@ void WizardPrinterIdentifyStep::init_subjects() {
     int default_type = PrinterDetector::get_unknown_index();
 
     try {
-        default_name = config->get<std::string>(WizardConfigPaths::PRINTER_NAME, "");
-        saved_type = config->get<std::string>(WizardConfigPaths::PRINTER_TYPE, "");
+        default_name = config->get<std::string>(helix::wizard::PRINTER_NAME, "");
+        saved_type = config->get<std::string>(helix::wizard::PRINTER_TYPE, "");
 
         // Dynamic lookup: find index by type name
         if (!saved_type.empty()) {
@@ -506,7 +506,7 @@ void WizardPrinterIdentifyStep::cleanup() {
 
         // Save printer name if valid
         if (current_name.length() > 0) {
-            config->set<std::string>(WizardConfigPaths::PRINTER_NAME, current_name);
+            config->set<std::string>(helix::wizard::PRINTER_NAME, current_name);
             spdlog::debug("[{}] Saving printer name to config: '{}'", get_name(), current_name);
         } else {
             spdlog::debug("[{}] Printer name empty, not saving", get_name());
@@ -517,7 +517,7 @@ void WizardPrinterIdentifyStep::cleanup() {
         std::string type_name = PrinterDetector::get_roller_name_at(type_index);
 
         // Save printer type name
-        config->set<std::string>(WizardConfigPaths::PRINTER_TYPE, type_name);
+        config->set<std::string>(helix::wizard::PRINTER_TYPE, type_name);
         spdlog::debug("[{}] Saving printer type to config: '{}' (index {})", get_name(), type_name,
                       type_index);
 

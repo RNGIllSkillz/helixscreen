@@ -1,8 +1,7 @@
 // Copyright 2025 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef UI_GRADIENT_CANVAS_H
-#define UI_GRADIENT_CANVAS_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,5 +52,3 @@ void ui_gradient_canvas_set_dither(lv_obj_t* canvas, bool enable);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // UI_GRADIENT_CANVAS_H

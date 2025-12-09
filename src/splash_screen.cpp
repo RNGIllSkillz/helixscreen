@@ -79,12 +79,12 @@ void show_splash_screen(int screen_width, int screen_height) {
 
     // Run LVGL timer to process fade-in animation and keep splash visible
     // Total display time: 2 seconds (including 0.5s fade-in)
-    uint32_t splash_start = helix_get_ticks();
+    uint32_t splash_start = helix::timing::get_ticks();
     uint32_t splash_duration = 2000; // 2 seconds total
 
-    while (helix_get_ticks() - splash_start < splash_duration) {
+    while (helix::timing::get_ticks() - splash_start < splash_duration) {
         lv_timer_handler(); // Process animations and rendering
-        helix_delay(5);
+        helix::timing::delay(5);
     }
 
     // Clean up splash screen

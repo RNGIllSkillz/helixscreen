@@ -160,8 +160,8 @@ void ExtrusionPanel::setup_temperature_observer() {
 void ExtrusionPanel::update_temp_status() {
     // Status indicator: ✓ (ready), ⚠ (heating), ✗ (too cold)
     const char* status_icon;
-    if (UITemperatureUtils::is_extrusion_safe(nozzle_current_,
-                                              AppConstants::Temperature::MIN_EXTRUSION_TEMP)) {
+    if (helix::ui::temperature::is_extrusion_safe(nozzle_current_,
+                                                  AppConstants::Temperature::MIN_EXTRUSION_TEMP)) {
         // Within 5°C of target and hot enough (safe range check without overflow)
         if (nozzle_target_ > 0 && nozzle_current_ >= nozzle_target_ - 5 &&
             nozzle_current_ <= nozzle_target_ + 5) {
@@ -384,8 +384,8 @@ void ExtrusionPanel::set_temp(int current, int target) {
 }
 
 bool ExtrusionPanel::is_extrusion_allowed() const {
-    return UITemperatureUtils::is_extrusion_safe(nozzle_current_,
-                                                 AppConstants::Temperature::MIN_EXTRUSION_TEMP);
+    return helix::ui::temperature::is_extrusion_safe(nozzle_current_,
+                                                     AppConstants::Temperature::MIN_EXTRUSION_TEMP);
 }
 
 void ExtrusionPanel::set_limits(int min_temp, int max_temp) {

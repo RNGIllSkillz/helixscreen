@@ -1,8 +1,7 @@
 // Copyright 2025 HelixScreen
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef UI_SPOOL_CANVAS_H
-#define UI_SPOOL_CANVAS_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,5 +49,3 @@ lv_color_t ui_spool_canvas_get_color(lv_obj_t* canvas);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // UI_SPOOL_CANVAS_H

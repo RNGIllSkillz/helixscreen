@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BED_MESH_COORDINATE_TRANSFORM_H
-#define BED_MESH_COORDINATE_TRANSFORM_H
+#pragma once
 
 /**
  * @file bed_mesh_coordinate_transform.h
@@ -37,7 +36,8 @@
  * eliminating duplication across multiple rendering functions.
  */
 
-namespace BedMeshCoordinateTransform {
+namespace helix {
+namespace mesh {
 
 /**
  * @brief Convert mesh column index to centered world X coordinate
@@ -101,6 +101,50 @@ double compute_mesh_z_center(double mesh_min_z, double mesh_max_z);
  */
 double compute_grid_z(double z_center, double z_scale);
 
-} // namespace BedMeshCoordinateTransform
+// ============================================================================
+// Printer coordinate transforms (Mainsail-style: separate bed grid from mesh)
+// Works with any printer origin (corner at 0,0 or center at origin)
+// ============================================================================
 
-#endif // BED_MESH_COORDINATE_TRANSFORM_H
+/**
+ * @brief Convert printer X coordinate (mm) to world X coordinate
+ *
+ * Maps printer coordinates to world space, centered around the bed center.
+ * Works for any origin convention:
+ * - Corner origin (0 to 200mm): center=100, transforms to [-100*s, +100*s]
+ * - Center origin (-125 to +125mm): center=0, transforms to [-125*s, +125*s]
+ *
+ * @param x_mm Printer X coordinate in millimeters
+ * @param bed_center_x Center of bed in mm: (bed_min_x + bed_max_x) / 2
+ * @param scale_factor World units per millimeter
+ * @return World X coordinate (centered around bed center)
+ */
+double printer_x_to_world_x(double x_mm, double bed_center_x, double scale_factor);
+
+/**
+ * @brief Convert printer Y coordinate (mm) to world Y coordinate
+ *
+ * Maps printer coordinates to world space, centered around the bed center.
+ * Y-axis is inverted (front of bed = positive Y in world space for 3D view).
+ *
+ * @param y_mm Printer Y coordinate in millimeters
+ * @param bed_center_y Center of bed in mm: (bed_min_y + bed_max_y) / 2
+ * @param scale_factor World units per millimeter
+ * @return World Y coordinate (centered around bed center, Y inverted)
+ */
+double printer_y_to_world_y(double y_mm, double bed_center_y, double scale_factor);
+
+/**
+ * @brief Compute scale factor for printer coordinate transforms
+ *
+ * Calculates scale factor to normalize bed size to a target world size.
+ * This ensures consistent visualization across different bed sizes.
+ *
+ * @param bed_size_mm Bed dimension in mm (e.g., bed_max_x - bed_min_x)
+ * @param target_world_size Desired size in world units (default ~200 for good visualization)
+ * @return Scale factor (world units per mm)
+ */
+double compute_bed_scale_factor(double bed_size_mm, double target_world_size);
+
+} // namespace mesh
+} // namespace helix

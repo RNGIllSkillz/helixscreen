@@ -28,7 +28,9 @@
 
 #include <spdlog/spdlog.h>
 
-namespace WizardHelpers {
+namespace helix {
+namespace ui {
+namespace wizard {
 
 std::string build_dropdown_options(const std::vector<std::string>& items,
                                    std::function<bool(const std::string&)> filter,
@@ -146,4 +148,6 @@ void init_int_subject(lv_subject_t* subject, int32_t initial_value, const char* 
     lv_xml_register_subject(nullptr, subject_name, subject);
 }
 
-} // namespace WizardHelpers
+} // namespace wizard
+} // namespace ui
+} // namespace helix

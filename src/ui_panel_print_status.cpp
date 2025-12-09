@@ -75,7 +75,7 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, MoonrakerAPI* ap
     // Load configured LED from wizard settings
     Config* config = Config::get_instance();
     if (config) {
-        configured_led_ = config->get<std::string>(WizardConfigPaths::LED_STRIP, "");
+        configured_led_ = config->get<std::string>(helix::wizard::LED_STRIP, "");
         if (!configured_led_.empty()) {
             led_state_observer_ =
                 ObserverGuard(printer_state_.get_led_state_subject(), led_state_observer_cb, this);

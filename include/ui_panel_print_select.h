@@ -404,11 +404,11 @@ class PrintSelectPanel : public PanelBase {
     class UsbManager* usb_manager_ = nullptr;         ///< USB manager (injected or global)
 
     /// Command sequencer for pre-print operations (created lazily when print starts)
-    std::unique_ptr<gcode::CommandSequencer> pre_print_sequencer_;
+    std::unique_ptr<helix::gcode::CommandSequencer> pre_print_sequencer_;
 
     /// Cached G-code scan result for selected file (populated when detail view opens)
     /// Used to detect if user disabled options that are embedded in the G-code file
-    std::optional<gcode::ScanResult> cached_scan_result_;
+    std::optional<helix::gcode::ScanResult> cached_scan_result_;
 
     /// Filename corresponding to cached_scan_result_ (to detect stale cache)
     std::string cached_scan_filename_;
@@ -525,7 +525,7 @@ class PrintSelectPanel : public PanelBase {
      * @param ops_to_disable Operations to comment out in the file
      */
     void modify_and_print(const std::string& original_filename,
-                          const std::vector<gcode::OperationType>& ops_to_disable);
+                          const std::vector<helix::gcode::OperationType>& ops_to_disable);
 
     /**
      * @brief Collect operations user wants to disable from unchecked checkboxes
@@ -535,7 +535,7 @@ class PrintSelectPanel : public PanelBase {
      *
      * @return Vector of operation types that need to be disabled in file
      */
-    [[nodiscard]] std::vector<gcode::OperationType> collect_ops_to_disable() const;
+    [[nodiscard]] std::vector<helix::gcode::OperationType> collect_ops_to_disable() const;
 
     //
     // === USB Source Methods ===

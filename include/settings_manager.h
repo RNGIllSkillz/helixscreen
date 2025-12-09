@@ -1,8 +1,7 @@
 // Copyright 2025 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef __HELIX_SETTINGS_MANAGER_H__
-#define __HELIX_SETTINGS_MANAGER_H__
+#pragma once
 
 #include "lvgl/lvgl.h"
 
@@ -375,5 +374,3 @@ class SettingsManager {
     // Display sleep state
     bool display_sleeping_ = false;
 };
-
-#endif // __HELIX_SETTINGS_MANAGER_H__

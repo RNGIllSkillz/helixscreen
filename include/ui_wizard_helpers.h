@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_WIZARD_HELPERS_H
-#define UI_WIZARD_HELPERS_H
+#pragma once
 
 #include "lvgl/lvgl.h"
 
@@ -40,7 +39,9 @@ class MoonrakerAPI;
  * and subject initialization to reduce code duplication across wizard screens.
  */
 
-namespace WizardHelpers {
+namespace helix {
+namespace ui {
+namespace wizard {
 /**
  * @brief Build dropdown options string from items vector
  *
@@ -115,6 +116,6 @@ bool save_dropdown_selection(lv_subject_t* subject, const std::vector<std::strin
  * @param subject_name XML registration name (e.g., "bed_heater_selected")
  */
 void init_int_subject(lv_subject_t* subject, int32_t initial_value, const char* subject_name);
-} // namespace WizardHelpers
-
-#endif // UI_WIZARD_HELPERS_H
+} // namespace wizard
+} // namespace ui
+} // namespace helix

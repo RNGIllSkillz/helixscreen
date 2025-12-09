@@ -39,7 +39,7 @@
  * Temperature series metadata
  * Stores information about each temperature series (heater/sensor)
  */
-typedef struct {
+struct ui_temp_series_meta_t {
     int id;                           // Series ID (index in series_meta array)
     lv_chart_series_t* chart_series;  // LVGL chart series
     lv_chart_cursor_t* target_cursor; // Target temperature cursor (horizontal line)
@@ -50,13 +50,13 @@ typedef struct {
     float target_temp;                // Target temperature for cursor
     lv_opa_t gradient_bottom_opa;     // Bottom gradient opacity
     lv_opa_t gradient_top_opa;        // Top gradient opacity
-} ui_temp_series_meta_t;
+};
 
 /**
  * Temperature graph widget
  * Manages an LVGL chart with dynamic series for real-time temperature monitoring
  */
-typedef struct {
+struct ui_temp_graph_t {
     lv_obj_t* chart;                                             // LVGL chart widget
     ui_temp_series_meta_t series_meta[UI_TEMP_GRAPH_MAX_SERIES]; // Series metadata
     int series_count;                                            // Current number of series
@@ -64,7 +64,7 @@ typedef struct {
     int point_count;                                             // Number of points per series
     float min_temp;                                              // Y-axis minimum temperature
     float max_temp;                                              // Y-axis maximum temperature
-} ui_temp_graph_t;
+};
 
 /**
  * Core API

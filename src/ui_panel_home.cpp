@@ -46,7 +46,7 @@ HomePanel::HomePanel(PrinterState& printer_state, MoonrakerAPI* api)
     // Load configured LED from wizard settings and tell PrinterState to track it
     Config* config = Config::get_instance();
     if (config) {
-        configured_led_ = config->get<std::string>(WizardConfigPaths::LED_STRIP, "");
+        configured_led_ = config->get<std::string>(helix::wizard::LED_STRIP, "");
         if (!configured_led_.empty()) {
             // Tell PrinterState to track this LED for state updates
             printer_state_.set_tracked_led(configured_led_);
@@ -409,7 +409,7 @@ void HomePanel::reload_from_config() {
     // Reload LED configuration from wizard settings
     // LED visibility is controlled by printer_has_led subject set via set_printer_capabilities()
     // which is called by the on_discovery_complete_ callback after hardware discovery
-    std::string new_led = config->get<std::string>(WizardConfigPaths::LED_STRIP, "");
+    std::string new_led = config->get<std::string>(helix::wizard::LED_STRIP, "");
     if (new_led != configured_led_) {
         configured_led_ = new_led;
         if (!configured_led_.empty() && configured_led_ != "None") {
@@ -431,7 +431,7 @@ void HomePanel::reload_from_config() {
     }
 
     // Update printer image based on configured printer type
-    std::string printer_type = config->get<std::string>(WizardConfigPaths::PRINTER_TYPE, "");
+    std::string printer_type = config->get<std::string>(helix::wizard::PRINTER_TYPE, "");
     if (!printer_type.empty()) {
         // Look up image filename from printer database
         std::string image_filename = PrinterDetector::get_image_for_printer(printer_type);
@@ -458,7 +458,7 @@ void HomePanel::reload_from_config() {
     }
 
     // Update printer type/host overlay (hidden for localhost)
-    std::string host = config->get<std::string>(WizardConfigPaths::MOONRAKER_HOST, "");
+    std::string host = config->get<std::string>(helix::wizard::MOONRAKER_HOST, "");
 
     if (host.empty() || host == "127.0.0.1" || host == "localhost") {
         lv_subject_set_int(&printer_info_visible_, 0);

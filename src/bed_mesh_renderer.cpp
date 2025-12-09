@@ -193,7 +193,7 @@ static void draw_axis_tick_label(lv_layer_t* layer, lv_draw_label_dsc_t* label_d
  * Works correctly for both odd (7x7) and even (8x8) mesh sizes
  */
 static inline double mesh_col_to_world_x(int col, int cols) {
-    return BedMeshCoordinateTransform::mesh_col_to_world_x(col, cols, BED_MESH_SCALE);
+    return helix::mesh::mesh_col_to_world_x(col, cols, BED_MESH_SCALE);
 }
 
 /**
@@ -202,14 +202,14 @@ static inline double mesh_col_to_world_x(int col, int cols) {
  * Works correctly for both odd and even mesh sizes
  */
 static inline double mesh_row_to_world_y(int row, int rows) {
-    return BedMeshCoordinateTransform::mesh_row_to_world_y(row, rows, BED_MESH_SCALE);
+    return helix::mesh::mesh_row_to_world_y(row, rows, BED_MESH_SCALE);
 }
 
 /**
  * Convert mesh Z height to centered/scaled world Z coordinate
  */
 static inline double mesh_z_to_world_z(double z_height, double z_center, double z_scale) {
-    return BedMeshCoordinateTransform::mesh_z_to_world_z(z_height, z_center, z_scale);
+    return helix::mesh::mesh_z_to_world_z(z_height, z_center, z_scale);
 }
 
 /**
@@ -217,7 +217,7 @@ static inline double mesh_z_to_world_z(double z_height, double z_center, double 
  * Single source of truth for Z-centering calculations
  */
 static inline double compute_mesh_z_center(double mesh_min_z, double mesh_max_z) {
-    return BedMeshCoordinateTransform::compute_mesh_z_center(mesh_min_z, mesh_max_z);
+    return helix::mesh::compute_mesh_z_center(mesh_min_z, mesh_max_z);
 }
 
 /**
@@ -225,7 +225,7 @@ static inline double compute_mesh_z_center(double mesh_min_z, double mesh_max_z)
  * Used for axis rendering at the base of the mesh
  */
 static inline double compute_grid_z(double z_center, double z_scale) {
-    return BedMeshCoordinateTransform::compute_grid_z(z_center, z_scale);
+    return helix::mesh::compute_grid_z(z_center, z_scale);
 }
 
 // Triangle rasterization helpers

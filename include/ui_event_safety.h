@@ -14,8 +14,7 @@
  * Pattern matches moonraker_client.cpp's proven exception handling approach.
  */
 
-#ifndef UI_EVENT_SAFETY_H
-#define UI_EVENT_SAFETY_H
+#pragma once
 
 #include "lvgl/lvgl.h"
 #include "spdlog/spdlog.h"
@@ -135,5 +134,3 @@ inline void ui_event_safe_call(const char* callback_name, std::function<void()> 
     catch (...) {                                                                                  \
         spdlog::error("Unknown exception in LVGL callback");                                       \
     }
-
-#endif // UI_EVENT_SAFETY_H

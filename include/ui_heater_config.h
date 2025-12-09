@@ -8,8 +8,7 @@
  * and helper functions to eliminate duplicate setup code across temperature panels.
  */
 
-#ifndef UI_HEATER_CONFIG_H
-#define UI_HEATER_CONFIG_H
+#pragma once
 
 #include "lvgl/lvgl.h"
 
@@ -47,5 +46,3 @@ typedef struct {
         float max; ///< Maximum keypad input value
     } keypad_range;
 } heater_config_t;
-
-#endif // UI_HEATER_CONFIG_H

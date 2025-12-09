@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef BED_MESH_RENDERER_H
-#define BED_MESH_RENDERER_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -112,20 +111,20 @@ extern "C" {
 #define BED_MESH_GRADIENT_MIN_LINE_WIDTH 3 // Use solid color for lines narrower than this
 
 // 3D point in world space after perspective projection
-typedef struct {
+struct bed_mesh_point_3d_t {
     double x, y, z;         // 3D world coordinates
     int screen_x, screen_y; // 2D screen coordinates after projection
     double depth;           // Z-depth from camera (for sorting)
-} bed_mesh_point_3d_t;
+};
 
 // 3D vertex with color information
-typedef struct {
+struct bed_mesh_vertex_3d_t {
     double x, y, z;   // 3D position in world space
     lv_color_t color; // Vertex color for gradient interpolation
-} bed_mesh_vertex_3d_t;
+};
 
 // Quad surface (4 vertices) representing one mesh cell
-typedef struct {
+struct bed_mesh_quad_3d_t {
     bed_mesh_vertex_3d_t vertices[4]; // Four corners in WORLD space: [0]=BL, [1]=BR, [2]=TL, [3]=TR
 
     // Cached screen-space projections (computed once per frame, reused for rendering)
@@ -135,10 +134,10 @@ typedef struct {
 
     double avg_depth;        // Average depth for back-to-front sorting (computed from depths[])
     lv_color_t center_color; // Fallback solid color for fast rendering (drag mode)
-} bed_mesh_quad_3d_t;
+};
 
 // View/camera state for interactive rotation
-typedef struct {
+struct bed_mesh_view_state_t {
     double angle_x;         // Tilt angle (up/down rotation in degrees)
     double angle_z;         // Spin angle (horizontal rotation in degrees)
     double z_scale;         // Height amplification multiplier
@@ -160,7 +159,7 @@ typedef struct {
     // Layer offset (updated every frame to track panel position during animations)
     int layer_offset_x; // Layer's X position on screen (from clip area)
     int layer_offset_y; // Layer's Y position on screen (from clip area)
-} bed_mesh_view_state_t;
+};
 
 // Main renderer instance (opaque handle)
 typedef struct bed_mesh_renderer bed_mesh_renderer_t;
@@ -295,5 +294,3 @@ bool bed_mesh_renderer_render(bed_mesh_renderer_t* renderer, lv_layer_t* layer, 
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BED_MESH_RENDERER_H

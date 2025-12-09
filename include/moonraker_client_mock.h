@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MOONRAKER_CLIENT_MOCK_H
-#define MOONRAKER_CLIENT_MOCK_H
+#pragma once
 
 #include "moonraker_client.h"
 
@@ -610,5 +609,3 @@ class MoonrakerClientMock : public MoonrakerClient {
     static constexpr double BED_COOL_RATE = 0.3;       // °C/sec when cooling
     static constexpr int SIMULATION_INTERVAL_MS = 250; // Match real Moonraker ~250ms
 };
-
-#endif // MOONRAKER_CLIENT_MOCK_H

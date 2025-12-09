@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2025 HelixScreen Contributors
+#pragma once
+
 /**
  * @file ui_temperature_utils.h
  * @brief Shared temperature validation and safety utilities
@@ -9,13 +11,9 @@
  * (controls/temp, filament, extrusion).
  */
 
-#ifndef UI_TEMPERATURE_UTILS_H
-#define UI_TEMPERATURE_UTILS_H
-
-/**
- * @brief Temperature validation and safety utilities
- */
-namespace UITemperatureUtils {
+namespace helix {
+namespace ui {
+namespace temperature {
 
 /**
  * @brief Validates and clamps a temperature value to safe limits
@@ -69,6 +67,6 @@ bool is_extrusion_safe(int current_temp, int min_extrusion_temp);
  */
 const char* get_extrusion_safety_status(int current_temp, int min_extrusion_temp);
 
-} // namespace UITemperatureUtils
-
-#endif // UI_TEMPERATURE_UTILS_H
+} // namespace temperature
+} // namespace ui
+} // namespace helix

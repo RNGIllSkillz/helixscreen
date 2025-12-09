@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+namespace helix {
 namespace gcode {
 
 // ============================================================================
@@ -397,3 +398,4 @@ class GeometryBuilder {
 };
 
 } // namespace gcode
+} // namespace helix

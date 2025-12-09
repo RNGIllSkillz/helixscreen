@@ -23,7 +23,8 @@
 
 #include "bed_mesh_coordinate_transform.h"
 
-namespace BedMeshCoordinateTransform {
+namespace helix {
+namespace mesh {
 
 double mesh_col_to_world_x(int col, int cols, double scale) {
     return (col - (cols - 1) / 2.0) * scale;
@@ -49,4 +50,28 @@ double compute_grid_z(double z_center, double z_scale) {
     return 0.0;
 }
 
-} // namespace BedMeshCoordinateTransform
+// ============================================================================
+// Printer coordinate transforms (origin-agnostic)
+// ============================================================================
+
+double printer_x_to_world_x(double x_mm, double bed_center_x, double scale_factor) {
+    // Simply center around the bed center - works for any origin convention
+    return (x_mm - bed_center_x) * scale_factor;
+}
+
+double printer_y_to_world_y(double y_mm, double bed_center_y, double scale_factor) {
+    // Center around bed center, but invert Y so that mesh[0][*] (front row) appears
+    // in front (positive Y in world space, toward the viewer in 3D view)
+    // The inversion is about display convention, not printer coordinate system
+    return -(y_mm - bed_center_y) * scale_factor;
+}
+
+double compute_bed_scale_factor(double bed_size_mm, double target_world_size) {
+    if (bed_size_mm <= 0.0) {
+        return 1.0; // Fallback to avoid division by zero
+    }
+    return target_world_size / bed_size_mm;
+}
+
+} // namespace mesh
+} // namespace helix

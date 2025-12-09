@@ -1,8 +1,7 @@
 // Copyright 2025 HelixScreen
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef __HELIX_CONFIG_H__
-#define __HELIX_CONFIG_H__
+#pragma once
 
 #include "spdlog/spdlog.h"
 
@@ -178,5 +177,3 @@ class Config {
      */
     static Config* get_instance();
 };
-
-#endif // __HELIX_CONFIG_H__

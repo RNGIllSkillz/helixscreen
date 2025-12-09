@@ -14,7 +14,9 @@
 #include <memory>
 #endif
 
-namespace wifi_ui {
+namespace helix {
+namespace ui {
+namespace wifi {
 
 int wifi_compute_signal_icon_state(int strength_percent, bool secured) {
     // Clamp to valid range
@@ -110,4 +112,6 @@ std::string wifi_get_device_mac(const std::string& interface) {
 #endif
 }
 
-} // namespace wifi_ui
+} // namespace wifi
+} // namespace ui
+} // namespace helix

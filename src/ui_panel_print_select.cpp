@@ -1281,7 +1281,7 @@ void PrintSelectPanel::start_print() {
     if (api_) {
         // Check if user disabled operations that are embedded in the G-code file.
         // If so, we need to modify the file before printing to comment out those operations.
-        std::vector<gcode::OperationType> ops_to_disable = collect_ops_to_disable();
+        std::vector<helix::gcode::OperationType> ops_to_disable = collect_ops_to_disable();
 
         if (!ops_to_disable.empty()) {
             spdlog::info("[{}] User disabled {} embedded operations - modifying G-code", get_name(),
@@ -1291,35 +1291,35 @@ void PrintSelectPanel::start_print() {
         }
         if (has_pre_print_ops) {
             // Create command sequencer for pre-print operations
-            pre_print_sequencer_ = std::make_unique<gcode::CommandSequencer>(api_->get_client(),
-                                                                             *api_, printer_state_);
+            pre_print_sequencer_ = std::make_unique<helix::gcode::CommandSequencer>(
+                api_->get_client(), *api_, printer_state_);
 
             // Always home first if doing any pre-print operations
-            pre_print_sequencer_->add_operation(gcode::OperationType::HOMING, {}, "Homing");
+            pre_print_sequencer_->add_operation(helix::gcode::OperationType::HOMING, {}, "Homing");
 
             // Add selected operations in logical order
             if (do_qgl) {
-                pre_print_sequencer_->add_operation(gcode::OperationType::QGL, {},
+                pre_print_sequencer_->add_operation(helix::gcode::OperationType::QGL, {},
                                                     "Quad Gantry Level");
             }
             if (do_z_tilt) {
-                pre_print_sequencer_->add_operation(gcode::OperationType::Z_TILT, {},
+                pre_print_sequencer_->add_operation(helix::gcode::OperationType::Z_TILT, {},
                                                     "Z-Tilt Adjust");
             }
             if (do_bed_leveling) {
-                pre_print_sequencer_->add_operation(gcode::OperationType::BED_LEVELING, {},
+                pre_print_sequencer_->add_operation(helix::gcode::OperationType::BED_LEVELING, {},
                                                     "Bed Mesh Calibration");
             }
             if (do_nozzle_clean) {
-                pre_print_sequencer_->add_operation(gcode::OperationType::NOZZLE_CLEAN, {},
+                pre_print_sequencer_->add_operation(helix::gcode::OperationType::NOZZLE_CLEAN, {},
                                                     "Clean Nozzle");
             }
 
             // Add the actual print start as the final operation
-            gcode::OperationParams print_params;
+            helix::gcode::OperationParams print_params;
             print_params.filename = filename_to_print;
-            pre_print_sequencer_->add_operation(gcode::OperationType::START_PRINT, print_params,
-                                                "Starting Print");
+            pre_print_sequencer_->add_operation(helix::gcode::OperationType::START_PRINT,
+                                                print_params, "Starting Print");
 
             // Show the print status panel immediately in "Preparing" state
             if (print_status_panel_widget_) {
@@ -1544,7 +1544,7 @@ void PrintSelectPanel::scan_gcode_for_operations(const std::string& filename) {
         "gcodes", file_path,
         // Success: parse content and cache result
         [self, filename](const std::string& content) {
-            gcode::GCodeOpsDetector detector;
+            helix::gcode::GCodeOpsDetector detector;
             self->cached_scan_result_ = detector.scan_content(content);
             self->cached_scan_filename_ = filename;
 
@@ -1569,8 +1569,8 @@ void PrintSelectPanel::scan_gcode_for_operations(const std::string& filename) {
         });
 }
 
-std::vector<gcode::OperationType> PrintSelectPanel::collect_ops_to_disable() const {
-    std::vector<gcode::OperationType> ops_to_disable;
+std::vector<helix::gcode::OperationType> PrintSelectPanel::collect_ops_to_disable() const {
+    std::vector<helix::gcode::OperationType> ops_to_disable;
 
     if (!cached_scan_result_.has_value()) {
         return ops_to_disable; // No scan result, nothing to disable
@@ -1587,34 +1587,35 @@ std::vector<gcode::OperationType> PrintSelectPanel::collect_ops_to_disable() con
 
     // Check each operation type: if file has it embedded AND user disabled it
     if (is_option_disabled(bed_leveling_checkbox_) &&
-        cached_scan_result_->has_operation(gcode::OperationType::BED_LEVELING)) {
-        ops_to_disable.push_back(gcode::OperationType::BED_LEVELING);
+        cached_scan_result_->has_operation(helix::gcode::OperationType::BED_LEVELING)) {
+        ops_to_disable.push_back(helix::gcode::OperationType::BED_LEVELING);
         spdlog::debug("[{}] User disabled bed leveling, file has it embedded", get_name());
     }
 
     if (is_option_disabled(qgl_checkbox_) &&
-        cached_scan_result_->has_operation(gcode::OperationType::QGL)) {
-        ops_to_disable.push_back(gcode::OperationType::QGL);
+        cached_scan_result_->has_operation(helix::gcode::OperationType::QGL)) {
+        ops_to_disable.push_back(helix::gcode::OperationType::QGL);
         spdlog::debug("[{}] User disabled QGL, file has it embedded", get_name());
     }
 
     if (is_option_disabled(z_tilt_checkbox_) &&
-        cached_scan_result_->has_operation(gcode::OperationType::Z_TILT)) {
-        ops_to_disable.push_back(gcode::OperationType::Z_TILT);
+        cached_scan_result_->has_operation(helix::gcode::OperationType::Z_TILT)) {
+        ops_to_disable.push_back(helix::gcode::OperationType::Z_TILT);
         spdlog::debug("[{}] User disabled Z-tilt, file has it embedded", get_name());
     }
 
     if (is_option_disabled(nozzle_clean_checkbox_) &&
-        cached_scan_result_->has_operation(gcode::OperationType::NOZZLE_CLEAN)) {
-        ops_to_disable.push_back(gcode::OperationType::NOZZLE_CLEAN);
+        cached_scan_result_->has_operation(helix::gcode::OperationType::NOZZLE_CLEAN)) {
+        ops_to_disable.push_back(helix::gcode::OperationType::NOZZLE_CLEAN);
         spdlog::debug("[{}] User disabled nozzle clean, file has it embedded", get_name());
     }
 
     return ops_to_disable;
 }
 
-void PrintSelectPanel::modify_and_print(const std::string& original_filename,
-                                        const std::vector<gcode::OperationType>& ops_to_disable) {
+void PrintSelectPanel::modify_and_print(
+    const std::string& original_filename,
+    const std::vector<helix::gcode::OperationType>& ops_to_disable) {
     if (!api_) {
         NOTIFY_ERROR("Cannot start print - not connected to printer");
         return;
@@ -1641,7 +1642,7 @@ void PrintSelectPanel::modify_and_print(const std::string& original_filename,
         // Success: modify and upload
         [self, original_filename, ops_to_disable](const std::string& content) {
             // Step 2: Apply modifications
-            gcode::GCodeFileModifier modifier;
+            helix::gcode::GCodeFileModifier modifier;
             modifier.disable_operations(*self->cached_scan_result_, ops_to_disable);
 
             std::string modified_content = modifier.apply_to_content(content);

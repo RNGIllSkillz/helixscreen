@@ -2,8 +2,7 @@
 //
 // HelixScreen - Fatal Error Display
 
-#ifndef __HELIX_UI_FATAL_ERROR_H__
-#define __HELIX_UI_FATAL_ERROR_H__
+#pragma once
 
 #include <cstdint>
 
@@ -25,5 +24,3 @@
  */
 void ui_show_fatal_error(const char* title, const char* message, const char* const* suggestions,
                          uint32_t display_ms);
-
-#endif // __HELIX_UI_FATAL_ERROR_H__

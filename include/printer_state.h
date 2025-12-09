@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef PRINTER_STATE_H
-#define PRINTER_STATE_H
+#pragma once
 
 #include "capability_overrides.h"
 #include "lvgl/lvgl.h"
@@ -571,5 +570,3 @@ class PrinterState {
     // Capability override layer (user config overrides for auto-detected capabilities)
     CapabilityOverrides capability_overrides_;
 };
-
-#endif // PRINTER_STATE_H

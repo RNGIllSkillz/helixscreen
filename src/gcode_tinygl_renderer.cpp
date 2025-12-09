@@ -19,6 +19,7 @@ extern "C" {
 #include <zbuffer.h>
 }
 
+namespace helix {
 namespace gcode {
 
 GCodeTinyGLRenderer::GCodeTinyGLRenderer()
@@ -914,5 +915,6 @@ GCodeTinyGLRenderer::RenderingOptions GCodeTinyGLRenderer::get_options() const {
 }
 
 } // namespace gcode
+} // namespace helix
 
 #endif // ENABLE_TINYGL_3D

@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef RUNTIME_CONFIG_H
-#define RUNTIME_CONFIG_H
+#pragma once
 
 #include <sys/types.h> // For pid_t
 
@@ -143,5 +142,3 @@ const RuntimeConfig& get_runtime_config();
  * @return Pointer to the global runtime configuration
  */
 RuntimeConfig* get_mutable_runtime_config();
-
-#endif // RUNTIME_CONFIG_H

@@ -21,8 +21,7 @@
  * along with HelixScreen. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_COMPONENT_HEADER_BAR_H
-#define UI_COMPONENT_HEADER_BAR_H
+#pragma once
 
 #include "lvgl.h"
 
@@ -72,5 +71,3 @@ bool ui_header_bar_hide_action_button(lv_obj_t* header_bar_widget);
  * @return true if button was found and updated, false otherwise
  */
 bool ui_header_bar_set_action_button_text(lv_obj_t* header_bar_widget, const char* text);
-
-#endif // UI_COMPONENT_HEADER_BAR_H

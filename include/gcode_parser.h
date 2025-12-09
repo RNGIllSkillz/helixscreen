@@ -37,6 +37,7 @@
  * @see docs/GCODE_VISUALIZATION.md for complete design
  */
 
+namespace helix {
 namespace gcode {
 
 /**
@@ -509,3 +510,4 @@ struct GCodeHeaderMetadata {
 GCodeHeaderMetadata extract_header_metadata(const std::string& filepath);
 
 } // namespace gcode
+} // namespace helix

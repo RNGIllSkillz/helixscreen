@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <glm/gtc/matrix_transform.hpp>
 
+namespace helix {
 namespace gcode {
 
 GCodeRenderer::GCodeRenderer() {
@@ -518,3 +519,4 @@ std::optional<std::string> GCodeRenderer::pick_object(const glm::vec2& screen_po
 }
 
 } // namespace gcode
+} // namespace helix

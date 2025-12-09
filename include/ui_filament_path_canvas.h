@@ -1,8 +1,7 @@
 // Copyright 2025 HelixScreen
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#ifndef UI_FILAMENT_PATH_CANVAS_H
-#define UI_FILAMENT_PATH_CANVAS_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -204,5 +203,3 @@ void ui_filament_path_canvas_set_bypass_callback(lv_obj_t* obj, filament_path_by
 #ifdef __cplusplus
 }
 #endif
-
-#endif // UI_FILAMENT_PATH_CANVAS_H

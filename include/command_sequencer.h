@@ -23,6 +23,7 @@ class MoonrakerClient;
 class MoonrakerAPI;
 class PrinterState;
 
+namespace helix {
 namespace gcode {
 
 /**
@@ -329,3 +330,4 @@ class CommandSequencer {
 [[nodiscard]] std::string sequencer_state_name(SequencerState state);
 
 } // namespace gcode
+} // namespace helix

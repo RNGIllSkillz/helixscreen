@@ -344,7 +344,7 @@ void WiFiSettingsOverlay::update_connection_status() {
     if (connected) {
         std::string ssid = wifi_manager_->get_connected_ssid();
         std::string ip = wifi_manager_->get_ip_address();
-        std::string mac = wifi_ui::wifi_get_device_mac();
+        std::string mac = helix::ui::wifi::wifi_get_device_mac();
 
         strncpy(ssid_buffer_, ssid.c_str(), sizeof(ssid_buffer_) - 1);
         ssid_buffer_[sizeof(ssid_buffer_) - 1] = '\0';
@@ -475,8 +475,8 @@ void WiFiSettingsOverlay::populate_network_list(const std::vector<WiFiNetwork>& 
         }
 
         // Update signal icons
-        int icon_state =
-            wifi_ui::wifi_compute_signal_icon_state(network.signal_strength, network.is_secured);
+        int icon_state = helix::ui::wifi::wifi_compute_signal_icon_state(network.signal_strength,
+                                                                         network.is_secured);
         update_signal_icons(item, icon_state);
 
         // Mark connected network with LV_STATE_CHECKED

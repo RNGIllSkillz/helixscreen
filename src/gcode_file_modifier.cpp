@@ -14,6 +14,7 @@
 #include <sstream>
 #include <unordered_map>
 
+namespace helix {
 namespace gcode {
 
 // ============================================================================
@@ -610,3 +611,4 @@ size_t GCodeFileModifier::cleanup_temp_files(int max_age_seconds) {
 }
 
 } // namespace gcode
+} // namespace helix

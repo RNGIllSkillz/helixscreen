@@ -19,6 +19,7 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/transform.hpp>
 
+namespace helix {
 namespace gcode {
 
 GCodeCamera::GCodeCamera() {
@@ -224,3 +225,4 @@ void GCodeCamera::update_matrices() {
 }
 
 } // namespace gcode
+} // namespace helix

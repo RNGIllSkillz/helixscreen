@@ -160,10 +160,10 @@ void MoonrakerAPIMock::download_thumbnail(const std::string& thumbnail_path,
         std::string gcode_path = find_test_file(gcode_filename);
         if (!gcode_path.empty()) {
             // Extract thumbnails from the G-code file
-            auto thumbnails = gcode::extract_thumbnails(gcode_path);
+            auto thumbnails = helix::gcode::extract_thumbnails(gcode_path);
             if (!thumbnails.empty()) {
                 // Find the largest thumbnail (best quality)
-                const gcode::GCodeThumbnail* best = &thumbnails[0];
+                const helix::gcode::GCodeThumbnail* best = &thumbnails[0];
                 for (const auto& thumb : thumbnails) {
                     if (thumb.pixel_count() > best->pixel_count()) {
                         best = &thumb;

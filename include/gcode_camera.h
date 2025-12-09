@@ -33,6 +33,7 @@
  * @see docs/GCODE_VISUALIZATION.md for complete design
  */
 
+namespace helix {
 namespace gcode {
 
 /**
@@ -316,3 +317,4 @@ class GCodeCamera {
 };
 
 } // namespace gcode
+} // namespace helix

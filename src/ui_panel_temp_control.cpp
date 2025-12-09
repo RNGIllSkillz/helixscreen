@@ -882,8 +882,8 @@ void TempControlPanel::update_bed_status() {
 }
 
 void TempControlPanel::set_nozzle(int current, int target) {
-    UITemperatureUtils::validate_and_clamp_pair(current, target, nozzle_min_temp_, nozzle_max_temp_,
-                                                "TempPanel/Nozzle");
+    helix::ui::temperature::validate_and_clamp_pair(current, target, nozzle_min_temp_,
+                                                    nozzle_max_temp_, "TempPanel/Nozzle");
 
     nozzle_current_ = current;
     nozzle_target_ = target;
@@ -891,8 +891,8 @@ void TempControlPanel::set_nozzle(int current, int target) {
 }
 
 void TempControlPanel::set_bed(int current, int target) {
-    UITemperatureUtils::validate_and_clamp_pair(current, target, bed_min_temp_, bed_max_temp_,
-                                                "TempPanel/Bed");
+    helix::ui::temperature::validate_and_clamp_pair(current, target, bed_min_temp_, bed_max_temp_,
+                                                    "TempPanel/Bed");
 
     bed_current_ = current;
     bed_target_ = target;
