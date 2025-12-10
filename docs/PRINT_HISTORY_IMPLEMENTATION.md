@@ -8,13 +8,13 @@
 | 2 | Dashboard Panel - Stats Display | ✅ Complete | `f5379eb` and earlier |
 | 3 | History List Panel - Basic List | ✅ Complete | `f5379eb` |
 | 4 | Search, Filter, Sort | ✅ Complete | `d3c57b9`, `ad69972`, `d013da5` |
-| 5 | Print Details Overlay | 🔲 Not Started | - |
-| 6 | Dashboard Charts | 🔲 Not Started | - |
+| 5 | Print Details Overlay | ✅ Complete | `2d1de9f` |
+| 6 | Dashboard Charts | ✅ Complete | Session 2025-12-10 |
 | 7 | Small Screen Adaptations | 🔲 Not Started | - |
 
 **Branch**: `feature/print-history`
 **Worktree**: `/Users/pbrown/Code/Printing/helixscreen-print-history`
-**Last Updated**: 2025-12-08
+**Last Updated**: 2025-12-10
 
 ### Session 3 Bug Fixes (2025-12-08)
 
@@ -685,8 +685,8 @@ Update this section as stages complete:
 | 2. Dashboard Stats | ✅ Complete | Session 2025-12-08 |
 | 3. History List | ✅ Complete | Session 2025-12-08 |
 | 4. Search/Filter/Sort | ✅ Complete | Session 2025-12-08 |
-| 5. Detail Overlay | Not Started | |
-| 6. Charts | Not Started | |
+| 5. Detail Overlay | ✅ Complete | Commit 2d1de9f |
+| 6. Charts | ✅ Complete | Session 2025-12-10 (filament bar chart, prints trend sparkline) |
 | 7. Small Screen | Not Started | |
 
 ---
@@ -912,40 +912,109 @@ Update this section as stages complete:
 
 ---
 
-### Next Session: Stage 5 - Print Details Overlay
+### Session: 2025-12-08 (Stage 5 Complete)
 
-**Goal:** Create detail overlay showing full print metadata with Reprint/Delete actions
+**Worktree:** `/Users/pbrown/Code/Printing/helixscreen-print-history`
+**Branch:** `feature/print-history`
+**Commit:** `2d1de9f`
+
+**Files Created:**
+- `ui_xml/history_detail_overlay.xml` - Print detail overlay layout
+
+**Files Modified:**
+- `src/ui_panel_history_list.cpp` - Row click handlers, detail overlay management
+- `include/ui_panel_history_list.h` - Detail overlay subjects and methods
+
+**Implementation:**
+- Detail overlay shows full job metadata (filename, status, times, temps, filament)
+- Status displayed with colored icon (green check for completed, red X for failed)
+- Reprint button starts print if file exists
+- Delete button removes job from history with confirmation
+
+---
+
+### Session: 2025-12-10 (Stage 6 Complete + UI Polish)
+
+**Worktree:** `/Users/pbrown/Code/Printing/helixscreen-print-history`
+**Branch:** `feature/print-history`
+
+**Stage 6 - Dashboard Charts Completed:**
+
+**Layout Redesign:**
+- Stats grid (2×2) on left side (55% width)
+- Filament by Type bar chart on right side (43% width)
+- Prints Trend sparkline below (full width)
+- Time filter buttons use equal width via `flex_grow="1"`
+
+**Filament Chart Implementation:**
+- Horizontal bar chart showing usage by material type (PLA, PETG, ABS, TPU)
+- Material labels on left, usage amounts (meters) on right
+- Color-coded bars per material type
+- Dynamic sizing based on data
+
+**Prints Trend Sparkline:**
+- Gold/amber colored line chart showing print count trend
+- Auto-adapts period label based on selected filter (Day/Week/Month/Year/All time)
+
+**UI Polish - Reactive Style Bindings:**
+
+Replaced imperative C++ filter button styling with declarative XML bindings:
+
+```xml
+<styles>
+  <style name="filter_btn_active" bg_color="0xAD2724"/>
+  <style name="filter_label_active" text_color="0xE6E8F0"/>
+</styles>
+
+<lv_button name="filter_day" ...>
+  <bind_style name="filter_btn_active" subject="history_filter" ref_value="0"/>
+  <text_small name="filter_day_label" ...>
+    <bind_style name="filter_label_active" subject="history_filter" ref_value="0"/>
+  </text_small>
+</lv_button>
+```
+
+**Key Fix - Removed `update_filter_button_states()`:**
+- Previous: C++ function manually applied styles based on filter state
+- Now: XML `<bind_style>` elements auto-update when subject changes
+- Benefit: Cleaner separation of concerns, less C++ code
+
+**Typography Fix:**
+- Replaced hardcoded `style_text_font="montserrat_14"` with `<text_small>` theme component
+- Ensures consistent typography across the app
+
+**Text Color Fix:**
+- Fixed filament chart labels showing as black
+- Root cause: `ui_theme_parse_color("#text_primary")` doesn't resolve XML constants
+- Solution: Use `lv_xml_get_const(nullptr, "text_primary")` first, then parse result
+
+**Files Modified:**
+- `ui_xml/history_dashboard_panel.xml` - Reactive bindings, theme typography
+- `src/ui_panel_history_dashboard.cpp` - Removed `update_filter_button_states()`, fixed color resolution
+- `include/ui_panel_history_dashboard.h` - Removed function declaration
+- `src/ui_panel_history_list.cpp` - Empty state visibility fix
+- `ui_xml/history_list_panel.xml` - Empty state flex_grow fix
+
+---
+
+### Next Session: Stage 7 - Small Screen Adaptations
+
+**Goal:** Optimize for 480×320 displays
 
 **Quick Start:**
 ```bash
 cd /Users/pbrown/Code/Printing/helixscreen-print-history
-make -j && ./build/bin/helix-screen --test -p print-history -vv
+make -j && ./build/bin/helix-screen --test -p print-history -s small -vv
 ```
 
-**Files to Create:**
-- `ui_xml/history_detail_overlay.xml` - Detail overlay layout
-
-**Files to Modify:**
-- `src/ui_panel_history_list.cpp` - Add row click handlers and overlay management
-- `include/ui_panel_history_list.h` - Add detail overlay subjects and methods
-
 **Implementation Notes:**
-1. Create overlay XML with:
-   - Header bar with "Print Details" title
-   - Status section with colored icon/text
-   - Stats grid: Start/End times, Duration, Layers, Temps, Filament
-   - Action buttons: "Reprint" (if file exists), "Delete"
-
-2. Wire row click handlers:
-   - Store selected job reference
-   - Populate subjects with job data
-   - Call `ui_nav_push_overlay()`
-
-3. Implement actions:
-   - Reprint: Check file exists, call `start_print()`, show toast
-   - Delete: Show confirmation dialog, call `delete_history_job()`, refresh list
-
-**Reference Patterns:**
-- `ui_xml/print_file_detail.xml` - Detail overlay structure
-- `ui_xml/confirmation_dialog.xml` - Confirmation pattern
-- `src/ui_panel_print_select.cpp` - Reprint/delete implementation
+1. Dashboard adaptations:
+   - Reduce to 4 stat cards (most important metrics)
+   - Smaller sparklines or hide them
+   - Reduce chart size or move to separate view
+2. List adaptations:
+   - Compact row height (reduce from ~64px to ~48px)
+   - Smaller thumbnail (32×32)
+   - Hide some metadata columns, show on detail only
+3. Use `ui_get_screen_size()` to detect and apply adaptations
+4. Ensure touch targets remain ≥44px

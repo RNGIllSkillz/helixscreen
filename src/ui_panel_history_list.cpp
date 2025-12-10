@@ -277,6 +277,16 @@ void HistoryListPanel::update_empty_state() {
     bool has_filtered_jobs = !filtered_jobs_.empty();
     lv_subject_set_int(&subject_has_jobs_, has_filtered_jobs ? 1 : 0);
 
+    // Explicit visibility control as backup to subject binding
+    // This ensures empty state visibility is correct regardless of binding timing
+    if (empty_state_) {
+        if (has_filtered_jobs) {
+            lv_obj_add_flag(empty_state_, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(empty_state_, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
     // Update empty state message based on whether filters are active
     if (!has_filtered_jobs && empty_message_ && empty_hint_) {
         bool filters_active = !search_query_.empty() || status_filter_ != HistoryStatusFilter::ALL;

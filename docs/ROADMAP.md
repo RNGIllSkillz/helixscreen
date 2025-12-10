@@ -1,6 +1,6 @@
 # HelixScreen Development Roadmap
 
-**Last Updated:** 2025-12-07
+**Last Updated:** 2025-12-10
 
 ---
 
@@ -21,7 +21,21 @@ HelixScreen is a production-quality Klipper touchscreen UI with comprehensive fe
 
 ## Current Priorities
 
-### 1. AMS/Multi-Material Support
+### 1. Print History Feature
+**Status:** In Progress (6/7 stages complete)
+
+View and manage print job history from Moonraker:
+- [x] Moonraker history API integration (`server.history.*`)
+- [x] Dashboard panel with aggregate stats (total prints, success rate, time, filament)
+- [x] Time filtering (Day/Week/Month/Year/All)
+- [x] Full history list with search, filter, and sort
+- [x] Print detail overlay with Reprint/Delete actions
+- [x] Dashboard charts (filament by type bar chart, prints trend sparkline)
+- [ ] Small screen adaptations (480×320)
+
+See `docs/PRINT_HISTORY_IMPLEMENTATION.md` for detailed specification.
+
+### 2. AMS/Multi-Material Support
 **Status:** Planning
 
 Support for Automatic Material System (AMS) and multi-material printing:
@@ -32,14 +46,14 @@ Support for Automatic Material System (AMS) and multi-material printing:
 
 See `docs/AMS_IMPLEMENTATION_PLAN.md` for detailed specification.
 
-### 2. Production Hardening
+### 3. Production Hardening
 **Status:** In Progress
 
 - [ ] **Error recovery patterns** - Graceful degradation on connection loss
 - [ ] **Structured logging** - Log levels, rotation, remote debugging
 - [ ] **Edge case testing** - Connection drops, print failures, filesystem errors
 
-### 3. Documentation Gaps
+### 4. Documentation Gaps
 **Status:** Ongoing
 
 - [ ] User manual for end users (non-developer)
@@ -145,6 +159,11 @@ See `docs/AMS_IMPLEMENTATION_PLAN.md` for detailed specification.
 ### December 2025
 | Feature | Commit |
 |---------|--------|
+| Print History - Dashboard with charts and reactive bindings | Session 2025-12-10 |
+| Print History - Detail overlay with Reprint/Delete | `2d1de9f` |
+| Print History - Search, filter, sort for list | `d3c57b9` |
+| Print History - Dashboard and list panels | `f5379eb` |
+| Print History - Moonraker API integration | `62d6a22` |
 | Print completion notifications (Off/Notification/Alert) | `80a3199` |
 | WiFi settings overlay with reactive architecture | `9037d81` |
 | AD5M static build infrastructure (glibc 2.25) | `cdffc63` |

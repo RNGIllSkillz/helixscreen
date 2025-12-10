@@ -139,18 +139,27 @@ class HistoryDashboardPanel : public PanelBase {
     lv_obj_t* filter_year_ = nullptr;
     lv_obj_t* filter_all_ = nullptr;
 
-    // Stat labels
+    // Stat labels (2x2 grid)
     lv_obj_t* stat_total_prints_ = nullptr;
     lv_obj_t* stat_print_time_ = nullptr;
     lv_obj_t* stat_filament_ = nullptr;
     lv_obj_t* stat_success_rate_ = nullptr;
-    lv_obj_t* stat_longest_ = nullptr;
-    lv_obj_t* stat_failed_ = nullptr;
 
     // Containers
     lv_obj_t* stats_grid_ = nullptr;
+    lv_obj_t* charts_section_ = nullptr;
     lv_obj_t* empty_state_ = nullptr;
     lv_obj_t* btn_view_history_ = nullptr;
+
+    // Charts
+    lv_obj_t* trend_chart_container_ = nullptr;
+    lv_obj_t* trend_chart_ = nullptr;
+    lv_chart_series_t* trend_series_ = nullptr;
+    lv_obj_t* trend_period_label_ = nullptr;
+
+    lv_obj_t* filament_chart_container_ = nullptr;
+    // Filament bar rows stored for cleanup/refresh
+    std::vector<lv_obj_t*> filament_bar_rows_;
 
     //
     // === State ===
@@ -161,6 +170,9 @@ class HistoryDashboardPanel : public PanelBase {
 
     // Subject for empty state binding (must persist for LVGL binding lifetime)
     lv_subject_t history_has_jobs_subject_;
+
+    // Subject for filter button state binding (0=Day, 1=Week, 2=Month, 3=Year, 4=All)
+    lv_subject_t history_filter_subject_;
 
     //
     // === Data Fetching ===
@@ -177,13 +189,6 @@ class HistoryDashboardPanel : public PanelBase {
      * @param jobs Vector of print history jobs
      */
     void update_statistics(const std::vector<PrintHistoryJob>& jobs);
-
-    /**
-     * @brief Update filter button visual states
-     *
-     * Highlights the active filter button, dims others.
-     */
-    void update_filter_button_states();
 
     //
     // === Formatting Helpers ===
@@ -202,6 +207,44 @@ class HistoryDashboardPanel : public PanelBase {
      * @return "12.5m" or "1.2km"
      */
     static std::string format_filament(double mm);
+
+    //
+    // === Chart Helpers ===
+    //
+
+    /**
+     * @brief Create the trend sparkline chart
+     */
+    void create_trend_chart();
+
+    /**
+     * @brief Create the filament bar chart
+     */
+    void create_filament_chart();
+
+    /**
+     * @brief Update trend chart with prints-per-day data
+     * @param jobs The job list to analyze
+     */
+    void update_trend_chart(const std::vector<PrintHistoryJob>& jobs);
+
+    /**
+     * @brief Update filament chart with usage by type
+     * @param jobs The job list to analyze
+     */
+    void update_filament_chart(const std::vector<PrintHistoryJob>& jobs);
+
+    /**
+     * @brief Get the number of periods for trend based on time filter
+     * @return Number of data points (7 for day/week, more for longer ranges)
+     */
+    int get_trend_period_count() const;
+
+    /**
+     * @brief Get the seconds per period for trend calculation
+     * @return Seconds per time bucket based on current filter
+     */
+    double get_trend_period_seconds() const;
 };
 
 /**
