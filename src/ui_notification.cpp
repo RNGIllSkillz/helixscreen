@@ -25,6 +25,7 @@
 
 #include "ui_modal.h"
 #include "ui_notification_history.h"
+#include "ui_observer_guard.h"
 #include "ui_status_bar.h"
 #include "ui_toast.h"
 
@@ -43,6 +44,9 @@ static void modal_ok_btn_clicked(lv_event_t* e);
 // Thread tracking for auto-detection
 static std::thread::id g_main_thread_id;
 static std::atomic<bool> g_main_thread_id_initialized{false};
+
+// RAII observer guard for automatic cleanup
+static ObserverGuard s_notification_observer;
 
 // Check if we're on the LVGL main thread
 static bool is_main_thread() {
@@ -175,9 +179,10 @@ void ui_notification_init() {
     g_main_thread_id = std::this_thread::get_id();
     g_main_thread_id_initialized.store(true);
 
-    // Add observer to handle notification emissions
+    // Add observer to handle notification emissions (RAII guard ensures cleanup)
     // (Subject itself is initialized in app_globals_init_subjects())
-    lv_subject_add_observer(&get_notification_subject(), notification_observer_cb, nullptr);
+    s_notification_observer =
+        ObserverGuard(&get_notification_subject(), notification_observer_cb, nullptr);
 
     spdlog::debug("Notification system initialized (main thread ID captured)");
 }

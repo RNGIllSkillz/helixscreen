@@ -5,7 +5,8 @@ This document outlines remaining refactoring work identified during the December
 ## Status
 
 - **Phase 1: COMPLETED** (commit df72783) - SubscriptionGuard RAII wrapper, AMS backend migration, initial design token fixes
-- **Phase 2-5: TODO** - Outlined below
+- **Phase 2: COMPLETED** - ObserverGuard RAII migration for ui_status_bar.cpp, ui_nav.cpp, ui_notification.cpp
+- **Phase 3-5: TODO** - Outlined below
 
 ---
 

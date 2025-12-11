@@ -26,6 +26,7 @@
 #include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
 #include "ui_fonts.h"
+#include "ui_observer_guard.h"
 #include "ui_status_bar.h"
 #include "ui_theme.h"
 
@@ -61,6 +62,10 @@ static lv_obj_t* overlay_backdrop = nullptr;
 // Overlay slide animation constants
 static constexpr uint32_t OVERLAY_ANIM_DURATION_MS = 200; // Fast but visible
 static constexpr int32_t OVERLAY_SLIDE_OFFSET = 400;      // Pixels to slide from off-screen
+
+// RAII observer guards for automatic cleanup
+static ObserverGuard s_active_panel_observer;
+static ObserverGuard s_connection_state_observer;
 
 // Connection gating: panels that require Moonraker connection
 static bool panel_requires_connection(ui_panel_id_t panel) {
@@ -216,8 +221,9 @@ void ui_nav_init() {
     // Navigation bar icons use this to show primary (active) or secondary (inactive) variant
     lv_xml_register_subject(NULL, "active_panel", &active_panel_subject);
 
-    // Add observer to handle panel show/hide
-    lv_subject_add_observer(&active_panel_subject, active_panel_observer_cb, NULL);
+    // Add observer to handle panel show/hide (RAII guard ensures cleanup)
+    s_active_panel_observer =
+        ObserverGuard(&active_panel_subject, active_panel_observer_cb, nullptr);
 
     subjects_initialized = true;
 
@@ -287,9 +293,10 @@ void ui_nav_wire_events(lv_obj_t* navbar) {
 
     // Register connection state observer for auto-navigation on disconnect
     // This observer fires when connection state changes and navigates to home
-    // if the current panel requires connection
-    lv_subject_add_observer(get_printer_state().get_printer_connection_state_subject(),
-                            connection_state_observer_cb, nullptr);
+    // if the current panel requires connection (RAII guard ensures cleanup)
+    s_connection_state_observer =
+        ObserverGuard(get_printer_state().get_printer_connection_state_subject(),
+                      connection_state_observer_cb, nullptr);
 
     spdlog::debug("Navigation button events wired (with connection gating)");
 }

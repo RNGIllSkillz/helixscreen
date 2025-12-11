@@ -24,6 +24,7 @@
 #include "ui_status_bar.h"
 
 #include "ui_nav.h"
+#include "ui_observer_guard.h"
 #include "ui_panel_notification_history.h"
 #include "ui_theme.h"
 
@@ -66,6 +67,11 @@ static int32_t cached_klippy_state = 0; // 0=READY, 1=STARTUP, 2=SHUTDOWN, 3=ERR
 
 // Notification count text buffer (for string subject)
 static char notification_count_text_buf[8] = "0";
+
+// RAII observer guards for automatic cleanup
+static ObserverGuard s_network_observer;
+static ObserverGuard s_connection_observer;
+static ObserverGuard s_klippy_observer;
 
 // Forward declaration
 static void update_printer_icon_combined();
@@ -257,19 +263,19 @@ void ui_status_bar_init() {
     lv_subject_t* net_subject = printer_state.get_network_status_subject();
     spdlog::debug("[StatusBar] Registering observer on network_status_subject at {}",
                   (void*)net_subject);
-    lv_subject_add_observer(net_subject, network_status_observer, nullptr);
+    s_network_observer = ObserverGuard(net_subject, network_status_observer, nullptr);
 
     // Printer connection observer (fires immediately with current value on registration)
     lv_subject_t* conn_subject = printer_state.get_printer_connection_state_subject();
     spdlog::debug("[StatusBar] Registering observer on printer_connection_state_subject at {}",
                   (void*)conn_subject);
-    lv_subject_add_observer(conn_subject, printer_connection_observer, nullptr);
+    s_connection_observer = ObserverGuard(conn_subject, printer_connection_observer, nullptr);
 
     // Klippy state observer (for RESTART/FIRMWARE_RESTART handling)
     lv_subject_t* klippy_subject = printer_state.get_klippy_state_subject();
     spdlog::debug("[StatusBar] Registering observer on klippy_state_subject at {}",
                   (void*)klippy_subject);
-    lv_subject_add_observer(klippy_subject, klippy_state_observer, nullptr);
+    s_klippy_observer = ObserverGuard(klippy_subject, klippy_state_observer, nullptr);
 
     // Note: Bell icon color is now set via XML (variant="secondary")
     // No widget lookup or styling needed here
