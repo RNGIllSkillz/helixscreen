@@ -1,6 +1,6 @@
 # HelixScreen Development Roadmap
 
-**Last Updated:** 2025-12-09
+**Last Updated:** 2025-12-10
 
 ---
 
@@ -120,6 +120,7 @@ See `docs/AMS_IMPLEMENTATION_PLAN.md` for detailed specification.
 - [x] Heater/fan/LED control
 - [x] System commands (E-stop, restart)
 - [x] Exclude object with undo window
+- [x] **Print History** - Dashboard with stats, time filtering, history list with search/filter/sort, detail overlay with Reprint/Delete
 
 ### G-code Features
 - [x] Pre-print operation toggles (bed level, QGL, Z-tilt, nozzle clean)
@@ -151,6 +152,13 @@ See `docs/AMS_IMPLEMENTATION_PLAN.md` for detailed specification.
 ### December 2025
 | Feature | Commit |
 |---------|--------|
+| **Print History Feature Complete** | `2025-12-10` |
+| Print History - Thumbnail caching + UI polish | `46889b1` |
+| Print History - Dashboard with charts and reactive bindings | `9f0154b` |
+| Print History - Detail overlay with Reprint/Delete | `2d1de9f` |
+| Print History - Search, filter, sort for list | `0ba7937` |
+| Print History - Dashboard and list panels | `8aef45e` |
+| Print History - Moonraker API integration | `258c30a` |
 | Reconnection flow UX (toast notifications) | `9844ead` |
 | Connection-aware navigation gating | `a7eb28f` |
 | Print completion notifications (Off/Notification/Alert) | `80a3199` |

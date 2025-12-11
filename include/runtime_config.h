@@ -49,6 +49,9 @@ struct RuntimeConfig {
     bool simulate_disconnect =
         false; ///< Simulate disconnected state for testing (--disconnected, requires --test)
 
+    // Debug/testing options
+    bool test_history_api = false; ///< Test print history API on startup (--test-history)
+
     // Print select panel options
     const char* select_file =
         nullptr; ///< File to auto-select in print select panel (--select-file)
