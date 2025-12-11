@@ -31,9 +31,12 @@
 #include "spdlog/spdlog.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
+#include <chrono>
 #include <fstream>
 #include <iomanip>
+#include <memory>
 #include <set>
 #include <sstream>
 #include <thread>
@@ -1901,14 +1904,263 @@ void MoonrakerAPI::start_bed_mesh_calibrate(const std::string& /*profile_name*/,
     }
 }
 
-void MoonrakerAPI::calculate_screws_tilt(ScrewTiltCallback /*on_success*/, ErrorCallback on_error) {
-    spdlog::warn("[Moonraker API] calculate_screws_tilt() not yet implemented");
-    if (on_error) {
-        MoonrakerError err;
-        err.type = MoonrakerErrorType::UNKNOWN;
-        err.message = "Screws tilt calculation not yet implemented";
-        on_error(err);
+/**
+ * @brief State machine for collecting SCREWS_TILT_CALCULATE responses
+ *
+ * Klipper sends screw tilt results as console output lines via notify_gcode_response.
+ * This class collects and parses those lines until the sequence completes.
+ *
+ * Expected output format:
+ *   // front_left (base) : x=-5.0, y=30.0, z=2.48750
+ *   // front_right : x=155.0, y=30.0, z=2.36000 : adjust CW 01:15
+ *   // rear_right : x=155.0, y=180.0, z=2.42500 : adjust CCW 00:30
+ *   // rear_left : x=155.0, y=180.0, z=2.42500 : adjust CW 00:18
+ *
+ * Error handling:
+ *   - "Unknown command" - screws_tilt_adjust not configured
+ *   - "Error"/"error"/"!! " - Klipper error messages
+ *   - "ok" without data - probing completed but no results parsed
+ *
+ * Note: No timeout is implemented. If connection drops mid-probing, the collector
+ * will remain alive until the shared_ptr ref count drops (when MoonrakerClient
+ * cleans up callbacks). Caller should implement UI-level timeout if needed.
+ */
+class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollector> {
+  public:
+    ScrewsTiltCollector(MoonrakerClient& client, ScrewTiltCallback on_success,
+                        MoonrakerAPI::ErrorCallback on_error)
+        : client_(client), on_success_(std::move(on_success)), on_error_(std::move(on_error)) {}
+
+    ~ScrewsTiltCollector() {
+        // Ensure we always unregister callback
+        unregister();
     }
+
+    void start() {
+        // Register for gcode_response notifications
+        // Use atomic counter for unique handler names (safer than pointer address reuse)
+        static std::atomic<uint64_t> s_collector_id{0};
+        handler_name_ = "screws_tilt_collector_" + std::to_string(++s_collector_id);
+
+        auto self = shared_from_this();
+        client_.register_method_callback("notify_gcode_response", handler_name_,
+                                         [self](const json& msg) { self->on_gcode_response(msg); });
+
+        registered_.store(true);
+        spdlog::debug("[ScrewsTiltCollector] Started collecting responses (handler: {})",
+                      handler_name_);
+    }
+
+    void unregister() {
+        bool was_registered = registered_.exchange(false);
+        if (was_registered) {
+            client_.unregister_method_callback("notify_gcode_response", handler_name_);
+            spdlog::debug("[ScrewsTiltCollector] Unregistered callback");
+        }
+    }
+
+    /**
+     * @brief Mark as completed without invoking callbacks
+     *
+     * Used when the execute_gcode error path handles the error callback directly.
+     */
+    void mark_completed() {
+        completed_.store(true);
+    }
+
+    void on_gcode_response(const json& msg) {
+        // Check if already completed (prevent double-invocation)
+        if (completed_.load()) {
+            return;
+        }
+
+        // notify_gcode_response format: {"method": "notify_gcode_response", "params": ["line"]}
+        if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty()) {
+            return;
+        }
+
+        const std::string& line = msg["params"][0].get_ref<const std::string&>();
+        spdlog::trace("[ScrewsTiltCollector] Received: {}", line);
+
+        // Check for unknown command error (screws_tilt_adjust not configured)
+        if (line.find("Unknown command") != std::string::npos &&
+            line.find("SCREWS_TILT_CALCULATE") != std::string::npos) {
+            complete_error("SCREWS_TILT_CALCULATE requires [screws_tilt_adjust] in printer.cfg");
+            return;
+        }
+
+        // Parse screw result lines that start with "//"
+        if (line.rfind("//", 0) == 0) {
+            parse_screw_line(line);
+        }
+
+        // Check for completion markers
+        // Klipper prints "ok" when command completes
+        if (line == "ok") {
+            if (!results_.empty()) {
+                complete_success();
+            } else {
+                complete_error("SCREWS_TILT_CALCULATE completed but no screw data received");
+            }
+            return;
+        }
+
+        // Broader error detection - catch Klipper errors
+        if (line.find("Error") != std::string::npos || line.find("error") != std::string::npos ||
+            line.rfind("!! ", 0) == 0) { // Emergency/critical errors start with "!! "
+            complete_error(line);
+        }
+    }
+
+  private:
+    void parse_screw_line(const std::string& line) {
+        // Format: "// screw_name (base) : x=X, y=Y, z=Z" for reference
+        // Format: "// screw_name : x=X, y=Y, z=Z : adjust DIR TT:MM" for non-reference
+
+        ScrewTiltResult result;
+
+        // Find the screw name (after "//" and any whitespace, before first " :" or " (")
+        size_t name_start = 2; // Skip "//"
+        // Skip any whitespace after "//"
+        while (name_start < line.length() && line[name_start] == ' ') {
+            name_start++;
+        }
+
+        size_t name_end = line.find(" :");
+        size_t base_pos = line.find(" (base)");
+
+        if (base_pos != std::string::npos && (name_end == std::string::npos || base_pos < name_end)) {
+            // Reference screw with "(base)" marker
+            result.screw_name = line.substr(name_start, base_pos - name_start);
+            result.is_reference = true;
+        } else if (name_end != std::string::npos) {
+            result.screw_name = line.substr(name_start, name_end - name_start);
+            result.is_reference = false;
+        } else {
+            // Can't parse - skip this line
+            spdlog::debug("[ScrewsTiltCollector] Could not parse line: {}", line);
+            return;
+        }
+
+        // Trim whitespace from screw name (leading and trailing)
+        while (!result.screw_name.empty() && result.screw_name.front() == ' ') {
+            result.screw_name.erase(0, 1);
+        }
+        while (!result.screw_name.empty() && result.screw_name.back() == ' ') {
+            result.screw_name.pop_back();
+        }
+
+        // Parse x, y, z values
+        // Look for "x=", "y=", "z="
+        auto parse_float = [&line](const std::string& prefix) -> float {
+            size_t pos = line.find(prefix);
+            if (pos == std::string::npos) {
+                return 0.0f;
+            }
+            pos += prefix.length();
+            // Find end of number (next comma, space, or end of line)
+            size_t end = line.find_first_of(", ", pos);
+            if (end == std::string::npos) {
+                end = line.length();
+            }
+            try {
+                return std::stof(line.substr(pos, end - pos));
+            } catch (...) {
+                return 0.0f;
+            }
+        };
+
+        result.x_pos = parse_float("x=");
+        result.y_pos = parse_float("y=");
+        result.z_height = parse_float("z=");
+
+        // Parse adjustment for non-reference screws
+        // Look for ": adjust CW 01:15" or ": adjust CCW 00:30"
+        if (!result.is_reference) {
+            size_t adjust_pos = line.find(": adjust ");
+            if (adjust_pos != std::string::npos) {
+                result.adjustment = line.substr(adjust_pos + 9); // Skip ": adjust "
+                // Trim any trailing whitespace
+                while (!result.adjustment.empty() &&
+                       std::isspace(static_cast<unsigned char>(result.adjustment.back()))) {
+                    result.adjustment.pop_back();
+                }
+            }
+        }
+
+        spdlog::debug("[ScrewsTiltCollector] Parsed: {} at ({:.1f}, {:.1f}) z={:.3f} {}",
+                      result.screw_name, result.x_pos, result.y_pos, result.z_height,
+                      result.is_reference ? "(reference)" : result.adjustment);
+
+        results_.push_back(std::move(result));
+    }
+
+    void complete_success() {
+        if (completed_) {
+            return;
+        }
+        completed_ = true;
+
+        spdlog::info("[ScrewsTiltCollector] Complete with {} screws", results_.size());
+        unregister();
+
+        if (on_success_) {
+            on_success_(results_);
+        }
+    }
+
+    void complete_error(const std::string& message) {
+        if (completed_) {
+            return;
+        }
+        completed_ = true;
+
+        spdlog::error("[ScrewsTiltCollector] Error: {}", message);
+        unregister();
+
+        if (on_error_) {
+            MoonrakerError err;
+            err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+            err.message = message;
+            err.method = "SCREWS_TILT_CALCULATE";
+            on_error_(err);
+        }
+    }
+
+    MoonrakerClient& client_;
+    ScrewTiltCallback on_success_;
+    MoonrakerAPI::ErrorCallback on_error_;
+    std::string handler_name_;
+    std::atomic<bool> registered_{false};  // Thread-safe: accessed from callback and destructor
+    std::atomic<bool> completed_{false};   // Thread-safe: prevents double-callback invocation
+    std::vector<ScrewTiltResult> results_;
+};
+
+void MoonrakerAPI::calculate_screws_tilt(ScrewTiltCallback on_success, ErrorCallback on_error) {
+    spdlog::info("[Moonraker API] Starting SCREWS_TILT_CALCULATE");
+
+    // Create a collector to handle async response parsing
+    // The collector will self-destruct when complete via shared_ptr ref counting
+    auto collector = std::make_shared<ScrewsTiltCollector>(client_, on_success, on_error);
+    collector->start();
+
+    // Send the G-code command
+    // The command will trigger probing, and results come back via notify_gcode_response
+    execute_gcode(
+        "SCREWS_TILT_CALCULATE",
+        []() {
+            // Command was accepted by Klipper - actual results come via gcode_response
+            spdlog::debug("[Moonraker API] SCREWS_TILT_CALCULATE command accepted");
+        },
+        [collector, on_error](const MoonrakerError& err) {
+            // Failed to send command - mark collector completed to prevent double-callback
+            spdlog::error("[Moonraker API] Failed to send SCREWS_TILT_CALCULATE: {}", err.message);
+            collector->mark_completed(); // Prevent collector from calling on_error again
+            collector->unregister();
+            if (on_error) {
+                on_error(err);
+            }
+        });
 }
 
 void MoonrakerAPI::run_qgl(SuccessCallback /*on_success*/, ErrorCallback on_error) {
