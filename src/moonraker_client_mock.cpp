@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "moonraker_client_mock.h"
+#include "moonraker_client_mock_internal.h"
 
 #include "../tests/mocks/mock_printer_state.h"
 #include "gcode_parser.h"
@@ -11,154 +12,17 @@
 
 #include <algorithm>
 #include <cmath>
-#include <dirent.h>
-#include <sys/stat.h>
-
-// Directory path for thumbnail cache (test G-code dir comes from RuntimeConfig::TEST_GCODE_DIR)
-static constexpr const char* THUMBNAIL_CACHE_DIR = "build/thumbnail_cache";
-
-// Alias for cleaner code - use shared constant from RuntimeConfig
-#define TEST_GCODE_DIR RuntimeConfig::TEST_GCODE_DIR
-
-/**
- * @brief Scan test directory for G-code files
- * @return Vector of filenames (not full paths)
- */
-static std::vector<std::string> scan_mock_gcode_files() {
-    std::vector<std::string> files;
-
-    DIR* dir = opendir(TEST_GCODE_DIR);
-    if (!dir) {
-        spdlog::warn("[MoonrakerClientMock] Cannot open test G-code directory: {}", TEST_GCODE_DIR);
-        return files;
-    }
-
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        std::string name = entry->d_name;
-
-        // Skip hidden files and non-gcode files
-        if (name[0] == '.' || name.length() < 7) {
-            continue;
-        }
-
-        // Check for .gcode extension (case insensitive)
-        std::string ext = name.substr(name.length() - 6);
-        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-        if (ext != ".gcode") {
-            continue;
-        }
-
-        files.push_back(name);
-    }
-
-    closedir(dir);
-    std::sort(files.begin(), files.end());
-
-    spdlog::debug("[MoonrakerClientMock] Found {} mock G-code files", files.size());
-    return files;
-}
-
-/**
- * @brief Build mock JSON response for server.files.list
- * @param path Directory path relative to gcodes root (empty = root)
- * @return JSON response matching real Moonraker format (flat array in result)
- *
- * Real Moonraker server.files.list returns:
- *   {"result": [{"path": "file.gcode", "modified": 123.0, "size": 456, "permissions": "rw"}, ...]}
- *
- * Note: Directories are NOT included in server.files.list - they come from
- * server.files.get_directory
- */
-static json build_mock_file_list_response(const std::string& path = "") {
-    json result_array = json::array();
-
-    if (path.empty()) {
-        // Root directory - scan real files from test gcode directory
-        auto filenames = scan_mock_gcode_files();
-
-        for (const auto& filename : filenames) {
-            std::string full_path = std::string(TEST_GCODE_DIR) + "/" + filename;
-
-            struct stat file_stat;
-            uint64_t size = 0;
-            double modified = 0.0;
-            if (stat(full_path.c_str(), &file_stat) == 0) {
-                size = static_cast<uint64_t>(file_stat.st_size);
-                modified = static_cast<double>(file_stat.st_mtime);
-            }
-
-            // Real Moonraker format: flat array with "path" key (not "filename")
-            json file_entry = {
-                {"path", filename}, {"size", size}, {"modified", modified}, {"permissions", "rw"}};
-            result_array.push_back(file_entry);
-        }
-
-        // Note: We only return real files from TEST_GCODE_DIR
-        // Fake subdirectory entries were removed to prevent thumbnail extraction warnings
-    }
-    // Unknown paths return empty lists
-
-    json response = {{"result", result_array}};
-
-    spdlog::debug("[MoonrakerClientMock] Built mock file list for path '{}': {} files",
-                  path.empty() ? "/" : path, result_array.size());
-    return response;
-}
-
-/**
- * @brief Build mock JSON response for server.files.metadata
- * @param filename Filename to get metadata for
- * @return JSON response matching Moonraker format
- */
-static json build_mock_file_metadata_response(const std::string& filename) {
-    std::string full_path = std::string(TEST_GCODE_DIR) + "/" + filename;
-
-    // Get file info from filesystem
-    struct stat file_stat;
-    uint64_t size = 0;
-    double modified = 0.0;
-    if (stat(full_path.c_str(), &file_stat) == 0) {
-        size = static_cast<uint64_t>(file_stat.st_size);
-        modified = static_cast<double>(file_stat.st_mtime);
-    }
-
-    // Extract metadata from G-code header
-    auto header_meta = helix::gcode::extract_header_metadata(full_path);
-
-    // Get cached thumbnail path (creates cache if needed)
-    std::string thumbnail_path = helix::gcode::get_cached_thumbnail(full_path, THUMBNAIL_CACHE_DIR);
-
-    json thumbnails = json::array();
-    if (!thumbnail_path.empty()) {
-        // Return relative path to cached thumbnail (no LVGL prefix - that's a UI concern)
-        // Format must match Moonraker's response structure: array of objects with relative_path
-        thumbnails.push_back({{"relative_path", thumbnail_path}});
-    }
-
-    json result = {{"filename", filename},
-                   {"size", size},
-                   {"modified", modified},
-                   {"slicer", header_meta.slicer},
-                   {"slicer_version", header_meta.slicer_version},
-                   {"estimated_time", header_meta.estimated_time_seconds},
-                   {"filament_total", header_meta.filament_used_mm},
-                   {"filament_weight_total", header_meta.filament_used_g},
-                   {"filament_type", header_meta.filament_type},
-                   {"layer_count", header_meta.layer_count},
-                   {"first_layer_bed_temp", header_meta.first_layer_bed_temp},
-                   {"first_layer_extr_temp", header_meta.first_layer_nozzle_temp},
-                   {"thumbnails", thumbnails}};
-
-    json response = {{"result", result}};
-
-    spdlog::debug("[MoonrakerClientMock] Built metadata for '{}': {}s, {}g filament", filename,
-                  header_meta.estimated_time_seconds, header_meta.filament_used_g);
-    return response;
-}
 
 MoonrakerClientMock::MoonrakerClientMock(PrinterType type) : printer_type_(type) {
     spdlog::info("[MoonrakerClientMock] Created with printer type: {}", static_cast<int>(type));
+
+    // Register method handlers for all RPC domains
+    mock_internal::register_file_handlers(method_handlers_);
+    mock_internal::register_print_handlers(method_handlers_);
+    mock_internal::register_object_handlers(method_handlers_);
+    mock_internal::register_history_handlers(method_handlers_);
+    spdlog::debug("[MoonrakerClientMock] Registered {} RPC method handlers",
+                  method_handlers_.size());
 
     // Populate hardware immediately (available for wizard without calling discover_printer())
     populate_hardware();
@@ -181,6 +45,14 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
 
     spdlog::info("[MoonrakerClientMock] Created with printer type: {}, speedup: {}x",
                  static_cast<int>(type), speedup_factor_.load());
+
+    // Register method handlers for all RPC domains
+    mock_internal::register_file_handlers(method_handlers_);
+    mock_internal::register_print_handlers(method_handlers_);
+    mock_internal::register_object_handlers(method_handlers_);
+    mock_internal::register_history_handlers(method_handlers_);
+    spdlog::debug("[MoonrakerClientMock] Registered {} RPC method handlers",
+                  method_handlers_.size());
 
     // Populate hardware immediately (available for wizard without calling discover_printer())
     populate_hardware();
@@ -640,37 +512,9 @@ RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const jso
                                             std::function<void(json)> cb) {
     spdlog::debug("[MoonrakerClientMock] Mock send_jsonrpc: {} (with callback)", method);
 
-    // Handle file listing API
-    if (method == "server.files.list" && cb) {
-        std::string path;
-        if (params.contains("path")) {
-            path = params["path"].get<std::string>();
-        }
-        json response = build_mock_file_list_response(path);
-        spdlog::info("[MoonrakerClientMock] Returning mock file list for path: '{}'",
-                     path.empty() ? "/" : path);
-        cb(response);
-        return next_mock_request_id();
-    }
-
-    // Handle file metadata API
-    if (method == "server.files.metadata" && cb) {
-        std::string filename;
-        if (params.contains("filename")) {
-            filename = params["filename"].get<std::string>();
-        }
-        if (!filename.empty()) {
-            json response = build_mock_file_metadata_response(filename);
-            spdlog::info("[MoonrakerClientMock] Returning mock metadata for: {}", filename);
-            cb(response);
-            return next_mock_request_id();
-        }
-    }
-
-    // Unimplemented methods - see docs/MOCK_CLIENT_IMPLEMENTATION_PLAN.md
-    spdlog::warn("[MoonrakerClientMock] Method '{}' not implemented - callback not invoked",
-                 method);
-    return next_mock_request_id();
+    // Dispatch to handler registry (wrap callback to match error_cb signature)
+    auto noop_error_cb = [](const MoonrakerError&) {};
+    return send_jsonrpc(method, params, cb, noop_error_cb);
 }
 
 RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
@@ -680,392 +524,10 @@ RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const jso
     spdlog::debug("[MoonrakerClientMock] Mock send_jsonrpc: {} (with success/error callbacks)",
                   method);
 
-    // Handle file listing API
-    if (method == "server.files.list" && success_cb) {
-        std::string path;
-        if (params.contains("path")) {
-            path = params["path"].get<std::string>();
-        }
-        json response = build_mock_file_list_response(path);
-        spdlog::info("[MoonrakerClientMock] Returning mock file list for path: '{}'",
-                     path.empty() ? "/" : path);
-        success_cb(response);
-        return next_mock_request_id();
-    }
-
-    // Handle file metadata API
-    if (method == "server.files.metadata" && success_cb) {
-        std::string filename;
-        if (params.contains("filename")) {
-            filename = params["filename"].get<std::string>();
-        }
-        if (!filename.empty()) {
-            json response = build_mock_file_metadata_response(filename);
-            spdlog::info("[MoonrakerClientMock] Returning mock metadata for: {}", filename);
-            success_cb(response);
-            return next_mock_request_id();
-        } else if (error_cb) {
-            MoonrakerError err;
-            err.type = MoonrakerErrorType::VALIDATION_ERROR;
-            err.message = "Missing filename parameter";
-            err.method = method;
-            error_cb(err);
-            return next_mock_request_id();
-        }
-    }
-
-    // Handle G-code script execution (routes to gcode_script for state updates)
-    if (method == "printer.gcode.script") {
-        std::string script;
-        if (params.contains("script")) {
-            script = params["script"].get<std::string>();
-        }
-        gcode_script(script); // Process G-code (updates LED state, etc.)
-        if (success_cb) {
-            success_cb(json::object()); // Return empty success response
-        }
-        return next_mock_request_id();
-    }
-
-    // Handle print control API methods (delegate to unified internal handlers)
-    if (method == "printer.print.start") {
-        std::string filename;
-        if (params.contains("filename")) {
-            filename = params["filename"].get<std::string>();
-        }
-        if (!filename.empty()) {
-            if (start_print_internal(filename)) {
-                if (success_cb) {
-                    success_cb(json::object());
-                }
-            } else if (error_cb) {
-                MoonrakerError err;
-                err.type = MoonrakerErrorType::VALIDATION_ERROR;
-                err.message = "Failed to start print";
-                err.method = method;
-                error_cb(err);
-            }
-        } else if (error_cb) {
-            MoonrakerError err;
-            err.type = MoonrakerErrorType::VALIDATION_ERROR;
-            err.message = "Missing filename parameter";
-            err.method = method;
-            error_cb(err);
-        }
-        return next_mock_request_id();
-    }
-
-    if (method == "printer.print.pause") {
-        if (pause_print_internal()) {
-            if (success_cb) {
-                success_cb(json::object());
-            }
-        } else if (error_cb) {
-            MoonrakerError err;
-            err.type = MoonrakerErrorType::VALIDATION_ERROR;
-            err.message = "Cannot pause - not currently printing";
-            err.method = method;
-            error_cb(err);
-        }
-        return next_mock_request_id();
-    }
-
-    if (method == "printer.print.resume") {
-        if (resume_print_internal()) {
-            if (success_cb) {
-                success_cb(json::object());
-            }
-        } else if (error_cb) {
-            MoonrakerError err;
-            err.type = MoonrakerErrorType::VALIDATION_ERROR;
-            err.message = "Cannot resume - not currently paused";
-            err.method = method;
-            error_cb(err);
-        }
-        return next_mock_request_id();
-    }
-
-    if (method == "printer.print.cancel") {
-        if (cancel_print_internal()) {
-            if (success_cb) {
-                success_cb(json::object());
-            }
-        } else if (error_cb) {
-            MoonrakerError err;
-            err.type = MoonrakerErrorType::VALIDATION_ERROR;
-            err.message = "Cannot cancel - no active print";
-            err.method = method;
-            error_cb(err);
-        }
-        return next_mock_request_id();
-    }
-
-    // ========================================================================
-    // File Mutation Operations (JSON-RPC based)
-    // ========================================================================
-
-    // server.files.delete - Delete a file
-    if (method == "server.files.delete") {
-        std::string path;
-        if (params.contains("path")) {
-            path = params["path"].get<std::string>();
-        }
-        spdlog::info("[MoonrakerClientMock] Mock delete_file: {}", path);
-        if (success_cb) {
-            // Return success response matching Moonraker format
-            json response = {{"result", {{"item", {{"path", path}, {"root", "gcodes"}}}}}};
-            success_cb(response);
-        }
-        return next_mock_request_id();
-    }
-
-    // server.files.move - Move/rename a file
-    if (method == "server.files.move") {
-        std::string source, dest;
-        if (params.contains("source")) {
-            source = params["source"].get<std::string>();
-        }
-        if (params.contains("dest")) {
-            dest = params["dest"].get<std::string>();
-        }
-        spdlog::info("[MoonrakerClientMock] Mock move_file: {} -> {}", source, dest);
-        if (success_cb) {
-            json response = {{"result", {{"item", {{"path", dest}, {"root", "gcodes"}}}}}};
-            success_cb(response);
-        }
-        return next_mock_request_id();
-    }
-
-    // server.files.copy - Copy a file
-    if (method == "server.files.copy") {
-        std::string source, dest;
-        if (params.contains("source")) {
-            source = params["source"].get<std::string>();
-        }
-        if (params.contains("dest")) {
-            dest = params["dest"].get<std::string>();
-        }
-        spdlog::info("[MoonrakerClientMock] Mock copy_file: {} -> {}", source, dest);
-        if (success_cb) {
-            json response = {{"result", {{"item", {{"path", dest}, {"root", "gcodes"}}}}}};
-            success_cb(response);
-        }
-        return next_mock_request_id();
-    }
-
-    // server.files.post_directory - Create a directory
-    if (method == "server.files.post_directory") {
-        std::string path;
-        if (params.contains("path")) {
-            path = params["path"].get<std::string>();
-        }
-        spdlog::info("[MoonrakerClientMock] Mock create_directory: {}", path);
-        if (success_cb) {
-            json response = {{"result", {{"item", {{"path", path}, {"root", "gcodes"}}}}}};
-            success_cb(response);
-        }
-        return next_mock_request_id();
-    }
-
-    // server.files.delete_directory - Delete a directory
-    if (method == "server.files.delete_directory") {
-        std::string path;
-        if (params.contains("path")) {
-            path = params["path"].get<std::string>();
-        }
-        spdlog::info("[MoonrakerClientMock] Mock delete_directory: {}", path);
-        if (success_cb) {
-            json response = {{"result", {{"item", {{"path", path}, {"root", "gcodes"}}}}}};
-            success_cb(response);
-        }
-        return next_mock_request_id();
-    }
-
-    // ========================================================================
-    // Query Operations
-    // ========================================================================
-
-    // printer.objects.query - Query printer state (used by is_printer_ready, get_print_state)
-    if (method == "printer.objects.query") {
-        json status_obj = json::object();
-
-        // Check what objects are being queried
-        if (params.contains("objects")) {
-            auto& objects = params["objects"];
-
-            // webhooks state (for is_printer_ready)
-            if (objects.contains("webhooks")) {
-                KlippyState klippy = klippy_state_.load();
-                std::string state_str = "ready";
-                switch (klippy) {
-                case KlippyState::STARTUP:
-                    state_str = "startup";
-                    break;
-                case KlippyState::SHUTDOWN:
-                    state_str = "shutdown";
-                    break;
-                case KlippyState::ERROR:
-                    state_str = "error";
-                    break;
-                default:
-                    break;
-                }
-                status_obj["webhooks"] = {{"state", state_str}};
-            }
-
-            // print_stats (for get_print_state)
-            if (objects.contains("print_stats")) {
-                status_obj["print_stats"] = {{"state", get_print_state_string()}};
-            }
-
-            // configfile.settings (for update_safety_limits_from_printer)
-            if (objects.contains("configfile")) {
-                status_obj["configfile"] = {
-                    {"settings",
-                     {{"printer", {{"max_velocity", 500.0}, {"max_accel", 10000.0}}},
-                      {"stepper_x", {{"position_min", 0.0}, {"position_max", 250.0}}},
-                      {"stepper_y", {{"position_min", 0.0}, {"position_max", 250.0}}},
-                      {"stepper_z", {{"position_min", 0.0}, {"position_max", 300.0}}},
-                      {"extruder", {{"min_temp", 0.0}, {"max_temp", 300.0}}},
-                      {"heater_bed", {{"min_temp", 0.0}, {"max_temp", 120.0}}}}}};
-            }
-        }
-
-        if (success_cb) {
-            json response = {{"result", {{"status", status_obj}}}};
-            success_cb(response);
-        }
-        return next_mock_request_id();
-    }
-
-    // ========================================================================
-    // Print History Operations
-    // ========================================================================
-
-    // server.history.list - Get print history
-    if (method == "server.history.list") {
-        // Generate 20 mock jobs spread across last 30 days
-        json jobs = json::array();
-        auto now = std::chrono::system_clock::now();
-
-        // Mock job data - realistic filenames and parameters
-        struct MockJob {
-            const char* filename;
-            const char* status;
-            const char* filament_type;
-            int duration_minutes;
-            int filament_mm;
-        };
-
-        // 70% completed, 15% cancelled, 15% failed
-        // PLA 50%, PETG 25%, ABS 15%, TPU 10%
-        std::vector<MockJob> mock_data = {
-            {"3DBenchy.gcode", "completed", "PLA", 95, 4500},
-            {"calibration_cube.gcode", "completed", "PLA", 45, 2100},
-            {"phone_stand_v2.gcode", "completed", "PETG", 180, 28000},
-            {"vase_mode_lamp.gcode", "completed", "PLA", 240, 35000},
-            {"cable_clip_x10.gcode", "completed", "PLA", 60, 3200},
-            {"raspberry_pi_case.gcode", "completed", "PETG", 150, 22000},
-            {"gear_bearing.gcode", "cancelled", "PLA", 30, 1500},
-            {"lithophane_photo.gcode", "completed", "PLA", 300, 15000},
-            {"keyboard_keycap.gcode", "completed", "ABS", 45, 1800},
-            {"flexi_rex.gcode", "completed", "TPU", 120, 8500},
-            {"headphone_hook.gcode", "completed", "PETG", 90, 12000},
-            {"filament_sample.gcode", "error", "ABS", 15, 500},
-            {"temp_tower.gcode", "completed", "PLA", 75, 4200},
-            {"retraction_test.gcode", "completed", "PLA", 30, 1100},
-            {"bracket_mount.gcode", "cancelled", "PETG", 45, 5500},
-            {"desk_organizer.gcode", "completed", "PLA", 210, 42000},
-            {"cable_chain_x20.gcode", "error", "PLA", 25, 2800},
-            {"fan_duct.gcode", "completed", "ABS", 55, 3800},
-            {"filament_dryer_spool.gcode", "cancelled", "PETG", 180, 45000},
-            {"pen_holder.gcode", "completed", "TPU", 65, 4200},
-        };
-
-        int limit = params.value("limit", 50);
-        int start = params.value("start", 0);
-        double since = params.value("since", 0.0);
-
-        int count = 0;
-        for (size_t i = 0; i < mock_data.size() && count < limit; i++) {
-            if (static_cast<int>(i) < start)
-                continue;
-
-            const auto& m = mock_data[i];
-
-            // Spread jobs across last 30 days
-            auto job_time =
-                now - std::chrono::hours(24 * (i + 1)) - std::chrono::minutes(i * 37 % 60);
-            double start_time = std::chrono::duration<double>(job_time.time_since_epoch()).count();
-            double end_time = start_time + m.duration_minutes * 60;
-
-            // Skip if before 'since' filter
-            if (since > 0 && start_time < since)
-                continue;
-
-            // Generate thumbnail path from filename (strip .gcode, add thumbnail suffix)
-            std::string base_name = std::string(m.filename);
-            if (base_name.size() > 6 && base_name.substr(base_name.size() - 6) == ".gcode") {
-                base_name = base_name.substr(0, base_name.size() - 6);
-            }
-            std::string thumb_path = ".thumbnails/" + base_name + "-300x300.png";
-
-            json job = {{"job_id", fmt::format("mock_job_{:03d}", i)},
-                        {"filename", m.filename},
-                        {"status", m.status},
-                        {"start_time", start_time},
-                        {"end_time", end_time},
-                        {"print_duration", m.duration_minutes * 60.0},
-                        {"total_duration", m.duration_minutes * 60.0 + 120},
-                        {"filament_used", static_cast<double>(m.filament_mm)},
-                        {"exists", true},
-                        {"metadata",
-                         {{"filament_type", m.filament_type},
-                          {"layer_count", m.duration_minutes * 2},
-                          {"layer_height", 0.2},
-                          {"first_layer_extr_temp", 210.0},
-                          {"first_layer_bed_temp", 60.0},
-                          {"thumbnails", json::array({{{"relative_path", thumb_path},
-                                                       {"width", 300},
-                                                       {"height", 300},
-                                                       {"size", 25000}}})}}}};
-            jobs.push_back(job);
-            count++;
-        }
-
-        if (success_cb) {
-            json response = {{"result", {{"count", mock_data.size()}, {"jobs", jobs}}}};
-            success_cb(response);
-        }
-        return next_mock_request_id();
-    }
-
-    // server.history.totals - Get aggregate statistics
-    if (method == "server.history.totals") {
-        // Return exactly what real Moonraker provides - no breakdown counts
-        // (breakdown should be calculated client-side from job list if needed)
-        json response = {{"result",
-                          {{"job_totals",
-                            {{"total_jobs", 47},
-                             {"total_time", 142.5 * 3600},      // 142.5 hours in seconds
-                             {"total_filament_used", 245000.0}, // 245m in mm
-                             {"longest_job", 5.5 * 3600}}}}}};  // 5.5 hours in seconds
-
-        if (success_cb) {
-            success_cb(response);
-        }
-        return next_mock_request_id();
-    }
-
-    // server.history.delete_job - Delete a job from history
-    if (method == "server.history.delete_job") {
-        std::string job_id = params.value("uid", "");
-        spdlog::info("[MoonrakerClientMock] Mock delete history job: {}", job_id);
-
-        if (success_cb) {
-            json response = {{"result", {{"deleted_jobs", json::array({job_id})}}}};
-            success_cb(response);
-        }
+    // Dispatch to method handler registry
+    auto it = method_handlers_.find(method);
+    if (it != method_handlers_.end()) {
+        it->second(this, params, success_cb, error_cb);
         return next_mock_request_id();
     }
 
@@ -1074,6 +536,19 @@ RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const jso
                  method);
     return next_mock_request_id();
 }
+
+// Removed old implementation - now handled by method_handlers_ registry:
+// Lines 527-916 deleted (file/print/objects/history handlers moved to separate modules)
+// See: moonraker_client_mock_files.cpp, moonraker_client_mock_print.cpp,
+//      moonraker_client_mock_objects.cpp, moonraker_client_mock_history.cpp
+//
+// Old logic was:
+//   - server.files.* handlers (list, metadata, delete, move, copy, post_directory, delete_directory)
+//   - printer.gcode.script handler
+//   - printer.print.* handlers (start, pause, resume, cancel)
+//   - printer.objects.query handler
+//   - server.history.* handlers (list, totals, delete_job)
+//
 
 int MoonrakerClientMock::gcode_script(const std::string& gcode) {
     spdlog::debug("[MoonrakerClientMock] Mock gcode_script: {}", gcode);
@@ -1812,12 +1287,12 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
     // Build path to test G-code file
     // Handle both bare filenames (e.g., "3DBenchy.gcode") and full paths
     std::string full_path;
-    if (filename.find(TEST_GCODE_DIR) == 0) {
+    if (filename.find(RuntimeConfig::TEST_GCODE_DIR) == 0) {
         // Already a full path, use as-is
         full_path = filename;
     } else {
         // Bare filename, prepend test directory
-        full_path = std::string(TEST_GCODE_DIR) + "/" + filename;
+        full_path = std::string(RuntimeConfig::TEST_GCODE_DIR) + "/" + filename;
     }
 
     // Extract metadata from G-code file

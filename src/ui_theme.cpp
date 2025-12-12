@@ -590,6 +590,7 @@ void ui_set_overlay_width(lv_obj_t* obj, lv_obj_t* screen) {
  *   space_md:  8/10/12px
  *   space_lg:  12/16/20px
  *   space_xl:  16/20/24px
+ *   space_2xl: 24/32/40px
  *
  * @param token Spacing token name (e.g., "space_lg", "space_md", "space_xs")
  * @return Spacing value in pixels, or 0 if token not found

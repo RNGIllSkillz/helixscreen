@@ -118,6 +118,10 @@ TEST_SETTINGS_DEPS := \
 TEST_MOONRAKER_DEPS := \
     $(OBJ_DIR)/moonraker_client.o \
     $(OBJ_DIR)/moonraker_client_mock.o \
+    $(OBJ_DIR)/moonraker_client_mock_files.o \
+    $(OBJ_DIR)/moonraker_client_mock_print.o \
+    $(OBJ_DIR)/moonraker_client_mock_objects.o \
+    $(OBJ_DIR)/moonraker_client_mock_history.o \
     $(OBJ_DIR)/moonraker_api.o \
     $(OBJ_DIR)/moonraker_api_files.o \
     $(OBJ_DIR)/moonraker_api_print.o \

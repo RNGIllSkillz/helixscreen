@@ -57,6 +57,10 @@
     <px name="space_xl_small" value="16"/>
     <px name="space_xl_medium" value="20"/>
     <px name="space_xl_large" value="24"/>
+    <!-- space_2xl: Double extra large (toast/overlay offsets, large separations) -->
+    <px name="space_2xl_small" value="24"/>
+    <px name="space_2xl_medium" value="32"/>
+    <px name="space_2xl_large" value="40"/>
 
     <!-- ===================================================================== -->
     <!-- Responsive Icon Sizes (icon_size_*)                                  -->
@@ -423,6 +427,10 @@
     <!-- U+F0043 arrow-bottom-right -->
     <str name="icon_arrow_down_to_line" value="&#xF072E;"/>
     <!-- U+F072E arrow-down-bold (load) -->
+    <str name="icon_arrow_expand_down" value="&#xF0793;"/>
+    <!-- U+F0793 arrow-expand-down (bed dropping - CoreXY Z closer) -->
+    <str name="icon_arrow_expand_up" value="&#xF0796;"/>
+    <!-- U+F0796 arrow-expand-up (bed rising - CoreXY Z farther) -->
     <str name="icon_arrow_left" value="&#xF004D;"/>
     <!-- U+F004D arrow-left -->
     <str name="icon_arrow_right" value="&#xF0054;"/>

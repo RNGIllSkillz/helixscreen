@@ -60,6 +60,44 @@ class PrintCancelModal : public ModalBase {
 };
 
 /**
+ * @brief Warning modal for saving Z-offset during print
+ *
+ * SAVE_CONFIG restarts Klipper and will CANCEL any active print!
+ * Shows a strong warning with cancel/confirm options.
+ */
+class SaveZOffsetModal : public ModalBase {
+  public:
+    using ConfirmCallback = std::function<void()>;
+
+    const char* get_name() const override {
+        return "Save Z-Offset";
+    }
+    const char* get_xml_component_name() const override {
+        return "save_z_offset_modal";
+    }
+
+    void set_on_confirm(ConfirmCallback cb) {
+        on_confirm_cb_ = std::move(cb);
+    }
+
+  protected:
+    void on_show() override {
+        wire_ok_button();     // "Save & Restart" button
+        wire_cancel_button(); // "Cancel" button
+    }
+
+    void on_ok() override {
+        if (on_confirm_cb_) {
+            on_confirm_cb_();
+        }
+        hide();
+    }
+
+  private:
+    ConfirmCallback on_confirm_cb_;
+};
+
+/**
  * @brief Print status panel - shows active print progress and controls
  *
  * Displays filename, thumbnail, progress, layers, times, temperatures,
@@ -264,6 +302,18 @@ class PrintStatusPanel : public PanelBase {
      */
     void handle_tune_reset();
 
+    /**
+     * @brief Handle Z-offset button click (baby stepping)
+     * @param delta Z-offset change in mm (negative = closer/more squish)
+     */
+    void handle_tune_z_offset_changed(double delta);
+
+    /**
+     * @brief Handle save Z-offset button click
+     * Shows warning modal since SAVE_CONFIG will restart Klipper
+     */
+    void handle_tune_save_z_offset();
+
   private:
     //
     // === Subjects (owned by this panel) ===
@@ -353,8 +403,14 @@ class PrintStatusPanel : public PanelBase {
     // Tuning panel subjects
     lv_subject_t tune_speed_subject_;
     lv_subject_t tune_flow_subject_;
+    lv_subject_t tune_z_offset_subject_;
     char tune_speed_buf_[16] = "100%";
     char tune_flow_buf_[16] = "100%";
+    char tune_z_offset_buf_[16] = "0.000mm";
+    double current_z_offset_ = 0.0; ///< Current Z-offset in mm (for display)
+
+    // Z-offset save warning modal
+    SaveZOffsetModal save_z_offset_modal_;
 
     // Resize callback registration flag
     bool resize_registered_ = false;
@@ -369,6 +425,7 @@ class PrintStatusPanel : public PanelBase {
     void load_thumbnail_for_file(const std::string& filename); ///< Fetch and display thumbnail
     void setup_tune_panel(lv_obj_t* panel);
     void update_tune_display();
+    void update_z_offset_icons(lv_obj_t* panel); ///< Update Z-offset icons based on kinematics
     void update_button_states(); ///< Enable/disable buttons based on current print state
 
     static void format_time(int seconds, char* buf, size_t buf_size);
@@ -414,6 +471,7 @@ class PrintStatusPanel : public PanelBase {
     static void print_filename_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
     static void speed_factor_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
     static void flow_factor_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
+    static void gcode_z_offset_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
     static void led_state_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
     static void print_layer_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
     static void excluded_objects_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
@@ -430,6 +488,7 @@ class PrintStatusPanel : public PanelBase {
     void on_print_filename_changed(const char* filename);
     void on_speed_factor_changed(int speed);
     void on_flow_factor_changed(int flow);
+    void on_gcode_z_offset_changed(int microns);
     void on_led_state_changed(int state);
     void on_print_layer_changed(int current_layer);
     void on_excluded_objects_changed();
@@ -446,6 +505,7 @@ class PrintStatusPanel : public PanelBase {
     ObserverGuard print_filename_observer_;
     ObserverGuard speed_factor_observer_;
     ObserverGuard flow_factor_observer_;
+    ObserverGuard gcode_z_offset_observer_;
     ObserverGuard led_state_observer_;
     ObserverGuard print_layer_observer_;
     ObserverGuard excluded_objects_observer_;

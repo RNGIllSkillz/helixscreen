@@ -34,6 +34,10 @@ static void on_tune_speed_changed_cb(lv_event_t* e);
 static void on_tune_flow_changed_cb(lv_event_t* e);
 static void on_tune_reset_clicked_cb(lv_event_t* e);
 
+// Z-offset tune callbacks (single handler extracts delta from button name)
+static void on_tune_z_offset_cb(lv_event_t* e);
+static void on_tune_save_z_offset_cb(lv_event_t* e);
+
 // Helper to get or create the global instance
 PrintStatusPanel& get_global_print_status_panel() {
     if (!g_print_status_panel) {
@@ -67,6 +71,8 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, MoonrakerAPI* ap
         ObserverGuard(printer_state_.get_speed_factor_subject(), speed_factor_observer_cb, this);
     flow_factor_observer_ =
         ObserverGuard(printer_state_.get_flow_factor_subject(), flow_factor_observer_cb, this);
+    gcode_z_offset_observer_ = ObserverGuard(printer_state_.get_gcode_z_offset_subject(),
+                                             gcode_z_offset_observer_cb, this);
 
     // Subscribe to layer tracking for G-code viewer ghost layer updates
     print_layer_observer_ = ObserverGuard(printer_state_.get_print_layer_current_subject(),
@@ -169,11 +175,17 @@ void PrintStatusPanel::init_subjects() {
                                         "tune_speed_display");
     UI_SUBJECT_INIT_AND_REGISTER_STRING(tune_flow_subject_, tune_flow_buf_, "100%",
                                         "tune_flow_display");
+    UI_SUBJECT_INIT_AND_REGISTER_STRING(tune_z_offset_subject_, tune_z_offset_buf_, "0.000mm",
+                                        "tune_z_offset_display");
 
     // Register XML event callbacks for tune panel
     lv_xml_register_event_cb(nullptr, "on_tune_speed_changed", on_tune_speed_changed_cb);
     lv_xml_register_event_cb(nullptr, "on_tune_flow_changed", on_tune_flow_changed_cb);
     lv_xml_register_event_cb(nullptr, "on_tune_reset_clicked", on_tune_reset_clicked_cb);
+
+    // Z-offset tune callbacks (single handler parses button name for delta)
+    lv_xml_register_event_cb(nullptr, "on_tune_z_offset", on_tune_z_offset_cb);
+    lv_xml_register_event_cb(nullptr, "on_tune_save_z_offset", on_tune_save_z_offset_cb);
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized (17 subjects)", get_name());
@@ -880,6 +892,13 @@ void PrintStatusPanel::flow_factor_observer_cb(lv_observer_t* observer, lv_subje
     }
 }
 
+void PrintStatusPanel::gcode_z_offset_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    auto* self = static_cast<PrintStatusPanel*>(lv_observer_get_user_data(observer));
+    if (self) {
+        self->on_gcode_z_offset_changed(lv_subject_get_int(subject));
+    }
+}
+
 void PrintStatusPanel::led_state_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     auto* self = static_cast<PrintStatusPanel*>(lv_observer_get_user_data(observer));
     if (self) {
@@ -1071,6 +1090,17 @@ void PrintStatusPanel::on_flow_factor_changed(int flow) {
     spdlog::trace("[{}] Flow factor updated: {}%", get_name(), flow);
 }
 
+void PrintStatusPanel::on_gcode_z_offset_changed(int microns) {
+    // Update display from PrinterState (microns -> mm)
+    current_z_offset_ = microns / 1000.0;
+    if (subjects_initialized_) {
+        std::snprintf(tune_z_offset_buf_, sizeof(tune_z_offset_buf_), "%.3fmm", current_z_offset_);
+        lv_subject_copy_string(&tune_z_offset_subject_, tune_z_offset_buf_);
+    }
+    spdlog::trace("[{}] G-code Z-offset updated: {}µm ({}mm)", get_name(), microns,
+                  current_z_offset_);
+}
+
 void PrintStatusPanel::on_led_state_changed(int state) {
     led_on_ = (state != 0);
     spdlog::debug("[{}] LED state changed: {} (from PrinterState)", get_name(),
@@ -1190,10 +1220,49 @@ void PrintStatusPanel::setup_tune_panel(lv_obj_t* panel) {
     ui_overlay_panel_setup_standard(panel, parent_screen_, "overlay_header", "overlay_content");
 
     // Event handlers are registered via XML event_cb declarations
-    // (on_tune_speed_changed, on_tune_flow_changed, on_tune_reset_clicked)
+    // (on_tune_speed_changed, on_tune_flow_changed, on_tune_reset_clicked, on_tune_z_offset)
     // Callbacks registered in init_subjects() via lv_xml_register_event_cb()
 
+    // Update Z-offset icons based on printer kinematics
+    update_z_offset_icons(panel);
+
     spdlog::debug("[{}] Tune panel setup complete (events wired via XML)", get_name());
+}
+
+void PrintStatusPanel::update_z_offset_icons(lv_obj_t* panel) {
+    // Get kinematics type from PrinterState
+    // 0 = unknown, 1 = bed moves Z (CoreXY), 2 = head moves Z (Cartesian/Delta)
+    int kin = lv_subject_get_int(printer_state_.get_printer_bed_moves_subject());
+    bool bed_moves_z = (kin == 1);
+
+    // Select icon codepoints based on kinematics
+    // CoreXY (bed moves): expand icons show bed motion
+    // Cartesian/Delta (head moves): arrow icons show head motion
+    const char* closer_icon =
+        bed_moves_z ? "\xF3\xB0\x9E\x93" : "\xF3\xB0\x81\x85"; // arrow-expand-down : arrow-down
+    const char* farther_icon =
+        bed_moves_z ? "\xF3\xB0\x9E\x96" : "\xF3\xB0\x81\x9D"; // arrow-expand-up : arrow-up
+
+    // Find and update all closer icons (3 buttons)
+    const char* closer_names[] = {"icon_z_closer_01", "icon_z_closer_005", "icon_z_closer_001"};
+    for (const char* name : closer_names) {
+        lv_obj_t* icon = lv_obj_find_by_name(panel, name);
+        if (icon) {
+            lv_label_set_text(icon, closer_icon);
+        }
+    }
+
+    // Find and update all farther icons (3 buttons)
+    const char* farther_names[] = {"icon_z_farther_001", "icon_z_farther_005", "icon_z_farther_01"};
+    for (const char* name : farther_names) {
+        lv_obj_t* icon = lv_obj_find_by_name(panel, name);
+        if (icon) {
+            lv_label_set_text(icon, farther_icon);
+        }
+    }
+
+    spdlog::debug("[{}] Z-offset icons set for {} kinematics", get_name(),
+                  bed_moves_z ? "bed-moves-Z" : "head-moves-Z");
 }
 
 void PrintStatusPanel::update_tune_display() {
@@ -1308,6 +1377,48 @@ void PrintStatusPanel::handle_tune_reset() {
     }
 }
 
+void PrintStatusPanel::handle_tune_z_offset_changed(double delta) {
+    // Update local display immediately for responsive feel
+    current_z_offset_ += delta;
+    std::snprintf(tune_z_offset_buf_, sizeof(tune_z_offset_buf_), "%.3fmm", current_z_offset_);
+    lv_subject_copy_string(&tune_z_offset_subject_, tune_z_offset_buf_);
+
+    spdlog::debug("[{}] Z-offset adjust: {:+.3f}mm (total: {:.3f}mm)", get_name(), delta,
+                  current_z_offset_);
+
+    // Send SET_GCODE_OFFSET Z_ADJUST command to Klipper
+    if (api_) {
+        char gcode[64];
+        std::snprintf(gcode, sizeof(gcode), "SET_GCODE_OFFSET Z_ADJUST=%.3f", delta);
+        api_->execute_gcode(
+            gcode, [delta]() { spdlog::debug("[PrintStatusPanel] Z adjusted {:+.3f}mm", delta); },
+            [](const MoonrakerError& err) {
+                spdlog::error("[PrintStatusPanel] Z-offset adjust failed: {}", err.message);
+                NOTIFY_ERROR("Z-offset failed: {}", err.user_message());
+            });
+    }
+}
+
+void PrintStatusPanel::handle_tune_save_z_offset() {
+    // Show warning modal - SAVE_CONFIG restarts Klipper and cancels active prints!
+    save_z_offset_modal_.set_on_confirm([this]() {
+        if (api_) {
+            api_->execute_gcode(
+                "SAVE_CONFIG",
+                []() {
+                    spdlog::info("[PrintStatusPanel] Z-offset saved - Klipper restarting");
+                    ui_toast_show(ToastSeverity::WARNING, "Z-offset saved - Klipper restarting...",
+                                  5000);
+                },
+                [](const MoonrakerError& err) {
+                    spdlog::error("[PrintStatusPanel] SAVE_CONFIG failed: {}", err.message);
+                    NOTIFY_ERROR("Save failed: {}", err.user_message());
+                });
+        }
+    });
+    save_z_offset_modal_.show(lv_screen_active());
+}
+
 // ============================================================================
 // XML EVENT CALLBACKS (free functions using global accessor)
 // ============================================================================
@@ -1330,6 +1441,65 @@ static void on_tune_flow_changed_cb(lv_event_t* e) {
 
 static void on_tune_reset_clicked_cb(lv_event_t* /*e*/) {
     get_global_print_status_panel().handle_tune_reset();
+}
+
+/**
+ * @brief Single callback for all Z-offset buttons
+ *
+ * Parses button name to determine direction and magnitude:
+ *   - btn_z_closer_01  -> -0.1mm (closer = negative = more squish)
+ *   - btn_z_closer_005 -> -0.05mm
+ *   - btn_z_closer_001 -> -0.01mm
+ *   - btn_z_farther_001 -> +0.01mm (farther = positive = less squish)
+ *   - btn_z_farther_005 -> +0.05mm
+ *   - btn_z_farther_01 -> +0.1mm
+ */
+static void on_tune_z_offset_cb(lv_event_t* e) {
+    lv_obj_t* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
+    if (!btn) {
+        return;
+    }
+
+    // Get button name to determine delta
+    const char* name = lv_obj_get_name(btn);
+    if (!name) {
+        spdlog::warn("[on_tune_z_offset_cb] Button has no name");
+        return;
+    }
+
+    // Parse direction: "closer" = negative, "farther" = positive
+    double delta = 0.0;
+    bool is_closer = (strstr(name, "closer") != nullptr);
+    bool is_farther = (strstr(name, "farther") != nullptr);
+
+    if (!is_closer && !is_farther) {
+        spdlog::warn("[on_tune_z_offset_cb] Unknown button name: {}", name);
+        return;
+    }
+
+    // Parse magnitude from suffix: "_01" = 0.1, "_005" = 0.05, "_001" = 0.01
+    if (strstr(name, "_01") && !strstr(name, "_001")) {
+        delta = 0.1;
+    } else if (strstr(name, "_005")) {
+        delta = 0.05;
+    } else if (strstr(name, "_001")) {
+        delta = 0.01;
+    } else {
+        spdlog::warn("[on_tune_z_offset_cb] Unknown delta in button name: {}", name);
+        return;
+    }
+
+    // Apply direction: closer = more squish = negative Z adjust
+    if (is_closer) {
+        delta = -delta;
+    }
+
+    spdlog::trace("[on_tune_z_offset_cb] Button '{}' -> delta {:+.3f}mm", name, delta);
+    get_global_print_status_panel().handle_tune_z_offset_changed(delta);
+}
+
+static void on_tune_save_z_offset_cb(lv_event_t* /*e*/) {
+    get_global_print_status_panel().handle_tune_save_z_offset();
 }
 
 // ============================================================================

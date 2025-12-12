@@ -108,6 +108,7 @@ void PrinterState::reset_for_testing() {
     lv_subject_deinit(&homed_axes_);
     lv_subject_deinit(&speed_factor_);
     lv_subject_deinit(&flow_factor_);
+    lv_subject_deinit(&gcode_z_offset_);
     lv_subject_deinit(&fan_speed_);
     lv_subject_deinit(&printer_connection_state_);
     lv_subject_deinit(&printer_connection_message_);
@@ -174,6 +175,7 @@ void PrinterState::init_subjects(bool register_xml) {
     // Speed/Flow subjects (percentages)
     lv_subject_init_int(&speed_factor_, 100);
     lv_subject_init_int(&flow_factor_, 100);
+    lv_subject_init_int(&gcode_z_offset_, 0); // Z-offset in microns from homing_origin[2]
     lv_subject_init_int(&fan_speed_, 0);
 
     // Printer connection state subjects (Moonraker WebSocket)
@@ -240,6 +242,7 @@ void PrinterState::init_subjects(bool register_xml) {
         lv_xml_register_subject(NULL, "homed_axes", &homed_axes_);
         lv_xml_register_subject(NULL, "speed_factor", &speed_factor_);
         lv_xml_register_subject(NULL, "flow_factor", &flow_factor_);
+        lv_xml_register_subject(NULL, "gcode_z_offset", &gcode_z_offset_);
         lv_xml_register_subject(NULL, "fan_speed", &fan_speed_);
         lv_xml_register_subject(NULL, "printer_connection_state", &printer_connection_state_);
         lv_xml_register_subject(NULL, "printer_connection_message", &printer_connection_message_);
@@ -430,6 +433,16 @@ void PrinterState::update_from_status(const json& state) {
             double factor = gcode_move["extrude_factor"].get<double>();
             int factor_pct = static_cast<int>(factor * 100.0);
             lv_subject_set_int(&flow_factor_, factor_pct);
+        }
+
+        // Parse Z-offset from homing_origin[2] (baby stepping / SET_GCODE_OFFSET Z=)
+        if (gcode_move.contains("homing_origin") && gcode_move["homing_origin"].is_array()) {
+            const auto& origin = gcode_move["homing_origin"];
+            if (origin.size() >= 3 && origin[2].is_number()) {
+                int z_microns = static_cast<int>(origin[2].get<double>() * 1000.0);
+                lv_subject_set_int(&gcode_z_offset_, z_microns);
+                spdlog::trace("[PrinterState] G-code Z-offset: {}µm", z_microns);
+            }
         }
     }
 
@@ -677,15 +690,21 @@ bool PrinterState::can_start_new_print() const {
 }
 
 void PrinterState::set_kinematics(const std::string& kinematics) {
-    // Determine if the bed moves based on kinematics type:
-    // - Cartesian: bed moves down on Z axis during print
-    // - CoreXY, Delta, etc.: gantry/print head moves up on Z axis
-    bool bed_moves = (kinematics.find("cartesian") != std::string::npos);
-    int new_value = bed_moves ? 1 : 0;
+    // Determine if the bed moves on Z based on kinematics type:
+    // - CoreXY/CoreXZ: bed typically moves on Z axis (Voron 2.4, RatRig, etc.)
+    // - Cartesian: gantry typically moves on Z axis (Ender 3, Prusa MK3, etc.)
+    // - Delta: effector moves on Z, bed is stationary
+    //
+    // Note: This is a heuristic. Some CoreXY printers (Voron Trident) have gantry-Z.
+    // For perfect accuracy, we'd need to parse stepper_z configuration.
+    bool bed_moves_z = (kinematics.find("corexy") != std::string::npos ||
+                        kinematics.find("corexz") != std::string::npos ||
+                        kinematics.find("hybrid_corexy") != std::string::npos);
+    int new_value = bed_moves_z ? 1 : 0;
 
     // Only log when value actually changes (this gets called frequently from status updates)
     if (lv_subject_get_int(&printer_bed_moves_) != new_value) {
         lv_subject_set_int(&printer_bed_moves_, new_value);
-        spdlog::info("[PrinterState] Kinematics set: {} (bed_moves={})", kinematics, bed_moves);
+        spdlog::info("[PrinterState] Kinematics: {} -> bed_moves_z={}", kinematics, bed_moves_z);
     }
 }

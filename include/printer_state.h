@@ -264,6 +264,17 @@ class PrinterState {
         return &fan_speed_;
     }
 
+    /**
+     * @brief Get G-code Z offset subject for tune panel
+     *
+     * Returns current Z-offset from gcode_move.homing_origin[2] in microns.
+     * Divide by 1000.0 to get mm value (e.g., 200 = 0.200mm).
+     * Used for live baby-stepping display during prints.
+     */
+    lv_subject_t* get_gcode_z_offset_subject() {
+        return &gcode_z_offset_;
+    }
+
     // Printer connection state subjects (Moonraker WebSocket)
     lv_subject_t* get_printer_connection_state_subject() {
         return &printer_connection_state_;
@@ -455,8 +466,8 @@ class PrinterState {
      * @brief Set printer kinematics type and update bed_moves subject
      *
      * Updates printer_bed_moves_ subject based on kinematics type.
-     * Cartesian printers have moving beds (Z moves bed down during print).
-     * CoreXY/Delta printers have moving gantries (Z moves print head up).
+     * CoreXY printers typically have bed moving on Z (Voron 2.4, RatRig).
+     * Cartesian/Delta printers typically have gantry moving on Z (Ender 3, Prusa).
      *
      * @param kinematics Kinematics type string from toolhead config
      */
@@ -465,8 +476,9 @@ class PrinterState {
     /**
      * @brief Get bed_moves subject for XML binding
      *
-     * Returns 1 if the printer has a moving bed (cartesian),
-     * 0 if the printer has a moving gantry (corexy, delta, etc.).
+     * Returns 1 if the printer's bed moves on Z axis (corexy, corexz),
+     * 0 if the printer's gantry/head moves on Z (cartesian, delta).
+     * Used for Z-offset UI to show appropriate directional icons.
      */
     lv_subject_t* get_printer_bed_moves_subject() {
         return &printer_bed_moves_;
@@ -533,9 +545,10 @@ class PrinterState {
     lv_subject_t position_z_;
     lv_subject_t homed_axes_; // String buffer
 
-    // Speed/Flow subjects
+    // Speed/Flow/Z-offset subjects (from gcode_move status)
     lv_subject_t speed_factor_;
     lv_subject_t flow_factor_;
+    lv_subject_t gcode_z_offset_; // Integer: Z-offset * 1000 (microns) from homing_origin[2]
     lv_subject_t fan_speed_;
 
     // Printer connection state subjects (Moonraker WebSocket)

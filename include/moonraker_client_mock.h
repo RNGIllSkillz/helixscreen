@@ -18,6 +18,16 @@
 // Forward declaration for shared state
 class MockPrinterState;
 
+// Forward declaration for MoonrakerClientMock (needed for internal handler registry)
+class MoonrakerClientMock;
+
+// Forward declaration for internal handler registry
+namespace mock_internal {
+using MethodHandler = std::function<bool(
+    MoonrakerClientMock*, const json&, std::function<void(json)>,
+    std::function<void(const MoonrakerError&)>)>;
+} // namespace mock_internal
+
 /**
  * @brief Mock Moonraker client for testing without real printer connection
  *
@@ -324,6 +334,46 @@ class MoonrakerClientMock : public MoonrakerClient {
      */
     void set_bed_target(double target);
 
+    // ========== Internal API (for use by method handler modules) ==========
+
+    /**
+     * @brief Start a print job (internal implementation)
+     *
+     * Extracts metadata from the G-code file and begins preheat phase.
+     * Called by both SDCARD_PRINT_FILE G-code and printer.print.start JSON-RPC.
+     *
+     * @param filename G-code filename (relative path)
+     * @return true if print started successfully, false on error
+     */
+    bool start_print_internal(const std::string& filename);
+
+    /**
+     * @brief Pause current print (internal implementation)
+     *
+     * Called by both PAUSE G-code and printer.print.resume JSON-RPC.
+     *
+     * @return true if print was paused, false if not currently printing
+     */
+    bool pause_print_internal();
+
+    /**
+     * @brief Resume paused print (internal implementation)
+     *
+     * Called by both RESUME G-code and printer.print.resume JSON-RPC.
+     *
+     * @return true if print was resumed, false if not currently paused
+     */
+    bool resume_print_internal();
+
+    /**
+     * @brief Cancel current print (internal implementation)
+     *
+     * Called by both CANCEL_PRINT G-code and printer.print.cancel JSON-RPC.
+     *
+     * @return true if print was cancelled, false if no active print
+     */
+    bool cancel_print_internal();
+
   private:
     /**
      * @brief Populate hardware lists based on configured printer type
@@ -397,47 +447,6 @@ class MoonrakerClientMock : public MoonrakerClient {
      * "error"
      */
     std::string get_print_state_string() const;
-
-    // ========== Unified Print Control (internal implementation) ==========
-    // These methods are called by BOTH G-code commands AND JSON-RPC API
-
-    /**
-     * @brief Start a print job (internal implementation)
-     *
-     * Extracts metadata from the G-code file and begins preheat phase.
-     * Called by both SDCARD_PRINT_FILE G-code and printer.print.start JSON-RPC.
-     *
-     * @param filename G-code filename (relative path)
-     * @return true if print started successfully, false on error
-     */
-    bool start_print_internal(const std::string& filename);
-
-    /**
-     * @brief Pause current print (internal implementation)
-     *
-     * Called by both PAUSE G-code and printer.print.pause JSON-RPC.
-     *
-     * @return true if print was paused, false if not currently printing
-     */
-    bool pause_print_internal();
-
-    /**
-     * @brief Resume paused print (internal implementation)
-     *
-     * Called by both RESUME G-code and printer.print.resume JSON-RPC.
-     *
-     * @return true if print was resumed, false if not currently paused
-     */
-    bool resume_print_internal();
-
-    /**
-     * @brief Cancel current print (internal implementation)
-     *
-     * Called by both CANCEL_PRINT G-code and printer.print.cancel JSON-RPC.
-     *
-     * @return true if print was cancelled, false if no active print
-     */
-    bool cancel_print_internal();
 
     // ========== Simulation Helpers ==========
 
@@ -598,6 +607,9 @@ class MoonrakerClientMock : public MoonrakerClient {
     // Restart simulation thread (for RESTART/FIRMWARE_RESTART commands)
     std::thread restart_thread_;
     std::atomic<bool> restart_pending_{false};
+
+    // Method handler registry (populated at construction)
+    std::unordered_map<std::string, mock_internal::MethodHandler> method_handlers_;
 
     // Simulation parameters (realistic heating rates)
     static constexpr double ROOM_TEMP = 25.0;

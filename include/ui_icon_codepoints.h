@@ -36,12 +36,14 @@ static const IconMapping ICON_MAP[] = {
     {"alert_octagon",      "\xF3\xB0\x80\xA9"},  // F0029 alert-octagon
 
     // Arrow icons
-    {"arrow_down",         "\xF3\xB0\x81\x85"},  // F0045 arrow-down
+    {"arrow_down",         "\xF3\xB0\x81\x85"},  // F0045 arrow-down (head descends)
+    {"arrow_expand_down",  "\xF3\xB0\x9E\x93"},  // F0793 arrow-expand-down (bed drops - CoreXY)
+    {"arrow_expand_up",    "\xF3\xB0\x9E\x96"},  // F0796 arrow-expand-up (bed rises - CoreXY)
     {"arrow_left",         "\xF3\xB0\x81\x8D"},  // F004D arrow-left
     {"arrow_left_bold",    "\xF3\xB0\x9C\xB1"},  // F0731 arrow-left-bold
     {"arrow_right",        "\xF3\xB0\x81\x94"},  // F0054 arrow-right
     {"arrow_right_bold",   "\xF3\xB0\x9C\xB4"},  // F0734 arrow-right-bold
-    {"arrow_up",           "\xF3\xB0\x81\x9D"},  // F005D arrow-up
+    {"arrow_up",           "\xF3\xB0\x81\x9D"},  // F005D arrow-up (head ascends)
     {"axis_arrow",         "\xF3\xB0\xB5\x89"},  // F0D49 axis-arrow (all 3 axes)
     {"axis_x_arrow",       "\xF3\xB0\xB5\x8C"},  // F0D4C axis-x-arrow
     {"axis_y_arrow",       "\xF3\xB0\xB5\x91"},  // F0D51 axis-y-arrow

@@ -206,7 +206,9 @@ MDI_ICONS+=",0xF073A"    # cancel
 MDI_ICONS+=",0xF0758"    # grid-large
 MDI_ICONS+=",0xF0770"    # folder-open
 MDI_ICONS+=",0xF0792"    # arrow-collapse-down (flow-down)
+MDI_ICONS+=",0xF0793"    # arrow-expand-down (bed drops - CoreXY Z closer)
 MDI_ICONS+=",0xF0795"    # arrow-collapse-up (flow-up)
+MDI_ICONS+=",0xF0796"    # arrow-expand-up (bed rises - CoreXY Z farther)
 MDI_ICONS+=",0xF081D"    # fan-off
 MDI_ICONS+=",0xF08E9"    # tune-variant (controls)
 
