@@ -1,10 +1,14 @@
+// Copyright 2025 HelixScreen
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_ams_mini_status.h"
 
 #include "ui_fonts.h"
+#include "ui_observer_guard.h"
 #include "ui_theme.h"
 
+#include "ams_backend.h"
+#include "ams_state.h"
 #include "lvgl/src/xml/lv_xml.h"
 
 #include <spdlog/spdlog.h>
@@ -60,6 +64,10 @@ struct AmsMiniStatusData {
 
     // Per-slot data
     SlotBarData slots[AMS_MINI_STATUS_MAX_VISIBLE];
+
+    // Auto-binding observer (observes AmsState::gate_count_subject)
+    // Uses ObserverGuard for RAII lifecycle management
+    ObserverGuard gate_count_observer;
 };
 
 // Static registry for safe cleanup
@@ -69,6 +77,11 @@ static AmsMiniStatusData* get_data(lv_obj_t* obj) {
     auto it = s_registry.find(obj);
     return (it != s_registry.end()) ? it->second : nullptr;
 }
+
+// Forward declarations for internal functions
+static void rebuild_bars(AmsMiniStatusData* data);
+static void sync_from_ams_state(AmsMiniStatusData* data);
+static void on_ams_gate_count_changed(lv_observer_t* observer, lv_subject_t* subject);
 
 // ============================================================================
 // Internal helpers
@@ -190,7 +203,13 @@ static void on_delete(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
     auto it = s_registry.find(obj);
     if (it != s_registry.end()) {
-        delete it->second;
+        AmsMiniStatusData* data = it->second;
+        if (data) {
+            // Release observer before delete to prevent destructor from calling
+            // lv_observer_remove() on potentially destroyed subjects during shutdown
+            data->gate_count_observer.release();
+        }
+        delete data;
         s_registry.erase(it);
     }
 }
@@ -255,6 +274,21 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
     // Initially hidden (no gates)
     lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
 
+    // Auto-bind to AmsState: observe gate_count changes and sync slot data
+    // This makes the widget self-updating - no external wiring needed
+    lv_subject_t* gate_count_subject = AmsState::instance().get_gate_count_subject();
+    if (gate_count_subject) {
+        data->gate_count_observer =
+            ObserverGuard(gate_count_subject, on_ams_gate_count_changed, container);
+        spdlog::debug("[AmsMiniStatus] Auto-bound to AmsState gate_count subject");
+
+        // Sync initial state if AMS already has data
+        int current_gate_count = lv_subject_get_int(gate_count_subject);
+        if (current_gate_count > 0) {
+            sync_from_ams_state(data);
+        }
+    }
+
     spdlog::debug("[AmsMiniStatus] Created (height={})", height);
     return container;
 }
@@ -295,7 +329,7 @@ void ui_ams_mini_status_set_slot(lv_obj_t* obj, int slot_index, uint32_t color_r
 
     SlotBarData* slot = &data->slots[slot_index];
     slot->color_rgb = color_rgb;
-    slot->fill_pct = std::max(0, std::min(100, fill_pct));
+    slot->fill_pct = std::clamp(fill_pct, 0, 100);
     slot->present = present;
 
     update_slot_bar(slot, data->height);
@@ -312,4 +346,70 @@ void ui_ams_mini_status_refresh(lv_obj_t* obj) {
 bool ui_ams_mini_status_is_valid(lv_obj_t* obj) {
     auto* data = get_data(obj);
     return data && data->magic == AMS_MINI_STATUS_MAGIC;
+}
+
+// ============================================================================
+// Auto-binding to AmsState
+// ============================================================================
+
+/**
+ * @brief Sync widget state from AmsState backend
+ *
+ * Reads gate count and per-gate info from AmsState and updates the widget.
+ * Called on initial creation and when gate_count changes.
+ */
+static void sync_from_ams_state(AmsMiniStatusData* data) {
+    if (!data)
+        return;
+
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        // No backend - hide widget
+        data->gate_count = 0;
+        rebuild_bars(data);
+        return;
+    }
+
+    int gate_count = lv_subject_get_int(AmsState::instance().get_gate_count_subject());
+    data->gate_count = gate_count;
+
+    // Populate each slot from backend gate info
+    for (int i = 0; i < gate_count && i < AMS_MINI_STATUS_MAX_VISIBLE; ++i) {
+        GateInfo gate = backend->get_gate_info(i);
+
+        // Calculate fill percentage from weight data
+        int fill_pct = 100;
+        if (gate.total_weight_g > 0) {
+            fill_pct = static_cast<int>((gate.remaining_weight_g / gate.total_weight_g) * 100.0f);
+            fill_pct = std::clamp(fill_pct, 0, 100);
+        }
+
+        bool present = (gate.status != GateStatus::EMPTY && gate.status != GateStatus::UNKNOWN);
+
+        SlotBarData* slot = &data->slots[i];
+        slot->color_rgb = gate.color_rgb;
+        slot->fill_pct = fill_pct;
+        slot->present = present;
+    }
+
+    rebuild_bars(data);
+    spdlog::debug("[AmsMiniStatus] Synced from AmsState: {} gates", gate_count);
+}
+
+/**
+ * @brief Observer callback for AmsState gate_count changes
+ *
+ * Automatically updates the widget when AMS backend reports gate count changes.
+ */
+static void on_ams_gate_count_changed(lv_observer_t* observer, lv_subject_t* subject) {
+    (void)subject;
+    lv_obj_t* container = static_cast<lv_obj_t*>(lv_observer_get_user_data(observer));
+    if (!container)
+        return;
+
+    auto* data = get_data(container);
+    if (!data)
+        return;
+
+    sync_from_ams_state(data);
 }

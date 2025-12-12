@@ -3,101 +3,126 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <!-- Filament Management Panel -->
-  <!-- Two-column layout: left (visualization + status), right (controls) -->
-  <!-- Component-local constants for label sizing -->
-  <consts>
-    <!-- Generic label heights for consistent text sizing in status displays -->
-    <px name="label_height_xs" value="16"/>
-    <px name="label_height_sm" value="20"/>
-    <px name="label_height_md" value="24"/>
-    <px name="label_height_lg" value="32"/>
-  </consts>
+  <!-- Two-column layout: left (temp status + AMS), right (material + operations) -->
   <view extends="lv_obj" name="filament_panel" width="100%" height="100%" style_border_width="0" style_pad_all="#space_lg" scrollable="false" flex_flow="row" style_flex_main_place="space_between" style_pad_gap="#space_lg" style_bg_color="#app_bg_color">
     <!-- ================================================================== -->
-    <!-- LEFT COLUMN: Visualization & Temperature Status                   -->
+    <!-- LEFT COLUMN: Temperature Status & AMS                              -->
     <!-- ================================================================== -->
     <lv_obj name="left_column" width="40%" height="100%" style_bg_opa="0" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column" style_flex_main_place="start" style_pad_gap="#space_lg">
-      <!-- Filament Spool Visualization Card -->
-      <ui_card name="spool_visualization" width="100%" height="320" style_radius="#border_radius_large" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center">
-        <!-- Filament spool placeholder (TODO: add actual image) -->
-        <icon src="filament" size="xl" variant="primary"/>
-        <text_body text="Filament Spool" style_pad_top="#space_md" align="center"/>
-      </ui_card>
       <!-- Temperature Status Card -->
-      <ui_card name="temp_status_card" width="100%" height="140" style_radius="#border_radius_large" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_md">
+      <ui_card name="temp_status_card" width="100%" height="content" style_radius="#border_radius_large" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
         <!-- Header -->
         <text_body text="Nozzle Temperature" align="center"/>
-        <!-- Temperature Display (Current / Target) -->
-        <lv_label name="temp_display" bind_text="filament_temp_display" style_text_font="montserrat_28" align="center"/>
-        <!-- Status Indicator -->
-        <text_small name="status_indicator" bind_text="filament_status" align="center"/>
+        <!-- Temperature Display (Current / Target) - uses responsive heading font -->
+        <lv_label name="temp_display" bind_text="filament_temp_display" style_text_font="#font_heading" align="center"/>
+        <!-- Status Indicator (icon + text row) -->
+        <lv_obj width="content" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
+          <icon name="status_icon" src="cooldown" size="xs" variant="secondary"/>
+          <text_small name="status_text" bind_text="filament_status"/>
+        </lv_obj>
       </ui_card>
+
+      <!-- AMS Multi-Filament Card (hidden if no AMS) -->
+      <ui_card name="ams_status_card" width="100%" height="content" style_radius="#border_radius" style_pad_all="#space_md" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
+        <lv_obj-bind_flag_if_eq subject="ams_type" flag="hidden" ref_value="0"/>
+        <!-- Header row with icon -->
+        <lv_obj width="100%" height="content" style_bg_opa="0" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center">
+          <text_body text="Multi-Filament"/>
+          <icon src="filament" size="sm" variant="primary"/>
+        </lv_obj>
+        <!-- AMS mini status container (populated by C++) -->
+        <lv_obj name="ams_mini_container" width="100%" height="40" style_bg_opa="0" style_border_width="0"/>
+        <!-- Manage Slots Button -->
+        <lv_button name="btn_manage_slots" width="100%" height="#button_height" style_radius="#border_radius" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center">
+          <event_cb trigger="clicked" callback="filament_manage_slots_cb"/>
+          <text_body text="Manage Slots"/>
+        </lv_button>
+      </ui_card>
+
+      <!-- Spacer to push content up -->
+      <lv_obj flex_grow="1" style_bg_opa="0" style_border_width="0"/>
     </lv_obj>
+
     <!-- ================================================================== -->
     <!-- RIGHT COLUMN: Material Selection & Actions                        -->
     <!-- ================================================================== -->
     <lv_obj name="right_column" width="58%" height="100%" style_bg_opa="0" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column" style_flex_main_place="start" style_pad_gap="#space_md">
       <!-- Material Selection Header -->
-      <text_body text="Material Selection" align="left_mid"/>
+      <text_body text="Material" align="left_mid"/>
+
       <!-- Material Preset Buttons (2x2 Grid) -->
-      <lv_obj name="preset_grid" width="100%" height="116" style_bg_opa="0" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
+      <lv_obj name="preset_grid" width="100%" height="content" style_bg_opa="0" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
         <!-- Row 1: PLA, PETG -->
         <lv_obj width="100%" height="#button_height" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_md">
-          <lv_button name="preset_pla" flex_grow="1" height="#button_height" style_radius="#space_xs" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
+          <lv_button name="preset_pla" flex_grow="1" height="#button_height" style_radius="#border_radius" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
             <icon src="leaf" size="xs"/>
             <text_body text="PLA"/>
           </lv_button>
-          <lv_button name="preset_petg" flex_grow="1" height="#button_height" style_radius="#space_xs" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
+          <lv_button name="preset_petg" flex_grow="1" height="#button_height" style_radius="#border_radius" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
             <icon src="cube" size="xs"/>
             <text_body text="PETG"/>
           </lv_button>
         </lv_obj>
         <!-- Row 2: ABS, Custom -->
         <lv_obj width="100%" height="#button_height" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_md">
-          <lv_button name="preset_abs" flex_grow="1" height="#button_height" style_radius="#space_xs" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
+          <lv_button name="preset_abs" flex_grow="1" height="#button_height" style_radius="#border_radius" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
             <icon src="fire" size="xs"/>
             <text_body text="ABS"/>
           </lv_button>
-          <lv_button name="preset_custom" flex_grow="1" height="#button_height" style_radius="#space_xs" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
+          <lv_button name="preset_custom" flex_grow="1" height="#button_height" style_radius="#border_radius" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
             <icon src="tune" size="xs"/>
             <text_body text="Custom..."/>
           </lv_button>
         </lv_obj>
       </lv_obj>
+
+      <!-- Selected Material Info (Nozzle/Bed temps) -->
+      <lv_obj width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="start" style_pad_gap="#space_xl">
+        <lv_obj flex_flow="column" style_bg_opa="0" style_border_width="0" style_pad_all="0">
+          <text_small text="Nozzle"/>
+          <text_body name="material_nozzle_temp" text="210°C"/>
+        </lv_obj>
+        <lv_obj flex_flow="column" style_bg_opa="0" style_border_width="0" style_pad_all="0">
+          <text_small text="Bed"/>
+          <text_body name="material_bed_temp" text="60°C"/>
+        </lv_obj>
+      </lv_obj>
+
       <!-- Filament Operations Header -->
-      <text_body text="Filament Operations" style_pad_top="#space_md" align="left_mid"/>
-      <!-- Action Buttons (Vertical Stack) -->
-      <lv_obj name="action_buttons" width="100%" height="220" style_bg_opa="0" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_md">
-        <!-- Load Filament Button -->
-        <lv_button name="btn_load" width="100%" height="68" style_radius="#space_xs" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_sm" clickable="true">
-          <icon src="z_closer" size="sm"/>
-          <text_heading text="Load Filament"/>
-        </lv_button>
-        <!-- Unload Filament Button -->
-        <lv_button name="btn_unload" width="100%" height="68" style_radius="#space_xs" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_sm" clickable="true">
-          <icon src="z_farther" size="sm"/>
-          <text_heading text="Unload Filament"/>
-        </lv_button>
+      <text_body text="Operations" style_pad_top="#space_sm" align="left_mid"/>
+
+      <!-- Action Buttons: Load/Unload side-by-side, Purge below -->
+      <lv_obj name="action_buttons" width="100%" height="content" style_bg_opa="0" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
+        <!-- Load/Unload Row -->
+        <lv_obj width="100%" height="#button_height" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_sm">
+          <lv_button name="btn_load" flex_grow="1" height="#button_height" style_radius="#border_radius" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="true">
+            <lv_obj-bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+            <icon src="arrow_down" size="sm" variant="primary"/>
+            <text_body text="Load"/>
+          </lv_button>
+          <lv_button name="btn_unload" flex_grow="1" height="#button_height" style_radius="#border_radius" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="true">
+            <lv_obj-bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+            <icon src="arrow_up" size="sm" variant="primary"/>
+            <text_body text="Unload"/>
+          </lv_button>
+        </lv_obj>
         <!-- Purge Button -->
-        <lv_button name="btn_purge" width="100%" height="68" style_radius="#space_xs" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_sm" clickable="true">
-          <icon src="water" size="sm"/>
-          <text_heading text="Purge 10mm"/>
+        <lv_button name="btn_purge" width="100%" height="#button_height" style_radius="#border_radius" style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="true">
+          <lv_obj-bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+          <icon src="water" size="sm" variant="primary"/>
+          <text_body text="Purge 10mm"/>
         </lv_button>
       </lv_obj>
-      <!-- Safety Warning Card (Visible when temp < 170°C) -->
-      <!-- Visibility controlled by filament_safety_warning_visible subject: 1=show, 0=hide -->
-      <ui_card name="safety_warning" width="100%" flex_grow="1" style_border_width="2" style_radius="#border_radius" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start" style_pad_gap="#space_sm">
+
+      <!-- Safety Warning (compact inline - shows when cold) -->
+      <lv_obj name="safety_warning" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_xs">
         <lv_obj-bind_flag_if_eq subject="filament_safety_warning_visible" flag="hidden" ref_value="0"/>
-        <!-- Warning Title (icon + text in single label) -->
-        <lv_obj width="100%" height="#label_height_md" style_bg_opa="0" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_xs">
-          <icon src="alert" size="sm" variant="warning"/>
-          <text_body text="Nozzle Too Cold"/>
-        </lv_obj>
-        <!-- Warning Message -->
-        <text_small text="Heat nozzle to at least 170&#xB0;C before loading or unloading filament." width="100%" align="left_mid"/>
-        <!-- Current Temp Display -->
-        <text_small name="warning_temps" bind_text="filament_warning_temps" style_pad_top="#space_xs" align="left_mid"/>
-      </ui_card>
+        <icon src="alert" size="sm" variant="warning"/>
+        <text_small text="Heat to 170°C to load/unload"/>
+      </lv_obj>
+
+      <!-- Spacer -->
+      <lv_obj flex_grow="1" style_bg_opa="0" style_border_width="0"/>
     </lv_obj>
   </view>
 </component>

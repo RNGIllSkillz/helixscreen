@@ -11,6 +11,7 @@
 #include "ui_panel_temp_control.h"
 #include "ui_subject_registry.h"
 
+#include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
 #include "ethernet_manager.h"
@@ -114,6 +115,11 @@ void HomePanel::init_subjects() {
     lv_xml_register_event_cb(nullptr, "network_clicked_cb", network_clicked_cb);
     lv_xml_register_event_cb(nullptr, "ams_clicked_cb", ams_clicked_cb);
 
+    // Subscribe to AmsState gate_count to show/hide AMS indicator
+    // AmsState::init_subjects() is called in main.cpp before us
+    ams_gate_count_observer_ = ObserverGuard(AmsState::instance().get_gate_count_subject(),
+                                             ams_gate_count_observer_cb, this);
+
     subjects_initialized_ = true;
     spdlog::debug("[{}] Registered subjects and event callbacks", get_name());
 
@@ -197,6 +203,13 @@ void HomePanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
     // Load printer image from config (if available)
     reload_from_config();
+
+    // Check initial AMS state and show indicator if AMS is already available
+    // (The observer may have fired before panel_ was set during init_subjects)
+    int gate_count = lv_subject_get_int(AmsState::instance().get_gate_count_subject());
+    if (gate_count > 0) {
+        update_ams_indicator(gate_count);
+    }
 
     spdlog::info("[{}] Setup complete!", get_name());
 }
@@ -727,6 +740,44 @@ void HomePanel::set_light(bool is_on) {
     // This method is only used for local state updates when API is unavailable.
     light_on_ = is_on;
     spdlog::debug("[{}] Local light state: {}", get_name(), is_on ? "ON" : "OFF");
+}
+
+void HomePanel::ams_gate_count_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    auto* self = static_cast<HomePanel*>(lv_observer_get_user_data(observer));
+    if (self) {
+        self->update_ams_indicator(lv_subject_get_int(subject));
+    }
+}
+
+void HomePanel::update_ams_indicator(int gate_count) {
+    if (!panel_) {
+        return; // Panel not yet set up
+    }
+
+    // Find the AMS button and divider - we only control visibility here
+    // The ams_mini_status widget is self-managing and auto-binds to AmsState
+    lv_obj_t* ams_button = lv_obj_find_by_name(panel_, "ams_button");
+    lv_obj_t* ams_divider = lv_obj_find_by_name(panel_, "ams_divider");
+
+    if (gate_count > 0) {
+        // Show AMS indicator container
+        if (ams_button) {
+            lv_obj_clear_flag(ams_button, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (ams_divider) {
+            lv_obj_clear_flag(ams_divider, LV_OBJ_FLAG_HIDDEN);
+        }
+        spdlog::info("[{}] AMS indicator shown ({} gates available)", get_name(), gate_count);
+    } else {
+        // Hide AMS indicator container
+        if (ams_button) {
+            lv_obj_add_flag(ams_button, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (ams_divider) {
+            lv_obj_add_flag(ams_divider, LV_OBJ_FLAG_HIDDEN);
+        }
+        spdlog::debug("[{}] AMS indicator hidden (no gates)", get_name());
+    }
 }
 
 static std::unique_ptr<HomePanel> g_home_panel;

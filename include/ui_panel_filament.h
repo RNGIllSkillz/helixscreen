@@ -169,6 +169,7 @@ class FilamentPanel : public PanelBase {
     lv_obj_t* btn_unload_ = nullptr;
     lv_obj_t* btn_purge_ = nullptr;
     lv_obj_t* safety_warning_ = nullptr;
+    lv_obj_t* status_icon_ = nullptr;
     lv_obj_t* preset_buttons_[4] = {nullptr};
 
     //
@@ -177,6 +178,7 @@ class FilamentPanel : public PanelBase {
 
     void update_temp_display();
     void update_status();
+    void update_status_icon(const char* icon_name, const char* color_token);
     void update_warning_text();
     void update_safety_state();
     void update_preset_buttons_visual();
@@ -196,6 +198,7 @@ class FilamentPanel : public PanelBase {
     // === Static Trampolines ===
     //
 
+    static void on_manage_slots_clicked(lv_event_t* e);
     static void on_preset_button_clicked(lv_event_t* e);
     static void on_custom_button_clicked(lv_event_t* e);
     static void on_load_button_clicked(lv_event_t* e);

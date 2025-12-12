@@ -57,6 +57,8 @@
 #include "ui_wizard.h"
 #include "ui_wizard_wifi.h"
 
+#include "ams_backend.h"
+#include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
 #include "display_backend.h"
@@ -1166,6 +1168,21 @@ static void initialize_subjects() {
     init_zoffset_row_handler();                 // Z-Offset row callback
     ui_wizard_init_subjects();                  // Wizard subjects (for first-run config)
     ui_keypad_init_subjects();                  // Keypad display subject (for reactive binding)
+
+    // Initialize AmsState subjects early so HomePanel can observe gate_count
+    // In mock mode, create and start the mock backend immediately so the home panel
+    // can display the AMS indicator without requiring navigation to the AMS panel first
+    AmsState::instance().init_subjects(true);
+    if (g_runtime_config.should_mock_ams()) {
+        auto backend = AmsBackend::create(AmsType::NONE); // Factory returns mock in test mode
+        if (backend) {
+            backend->start();
+            AmsState::instance().set_backend(std::move(backend));
+            AmsState::instance().sync_from_backend();
+            spdlog::info("AmsState: Mock backend initialized at startup ({} gates)",
+                         lv_subject_get_int(AmsState::instance().get_gate_count_subject()));
+        }
+    }
 
     // Panels that need MoonrakerAPI - store pointers for deferred set_api()
     print_select_panel = get_print_select_panel(get_printer_state(), nullptr);

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 
 // Forward declaration
@@ -10,34 +11,26 @@ class TempControlPanel;
 
 /**
  * @file ui_panel_controls.h
- * @brief Controls panel - Launcher menu for manual printer control screens
+ * @brief Controls Panel V2 - Dashboard with 5 smart cards
  *
- * A card-based launcher panel providing access to motion control, temperature
- * management, and extrusion control screens. Each card click lazily creates
- * the corresponding overlay panel.
+ * A card-based dashboard providing quick access to printer controls with
+ * live data display. Uses proper reactive XML event_cb bindings.
+ *
+ * ## V2 Layout (3+2 Grid):
+ * - Row 1: Quick Actions | Temperatures | Cooling
+ * - Row 2: Filament (wide) | Calibration & Tools
  *
  * ## Key Features:
- * - Card-based launcher menu with 6 control categories
- * - Lazy creation of overlay panels (motion, nozzle temp, bed temp, extrusion)
- * - Navigation stack integration for overlay management
+ * - Combined nozzle + bed temperature card with dual progress bars
+ * - Quick Actions: Home buttons (All/XY/Z) + configurable macro slots
+ * - Cooling: Part fan hero slider + secondary fans list
+ * - Filament: Preheat presets (PLA/PETG/ABS/ASA/Off) + extrude/retract
+ * - Calibration: Bed mesh, Z-offset, screws, motor disable
  *
- * ## Launcher Pattern:
- * Each card click handler:
- * 1. Creates the target panel on first access (lazy initialization)
- * 2. Pushes it onto the navigation stack via ui_nav_push_overlay()
- * 3. Stores panel reference for subsequent clicks
- *
- * ## Cards:
- * - Motion: Jog controls, homing, XYZ positioning
- * - Nozzle Temp: Extruder temperature control
- * - Bed Temp: Heatbed temperature control
- * - Extrusion: Filament extrusion/retraction controls
- * - Fan: Part cooling fan control with slider and presets
- * - Motors: Disable steppers
- *
- * ## Migration Notes:
- * Phase 3 migration - similar to SettingsPanel launcher pattern.
- * Demonstrates panel composition where a launcher manages child panels.
+ * ## Event Binding Pattern:
+ * - Button event handlers: XML `event_cb` + `lv_xml_register_event_cb()`
+ * - Card background clicks: Manual `lv_obj_add_event_cb()` with user_data
+ * - Observer callbacks: RAII ObserverGuard for automatic cleanup
  *
  * @see PanelBase for base class documentation
  * @see ui_nav for overlay navigation
@@ -49,13 +42,10 @@ class ControlsPanel : public PanelBase {
      *
      * @param printer_state Reference to PrinterState
      * @param api Pointer to MoonrakerAPI (may be nullptr)
-     *
-     * @note Dependencies passed for interface consistency with PanelBase.
-     *       Child panels (motion, temp, etc.) may use these when wired.
      */
     ControlsPanel(PrinterState& printer_state, MoonrakerAPI* api);
 
-    ~ControlsPanel() override = default;
+    ~ControlsPanel() override;
 
     /**
      * @brief Set reference to TempControlPanel for temperature sub-screens
@@ -70,18 +60,18 @@ class ControlsPanel : public PanelBase {
     //
 
     /**
-     * @brief Initialize subjects for child panels
+     * @brief Initialize subjects and register XML event callbacks
      *
-     * Currently a no-op as launcher-level doesn't own subjects.
-     * Child panels initialize their own subjects when created.
+     * Registers all V2 dashboard subjects for reactive data binding
+     * and registers XML event_cb handlers for buttons.
      */
     void init_subjects() override;
 
     /**
-     * @brief Setup the controls panel with launcher card event handlers
+     * @brief Setup the controls panel with card navigation handlers
      *
-     * Finds all launcher cards by name and wires up click handlers.
-     * Cards: motion, nozzle_temp, bed_temp, extrusion, fan (disabled), motors
+     * Wires up card background click handlers for navigation to full panels.
+     * All button handlers are already wired via XML event_cb in init_subjects().
      *
      * @param panel Root panel object from lv_xml_create()
      * @param parent_screen Parent screen (needed for overlay panel creation)
@@ -103,6 +93,55 @@ class ControlsPanel : public PanelBase {
     TempControlPanel* temp_control_panel_ = nullptr;
 
     //
+    // === V2 Dashboard Subjects (for XML bind_text/bind_value) ===
+    //
+
+    // Nozzle temperature display
+    lv_subject_t nozzle_temp_subject_{};
+    char nozzle_temp_buf_[32] = {};
+    lv_subject_t nozzle_pct_subject_{};
+    lv_subject_t nozzle_status_subject_{};
+    char nozzle_status_buf_[16] = {};
+
+    // Bed temperature display
+    lv_subject_t bed_temp_subject_{};
+    char bed_temp_buf_[32] = {};
+    lv_subject_t bed_pct_subject_{};
+    lv_subject_t bed_status_subject_{};
+    char bed_status_buf_[16] = {};
+
+    // Fan speed display
+    lv_subject_t fan_speed_subject_{};
+    char fan_speed_buf_[16] = {};
+    lv_subject_t fan_pct_subject_{};
+
+    // Preheat status (Filament card)
+    lv_subject_t preheat_status_subject_{};
+    char preheat_status_buf_[48] = {};
+
+    // Calibration modal visibility
+    lv_subject_t calibration_modal_visible_{};
+
+    //
+    // === Cached Values (for display update efficiency) ===
+    //
+
+    int cached_extruder_temp_ = 0;
+    int cached_extruder_target_ = 0;
+    int cached_bed_temp_ = 0;
+    int cached_bed_target_ = 0;
+
+    //
+    // === Observer Guards (RAII cleanup) ===
+    //
+
+    ObserverGuard extruder_temp_observer_;
+    ObserverGuard extruder_target_observer_;
+    ObserverGuard bed_temp_observer_;
+    ObserverGuard bed_target_observer_;
+    ObserverGuard fan_observer_;
+
+    //
     // === Lazily-Created Child Panels ===
     //
 
@@ -111,6 +150,10 @@ class ControlsPanel : public PanelBase {
     lv_obj_t* bed_temp_panel_ = nullptr;
     lv_obj_t* extrusion_panel_ = nullptr;
     lv_obj_t* fan_panel_ = nullptr;
+    lv_obj_t* calibration_modal_ = nullptr;
+    lv_obj_t* bed_mesh_panel_ = nullptr;
+    lv_obj_t* zoffset_panel_ = nullptr;
+    lv_obj_t* screws_panel_ = nullptr;
 
     //
     // === Modal Dialog State ===
@@ -122,40 +165,117 @@ class ControlsPanel : public PanelBase {
     // === Private Helpers ===
     //
 
-    /**
-     * @brief Wire up click handlers for all launcher cards
-     */
     void setup_card_handlers();
+    void register_observers();
+
+    // Display update helpers
+    void update_nozzle_temp_display();
+    void update_bed_temp_display();
+    void update_fan_display();
+    void update_preheat_status();
 
     //
-    // === Card Click Handlers ===
+    // === V2 Card Click Handlers (navigation to full panels) ===
     //
 
-    void handle_motion_clicked();
-    void handle_nozzle_temp_clicked();
-    void handle_bed_temp_clicked();
-    void handle_extrusion_clicked();
-    void handle_fan_clicked();
+    void handle_quick_actions_clicked();
+    void handle_temperatures_clicked();
+    void handle_cooling_clicked();
+    void handle_filament_clicked();
+    void handle_calibration_clicked();
+
+    //
+    // === Quick Action Button Handlers ===
+    //
+
+    void handle_home_all();
+    void handle_home_xy();
+    void handle_home_z();
+    void handle_macro_1();
+    void handle_macro_2();
+
+    //
+    // === Preheat Handlers ===
+    //
+
+    void handle_preheat(int nozzle_temp, int bed_temp, const char* material_name);
+
+    //
+    // === Extrusion Handlers ===
+    //
+
+    void handle_extrude();
+    void handle_retract();
+
+    //
+    // === Fan Slider Handler ===
+    //
+
+    void handle_fan_slider_changed(int value);
+
+    //
+    // === Calibration & Motors Handlers ===
+    //
+
     void handle_motors_clicked();
     void handle_motors_confirm();
     void handle_motors_cancel();
+    void handle_calibration_modal_close();
+    void handle_calibration_bed_mesh();
+    void handle_calibration_zoffset();
+    void handle_calibration_screws();
+    void handle_calibration_motors();
 
     //
-    // === Static Trampolines ===
-    //
-    // LVGL callbacks must be static. These trampolines extract the
-    // ControlsPanel* from user_data and delegate to instance methods.
+    // === V2 Card Click Trampolines (manual wiring with user_data) ===
     //
 
-    static void on_motion_clicked(lv_event_t* e);
-    static void on_nozzle_temp_clicked(lv_event_t* e);
-    static void on_bed_temp_clicked(lv_event_t* e);
-    static void on_extrusion_clicked(lv_event_t* e);
-    static void on_fan_clicked(lv_event_t* e);
-    static void on_motors_clicked(lv_event_t* e);
+    static void on_quick_actions_clicked(lv_event_t* e);
+    static void on_temperatures_clicked(lv_event_t* e);
+    static void on_cooling_clicked(lv_event_t* e);
+    static void on_filament_clicked(lv_event_t* e);
+    static void on_calibration_clicked(lv_event_t* e);
     static void on_motors_confirm(lv_event_t* e);
     static void on_motors_cancel(lv_event_t* e);
+
+    //
+    // === Calibration Modal Trampolines (XML event_cb - global accessor) ===
+    //
+
+    static void on_calibration_modal_close(lv_event_t* e);
+    static void on_calibration_bed_mesh(lv_event_t* e);
+    static void on_calibration_zoffset(lv_event_t* e);
+    static void on_calibration_screws(lv_event_t* e);
+    static void on_calibration_motors(lv_event_t* e);
+
+    //
+    // === V2 Button Trampolines (XML event_cb - global accessor) ===
+    //
+
+    static void on_home_all(lv_event_t* e);
+    static void on_home_xy(lv_event_t* e);
+    static void on_home_z(lv_event_t* e);
+    static void on_macro_1(lv_event_t* e);
+    static void on_macro_2(lv_event_t* e);
+    static void on_fan_slider_changed(lv_event_t* e);
+    static void on_preheat_pla(lv_event_t* e);
+    static void on_preheat_petg(lv_event_t* e);
+    static void on_preheat_abs(lv_event_t* e);
+    static void on_preheat_asa(lv_event_t* e);
+    static void on_preheat_off(lv_event_t* e);
+    static void on_extrude(lv_event_t* e);
+    static void on_retract(lv_event_t* e);
+
+    //
+    // === Observer Callbacks (static - update dashboard display) ===
+    //
+
+    static void on_extruder_temp_changed(lv_observer_t* obs, lv_subject_t* subject);
+    static void on_extruder_target_changed(lv_observer_t* obs, lv_subject_t* subject);
+    static void on_bed_temp_changed(lv_observer_t* obs, lv_subject_t* subject);
+    static void on_bed_target_changed(lv_observer_t* obs, lv_subject_t* subject);
+    static void on_fan_changed(lv_observer_t* obs, lv_subject_t* subject);
 };
 
-// Global instance accessor (needed by main.cpp)
+// Global instance accessor (needed by main.cpp and XML event_cb trampolines)
 ControlsPanel& get_global_controls_panel();

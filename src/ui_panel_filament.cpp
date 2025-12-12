@@ -6,6 +6,7 @@
 #include "ui_component_keypad.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
+#include "ui_icon.h"
 #include "ui_nav.h"
 #include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
@@ -39,9 +40,12 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, MoonrakerAPI* api)
     // Initialize buffer contents with default values
     std::snprintf(temp_display_buf_, sizeof(temp_display_buf_), "%d / %d°C", nozzle_current_,
                   nozzle_target_);
-    std::strcpy(status_buf_, "Select material to begin");
+    std::snprintf(status_buf_, sizeof(status_buf_), "%s", "Select material to begin");
     std::snprintf(warning_temps_buf_, sizeof(warning_temps_buf_), "Current: %d°C | Target: %d°C",
                   nozzle_current_, nozzle_target_);
+
+    // Register XML event callbacks
+    lv_xml_register_event_cb(nullptr, "filament_manage_slots_cb", on_manage_slots_clicked);
 }
 
 // ============================================================================
@@ -123,6 +127,9 @@ void FilamentPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // Find safety warning card
     safety_warning_ = lv_obj_find_by_name(panel_, "safety_warning");
 
+    // Find status icon for dynamic updates
+    status_icon_ = lv_obj_find_by_name(panel_, "status_icon");
+
     // Initialize visual state
     update_preset_buttons_visual();
     update_temp_display();
@@ -143,21 +150,33 @@ void FilamentPanel::update_temp_display() {
     lv_subject_copy_string(&temp_display_subject_, temp_display_buf_);
 }
 
+void FilamentPanel::update_status_icon(const char* icon_name, const char* variant) {
+    if (!status_icon_)
+        return;
+
+    // Update icon imperatively using ui_icon API
+    ui_icon_set_source(status_icon_, icon_name);
+    ui_icon_set_variant(status_icon_, variant);
+}
+
 void FilamentPanel::update_status() {
     const char* status_msg;
 
     if (helix::ui::temperature::is_extrusion_safe(nozzle_current_,
                                                   AppConstants::Temperature::MIN_EXTRUSION_TEMP)) {
         // Hot enough - ready to load
-        status_msg = "✓ Ready to load";
+        status_msg = "Ready to load";
+        update_status_icon("check", "success");
     } else if (nozzle_target_ >= AppConstants::Temperature::MIN_EXTRUSION_TEMP) {
         // Heating in progress
-        std::snprintf(status_buf_, sizeof(status_buf_), "⚡ Heating to %d°C...", nozzle_target_);
+        std::snprintf(status_buf_, sizeof(status_buf_), "Heating to %d°C...", nozzle_target_);
         lv_subject_copy_string(&status_subject_, status_buf_);
+        update_status_icon("flash", "warning");
         return; // Already updated, exit early
     } else {
         // Cold - needs material selection
-        status_msg = "❄ Select material to begin";
+        status_msg = "Select material to begin";
+        update_status_icon("cooldown", "secondary");
     }
 
     lv_subject_copy_string(&status_subject_, status_msg);
@@ -348,6 +367,14 @@ void FilamentPanel::handle_purge_button() {
 // ============================================================================
 // STATIC TRAMPOLINES
 // ============================================================================
+
+void FilamentPanel::on_manage_slots_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[FilamentPanel] on_manage_slots_clicked");
+    LV_UNUSED(e);
+    // TODO: Navigate to AMS panel when implemented
+    NOTIFY_INFO("AMS slot management coming soon");
+    LVGL_SAFE_EVENT_CB_END();
+}
 
 void FilamentPanel::on_preset_button_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[FilamentPanel] on_preset_button_clicked");
