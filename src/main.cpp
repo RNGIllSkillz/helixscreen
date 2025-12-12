@@ -2350,6 +2350,9 @@ int main(int argc, char** argv) {
             // Update PrinterState with discovered capabilities for reactive UI bindings
             get_printer_state().set_printer_capabilities(caps);
 
+            // Initialize multi-fan tracking from discovered fan objects
+            get_printer_state().init_fans(moonraker_client->get_fans());
+
             // Update version info from client (for Settings About section)
             get_printer_state().set_klipper_version(moonraker_client->get_software_version());
             get_printer_state().set_moonraker_version(moonraker_client->get_moonraker_version());

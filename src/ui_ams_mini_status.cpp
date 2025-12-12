@@ -132,15 +132,20 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     int visible_count = std::min(data->gate_count, data->max_visible);
     int overflow_count = data->gate_count - visible_count;
 
-    // Get bar dimensions using responsive spacing
-    lv_obj_update_layout(data->container);
-    int32_t container_width = lv_obj_get_content_width(data->bars_container);
-    if (container_width <= 0) {
-        spdlog::warn("[AmsMiniStatus] Container has zero width, skipping rebuild");
-        return;
+    // Calculate bar width to fit within parent, leaving room for centering
+    // Get parent dimensions first
+    lv_obj_t* parent = lv_obj_get_parent(data->container);
+    if (parent) {
+        lv_obj_update_layout(parent);
     }
+    int32_t parent_width = parent ? lv_obj_get_content_width(parent) : 100;
+
     int32_t gap = ui_theme_get_spacing("space_xxs"); // Responsive 2-4px gap
-    int32_t bar_width = calc_bar_width(container_width, visible_count, gap);
+
+    // Use 70% of parent width for all bars combined, then divide by bar count
+    int32_t total_bar_space = (parent_width * 70) / 100;
+    int32_t total_gaps = (visible_count > 1) ? (visible_count - 1) * gap : 0;
+    int32_t bar_width = (total_bar_space - total_gaps) / std::max(1, visible_count);
     bar_width = std::max(MIN_BAR_WIDTH_PX, bar_width);
 
     // Create/update bars
@@ -190,6 +195,13 @@ static void rebuild_bars(AmsMiniStatusData* data) {
         }
     }
 
+    // Center the container within its parent
+    lv_obj_t* center_parent = lv_obj_get_parent(data->container);
+    if (center_parent) {
+        lv_obj_update_layout(center_parent);
+    }
+    lv_obj_center(data->container);
+
     // Hide entire widget if no gates
     if (data->gate_count <= 0) {
         lv_obj_add_flag(data->container, LV_OBJ_FLAG_HIDDEN);
@@ -230,13 +242,9 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
     lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
 
-    // Horizontal layout for bars + overflow label
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(container, ui_theme_get_spacing("space_xs"), LV_PART_MAIN);
-
-    lv_obj_set_size(container, LV_SIZE_CONTENT, height);
+    // Size to content and center within parent
+    lv_obj_set_size(container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_center(container);
 
     // Create user data
     auto* data = new AmsMiniStatusData();
@@ -250,7 +258,7 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
     lv_obj_set_style_border_width(data->bars_container, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(data->bars_container, 0, LV_PART_MAIN);
     lv_obj_set_flex_flow(data->bars_container, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(data->bars_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_END,
+    lv_obj_set_flex_align(data->bars_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END,
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(data->bars_container, ui_theme_get_spacing("space_xxs"),
                                 LV_PART_MAIN);
@@ -335,12 +343,41 @@ void ui_ams_mini_status_set_slot(lv_obj_t* obj, int slot_index, uint32_t color_r
     update_slot_bar(slot, data->height);
 }
 
+/** Timer callback for deferred refresh */
+static void deferred_refresh_cb(lv_timer_t* timer) {
+    lv_obj_t* container = static_cast<lv_obj_t*>(lv_timer_get_user_data(timer));
+    if (!container) {
+        lv_timer_delete(timer);
+        return;
+    }
+
+    auto* data = get_data(container);
+    if (data) {
+        rebuild_bars(data);
+        spdlog::debug("[AmsMiniStatus] Deferred refresh complete");
+    }
+    lv_timer_delete(timer);
+}
+
 void ui_ams_mini_status_refresh(lv_obj_t* obj) {
     auto* data = get_data(obj);
-    if (!data)
+    if (!data || !data->container)
         return;
 
-    rebuild_bars(data);
+    // Check if we have valid dimensions yet
+    lv_obj_update_layout(data->bars_container);
+    int32_t width = lv_obj_get_content_width(data->bars_container);
+
+    if (width > 0) {
+        // We have dimensions - rebuild immediately
+        rebuild_bars(data);
+    } else {
+        // Container still has zero width (likely just unhidden)
+        // Defer refresh to next LVGL tick when layout will be recalculated
+        lv_timer_t* timer = lv_timer_create(deferred_refresh_cb, 1, data->container);
+        lv_timer_set_repeat_count(timer, 1);
+        spdlog::debug("[AmsMiniStatus] Deferring refresh (container has zero width)");
+    }
 }
 
 bool ui_ams_mini_status_is_valid(lv_obj_t* obj) {

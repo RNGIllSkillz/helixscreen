@@ -754,29 +754,11 @@ void HomePanel::update_ams_indicator(int gate_count) {
         return; // Panel not yet set up
     }
 
-    // Find the AMS button and divider - we only control visibility here
-    // The ams_mini_status widget is self-managing and auto-binds to AmsState
-    lv_obj_t* ams_button = lv_obj_find_by_name(panel_, "ams_button");
-    lv_obj_t* ams_divider = lv_obj_find_by_name(panel_, "ams_divider");
-
-    if (gate_count > 0) {
-        // Show AMS indicator container
-        if (ams_button) {
-            lv_obj_clear_flag(ams_button, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (ams_divider) {
-            lv_obj_clear_flag(ams_divider, LV_OBJ_FLAG_HIDDEN);
-        }
-        spdlog::info("[{}] AMS indicator shown ({} gates available)", get_name(), gate_count);
-    } else {
-        // Hide AMS indicator container
-        if (ams_button) {
-            lv_obj_add_flag(ams_button, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (ams_divider) {
-            lv_obj_add_flag(ams_divider, LV_OBJ_FLAG_HIDDEN);
-        }
-        spdlog::debug("[{}] AMS indicator hidden (no gates)", get_name());
+    // Visibility is handled by XML binding to ams_gate_count subject
+    // We only need to refresh the widget content when gate count changes
+    if (gate_count > 0 && ams_indicator_) {
+        ui_ams_mini_status_refresh(ams_indicator_);
+        spdlog::debug("[{}] AMS indicator refreshed ({} gates)", get_name(), gate_count);
     }
 }
 
