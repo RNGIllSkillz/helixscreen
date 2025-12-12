@@ -687,8 +687,9 @@ void PrinterState::update_fan_speed(const std::string& object_name, double speed
         if (fan.object_name == object_name) {
             if (fan.speed_percent != speed_pct) {
                 fan.speed_percent = speed_pct;
-                // Bump version to notify UI of speed change
-                lv_subject_set_int(&fans_version_, lv_subject_get_int(&fans_version_) + 1);
+                // Note: Don't bump fans_version_ here - that's only for structural changes
+                // (fan discovery). Speed changes are stored but don't trigger UI rebuild.
+                // TODO: Add per-fan speed subjects for reactive UI updates if needed.
             }
             return;
         }

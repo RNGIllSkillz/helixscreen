@@ -137,6 +137,12 @@ void PrintSelectPanel::init_subjects() {
     // Initialize view mode subject (0 = CARD, 1 = LIST) - XML bindings control container visibility
     UI_SUBJECT_INIT_AND_REGISTER_INT(view_mode_subject_, 0, "print_select_view_mode");
 
+    // Initialize can print subject (1 = can print, 0 = print in progress)
+    // XML binding disables print button when value is 0
+    bool can_print = printer_state_.can_start_new_print();
+    UI_SUBJECT_INIT_AND_REGISTER_INT(can_print_subject_, can_print ? 1 : 0,
+                                     "print_select_can_print");
+
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
 }
@@ -264,6 +270,22 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
             },
             this);
         spdlog::debug("[{}] Registered observer on connection state for auto-refresh", get_name());
+    }
+
+    // Register observer on print job state to enable/disable print button
+    // Prevents starting a new print while one is already in progress
+    lv_subject_t* print_state_subject = printer_state_.get_print_state_subject();
+    if (print_state_subject) {
+        print_state_observer_ = ObserverGuard(
+            print_state_subject,
+            [](lv_observer_t* observer, lv_subject_t* /*subject*/) {
+                auto* self = static_cast<PrintSelectPanel*>(lv_observer_get_user_data(observer));
+                if (self) {
+                    self->update_print_button_state();
+                }
+            },
+            this);
+        spdlog::debug("[{}] Registered observer on print job state for print button", get_name());
     }
 
     spdlog::debug("[{}] Setup complete", get_name());
@@ -818,7 +840,8 @@ CardDimensions PrintSelectPanel::calculate_card_dimensions() {
 
     lv_coord_t container_width = lv_obj_get_content_width(card_view_container_);
     // Read gap from container's XML-defined style (respects design tokens)
-    // Note: style_pad_gap in XML sets both pad_row and pad_column; we read pad_column for width calc
+    // Note: style_pad_gap in XML sets both pad_row and pad_column; we read pad_column for width
+    // calc
     int card_gap = lv_obj_get_style_pad_column(card_view_container_, LV_PART_MAIN);
     spdlog::trace("[{}] Container content width: {}px (MIN={}, MAX={}, GAP={})", get_name(),
                   container_width, CARD_MIN_WIDTH, CARD_MAX_WIDTH, card_gap);
@@ -1432,6 +1455,20 @@ void PrintSelectPanel::update_empty_state() {
     }
 }
 
+void PrintSelectPanel::update_print_button_state() {
+    // Update the can_print subject based on current print state
+    // XML binding automatically disables button when value is 0
+    bool can_print = printer_state_.can_start_new_print();
+    int new_value = can_print ? 1 : 0;
+
+    // Only update if value changed (avoid unnecessary subject notifications)
+    if (lv_subject_get_int(&can_print_subject_) != new_value) {
+        lv_subject_set_int(&can_print_subject_, new_value);
+        spdlog::debug("[{}] Print button {} (can_start_new_print={})", get_name(),
+                      can_print ? "enabled" : "disabled", can_print);
+    }
+}
+
 void PrintSelectPanel::update_sort_indicators() {
     const char* header_names[] = {"header_filename", "header_size", "header_modified",
                                   "header_print_time"};
@@ -1509,10 +1546,10 @@ void PrintSelectPanel::create_detail_view() {
         lv_obj_add_event_cb(delete_button, on_delete_button_clicked_static, LV_EVENT_CLICKED, this);
     }
 
-    // Wire up print button
-    lv_obj_t* print_button = lv_obj_find_by_name(detail_view_widget_, "print_button");
-    if (print_button) {
-        lv_obj_add_event_cb(print_button, on_print_button_clicked_static, LV_EVENT_CLICKED, this);
+    // Wire up print button and store reference for enable/disable
+    print_button_ = lv_obj_find_by_name(detail_view_widget_, "print_button");
+    if (print_button_) {
+        lv_obj_add_event_cb(print_button_, on_print_button_clicked_static, LV_EVENT_CLICKED, this);
     }
 
     // Click backdrop to close

@@ -629,7 +629,7 @@ void GCodeParser::parse_tool_change_command(const std::string& line) {
     int tool_num = std::stoi(tool_str);
 
     current_tool_index_ = tool_num;
-    spdlog::debug("Tool change: T{}", tool_num);
+    spdlog::trace("Tool change: T{}", tool_num);
 }
 
 void GCodeParser::parse_wipe_tower_marker(const std::string& comment) {
@@ -738,23 +738,16 @@ void GCodeParser::add_segment(const glm::vec3& start, const glm::vec3& end, bool
             // Calculate extruded volume: volume = e_delta * filament_area
             float volume = e_delta * filament_area;
 
-            // Calculate width using Slic3r's oval cross-section formula with empirical correction
+            // Calculate width using Slic3r's oval cross-section formula
             // Extruded plastic forms an oval/rounded shape, not a rectangle
             // Cross-sectional area: A = (w - h) × h + π × (h/2)²
             // Where: A = volume / distance, h = layer_height, w = width
             // Solving for w: w = (A - π × (h/2)²) / h + h
-            //
-            // Empirical 2x correction factor accounts for slicer-specific settings:
-            // - First-layer extrusion width multipliers (Slic3r defaults to 200%)
-            // - Flow rate compensation and extrusion multipliers
-            // - Perimeter overlap calculations
-            // Testing shows this produces widths matching G-code metadata (0.42mm)
             float h = metadata_layer_height_;
             float cross_section_area = volume / xy_distance;
             float h_radius = h / 2.0f;
             float circular_area = static_cast<float>(M_PI) * h_radius * h_radius;
-            float calculated_width = (cross_section_area - circular_area) / h + h;
-            segment.width = calculated_width * 2.0f; // Empirical correction factor
+            segment.width = (cross_section_area - circular_area) / h + h;
 
             // Sanity check: width should be reasonable (0.1mm to 2.0mm)
             if (segment.width < 0.1f || segment.width > 2.0f) {

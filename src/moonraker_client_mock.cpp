@@ -1288,12 +1288,27 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
     // Build path to test G-code file
     // Handle both bare filenames (e.g., "3DBenchy.gcode") and full paths
     std::string full_path;
-    if (filename.find(RuntimeConfig::TEST_GCODE_DIR) == 0) {
+
+    // For modified temp files (.helix_temp/modified_xxx_OriginalName.gcode),
+    // extract the original filename to find the real test file for metadata
+    std::string lookup_filename = filename;
+    if (filename.find(".helix_temp/modified_") != std::string::npos) {
+        // Extract original filename: .helix_temp/modified_123456789_OriginalName.gcode
+        // -> OriginalName.gcode
+        size_t underscore_pos = filename.find('_', filename.find("modified_") + 9);
+        if (underscore_pos != std::string::npos) {
+            lookup_filename = filename.substr(underscore_pos + 1);
+            spdlog::debug("[MoonrakerClientMock] Modified temp file '{}' -> original '{}'",
+                          filename, lookup_filename);
+        }
+    }
+
+    if (lookup_filename.find(RuntimeConfig::TEST_GCODE_DIR) == 0) {
         // Already a full path, use as-is
-        full_path = filename;
+        full_path = lookup_filename;
     } else {
         // Bare filename, prepend test directory
-        full_path = std::string(RuntimeConfig::TEST_GCODE_DIR) + "/" + filename;
+        full_path = std::string(RuntimeConfig::TEST_GCODE_DIR) + "/" + lookup_filename;
     }
 
     // Extract metadata from G-code file
@@ -1451,7 +1466,14 @@ void MoonrakerClientMock::advance_print_progress(double dt_simulated) {
 }
 
 void MoonrakerClientMock::dispatch_print_state_notification(const std::string& state) {
-    json notification_status = {{"print_stats", {{"state", state}}}};
+    // Include filename in state notifications so observers can update immediately
+    // This is critical for PrintStatusPanel to load the thumbnail when print starts
+    std::string filename;
+    {
+        std::lock_guard<std::mutex> lock(print_mutex_);
+        filename = print_filename_;
+    }
+    json notification_status = {{"print_stats", {{"state", state}, {"filename", filename}}}};
     dispatch_status_update(notification_status);
 }
 

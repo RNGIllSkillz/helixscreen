@@ -397,6 +397,10 @@ class PrintSelectPanel : public PanelBase {
     /// View mode subject: 0 = CARD, 1 = LIST (XML bindings control visibility)
     lv_subject_t view_mode_subject_;
 
+    /// Can start print subject: 1 = can print, 0 = print in progress (disables button via XML
+    /// binding)
+    lv_subject_t can_print_subject_;
+
     //
     // === Panel State ===
     //
@@ -555,6 +559,13 @@ class PrintSelectPanel : public PanelBase {
      * @brief Update empty state visibility based on file_list_ size
      */
     void update_empty_state();
+
+    /**
+     * @brief Update print button enabled/disabled state based on print job state
+     *
+     * Disables the print button when a print is in progress to prevent concurrent prints.
+     */
+    void update_print_button_state();
 
     /**
      * @brief Update sort indicator icons on column headers

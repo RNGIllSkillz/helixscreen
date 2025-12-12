@@ -182,6 +182,17 @@ class PrintStatusPanel : public PanelBase {
     void set_filename(const char* filename);
 
     /**
+     * @brief Set the original filename for thumbnail loading
+     *
+     * Use this when starting a print with a modified temp file. The panel will
+     * use this filename (instead of the temp file path) for thumbnail lookup.
+     * Cleared automatically when print ends or is cancelled.
+     *
+     * @param filename Original filename (e.g., "3DBenchy.gcode")
+     */
+    void set_thumbnail_source(const std::string& filename);
+
+    /**
      * @brief Set print progress percentage
      * @param percent Progress 0-100 (clamped to valid range)
      */
@@ -385,6 +396,14 @@ class PrintStatusPanel : public PanelBase {
     lv_obj_t* print_thumbnail_ = nullptr;
     lv_obj_t* gradient_background_ = nullptr;
 
+    // Thumbnail source override - used when printing modified temp files
+    // When set, load_thumbnail_for_file() uses this instead of the actual filename
+    std::string thumbnail_source_filename_;
+
+    // Track what thumbnail is currently loaded to make set_filename() idempotent
+    // Prevents redundant thumbnail loads when observer fires repeatedly with same filename
+    std::string loaded_thumbnail_filename_;
+
     // Control buttons (stored for enable/disable on state changes)
     lv_obj_t* btn_timelapse_ = nullptr;
     lv_obj_t* btn_pause_ = nullptr;
@@ -423,6 +442,8 @@ class PrintStatusPanel : public PanelBase {
     void show_gcode_viewer(bool show);
     void load_gcode_file(const char* file_path);
     void load_thumbnail_for_file(const std::string& filename); ///< Fetch and display thumbnail
+    void
+    load_gcode_for_viewing(const std::string& filename); ///< Download and load G-code into viewer
     void setup_tune_panel(lv_obj_t* panel);
     void update_tune_display();
     void update_z_offset_icons(lv_obj_t* panel); ///< Update Z-offset icons based on kinematics

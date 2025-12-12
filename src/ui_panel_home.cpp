@@ -8,6 +8,7 @@
 #include "ui_event_safety.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
+#include "ui_panel_print_status.h"
 #include "ui_panel_temp_control.h"
 #include "ui_subject_registry.h"
 
@@ -321,10 +322,24 @@ void HomePanel::handle_light_toggle() {
 }
 
 void HomePanel::handle_print_card_clicked() {
-    spdlog::info("[{}] Print card clicked - navigating to print select panel", get_name());
+    // Check if a print is in progress
+    if (!printer_state_.can_start_new_print()) {
+        // Print in progress - show print status overlay
+        spdlog::info("[{}] Print card clicked - showing print status (print in progress)",
+                     get_name());
 
-    // Navigate to print select panel
-    ui_nav_set_active(UI_PANEL_PRINT_SELECT);
+        extern PrintStatusPanel& get_global_print_status_panel();
+        lv_obj_t* status_panel = get_global_print_status_panel().get_panel();
+        if (status_panel) {
+            ui_nav_push_overlay(status_panel);
+        } else {
+            spdlog::error("[{}] Print status panel not available", get_name());
+        }
+    } else {
+        // No print in progress - navigate to print select panel
+        spdlog::info("[{}] Print card clicked - navigating to print select panel", get_name());
+        ui_nav_set_active(UI_PANEL_PRINT_SELECT);
+    }
 }
 
 void HomePanel::handle_tip_text_clicked() {

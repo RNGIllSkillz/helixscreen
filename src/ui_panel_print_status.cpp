@@ -24,6 +24,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <memory>
 
 // Global instance for legacy API and resize callback
@@ -1029,6 +1030,19 @@ void PrintStatusPanel::on_print_state_changed(PrintJobState job_state) {
             spdlog::debug("[{}] New print started - clearing complete overlay", get_name());
         }
 
+        // Clear thumbnail tracking when print ends (Complete/Cancelled/Error/Idle)
+        // This ensures it's available during the entire print but cleared for the next one
+        bool print_ended =
+            (new_state == PrintState::Complete || new_state == PrintState::Cancelled ||
+             new_state == PrintState::Error || new_state == PrintState::Idle);
+        if (print_ended) {
+            if (!thumbnail_source_filename_.empty() || !loaded_thumbnail_filename_.empty()) {
+                spdlog::debug("[{}] Clearing thumbnail tracking (print ended)", get_name());
+                thumbnail_source_filename_.clear();
+                loaded_thumbnail_filename_.clear();
+            }
+        }
+
         set_state(new_state);
         spdlog::info("[{}] Print state changed: {} -> {}", get_name(),
                      print_job_state_to_string(job_state), static_cast<int>(new_state));
@@ -1063,8 +1077,14 @@ void PrintStatusPanel::on_print_filename_changed(const char* filename) {
     }
 
     if (filename && filename[0] != '\0') {
-        // Only update if filename actually changed (avoid log spam from frequent status updates)
-        std::string display_name = get_display_filename(filename);
+        // Compute effective filename for comparison (respects thumbnail_source override)
+        // This ensures we compare apples-to-apples: the effective display name
+        std::string raw_filename = filename;
+        std::string effective_filename =
+            thumbnail_source_filename_.empty() ? raw_filename : thumbnail_source_filename_;
+        std::string display_name = get_display_filename(effective_filename);
+
+        // Only update if display would actually change
         if (display_name != filename_buf_) {
             set_filename(filename);
             spdlog::debug("[{}] Filename updated: {}", get_name(), display_name);
@@ -1586,6 +1606,57 @@ void PrintStatusPanel::load_thumbnail_for_file(const std::string& filename) {
 }
 
 // ============================================================================
+// G-CODE VIEWER LOADING
+// ============================================================================
+
+void PrintStatusPanel::load_gcode_for_viewing(const std::string& filename) {
+    spdlog::debug("[{}] Loading G-code for viewing: {}", get_name(), filename);
+
+    // Skip if no viewer widget
+    if (!gcode_viewer_) {
+        spdlog::debug("[{}] No gcode_viewer_ widget - skipping G-code load", get_name());
+        return;
+    }
+
+    // Skip if no API available
+    if (!api_) {
+        spdlog::debug("[{}] No API available - skipping G-code load", get_name());
+        return;
+    }
+
+    // Download the G-code file using the API
+    // For mock mode, this reads from test_gcodes/ directory
+    // For real mode, this downloads from Moonraker
+    api_->download_file(
+        "gcodes", filename,
+        [this, filename](const std::string& content) {
+            // Save to a temp file for the viewer to load
+            std::string temp_path = "/tmp/helix_print_view_" +
+                                    std::to_string(std::hash<std::string>{}(filename)) + ".gcode";
+
+            std::ofstream file(temp_path, std::ios::binary);
+            if (!file) {
+                spdlog::error("[{}] Failed to create temp file for G-code viewing: {}", get_name(),
+                              temp_path);
+                return;
+            }
+
+            file.write(content.data(), static_cast<std::streamsize>(content.size()));
+            file.close();
+
+            spdlog::info("[{}] Downloaded G-code ({} bytes), loading into viewer: {}", get_name(),
+                         content.size(), temp_path);
+
+            // Load into the viewer widget
+            load_gcode_file(temp_path.c_str());
+        },
+        [this, filename](const MoonrakerError& err) {
+            spdlog::warn("[{}] Failed to download G-code for viewing '{}': {}", get_name(),
+                         filename, err.message);
+        });
+}
+
+// ============================================================================
 // PUBLIC API
 // ============================================================================
 
@@ -1595,18 +1666,34 @@ void PrintStatusPanel::set_temp_control_panel(TempControlPanel* temp_panel) {
 }
 
 void PrintStatusPanel::set_filename(const char* filename) {
+    // Store the actual filename (may be a temp file path)
+    current_print_filename_ = filename ? filename : "";
+
+    // Use thumbnail_source_filename_ if set (for modified temp files)
+    // This affects BOTH the display name AND the thumbnail lookup
+    std::string effective_filename =
+        thumbnail_source_filename_.empty() ? current_print_filename_ : thumbnail_source_filename_;
+
     // Strip path and .gcode extension for clean display
-    std::string display_name = get_display_filename(filename ? filename : "");
+    std::string display_name = get_display_filename(effective_filename);
     std::snprintf(filename_buf_, sizeof(filename_buf_), "%s", display_name.c_str());
     lv_subject_copy_string(&filename_subject_, filename_buf_);
 
-    // Store full filename for thumbnail loading
-    current_print_filename_ = filename ? filename : "";
-
-    // Load thumbnail for this file (async operation)
-    if (!current_print_filename_.empty()) {
-        load_thumbnail_for_file(current_print_filename_);
+    // Load thumbnail and G-code ONLY if effective filename changed (makes this function idempotent)
+    // This prevents redundant loads when observer fires repeatedly with same filename
+    if (!effective_filename.empty() && effective_filename != loaded_thumbnail_filename_) {
+        spdlog::debug("[{}] Thumbnail filename changed: '{}' -> '{}'", get_name(),
+                      loaded_thumbnail_filename_, effective_filename);
+        load_thumbnail_for_file(effective_filename);
+        load_gcode_for_viewing(effective_filename);
+        loaded_thumbnail_filename_ = effective_filename;
     }
+}
+
+void PrintStatusPanel::set_thumbnail_source(const std::string& filename) {
+    thumbnail_source_filename_ = filename;
+    spdlog::debug("[{}] Thumbnail source set to: {}", get_name(),
+                  filename.empty() ? "(cleared)" : filename);
 }
 
 void PrintStatusPanel::set_progress(int percent) {

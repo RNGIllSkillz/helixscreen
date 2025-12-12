@@ -276,7 +276,7 @@ uint16_t GeometryBuilder::add_to_normal_palette(RibbonGeometry& geometry, const 
 
     // Log palette size periodically
     if (geometry.normal_palette.size() % 1000 == 0) {
-        spdlog::debug("Normal palette: {} entries", geometry.normal_palette.size());
+        spdlog::trace("Normal palette: {} entries", geometry.normal_palette.size());
     }
 
     return index;

@@ -80,9 +80,10 @@
           <lv_button name="delete_button" flex_grow="1" height="#button_height">
             <text_body text="Delete" align="center"/>
           </lv_button>
-          <!-- Print button -->
+          <!-- Print button (disabled when print in progress) -->
           <lv_button name="print_button" flex_grow="1" height="#button_height">
             <text_body text="Print" align="center"/>
+            <lv_obj-bind_flag_if_eq subject="print_select_can_print" flag="disabled" ref_value="0"/>
           </lv_button>
         </lv_obj>
       </lv_obj>

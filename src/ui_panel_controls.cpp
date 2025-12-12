@@ -411,7 +411,7 @@ void ControlsPanel::populate_secondary_fans() {
         } else {
             lv_label_set_text(indicator, LV_SYMBOL_SETTINGS); // ⚙ means auto/firmware
         }
-        lv_obj_set_style_text_color(indicator, ui_theme_get_color("text_tertiary"), 0);
+        lv_obj_set_style_text_color(indicator, ui_theme_get_color("text_secondary"), 0);
         lv_obj_set_style_text_font(indicator, UI_FONT_SMALL, 0);
 
         secondary_count++;

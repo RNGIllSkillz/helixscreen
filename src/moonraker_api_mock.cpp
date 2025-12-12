@@ -144,6 +144,26 @@ void MoonrakerAPIMock::download_thumbnail(const std::string& thumbnail_path,
 
     namespace fs = std::filesystem;
 
+    // First check: if thumbnail_path is already a local file that exists, use it directly
+    // This handles paths like "build/thumbnail_cache/filename.png" from mock metadata
+    if (fs::exists(thumbnail_path)) {
+        try {
+            // Copy to cache path (unless they're the same)
+            if (thumbnail_path != cache_path) {
+                fs::copy_file(thumbnail_path, cache_path, fs::copy_options::overwrite_existing);
+            }
+            spdlog::info("[MoonrakerAPIMock] Using local thumbnail {} -> {}", thumbnail_path,
+                         cache_path);
+            if (on_success) {
+                on_success("A:" + cache_path);
+            }
+            return;
+        } catch (const fs::filesystem_error& e) {
+            spdlog::warn("[MoonrakerAPIMock] Failed to copy local thumbnail: {}", e.what());
+            // Fall through to other methods
+        }
+    }
+
     // Moonraker thumbnail paths look like: ".thumbnails/filename-NNxNN.png"
     // Try to find the corresponding G-code file and extract the thumbnail
     std::string gcode_filename;

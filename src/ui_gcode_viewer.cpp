@@ -609,13 +609,22 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         st->loading_container = nullptr;
     }
 
-    // Create loading UI
+    // Create loading UI with dark theme styling (matching preparing_overlay pattern)
     st->loading_container = lv_obj_create(obj);
     lv_obj_set_size(st->loading_container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_center(st->loading_container);
     lv_obj_set_flex_flow(st->loading_container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(st->loading_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
+
+    // Style container: semi-transparent dark background, no border, padding for content
+    lv_obj_set_style_bg_color(st->loading_container, ui_theme_parse_color("#card_bg_dark"),
+                              LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(st->loading_container, 220, LV_PART_MAIN);
+    lv_obj_set_style_border_width(st->loading_container, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(st->loading_container, 8, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(st->loading_container, 24, LV_PART_MAIN);
+    lv_obj_set_style_pad_gap(st->loading_container, 12, LV_PART_MAIN);
 
     st->loading_spinner = lv_spinner_create(st->loading_container);
     lv_obj_set_size(st->loading_spinner, 48, 48); // ~lg size for small screens
@@ -628,6 +637,9 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 
     st->loading_label = lv_label_create(st->loading_container);
     lv_label_set_text(st->loading_label, "Loading G-code...");
+    // Set text color for visibility on dark background
+    lv_obj_set_style_text_color(st->loading_label, ui_theme_parse_color("#text_primary_dark"),
+                                LV_PART_MAIN);
 
     // Launch worker thread via RAII-managed start_build()
     // Automatically cancels any existing build and joins the thread
