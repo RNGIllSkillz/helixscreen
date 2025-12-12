@@ -51,6 +51,21 @@ class PIDCalibrationPanel {
     ~PIDCalibrationPanel() = default;
 
     /**
+     * @brief Initialize LVGL subjects for reactive state management
+     *
+     * Must be called once before setup(), typically during application init.
+     * Registers the state subject used by XML bind_flag_if_not_eq bindings.
+     */
+    void init_subjects();
+
+    /**
+     * @brief Register XML event callbacks
+     *
+     * Must be called once during application init to wire up XML event_cb elements.
+     */
+    static void register_callbacks();
+
+    /**
      * @brief Setup the panel with event handlers
      *
      * @param panel Root panel object from lv_xml_create()
@@ -94,6 +109,10 @@ class PIDCalibrationPanel {
     lv_obj_t* parent_screen_ = nullptr;
     MoonrakerClient* client_ = nullptr;
 
+    // State subject for reactive visibility control
+    lv_subject_t pid_cal_state_{};
+    bool subjects_initialized_ = false;
+
     // State
     State state_ = State::IDLE;
     Heater selected_heater_ = Heater::EXTRUDER;
@@ -112,13 +131,6 @@ class PIDCalibrationPanel {
     float result_ki_ = 0;
     float result_kd_ = 0;
 
-    // State view references
-    lv_obj_t* state_idle_ = nullptr;
-    lv_obj_t* state_calibrating_ = nullptr;
-    lv_obj_t* state_saving_ = nullptr;
-    lv_obj_t* state_complete_ = nullptr;
-    lv_obj_t* state_error_ = nullptr;
-
     // Widget references
     lv_obj_t* btn_heater_extruder_ = nullptr;
     lv_obj_t* btn_heater_bed_ = nullptr;
@@ -133,7 +145,6 @@ class PIDCalibrationPanel {
 
     // State management
     void set_state(State new_state);
-    void show_state_view(State state);
 
     // UI updates
     void update_heater_selection();
@@ -167,3 +178,11 @@ class PIDCalibrationPanel {
 
 // Global instance accessor
 PIDCalibrationPanel& get_global_pid_cal_panel();
+
+/**
+ * @brief Register XML event callbacks and initialize subjects for PID panel
+ *
+ * Call this once at startup before creating any calibration_pid_panel XML.
+ * Registers callbacks for all button events and initializes state subject.
+ */
+void ui_panel_calibration_pid_register_callbacks();

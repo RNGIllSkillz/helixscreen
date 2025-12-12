@@ -1185,6 +1185,9 @@ int main(int argc, char** argv) {
     // Register screws tilt panel callbacks BEFORE creating XML
     ui_panel_screws_tilt_register_callbacks();
 
+    // Register PID calibration panel callbacks BEFORE creating XML
+    ui_panel_calibration_pid_register_callbacks();
+
     // Register input shaper panel callbacks BEFORE creating XML
     ui_panel_input_shaper_register_callbacks();
 
