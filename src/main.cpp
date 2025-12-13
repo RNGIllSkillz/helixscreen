@@ -518,7 +518,8 @@ static void initialize_subjects() {
                 [](lv_timer_t* timer) {
                     if (auto* mock = dynamic_cast<UsbBackendMock*>(usb_manager->get_backend())) {
                         mock->add_demo_drives();
-                        spdlog::debug("[USB Manager] Added demo USB drives for test mode (delayed)");
+                        spdlog::debug(
+                            "[USB Manager] Added demo USB drives for test mode (delayed)");
                     }
                     lv_timer_delete(timer);
                 },
@@ -658,8 +659,8 @@ static void show_splash_screen() {
         uint32_t scale = (static_cast<uint32_t>(target_size) * 256U) / width;
         lv_image_set_scale(logo, scale);
 
-        spdlog::debug("[Splash] Logo: {}x{} scaled to {} (scale factor: {})", width, height, target_size,
-                      scale);
+        spdlog::debug("[Splash] Logo: {}x{} scaled to {} (scale factor: {})", width, height,
+                      target_size, scale);
     } else {
         spdlog::warn("[Splash] Could not get logo dimensions, using default scale");
         lv_image_set_scale(logo, 128); // 50% scale as fallback
@@ -807,8 +808,9 @@ static void initialize_moonraker_client(Config* config) {
     moonraker_client->configure_timeouts(connection_timeout, request_timeout, keepalive_interval,
                                          reconnect_min_delay, reconnect_max_delay);
 
-    spdlog::debug("[Moonraker Client] Timeouts configured: connection={}ms, request={}ms, keepalive={}ms",
-                  connection_timeout, request_timeout, keepalive_interval);
+    spdlog::debug(
+        "[Moonraker Client] Timeouts configured: connection={}ms, request={}ms, keepalive={}ms",
+        connection_timeout, request_timeout, keepalive_interval);
 
     // Register event handler to translate transport events to UI notifications
     // This decouples the transport layer (MoonrakerClient) from the UI layer
@@ -1139,7 +1141,8 @@ int main(int argc, char** argv) {
     // Signal external splash process to exit BEFORE creating our display
     // This is critical for DRM - only one process can hold the display at a time
     if (g_runtime_config.splash_pid > 0) {
-        spdlog::info("[Init] Signaling splash process (PID {}) to exit...", g_runtime_config.splash_pid);
+        spdlog::info("[Init] Signaling splash process (PID {}) to exit...",
+                     g_runtime_config.splash_pid);
         if (kill(g_runtime_config.splash_pid, SIGUSR1) == 0) {
             // Wait for splash to actually exit and release DRM resources
             // We can't use waitpid() since we're not the parent, so poll with kill(pid, 0)
@@ -1153,7 +1156,8 @@ int main(int argc, char** argv) {
                 spdlog::debug("[Init] Splash process exited, proceeding with display init");
             }
         } else {
-            spdlog::debug("[Init] Splash process already exited (PID {})", g_runtime_config.splash_pid);
+            spdlog::debug("[Init] Splash process already exited (PID {})",
+                          g_runtime_config.splash_pid);
         }
         // Clear the PID so we don't try to signal it again later
         g_runtime_config.splash_pid = 0;
@@ -1444,7 +1448,8 @@ int main(int argc, char** argv) {
             }
         }
         if (args.overlays.fan) {
-            spdlog::debug("[Overlay] Opening fan control overlay as requested by command-line flag");
+            spdlog::debug(
+                "[Overlay] Opening fan control overlay as requested by command-line flag");
             auto& fan_panel = get_global_fan_panel();
             if (!fan_panel.are_subjects_initialized()) {
                 fan_panel.init_subjects();
@@ -1456,7 +1461,8 @@ int main(int argc, char** argv) {
             }
         }
         if (args.overlays.print_status && overlay_panels.print_status) {
-            spdlog::debug("[Overlay] Opening print status overlay as requested by command-line flag");
+            spdlog::debug(
+                "[Overlay] Opening print status overlay as requested by command-line flag");
             ui_nav_push_overlay(overlay_panels.print_status);
         }
         if (args.overlays.bed_mesh) {
@@ -1526,7 +1532,8 @@ int main(int argc, char** argv) {
             }
         }
         if (args.overlays.file_detail) {
-            spdlog::debug("[Nav] File detail view requested - navigating to print select panel first");
+            spdlog::debug(
+                "[Nav] File detail view requested - navigating to print select panel first");
             ui_nav_set_active(UI_PANEL_PRINT_SELECT);
         }
 
@@ -1647,7 +1654,8 @@ int main(int argc, char** argv) {
             });
 
         if (connect_result != 0) {
-            spdlog::error("[Moonraker Client] Failed to initiate connection (code {})", connect_result);
+            spdlog::error("[Moonraker Client] Failed to initiate connection (code {})",
+                          connect_result);
             // State change callback will handle updating PrinterState
         }
     }

@@ -67,9 +67,10 @@ struct AmsMiniStatusData {
     // Per-slot data
     SlotBarData slots[AMS_MINI_STATUS_MAX_VISIBLE];
 
-    // Auto-binding observer (observes AmsState::gate_count_subject)
+    // Auto-binding observers (observe AmsState subjects)
     // Uses ObserverGuard for RAII lifecycle management
-    ObserverGuard gate_count_observer;
+    ObserverGuard gate_count_observer;    // Triggers when number of gates changes
+    ObserverGuard gates_version_observer; // Triggers when gate status/color changes
 };
 
 // Static registry for safe cleanup
@@ -84,6 +85,7 @@ static AmsMiniStatusData* get_data(lv_obj_t* obj) {
 static void rebuild_bars(AmsMiniStatusData* data);
 static void sync_from_ams_state(AmsMiniStatusData* data);
 static void on_ams_gate_count_changed(lv_observer_t* observer, lv_subject_t* subject);
+static void on_ams_gates_version_changed(lv_observer_t* observer, lv_subject_t* subject);
 
 // ============================================================================
 // Internal helpers
@@ -251,9 +253,10 @@ static void on_delete(lv_event_t* e) {
     if (it != s_registry.end()) {
         AmsMiniStatusData* data = it->second;
         if (data) {
-            // Release observer before delete to prevent destructor from calling
+            // Release observers before delete to prevent destructor from calling
             // lv_observer_remove() on potentially destroyed subjects during shutdown
             data->gate_count_observer.release();
+            data->gates_version_observer.release();
         }
         delete data;
         s_registry.erase(it);
@@ -316,7 +319,7 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
     // Initially hidden (no gates)
     lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
 
-    // Auto-bind to AmsState: observe gate_count changes and sync slot data
+    // Auto-bind to AmsState: observe gate_count and gates_version changes
     // This makes the widget self-updating - no external wiring needed
     lv_subject_t* gate_count_subject = AmsState::instance().get_gate_count_subject();
     if (gate_count_subject) {
@@ -329,6 +332,14 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
         if (current_gate_count > 0) {
             sync_from_ams_state(data);
         }
+    }
+
+    // Also observe gates_version for status/color changes (not just count changes)
+    lv_subject_t* gates_version_subject = AmsState::instance().get_gates_version_subject();
+    if (gates_version_subject) {
+        data->gates_version_observer =
+            ObserverGuard(gates_version_subject, on_ams_gates_version_changed, container);
+        spdlog::debug("[AmsMiniStatus] Auto-bound to AmsState gates_version subject");
     }
 
     spdlog::debug("[AmsMiniStatus] Created (height={})", height);
@@ -475,6 +486,25 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
  * Automatically updates the widget when AMS backend reports gate count changes.
  */
 static void on_ams_gate_count_changed(lv_observer_t* observer, lv_subject_t* subject) {
+    (void)subject;
+    lv_obj_t* container = static_cast<lv_obj_t*>(lv_observer_get_user_data(observer));
+    if (!container)
+        return;
+
+    auto* data = get_data(container);
+    if (!data)
+        return;
+
+    sync_from_ams_state(data);
+}
+
+/**
+ * @brief Observer callback for AmsState gates_version changes
+ *
+ * Automatically updates the widget when gate status or color changes.
+ * This is separate from gate_count because status changes don't change the count.
+ */
+static void on_ams_gates_version_changed(lv_observer_t* observer, lv_subject_t* subject) {
     (void)subject;
     lv_obj_t* container = static_cast<lv_obj_t*>(lv_observer_get_user_data(observer));
     if (!container)
