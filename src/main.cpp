@@ -181,10 +181,10 @@ GcodeTestPanel* get_gcode_test_panel(PrinterState& printer_state, MoonrakerAPI* 
  */
 static lv_obj_t* create_overlay_panel(lv_obj_t* screen, const char* component_name,
                                       const char* display_name) {
-    spdlog::debug("Opening {} overlay as requested by command-line flag", display_name);
+    spdlog::debug("[Overlay] Opening {} overlay as requested by command-line flag", display_name);
     lv_obj_t* panel = (lv_obj_t*)lv_xml_create(screen, component_name, nullptr);
     if (!panel) {
-        spdlog::error("Failed to create {} overlay from XML component '{}'", display_name,
+        spdlog::error("[Overlay] Failed to create {} overlay from XML component '{}'", display_name,
                       component_name);
     }
     return panel;
@@ -234,7 +234,7 @@ static void ensure_project_root_cwd() {
         exe_path[dir_len - suffix_len] = '\0';
 
         if (chdir(exe_path) == 0) {
-            spdlog::debug("Changed working directory to: {}", exe_path);
+            spdlog::debug("[Init] Changed working directory to: {}", exe_path);
         }
     }
 }
@@ -321,7 +321,7 @@ static void initialize_moonraker_client(Config* config);
  * See docs/LVGL9_XML_GUIDE.md "Typography - Semantic Text Components" for details.
  */
 static void register_fonts_and_images() {
-    spdlog::debug("Registering fonts and images...");
+    spdlog::debug("[Init] Registering fonts and images...");
 
     // Material Design Icons (various sizes for different UI elements)
     // Source: https://pictogrammers.com/library/mdi/
@@ -387,7 +387,7 @@ static void register_fonts_and_images() {
 
 // Initialize all reactive subjects for data binding
 static void initialize_subjects() {
-    spdlog::debug("Initializing reactive subjects...");
+    spdlog::debug("[Init] Initializing reactive subjects...");
     app_globals_init_subjects();   // Global subjects (notification subject, etc.)
     ui_nav_init();                 // Navigation system (icon colors, active panel)
     ui_status_bar_init_subjects(); // Status bar subjects (printer/network icon states)
@@ -450,10 +450,10 @@ static void initialize_subjects() {
     // Initialize UsbManager with mock backend in test mode
     usb_manager = std::make_unique<UsbManager>(g_runtime_config.should_mock_usb());
     if (usb_manager->start()) {
-        spdlog::info("UsbManager started (mock={})", g_runtime_config.should_mock_usb());
+        spdlog::info("[USB Manager] Started (mock={})", g_runtime_config.should_mock_usb());
         print_select_panel->set_usb_manager(usb_manager.get());
     } else {
-        spdlog::warn("Failed to start UsbManager");
+        spdlog::warn("[USB Manager] Failed to start");
     }
     print_status_panel = &get_global_print_status_panel();
     print_status_panel->init_subjects();
@@ -518,7 +518,7 @@ static void initialize_subjects() {
                 [](lv_timer_t* timer) {
                     if (auto* mock = dynamic_cast<UsbBackendMock*>(usb_manager->get_backend())) {
                         mock->add_demo_drives();
-                        spdlog::debug("Added demo USB drives for test mode (delayed)");
+                        spdlog::debug("[USB Manager] Added demo USB drives for test mode (delayed)");
                     }
                     lv_timer_delete(timer);
                 },
@@ -535,17 +535,17 @@ static bool init_lvgl() {
     // Create display backend (auto-detects: DRM → framebuffer → SDL)
     g_display_backend = DisplayBackend::create_auto();
     if (!g_display_backend) {
-        spdlog::error("No display backend available");
+        spdlog::error("[Display] No display backend available");
         lv_deinit();
         return false;
     }
 
-    spdlog::info("Using display backend: {}", g_display_backend->name());
+    spdlog::info("[Display] Using backend: {}", g_display_backend->name());
 
     // Create display
     display = g_display_backend->create_display(SCREEN_WIDTH, SCREEN_HEIGHT);
     if (!display) {
-        spdlog::error("Failed to create display");
+        spdlog::error("[Display] Failed to create display");
         g_display_backend.reset();
         lv_deinit();
         return false;
@@ -556,7 +556,7 @@ static bool init_lvgl() {
     if (!indev_mouse) {
 #if defined(HELIX_DISPLAY_DRM) || defined(HELIX_DISPLAY_FBDEV)
         // On embedded platforms (DRM/fbdev), no input device is fatal - show error screen
-        spdlog::error("No input device found - cannot operate touchscreen UI");
+        spdlog::error("[Display] No input device found - cannot operate touchscreen UI");
 
         static const char* suggestions[] = {
             "Check /dev/input/event* devices exist",
@@ -576,7 +576,7 @@ static bool init_lvgl() {
         return false;
 #else
         // On desktop (SDL), continue without pointer - mouse is optional
-        spdlog::warn("No pointer input device created - touch/mouse disabled");
+        spdlog::warn("[Display] No pointer input device created - touch/mouse disabled");
 #endif
     }
 
@@ -589,22 +589,22 @@ static bool init_lvgl() {
         int scroll_limit = cfg->get<int>("/input/scroll_limit", 5);
         lv_indev_set_scroll_throw(indev_mouse, static_cast<uint8_t>(scroll_throw));
         lv_indev_set_scroll_limit(indev_mouse, static_cast<uint8_t>(scroll_limit));
-        spdlog::debug("Scroll config: throw={}, limit={}", scroll_throw, scroll_limit);
+        spdlog::debug("[Display] Scroll config: throw={}, limit={}", scroll_throw, scroll_limit);
     }
 
     // Create keyboard input device (optional - enables physical keyboard input)
     lv_indev_t* indev_keyboard = g_display_backend->create_input_keyboard();
     if (indev_keyboard) {
-        spdlog::debug("Physical keyboard input enabled");
+        spdlog::debug("[Display] Physical keyboard input enabled");
 
         // Create input group for keyboard navigation and text input
         lv_group_t* input_group = lv_group_create();
         lv_group_set_default(input_group);
         lv_indev_set_group(indev_keyboard, input_group);
-        spdlog::debug("Created default input group for keyboard");
+        spdlog::debug("[Display] Created default input group for keyboard");
     }
 
-    spdlog::debug("LVGL initialized: {}x{}", SCREEN_WIDTH, SCREEN_HEIGHT);
+    spdlog::debug("[Display] LVGL initialized: {}x{}", SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // Initialize SVG decoder for loading .svg files
     lv_svg_decoder_init();
@@ -614,7 +614,7 @@ static bool init_lvgl() {
 
 // Show splash screen with HelixScreen logo
 static void show_splash_screen() {
-    spdlog::debug("Showing splash screen");
+    spdlog::debug("[Splash] Showing splash screen");
 
     // Get the active screen
     lv_obj_t* screen = lv_screen_active();
@@ -658,10 +658,10 @@ static void show_splash_screen() {
         uint32_t scale = (static_cast<uint32_t>(target_size) * 256U) / width;
         lv_image_set_scale(logo, scale);
 
-        spdlog::debug("Logo: {}x{} scaled to {} (scale factor: {})", width, height, target_size,
+        spdlog::debug("[Splash] Logo: {}x{} scaled to {} (scale factor: {})", width, height, target_size,
                       scale);
     } else {
-        spdlog::warn("Could not get logo dimensions, using default scale");
+        spdlog::warn("[Splash] Could not get logo dimensions, using default scale");
         lv_image_set_scale(logo, 128); // 50% scale as fallback
     }
 
@@ -690,7 +690,7 @@ static void show_splash_screen() {
     // Clean up splash screen
     lv_obj_delete(container);
 
-    spdlog::debug("Splash screen complete");
+    spdlog::debug("[Splash] Splash screen complete");
 }
 
 // Save screenshot using SDL renderer
@@ -753,13 +753,13 @@ static void save_screenshot() {
     lv_draw_buf_t* snapshot = lv_snapshot_take(screen, LV_COLOR_FORMAT_ARGB8888);
 
     if (!snapshot) {
-        spdlog::error("Failed to take screenshot");
+        spdlog::error("[Screenshot] Failed to take screenshot");
         return;
     }
 
     // Write BMP file
     if (write_bmp(filename, snapshot->data, snapshot->header.w, snapshot->header.h)) {
-        spdlog::info("Screenshot saved: {}", filename);
+        spdlog::info("[Screenshot] Saved: {}", filename);
     } else {
         NOTIFY_ERROR("Failed to save screenshot");
         LOG_ERROR_INTERNAL("Failed to save screenshot to {}", filename);
@@ -771,7 +771,7 @@ static void save_screenshot() {
 
 // Initialize Moonraker client and API instances
 static void initialize_moonraker_client(Config* config) {
-    spdlog::debug("Initializing Moonraker client...");
+    spdlog::debug("[Moonraker Client] Initializing...");
 
     // Create client instance (mock or real based on test mode)
     if (get_runtime_config().should_mock_moonraker()) {
@@ -782,7 +782,7 @@ static void initialize_moonraker_client(Config* config) {
             MoonrakerClientMock::PrinterType::VORON_24, speedup);
         moonraker_client = std::move(mock);
     } else {
-        spdlog::debug("Creating REAL Moonraker client");
+        spdlog::debug("[Moonraker Client] Creating REAL Moonraker client");
         moonraker_client = std::make_unique<MoonrakerClient>();
     }
 
@@ -807,7 +807,7 @@ static void initialize_moonraker_client(Config* config) {
     moonraker_client->configure_timeouts(connection_timeout, request_timeout, keepalive_interval,
                                          reconnect_min_delay, reconnect_max_delay);
 
-    spdlog::debug("Moonraker timeouts configured: connection={}ms, request={}ms, keepalive={}ms",
+    spdlog::debug("[Moonraker Client] Timeouts configured: connection={}ms, request={}ms, keepalive={}ms",
                   connection_timeout, request_timeout, keepalive_interval);
 
     // Register event handler to translate transport events to UI notifications
@@ -857,7 +857,7 @@ static void initialize_moonraker_client(Config* config) {
     });
 
     // Create MoonrakerAPI instance (mock or real based on test mode)
-    spdlog::debug("Creating MoonrakerAPI instance...");
+    spdlog::debug("[Moonraker API] Creating instance...");
     if (get_runtime_config().should_use_test_files()) {
         spdlog::debug("[Test Mode] Creating MOCK MoonrakerAPI (local file transfers)");
         moonraker_api = std::make_unique<MoonrakerAPIMock>(*moonraker_client, get_printer_state());
@@ -1085,18 +1085,18 @@ int main(int argc, char** argv) {
         helix::logging::init(log_config);
     }
 
-    spdlog::info("HelixScreen UI Prototype");
-    spdlog::info("========================");
-    spdlog::debug("Target: {}x{}", SCREEN_WIDTH, SCREEN_HEIGHT);
-    spdlog::debug("DPI: {}{}", (args.dpi > 0 ? args.dpi : LV_DPI_DEF),
+    spdlog::info("[main] HelixScreen UI Prototype");
+    spdlog::info("[main] ========================");
+    spdlog::debug("[main] Target: {}x{}", SCREEN_WIDTH, SCREEN_HEIGHT);
+    spdlog::debug("[main] DPI: {}{}", (args.dpi > 0 ? args.dpi : LV_DPI_DEF),
                   (args.dpi > 0 ? " (custom)" : " (default)"));
-    spdlog::debug("Nav Width: {} pixels", UI_NAV_WIDTH(SCREEN_WIDTH));
-    spdlog::debug("Initial Panel: {}", args.initial_panel);
+    spdlog::debug("[main] Nav Width: {} pixels", UI_NAV_WIDTH(SCREEN_WIDTH));
+    spdlog::debug("[main] Initial Panel: {}", args.initial_panel);
 
     // Cleanup stale temp files from G-code modifications (older than 1 hour)
     size_t cleaned = helix::gcode::GCodeFileModifier::cleanup_temp_files();
     if (cleaned > 0) {
-        spdlog::info("Cleaned up {} stale G-code temp file(s)", cleaned);
+        spdlog::info("[main] Cleaned up {} stale G-code temp file(s)", cleaned);
     }
 
     // Determine theme: CLI overrides config, config overrides default (dark)
@@ -1104,11 +1104,11 @@ int main(int argc, char** argv) {
     if (args.dark_mode_cli >= 0) {
         // CLI explicitly set --dark or --light (temporary override, not saved)
         dark_mode = (args.dark_mode_cli == 1);
-        spdlog::debug("Using CLI theme override: {}", dark_mode ? "dark" : "light");
+        spdlog::debug("[Theme] Using CLI theme override: {}", dark_mode ? "dark" : "light");
     } else {
         // Load from config (or default to dark)
         dark_mode = config->get<bool>("/dark_mode", true);
-        spdlog::debug("Loaded theme preference from config: {}", dark_mode ? "dark" : "light");
+        spdlog::debug("[Theme] Loaded preference from config: {}", dark_mode ? "dark" : "light");
     }
 
 #ifdef HELIX_DISPLAY_SDL
@@ -1117,29 +1117,29 @@ int main(int argc, char** argv) {
         char display_str[32];
         snprintf(display_str, sizeof(display_str), "%d", args.display_num);
         if (setenv("HELIX_SDL_DISPLAY", display_str, 1) != 0) {
-            spdlog::error("Failed to set HELIX_SDL_DISPLAY environment variable");
+            spdlog::error("[SDL] Failed to set HELIX_SDL_DISPLAY environment variable");
             return 1;
         }
-        spdlog::debug("Window will be centered on display {}", args.display_num);
+        spdlog::debug("[SDL] Window will be centered on display {}", args.display_num);
     }
     if (args.x_pos >= 0 && args.y_pos >= 0) {
         char x_str[32], y_str[32];
         snprintf(x_str, sizeof(x_str), "%d", args.x_pos);
         snprintf(y_str, sizeof(y_str), "%d", args.y_pos);
         if (setenv("HELIX_SDL_XPOS", x_str, 1) != 0 || setenv("HELIX_SDL_YPOS", y_str, 1) != 0) {
-            spdlog::error("Failed to set window position environment variables");
+            spdlog::error("[SDL] Failed to set window position environment variables");
             return 1;
         }
-        spdlog::debug("Window will be positioned at ({}, {})", args.x_pos, args.y_pos);
+        spdlog::debug("[SDL] Window will be positioned at ({}, {})", args.x_pos, args.y_pos);
     } else if ((args.x_pos >= 0 && args.y_pos < 0) || (args.x_pos < 0 && args.y_pos >= 0)) {
-        spdlog::warn("Both -x and -y must be specified for exact positioning. Ignoring.");
+        spdlog::warn("[SDL] Both -x and -y must be specified for exact positioning. Ignoring.");
     }
 #endif
 
     // Signal external splash process to exit BEFORE creating our display
     // This is critical for DRM - only one process can hold the display at a time
     if (g_runtime_config.splash_pid > 0) {
-        spdlog::info("Signaling splash process (PID {}) to exit...", g_runtime_config.splash_pid);
+        spdlog::info("[Init] Signaling splash process (PID {}) to exit...", g_runtime_config.splash_pid);
         if (kill(g_runtime_config.splash_pid, SIGUSR1) == 0) {
             // Wait for splash to actually exit and release DRM resources
             // We can't use waitpid() since we're not the parent, so poll with kill(pid, 0)
@@ -1148,12 +1148,12 @@ int main(int argc, char** argv) {
                 usleep(20000); // 20ms
             }
             if (wait_attempts <= 0) {
-                spdlog::warn("Splash process did not exit in time, proceeding anyway");
+                spdlog::warn("[Init] Splash process did not exit in time, proceeding anyway");
             } else {
-                spdlog::debug("Splash process exited, proceeding with display init");
+                spdlog::debug("[Init] Splash process exited, proceeding with display init");
             }
         } else {
-            spdlog::debug("Splash process already exited (PID {})", g_runtime_config.splash_pid);
+            spdlog::debug("[Init] Splash process already exited (PID {})", g_runtime_config.splash_pid);
         }
         // Clear the PID so we don't try to signal it again later
         g_runtime_config.splash_pid = 0;
@@ -1167,9 +1167,9 @@ int main(int argc, char** argv) {
     // Apply custom DPI if specified (before theme init)
     if (args.dpi > 0) {
         lv_display_set_dpi(display, args.dpi);
-        spdlog::debug("Display DPI set to: {}", args.dpi);
+        spdlog::debug("[Display] DPI set to: {}", args.dpi);
     } else {
-        spdlog::debug("Display DPI: {} (from LV_DPI_DEF)", lv_display_get_dpi(display));
+        spdlog::debug("[Display] DPI: {} (from LV_DPI_DEF)", lv_display_get_dpi(display));
     }
 
     // Create main screen
@@ -1184,16 +1184,16 @@ int main(int argc, char** argv) {
     // Initialize tips manager (uses standard C++ file I/O, not LVGL's "A:" filesystem)
     TipsManager* tips_mgr = TipsManager::get_instance();
     if (!tips_mgr->init("config/printing_tips.json")) {
-        spdlog::warn("Tips manager failed to initialize - tips will not be available");
+        spdlog::warn("[Tips] Failed to initialize - tips will not be available");
     } else {
-        spdlog::debug("Loaded {} tips", tips_mgr->get_total_tips());
+        spdlog::debug("[Tips] Loaded {} tips", tips_mgr->get_total_tips());
     }
 
     // Register fonts and images for XML (must be done BEFORE globals.xml for theme init)
     register_fonts_and_images();
 
     // Register XML components (globals first to make constants available)
-    spdlog::debug("Registering XML components...");
+    spdlog::debug("[XML] Registering components...");
     lv_xml_register_component_from_file("A:ui_xml/globals.xml");
 
     // Initialize LVGL theme from globals.xml constants (after fonts and globals are registered)
@@ -1279,7 +1279,7 @@ int main(int argc, char** argv) {
     lv_obj_t* content_area = lv_obj_find_by_name(app_layout, "content_area");
 
     if (!navbar || !content_area) {
-        spdlog::error("Failed to find navbar/content_area in app_layout");
+        spdlog::error("[Init] Failed to find navbar/content_area in app_layout");
         lv_deinit();
         return 1;
     }
@@ -1293,7 +1293,7 @@ int main(int argc, char** argv) {
     // Find panel container by name (robust to layout changes like removing status_bar)
     lv_obj_t* panel_container = lv_obj_find_by_name(content_area, "panel_container");
     if (!panel_container) {
-        spdlog::error("Failed to find panel_container in content_area");
+        spdlog::error("[Init] Failed to find panel_container in content_area");
         lv_deinit();
         return 1;
     }
@@ -1307,7 +1307,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < UI_PANEL_COUNT; i++) {
         panels[i] = lv_obj_find_by_name(panel_container, panel_names[i]);
         if (!panels[i]) {
-            spdlog::error("Missing panel '{}' in panel_container", panel_names[i]);
+            spdlog::error("[Init] Missing panel '{}' in panel_container", panel_names[i]);
             lv_deinit();
             return 1;
         }
@@ -1348,12 +1348,12 @@ int main(int argc, char** argv) {
         get_print_select_panel(get_printer_state(), nullptr)
             ->set_print_status_panel(overlay_panels.print_status);
 
-        spdlog::debug("Print status panel created and wired to print select");
+        spdlog::debug("[Print Status] Panel created and wired to print select");
     } else {
-        spdlog::error("Failed to create print status panel");
+        spdlog::error("[Print Status] Failed to create panel");
     }
 
-    spdlog::info("XML UI created successfully with reactive navigation");
+    spdlog::info("[Init] XML UI created successfully with reactive navigation");
 
     // Test notifications - commented out, uncomment to debug notification history
     // if (get_runtime_config().test_mode) {
@@ -1380,7 +1380,7 @@ int main(int argc, char** argv) {
     if ((args.force_wizard || config->is_wizard_required()) && !args.overlays.step_test &&
         !args.overlays.test_panel && !args.overlays.keypad && !args.overlays.keyboard &&
         !args.overlays.gcode_test && !args.panel_requested) {
-        spdlog::info("Starting first-run configuration wizard");
+        spdlog::info("[Wizard] Starting first-run configuration wizard");
 
         // Register wizard event callbacks and responsive constants BEFORE creating
         ui_wizard_register_event_callbacks();
@@ -1389,7 +1389,7 @@ int main(int argc, char** argv) {
         lv_obj_t* wizard = ui_wizard_create(screen);
 
         if (wizard) {
-            spdlog::debug("Wizard created successfully");
+            spdlog::debug("[Wizard] Created successfully");
             wizard_active = true;
 
             // Set initial step (screen loader sets appropriate title)
@@ -1403,13 +1403,13 @@ int main(int argc, char** argv) {
                 spdlog::debug("[Keyboard] Moved to foreground (above wizard overlay)");
             }
         } else {
-            spdlog::error("Failed to create wizard");
+            spdlog::error("[Wizard] Failed to create wizard");
         }
     }
 
     // Navigate to initial panel (if not showing wizard and panel was requested)
     if (!wizard_active && args.initial_panel >= 0) {
-        spdlog::debug("Navigating to initial panel: {}", args.initial_panel);
+        spdlog::debug("[Nav] Navigating to initial panel: {}", args.initial_panel);
         ui_nav_set_active(static_cast<ui_panel_id_t>(args.initial_panel));
     }
 
@@ -1444,7 +1444,7 @@ int main(int argc, char** argv) {
             }
         }
         if (args.overlays.fan) {
-            spdlog::debug("Opening fan control overlay as requested by command-line flag");
+            spdlog::debug("[Overlay] Opening fan control overlay as requested by command-line flag");
             auto& fan_panel = get_global_fan_panel();
             if (!fan_panel.are_subjects_initialized()) {
                 fan_panel.init_subjects();
@@ -1456,7 +1456,7 @@ int main(int argc, char** argv) {
             }
         }
         if (args.overlays.print_status && overlay_panels.print_status) {
-            spdlog::debug("Opening print status overlay as requested by command-line flag");
+            spdlog::debug("[Overlay] Opening print status overlay as requested by command-line flag");
             ui_nav_push_overlay(overlay_panels.print_status);
         }
         if (args.overlays.bed_mesh) {
@@ -1499,7 +1499,7 @@ int main(int argc, char** argv) {
             }
         }
         if (args.overlays.keypad) {
-            spdlog::debug("Opening keypad modal as requested by command-line flag");
+            spdlog::debug("[Overlay] Opening keypad modal as requested by command-line flag");
             ui_keypad_config_t keypad_config = {.initial_value = 0.0f,
                                                 .min_value = 0.0f,
                                                 .max_value = 300.0f,
@@ -1512,7 +1512,7 @@ int main(int argc, char** argv) {
             ui_keypad_show(&keypad_config);
         }
         if (args.overlays.keyboard) {
-            spdlog::debug("Showing keyboard as requested by command-line flag");
+            spdlog::debug("[Overlay] Showing keyboard as requested by command-line flag");
             ui_keyboard_show(nullptr);
         }
         if (args.overlays.step_test) {
@@ -1526,7 +1526,7 @@ int main(int argc, char** argv) {
             }
         }
         if (args.overlays.file_detail) {
-            spdlog::debug("File detail view requested - navigating to print select panel first");
+            spdlog::debug("[Nav] File detail view requested - navigating to print select panel first");
             ui_nav_set_active(UI_PANEL_PRINT_SELECT);
         }
 
@@ -1545,24 +1545,24 @@ int main(int argc, char** argv) {
 
     // Create G-code test panel if requested (independent of wizard state)
     if (args.overlays.gcode_test) {
-        spdlog::debug("Creating G-code test panel");
+        spdlog::debug("[GCode Test] Creating panel");
         lv_obj_t* gcode_test =
             ui_panel_gcode_test_create(screen); // Uses deprecated wrapper (creates + setups)
         if (gcode_test) {
-            spdlog::debug("G-code test panel created successfully");
+            spdlog::debug("[GCode Test] Panel created successfully");
         } else {
-            spdlog::error("Failed to create G-code test panel");
+            spdlog::error("[GCode Test] Failed to create panel");
         }
     }
 
     // Create glyphs panel if requested (independent of wizard state)
     if (args.overlays.glyphs) {
-        spdlog::debug("Creating glyphs reference panel");
+        spdlog::debug("[Glyphs] Creating panel");
         lv_obj_t* glyphs_panel = ui_panel_glyphs_create(screen);
         if (glyphs_panel) {
-            spdlog::debug("Glyphs panel created successfully");
+            spdlog::debug("[Glyphs] Panel created successfully");
         } else {
-            spdlog::error("Failed to create glyphs panel");
+            spdlog::error("[Glyphs] Failed to create panel");
         }
     }
 
@@ -1591,7 +1591,7 @@ int main(int argc, char** argv) {
                 host_port = host_port.substr(0, ws_pos);
             }
             http_base_url = "http://" + host_port;
-            spdlog::info("Using CLI-provided Moonraker URL: {}", moonraker_url);
+            spdlog::info("[Moonraker Client] Using CLI-provided URL: {}", moonraker_url);
         } else {
             // Build WebSocket URL from config
             moonraker_url =
@@ -1630,24 +1630,24 @@ int main(int argc, char** argv) {
         });
 
         // Connect to Moonraker
-        spdlog::debug("Connecting to Moonraker at {}", moonraker_url);
+        spdlog::debug("[Moonraker Client] Connecting to {}", moonraker_url);
         int connect_result = moonraker_client->connect(
             moonraker_url.c_str(),
             []() {
-                spdlog::info("✓ Connected to Moonraker");
+                spdlog::info("[Moonraker Client] ✓ Connected to Moonraker");
                 // State change callback will handle updating PrinterState
 
                 // Start auto-discovery (must be called AFTER connection is established)
                 moonraker_client->discover_printer(
-                    []() { spdlog::info("✓ Printer auto-discovery complete"); });
+                    []() { spdlog::info("[Moonraker Client] ✓ Printer auto-discovery complete"); });
             },
             []() {
-                spdlog::warn("✗ Disconnected from Moonraker");
+                spdlog::warn("[Moonraker Client] ✗ Disconnected from Moonraker");
                 // State change callback will handle updating PrinterState
             });
 
         if (connect_result != 0) {
-            spdlog::error("Failed to initiate Moonraker connection (code {})", connect_result);
+            spdlog::error("[Moonraker Client] Failed to initiate connection (code {})", connect_result);
             // State change callback will handle updating PrinterState
         }
     }
@@ -1675,7 +1675,7 @@ int main(int argc, char** argv) {
         SDL_Keymod modifiers = SDL_GetModState();
         const Uint8* keyboard_state = SDL_GetKeyboardState(NULL);
         if ((modifiers & KMOD_GUI) && keyboard_state[SDL_SCANCODE_Q]) {
-            spdlog::info("Cmd+Q/Win+Q pressed - exiting...");
+            spdlog::info("[Input] Cmd+Q/Win+Q pressed - exiting...");
             break;
         }
 
@@ -1691,7 +1691,7 @@ int main(int argc, char** argv) {
         static bool s_key_was_pressed = false;
         bool s_key_pressed = keyboard_state[SDL_SCANCODE_S] != 0;
         if (s_key_pressed && !s_key_was_pressed) {
-            spdlog::info("S key pressed - taking screenshot...");
+            spdlog::info("[Input] S key pressed - taking screenshot...");
             save_screenshot();
         }
         s_key_was_pressed = s_key_pressed;
@@ -1705,7 +1705,7 @@ int main(int argc, char** argv) {
 
         // Auto-quit after timeout (if enabled)
         if (args.timeout_sec > 0 && (helix_get_ticks() - start_time) >= timeout_ms) {
-            spdlog::info("Timeout reached ({} seconds) - exiting...", args.timeout_sec);
+            spdlog::info("[main] Timeout reached ({} seconds) - exiting...", args.timeout_sec);
             break;
         }
 
@@ -1754,7 +1754,7 @@ int main(int argc, char** argv) {
     }
 
     // Cleanup
-    spdlog::info("Shutting down...");
+    spdlog::info("[main] Shutting down...");
 
     // Clear app_globals references before destroying instances
     set_moonraker_api(nullptr);
