@@ -13,7 +13,7 @@
 namespace helix {
 
 void show_splash_screen(int screen_width, int screen_height) {
-    spdlog::debug("Showing splash screen");
+    spdlog::debug("[Splash Screen] Showing splash screen");
 
     // Get the active screen
     lv_obj_t* screen = lv_screen_active();
@@ -57,10 +57,10 @@ void show_splash_screen(int screen_width, int screen_height) {
         uint32_t scale = (static_cast<uint32_t>(target_size) * 256U) / width;
         lv_image_set_scale(logo, static_cast<uint16_t>(scale));
 
-        spdlog::debug("Logo: {}x{} scaled to {} (scale factor: {})", width, height, target_size,
-                      scale);
+        spdlog::debug("[Splash Screen] Logo: {}x{} scaled to {} (scale factor: {})", width, height,
+                      target_size, scale);
     } else {
-        spdlog::warn("Could not get logo dimensions, using default scale");
+        spdlog::warn("[Splash Screen] Could not get logo dimensions, using default scale");
         lv_image_set_scale(logo, 128); // 50% scale as fallback
     }
 
@@ -90,7 +90,7 @@ void show_splash_screen(int screen_width, int screen_height) {
     // Clean up splash screen
     lv_obj_delete(container);
 
-    spdlog::debug("Splash screen complete");
+    spdlog::debug("[Splash Screen] complete");
 }
 
 } // namespace helix

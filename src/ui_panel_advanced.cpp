@@ -23,7 +23,7 @@ static std::unique_ptr<AdvancedPanel> g_advanced_panel;
 AdvancedPanel& get_global_advanced_panel() {
     // Should be initialized by main.cpp before use
     if (!g_advanced_panel) {
-        spdlog::error("get_global_advanced_panel() called before initialization!");
+        spdlog::error("[Advanced Panel] get_global_advanced_panel() called before initialization!");
         throw std::runtime_error("AdvancedPanel not initialized");
     }
     return *g_advanced_panel;

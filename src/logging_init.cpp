@@ -167,7 +167,7 @@ void init(const LogConfig& config) {
     spdlog::set_default_logger(logger);
 
     // Log what we configured (at debug level so it's not noisy)
-    spdlog::debug("Logging initialized: target={}, console={}", log_target_name(effective_target),
+    spdlog::debug("[Logging] Initialized: target={}, console={}", log_target_name(effective_target),
                   config.enable_console ? "yes" : "no");
 }
 

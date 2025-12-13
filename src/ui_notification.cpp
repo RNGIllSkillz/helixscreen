@@ -164,12 +164,12 @@ void ui_notification_init() {
     s_notification_observer =
         ObserverGuard(&get_notification_subject(), notification_observer_cb, nullptr);
 
-    spdlog::debug("Notification system initialized (main thread ID captured)");
+    spdlog::debug("[Notification] Notification system initialized (main thread ID captured)");
 }
 
 void ui_notification_info(const char* message) {
     if (!message) {
-        spdlog::warn("Attempted to show info notification with null message");
+        spdlog::warn("[Notification] Attempted to show info notification with null message");
         return;
     }
 
@@ -192,14 +192,14 @@ void ui_notification_info(const char* message) {
         // Background thread: marshal to main thread
         AsyncMessageData* data = (AsyncMessageData*)malloc(sizeof(AsyncMessageData));
         if (!data) {
-            spdlog::error("Failed to allocate memory for async notification");
+            spdlog::error("[Notification] Failed to allocate memory for async notification");
             return;
         }
 
         data->message = strdup(message);
         if (!data->message) {
             free(data);
-            spdlog::error("Failed to duplicate message for async notification");
+            spdlog::error("[Notification] Failed to duplicate message for async notification");
             return;
         }
 
@@ -212,7 +212,7 @@ void ui_notification_info(const char* message) {
 
 void ui_notification_success(const char* message) {
     if (!message) {
-        spdlog::warn("Attempted to show success notification with null message");
+        spdlog::warn("[Notification] Attempted to show success notification with null message");
         return;
     }
 
@@ -235,14 +235,14 @@ void ui_notification_success(const char* message) {
         // Background thread: marshal to main thread
         AsyncMessageData* data = (AsyncMessageData*)malloc(sizeof(AsyncMessageData));
         if (!data) {
-            spdlog::error("Failed to allocate memory for async notification");
+            spdlog::error("[Notification] Failed to allocate memory for async notification");
             return;
         }
 
         data->message = strdup(message);
         if (!data->message) {
             free(data);
-            spdlog::error("Failed to duplicate message for async notification");
+            spdlog::error("[Notification] Failed to duplicate message for async notification");
             return;
         }
 
@@ -255,7 +255,7 @@ void ui_notification_success(const char* message) {
 
 void ui_notification_warning(const char* message) {
     if (!message) {
-        spdlog::warn("Attempted to show warning notification with null message");
+        spdlog::warn("[Notification] Attempted to show warning notification with null message");
         return;
     }
 
@@ -278,14 +278,14 @@ void ui_notification_warning(const char* message) {
         // Background thread: marshal to main thread
         AsyncMessageData* data = (AsyncMessageData*)malloc(sizeof(AsyncMessageData));
         if (!data) {
-            spdlog::error("Failed to allocate memory for async notification");
+            spdlog::error("[Notification] Failed to allocate memory for async notification");
             return;
         }
 
         data->message = strdup(message);
         if (!data->message) {
             free(data);
-            spdlog::error("Failed to duplicate message for async notification");
+            spdlog::error("[Notification] Failed to duplicate message for async notification");
             return;
         }
 
@@ -298,7 +298,7 @@ void ui_notification_warning(const char* message) {
 
 void ui_notification_error(const char* title, const char* message, bool modal) {
     if (!message) {
-        spdlog::warn("Attempted to show error notification with null message");
+        spdlog::warn("[Notification] Attempted to show error notification with null message");
         return;
     }
 
@@ -369,7 +369,7 @@ void ui_notification_error(const char* title, const char* message, bool modal) {
         // Background thread: marshal to main thread
         AsyncErrorData* data = (AsyncErrorData*)malloc(sizeof(AsyncErrorData));
         if (!data) {
-            spdlog::error("Failed to allocate memory for async error notification");
+            spdlog::error("[Notification] Failed to allocate memory for async error notification");
             return;
         }
 
@@ -378,7 +378,8 @@ void ui_notification_error(const char* title, const char* message, bool modal) {
             data->title = strdup(title);
             if (!data->title) {
                 free(data);
-                spdlog::error("Failed to duplicate title for async error notification");
+                spdlog::error(
+                    "[Notification] Failed to duplicate title for async error notification");
                 return;
             }
         } else {
@@ -390,7 +391,8 @@ void ui_notification_error(const char* title, const char* message, bool modal) {
         if (!data->message) {
             free(data->title);
             free(data);
-            spdlog::error("Failed to duplicate message for async error notification");
+            spdlog::error(
+                "[Notification] Failed to duplicate message for async error notification");
             return;
         }
 
@@ -415,7 +417,7 @@ static void notification_observer_cb(lv_observer_t* observer, lv_subject_t* subj
         return;
     }
     if (!data->message) {
-        spdlog::warn("Notification observer received data with null message");
+        spdlog::warn("[Notification] Notification observer received data with null message");
         return;
     }
 
@@ -440,8 +442,8 @@ static void notification_observer_cb(lv_observer_t* observer, lv_subject_t* subj
         }
     }
 
-    spdlog::debug("Notification routed: modal={}, severity={}, msg={}", data->show_modal,
-                  static_cast<int>(data->severity), data->message);
+    spdlog::debug("[Notification] Notification routed: modal={}, severity={}, msg={}",
+                  data->show_modal, static_cast<int>(data->severity), data->message);
 }
 
 // Modal OK button callback

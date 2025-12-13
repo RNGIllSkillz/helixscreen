@@ -19,7 +19,8 @@ static void on_timelapse_row_clicked(lv_event_t* e);
 
 TimelapseSettingsOverlay& get_global_timelapse_settings() {
     if (!g_timelapse_settings) {
-        spdlog::error("get_global_timelapse_settings() called before initialization!");
+        spdlog::error(
+            "[Timelapse Settings] get_global_timelapse_settings() called before initialization!");
         throw std::runtime_error("TimelapseSettingsOverlay not initialized");
     }
     return *g_timelapse_settings;
@@ -27,11 +28,11 @@ TimelapseSettingsOverlay& get_global_timelapse_settings() {
 
 void init_global_timelapse_settings(PrinterState& printer_state, MoonrakerAPI* api) {
     if (g_timelapse_settings) {
-        spdlog::warn("TimelapseSettingsOverlay already initialized, skipping");
+        spdlog::warn("[Timelapse Settings] TimelapseSettingsOverlay already initialized, skipping");
         return;
     }
     g_timelapse_settings = std::make_unique<TimelapseSettingsOverlay>(printer_state, api);
-    spdlog::debug("TimelapseSettingsOverlay initialized");
+    spdlog::debug("[Timelapse Settings] TimelapseSettingsOverlay initialized");
 }
 
 // Framerate mapping
@@ -55,7 +56,7 @@ int TimelapseSettingsOverlay::index_to_framerate(int index) {
 
 TimelapseSettingsOverlay::TimelapseSettingsOverlay(PrinterState& printer_state, MoonrakerAPI* api)
     : PanelBase(printer_state, api) {
-    spdlog::debug("[TimelapseSettings] Constructor");
+    spdlog::debug("[Timelapse Settings] Constructor");
 }
 
 void TimelapseSettingsOverlay::init_subjects() {
@@ -208,7 +209,7 @@ void TimelapseSettingsOverlay::on_enabled_changed(lv_event_t* e) {
     lv_obj_t* sw = static_cast<lv_obj_t*>(lv_event_get_target(e));
     bool enabled = lv_obj_has_state(sw, LV_STATE_CHECKED);
 
-    spdlog::debug("[TimelapseSettings] Enable changed: {}", enabled);
+    spdlog::debug("[Timelapse Settings] Enable changed: {}", enabled);
     g_timelapse_settings->current_settings_.enabled = enabled;
     g_timelapse_settings->save_settings();
 }
@@ -222,7 +223,7 @@ void TimelapseSettingsOverlay::on_mode_changed(lv_event_t* e) {
     int index = lv_dropdown_get_selected(dropdown);
 
     const char* mode = (index == 1) ? "hyperlapse" : "layermacro";
-    spdlog::debug("[TimelapseSettings] Mode changed: {} (index {})", mode, index);
+    spdlog::debug("[Timelapse Settings] Mode changed: {} (index {})", mode, index);
 
     g_timelapse_settings->current_settings_.mode = mode;
     g_timelapse_settings->update_mode_info(index);
@@ -238,7 +239,7 @@ void TimelapseSettingsOverlay::on_framerate_changed(lv_event_t* e) {
     int index = lv_dropdown_get_selected(dropdown);
     int framerate = index_to_framerate(index);
 
-    spdlog::debug("[TimelapseSettings] Framerate changed: {} fps (index {})", framerate, index);
+    spdlog::debug("[Timelapse Settings] Framerate changed: {} fps (index {})", framerate, index);
 
     g_timelapse_settings->current_settings_.output_framerate = framerate;
     g_timelapse_settings->save_settings();
@@ -252,7 +253,7 @@ void TimelapseSettingsOverlay::on_autorender_changed(lv_event_t* e) {
     lv_obj_t* sw = static_cast<lv_obj_t*>(lv_event_get_target(e));
     bool autorender = lv_obj_has_state(sw, LV_STATE_CHECKED);
 
-    spdlog::debug("[TimelapseSettings] Autorender changed: {}", autorender);
+    spdlog::debug("[Timelapse Settings] Autorender changed: {}", autorender);
     g_timelapse_settings->current_settings_.autorender = autorender;
     g_timelapse_settings->save_settings();
 }
@@ -263,25 +264,25 @@ void TimelapseSettingsOverlay::on_autorender_changed(lv_event_t* e) {
 
 static void on_timelapse_row_clicked(lv_event_t* e) {
     (void)e;
-    spdlog::debug("[TimelapseSettings] Timelapse row clicked");
+    spdlog::debug("[Timelapse Settings] Timelapse row clicked");
 
     if (!g_timelapse_settings) {
-        spdlog::error("[TimelapseSettings] Global instance not initialized!");
+        spdlog::error("[Timelapse Settings] Global instance not initialized!");
         return;
     }
 
     // Lazy-create the timelapse settings panel
     if (!g_timelapse_settings_panel) {
-        spdlog::debug("[TimelapseSettings] Creating timelapse settings panel...");
+        spdlog::debug("[Timelapse Settings] Creating timelapse settings panel...");
         g_timelapse_settings_panel = static_cast<lv_obj_t*>(
             lv_xml_create(lv_display_get_screen_active(NULL), "timelapse_settings_overlay", NULL));
 
         if (g_timelapse_settings_panel) {
             g_timelapse_settings->setup(g_timelapse_settings_panel,
                                         lv_display_get_screen_active(NULL));
-            spdlog::debug("[TimelapseSettings] Panel created and setup complete");
+            spdlog::debug("[Timelapse Settings] Panel created and setup complete");
         } else {
-            spdlog::error("[TimelapseSettings] Failed to create timelapse_settings_overlay");
+            spdlog::error("[Timelapse Settings] Failed to create timelapse_settings_overlay");
             return;
         }
     }

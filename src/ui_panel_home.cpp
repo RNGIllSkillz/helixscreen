@@ -411,7 +411,7 @@ void HomePanel::handle_light_toggle() {
                     spdlog::info("[{}] LED turned ON - waiting for state update", get_name());
                 },
                 [](const MoonrakerError& err) {
-                    spdlog::error("Failed to turn LED on: {}", err.message);
+                    spdlog::error("[Home Panel] Failed to turn LED on: {}", err.message);
                     NOTIFY_ERROR("Failed to turn light on: {}", err.user_message());
                 });
         } else {
@@ -421,7 +421,7 @@ void HomePanel::handle_light_toggle() {
                     spdlog::info("[{}] LED turned OFF - waiting for state update", get_name());
                 },
                 [](const MoonrakerError& err) {
-                    spdlog::error("Failed to turn LED off: {}", err.message);
+                    spdlog::error("[Home Panel] Failed to turn LED off: {}", err.message);
                     NOTIFY_ERROR("Failed to turn light off: {}", err.user_message());
                 });
         }

@@ -170,7 +170,8 @@ void GCodeRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
         render_layer(layer, gcode.layers[static_cast<size_t>(i)], transform);
     }
 
-    spdlog::trace("[GCode Renderer] Rendered {} segments, culled {} segments", segments_rendered_, segments_culled_);
+    spdlog::trace("[GCode Renderer] Rendered {} segments, culled {} segments", segments_rendered_,
+                  segments_culled_);
 }
 
 void GCodeRenderer::render_layer(lv_layer_t* layer, const Layer& gcode_layer,

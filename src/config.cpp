@@ -50,11 +50,11 @@ void Config::init(const std::string& config_path) {
 
     if (stat(config_path.c_str(), &buffer) == 0) {
         // Load existing config
-        spdlog::info("Loading config from {}", config_path);
+        spdlog::info("[Config] Loading config from {}", config_path);
         data = json::parse(std::fstream(config_path));
     } else {
         // Create default config
-        spdlog::info("Creating default config at {}", config_path);
+        spdlog::info("[Config] Creating default config at {}", config_path);
         data = {{"log_path", "/tmp/helixscreen.log"},
                 {"display_sleep_sec", 600},
                 {"display_rotate", 0},
@@ -123,8 +123,8 @@ void Config::init(const std::string& config_path) {
     std::ofstream o(config_path);
     o << std::setw(2) << data << std::endl;
 
-    spdlog::debug("Config initialized: moonraker={}:{}", get<std::string>(df() + "moonraker_host"),
-                  get<int>(df() + "moonraker_port"));
+    spdlog::debug("[Config] initialized: moonraker={}:{}",
+                  get<std::string>(df() + "moonraker_host"), get<int>(df() + "moonraker_port"));
 }
 
 std::string& Config::df() {
@@ -140,7 +140,7 @@ json& Config::get_json(const std::string& json_path) {
 }
 
 bool Config::save() {
-    spdlog::debug("Saving config to {}", path);
+    spdlog::debug("[Config] Saving config to {}", path);
 
     try {
         std::ofstream o(path);
@@ -159,7 +159,7 @@ bool Config::save() {
         }
 
         o.close();
-        spdlog::debug("Config saved successfully to {}", path);
+        spdlog::debug("[Config] saved successfully to {}", path);
         return true;
 
     } catch (const std::exception& e) {

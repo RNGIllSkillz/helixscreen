@@ -48,10 +48,10 @@ class GCodeViewerState {
         camera_ = std::make_unique<helix::gcode::GCodeCamera>();
 #ifdef ENABLE_TINYGL_3D
         renderer_ = std::make_unique<helix::gcode::GCodeTinyGLRenderer>();
-        spdlog::debug("[GCodeViewer] Using TinyGL 3D renderer");
+        spdlog::debug("[GCode Viewer] Using TinyGL 3D renderer");
 #else
         renderer_ = std::make_unique<helix::gcode::GCodeRenderer>();
-        spdlog::debug("[GCodeViewer] Using LVGL 2D renderer");
+        spdlog::debug("[GCode Viewer] Using LVGL 2D renderer");
 #endif
     }
 
@@ -203,7 +203,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
 
     // Check if rendering is paused (visibility optimization)
     if (st->rendering_paused_) {
-        spdlog::trace("GCodeViewer: draw_cb skipped (rendering paused)");
+        spdlog::trace("[GCode Viewer] draw_cb skipped (rendering paused)");
         return;
     }
 
@@ -220,7 +220,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
     // The "Rendering..." label was already created by the async callback
     if (st->first_render) {
         spdlog::debug(
-            "GCodeViewer: First draw after async load - skipping render, will render on timer");
+            "[GCode Viewer] First draw after async load - skipping render, will render on timer");
         return; // Timer will trigger actual render
     }
 
@@ -261,7 +261,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
     if (++log_frame_count >= 30) {
         if (actual_render_count > 0 && render_time_avg_ms > MIN_ACTUAL_RENDER_MS) {
             float avg_fps = 1000.0f / render_time_avg_ms;
-            spdlog::debug("[GCode::Viewer] Avg render: {:.1f}ms ({:.1f}fps) over {} frames",
+            spdlog::debug("[GCode Viewer] Avg render: {:.1f}ms ({:.1f}fps) over {} frames",
                           render_time_avg_ms, avg_fps, actual_render_count);
         }
         log_frame_count = 0;
@@ -303,7 +303,7 @@ static void long_press_timer_cb(lv_timer_t* timer) {
         st->selected_objects.insert(picked);
         ui_gcode_viewer_set_highlighted_objects(obj, st->selected_objects);
 
-        spdlog::info("GCodeViewer: Long-press on object '{}'", picked);
+        spdlog::info("[GCode Viewer] Long-press on object '{}'", picked);
 
         // Invoke long-press callback
         if (st->object_long_press_callback) {
@@ -311,7 +311,7 @@ static void long_press_timer_cb(lv_timer_t* timer) {
         }
     } else {
         st->long_press_object_name.clear();
-        spdlog::debug("GCodeViewer: Long-press at ({}, {}) - no object found", st->drag_start.x,
+        spdlog::debug("[GCode Viewer] Long-press at ({}, {}) - no object found", st->drag_start.x,
                       st->drag_start.y);
 
         // Invoke callback with empty string to indicate long-press on empty space
@@ -344,7 +344,7 @@ static void gcode_viewer_press_cb(lv_event_t* e) {
     st->long_press_fired = false;
     st->long_press_object_name.clear();
 
-    spdlog::trace("GCodeViewer: PRESSED at ({}, {}), is_dragging={}", point.x, point.y,
+    spdlog::trace("[GCode Viewer] PRESSED at ({}, {}), is_dragging={}", point.x, point.y,
                   st->is_dragging);
 
     // Enter interaction mode for reduced resolution during drag
@@ -363,7 +363,7 @@ static void gcode_viewer_press_cb(lv_event_t* e) {
         lv_timer_set_repeat_count(st->long_press_timer_, 1); // One-shot timer
     }
 
-    spdlog::trace("GCodeViewer: Press at ({}, {})", point.x, point.y);
+    spdlog::trace("[GCode Viewer] Press at ({}, {})", point.x, point.y);
 }
 
 // Movement threshold to cancel long-press (same as click threshold)
@@ -397,7 +397,7 @@ static void gcode_viewer_pressing_cb(lv_event_t* e) {
         // User started dragging - cancel long-press
         lv_timer_delete(st->long_press_timer_);
         st->long_press_timer_ = nullptr;
-        spdlog::trace("GCodeViewer: Long-press cancelled due to movement");
+        spdlog::trace("[GCode Viewer] Long-press cancelled due to movement");
     }
 
     // Calculate delta from last position
@@ -425,8 +425,8 @@ static void gcode_viewer_pressing_cb(lv_event_t* e) {
 
         st->last_drag_pos = point;
 
-        spdlog::trace("GCodeViewer: Drag ({}, {}) -> rotate({:.1f}, {:.1f})", dx, dy, delta_azimuth,
-                      delta_elevation);
+        spdlog::trace("[GCode Viewer] Drag ({}, {}) -> rotate({:.1f}, {:.1f})", dx, dy,
+                      delta_azimuth, delta_elevation);
     }
 }
 
@@ -466,7 +466,7 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
 
     // Skip tap handling if long-press already fired
     if (st->long_press_fired) {
-        spdlog::trace("GCodeViewer: Release after long-press - skipping tap handling");
+        spdlog::trace("[GCode Viewer] Release after long-press - skipping tap handling");
         st->is_dragging = false;
         st->long_press_fired = false;
         return;
@@ -474,7 +474,7 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
 
     // If movement was minimal, treat as click and try to pick object
     if (dx < CLICK_THRESHOLD && dy < CLICK_THRESHOLD && st->gcode_file) {
-        spdlog::debug("GCodeViewer: Click detected at ({}, {})", point.x, point.y);
+        spdlog::debug("[GCode Viewer] Click detected at ({}, {})", point.x, point.y);
         const char* picked = ui_gcode_viewer_pick_object(obj, point.x, point.y);
 
         if (picked && picked[0] != '\0') {
@@ -484,11 +484,11 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
             if (st->selected_objects.count(picked_name) > 0) {
                 // Already selected - deselect
                 st->selected_objects.erase(picked_name);
-                spdlog::info("GCodeViewer: Deselected object '{}'", picked_name);
+                spdlog::info("[GCode Viewer] Deselected object '{}'", picked_name);
             } else {
                 // Not selected - add to selection (multi-select mode)
                 st->selected_objects.insert(picked_name);
-                spdlog::info("GCodeViewer: Selected object '{}' ({} total selected)", picked_name,
+                spdlog::info("[GCode Viewer] Selected object '{}' ({} total selected)", picked_name,
                              st->selected_objects.size());
             }
 
@@ -500,7 +500,7 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
                 st->object_tap_callback(obj, picked, st->object_tap_user_data);
             }
         } else {
-            spdlog::debug("GCodeViewer: Click at ({}, {}) - no object found (G-code may lack "
+            spdlog::debug("[GCode Viewer] Click at ({}, {}) - no object found (G-code may lack "
                           "EXCLUDE_OBJECT metadata)",
                           point.x, point.y);
             // Still invoke callback with empty string to indicate click on empty space
@@ -522,7 +522,7 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
     // (throttling during drag may have skipped the last frame)
     lv_obj_invalidate(obj);
 
-    spdlog::trace("GCodeViewer: Release at ({}, {}), drag=({}, {})", point.x, point.y, dx, dy);
+    spdlog::trace("[GCode Viewer] Release at ({}, {}), drag=({}, {})", point.x, point.y, dx, dy);
 }
 
 /**
@@ -548,7 +548,7 @@ static void gcode_viewer_size_changed_cb(lv_event_t* e) {
     // Trigger redraw with new aspect ratio
     lv_obj_invalidate(obj);
 
-    spdlog::trace("[GCodeViewer] SIZE_CHANGED: {}x{}, aspect={:.3f}", width, height,
+    spdlog::trace("[GCode Viewer] SIZE_CHANGED: {}x{}, aspect={:.3f}", width, height,
                   (float)width / (float)height);
 }
 
@@ -560,7 +560,7 @@ static void gcode_viewer_delete_cb(lv_event_t* e) {
     gcode_viewer_state_t* st = get_state(obj);
 
     if (st) {
-        spdlog::trace("[GCodeViewer] Widget destroyed");
+        spdlog::trace("[GCode Viewer] Widget destroyed");
         delete st; // RAII destructor handles thread cleanup, timers, etc.
         lv_obj_set_user_data(obj, nullptr);
     }
@@ -612,13 +612,13 @@ lv_obj_t* ui_gcode_viewer_create(lv_obj_t* parent) {
     if (width > 0 && height > 0) {
         st->camera_->set_viewport_size(width, height);
         st->renderer_->set_viewport_size(width, height);
-        spdlog::debug("GCodeViewer INIT: viewport={}x{}, aspect={:.3f}", width, height,
+        spdlog::debug("[GCode Viewer] INIT: viewport={}x{}, aspect={:.3f}", width, height,
                       (float)width / (float)height);
     } else {
-        spdlog::error("GCodeViewer INIT: Invalid size {}x{}, using defaults", width, height);
+        spdlog::error("[GCode Viewer] INIT: Invalid size {}x{}, using defaults", width, height);
     }
 
-    spdlog::debug("GCodeViewer: Widget created");
+    spdlog::debug("[GCode Viewer] Widget created");
     return obj;
 }
 
@@ -644,7 +644,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         return;
     }
 
-    spdlog::info("GCodeViewer: Loading file async: {}", file_path);
+    spdlog::info("[GCode Viewer] Loading file async: {}", file_path);
     st->viewer_state = GCODE_VIEWER_STATE_LOADING;
     st->first_render = true; // Reset for new file
 
@@ -711,7 +711,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                     std::make_unique<helix::gcode::ParsedGCodeFile>(parser.finalize());
                 result->gcode_file->filename = path;
 
-                spdlog::info("GCodeViewer: Parsed {} layers, {} segments",
+                spdlog::info("[GCode Viewer] Parsed {} layers, {} segments",
                              result->gcode_file->layers.size(), result->gcode_file->total_segments);
 
                 // PHASE 2: Build geometry (slow, 1-5s for large files)
@@ -726,7 +726,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 // Set tool color palette for multicolor prints
                 if (!result->gcode_file->tool_color_palette.empty()) {
                     builder.set_tool_color_palette(result->gcode_file->tool_color_palette);
-                    spdlog::debug("GCodeViewer: Set tool color palette with {} colors",
+                    spdlog::debug("[GCode Viewer] Set tool color palette with {} colors",
                                   result->gcode_file->tool_color_palette.size());
                 }
 
@@ -741,7 +741,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 result->geometry = std::make_unique<helix::gcode::RibbonGeometry>(
                     builder.build(*result->gcode_file, opts));
 
-                spdlog::info("GCodeViewer: Built full geometry with {} vertices, {} triangles",
+                spdlog::info("[GCode Viewer] Built full geometry with {} vertices, {} triangles",
                              result->geometry->vertices.size(),
                              result->geometry->extrusion_triangle_count +
                                  result->geometry->travel_triangle_count);
@@ -772,8 +772,9 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                                      result->coarse_geometry->travel_triangle_count;
                 float reduction =
                     full_tris > 0 ? 100.0f * (1.0f - float(coarse_tris) / float(full_tris)) : 0.0f;
-                spdlog::info("GCodeViewer: Built coarse LOD with {} triangles ({:.0f}% reduction)",
-                             coarse_tris, reduction);
+                spdlog::info(
+                    "[GCode Viewer] Built coarse LOD with {} triangles ({:.0f}% reduction)",
+                    coarse_tris, reduction);
             }
         } catch (const std::exception& ex) {
             result->success = false;
@@ -782,7 +783,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 
         // Check cancellation before dispatching to UI - if cancelled, widget may be destroyed
         if (st->is_cancelled()) {
-            spdlog::debug("GCodeViewer: Build cancelled, discarding result");
+            spdlog::debug("[GCode Viewer] Build cancelled, discarding result");
             return;
         }
 
@@ -802,14 +803,14 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
             }
 
             if (r->success) {
-                spdlog::debug("GCodeViewer: Async callback - setting up geometry");
+                spdlog::debug("[GCode Viewer] Async callback - setting up geometry");
 
                 // Store G-code data
                 st->gcode_file = std::move(r->gcode_file);
 
                 // Set pre-built geometry on renderer (full detail + coarse LOD)
 #ifdef ENABLE_TINYGL_3D
-                spdlog::debug("GCodeViewer: Calling set_prebuilt_geometry");
+                spdlog::debug("[GCode Viewer] Calling set_prebuilt_geometry");
                 st->renderer_->set_prebuilt_geometry(std::move(r->geometry),
                                                      st->gcode_file->filename);
                 // Set coarse LOD geometry for interaction (Phase 6)
@@ -822,7 +823,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 st->camera_->fit_to_bounds(st->gcode_file->global_bounding_box);
 
                 st->viewer_state = GCODE_VIEWER_STATE_LOADED;
-                spdlog::debug("GCodeViewer: State set to LOADED");
+                spdlog::debug("[GCode Viewer] State set to LOADED");
 
                 // Auto-apply filament color if enabled, but ONLY for single-color prints
                 // Multicolor prints have multiple colors in the geometry's color palette
@@ -838,12 +839,13 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                     lv_color_t color = lv_color_hex(static_cast<uint32_t>(
                         std::strtol(st->gcode_file->filament_color_hex.c_str() + 1, nullptr, 16)));
                     st->renderer_->set_extrusion_color(color);
-                    spdlog::debug("GCodeViewer: Auto-applied single-color filament: {}",
+                    spdlog::debug("[GCode Viewer] Auto-applied single-color filament: {}",
                                   st->gcode_file->filament_color_hex);
                 } else if (is_multicolor) {
-                    spdlog::info("GCodeViewer: Multicolor print detected ({} colors) - preserving "
-                                 "per-segment colors",
-                                 color_count);
+                    spdlog::info(
+                        "[GCode Viewer] Multicolor print detected ({} colors) - preserving "
+                        "per-segment colors",
+                        color_count);
                 }
 
                 // Clear first_render flag to allow actual rendering on next draw
@@ -852,21 +854,21 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 // Trigger redraw (will render geometry now that first_render is false)
                 lv_obj_invalidate(obj);
 
-                spdlog::info("GCodeViewer: Async load completed successfully");
+                spdlog::info("[GCode Viewer] Async load completed successfully");
 
                 // Invoke load callback if registered
                 if (st->load_callback) {
-                    spdlog::debug("GCodeViewer: Invoking load callback");
+                    spdlog::debug("[GCode Viewer] Invoking load callback");
                     st->load_callback(obj, st->load_callback_user_data, true);
                 }
             } else {
-                spdlog::error("GCodeViewer: Async load failed: {}", r->error_msg);
+                spdlog::error("[GCode Viewer] Async load failed: {}", r->error_msg);
                 st->viewer_state = GCODE_VIEWER_STATE_ERROR;
                 st->gcode_file.reset();
 
                 // Invoke load callback with error status if registered
                 if (st->load_callback) {
-                    spdlog::debug("GCodeViewer: Invoking load callback (error)");
+                    spdlog::debug("[GCode Viewer] Invoking load callback (error)");
                     st->load_callback(obj, st->load_callback_user_data, false);
                 }
             }
@@ -888,7 +890,7 @@ void ui_gcode_viewer_set_load_callback(lv_obj_t* obj, gcode_viewer_load_callback
 
     st->load_callback = callback;
     st->load_callback_user_data = user_data;
-    spdlog::debug("GCodeViewer: Load callback registered");
+    spdlog::debug("[GCode Viewer] Load callback registered");
 }
 
 void ui_gcode_viewer_set_gcode_data(lv_obj_t* obj, void* gcode_data) {
@@ -904,7 +906,7 @@ void ui_gcode_viewer_set_gcode_data(lv_obj_t* obj, void* gcode_data) {
 
     st->viewer_state = GCODE_VIEWER_STATE_LOADED;
 
-    spdlog::info("GCodeViewer: Set G-code data: {} layers, {} segments",
+    spdlog::info("[GCode Viewer] Set G-code data: {} layers, {} segments",
                  st->gcode_file->layers.size(), st->gcode_file->total_segments);
 
     // Auto-apply filament color if enabled and available
@@ -912,7 +914,7 @@ void ui_gcode_viewer_set_gcode_data(lv_obj_t* obj, void* gcode_data) {
         lv_color_t color = lv_color_hex(static_cast<uint32_t>(
             std::strtol(st->gcode_file->filament_color_hex.c_str() + 1, nullptr, 16)));
         st->renderer_->set_extrusion_color(color);
-        spdlog::info("GCodeViewer: Auto-applied filament color: {}",
+        spdlog::info("[GCode Viewer] Auto-applied filament color: {}",
                      st->gcode_file->filament_color_hex);
     }
 
@@ -929,7 +931,7 @@ void ui_gcode_viewer_clear(lv_obj_t* obj) {
     st->viewer_state = GCODE_VIEWER_STATE_EMPTY;
 
     lv_obj_invalidate(obj);
-    spdlog::debug("GCodeViewer: Cleared");
+    spdlog::debug("[GCode Viewer] Cleared");
 }
 
 gcode_viewer_state_enum_t ui_gcode_viewer_get_state(lv_obj_t* obj) {
@@ -948,7 +950,7 @@ void ui_gcode_viewer_set_paused(lv_obj_t* obj, bool paused) {
 
     if (st->rendering_paused_ != paused) {
         st->rendering_paused_ = paused;
-        spdlog::debug("GCodeViewer: Rendering {} (visibility optimization)",
+        spdlog::debug("[GCode Viewer] Rendering {} (visibility optimization)",
                       paused ? "PAUSED" : "RESUMED");
 
         // If resuming, trigger a redraw to show current state
@@ -1132,7 +1134,7 @@ void ui_gcode_viewer_set_excluded_objects(lv_obj_t* obj,
     st->renderer_->set_excluded_objects(object_names);
     lv_obj_invalidate(obj);
 
-    spdlog::debug("GCodeViewer: Excluded objects updated ({} objects)", object_names.size());
+    spdlog::debug("[GCode Viewer] Excluded objects updated ({} objects)", object_names.size());
 }
 
 void ui_gcode_viewer_set_object_tap_callback(lv_obj_t* obj,
@@ -1155,7 +1157,7 @@ void ui_gcode_viewer_set_object_long_press_callback(
     st->object_long_press_callback = callback;
     st->object_long_press_user_data = user_data;
 
-    spdlog::debug("GCodeViewer: Long-press callback {}", callback ? "registered" : "cleared");
+    spdlog::debug("[GCode Viewer] Long-press callback {}", callback ? "registered" : "cleared");
 }
 
 // ==============================================
@@ -1193,7 +1195,7 @@ void ui_gcode_viewer_use_filament_color(lv_obj_t* obj, bool enable) {
             std::strtol(st->gcode_file->filament_color_hex.c_str() + 1, nullptr, 16)));
         st->renderer_->set_extrusion_color(color);
         lv_obj_invalidate(obj);
-        spdlog::debug("GCodeViewer: Applied filament color: {}",
+        spdlog::debug("[GCode Viewer] Applied filament color: {}",
                       st->gcode_file->filament_color_hex);
     } else if (!enable) {
         // Reset to theme default
@@ -1371,7 +1373,7 @@ const char* ui_gcode_viewer_pick_object(lv_obj_t* obj, int x, int y) {
     int local_x = x - widget_coords.x1;
     int local_y = y - widget_coords.y1;
 
-    spdlog::debug("GCodeViewer: pick_object screen=({}, {}), widget_pos=({}, {}), local=({}, {})",
+    spdlog::debug("[GCode Viewer] pick_object screen=({}, {}), widget_pos=({}, {}), local=({}, {})",
                   x, y, widget_coords.x1, widget_coords.y1, local_x, local_y);
 
     auto result =
@@ -1428,7 +1430,7 @@ void ui_gcode_viewer_set_specular(lv_obj_t* obj, float intensity, float shinines
     st->renderer_->set_specular(intensity, shininess);
     lv_obj_invalidate(obj); // Request redraw
 #else
-    spdlog::warn("[GCodeViewer] set_specular() ignored - not using TinyGL 3D renderer");
+    spdlog::warn("[GCode Viewer] set_specular() ignored - not using TinyGL 3D renderer");
 #endif
 }
 
@@ -1443,17 +1445,17 @@ static void* gcode_viewer_xml_create(lv_xml_parser_state_t* state, const char** 
     (void)attrs; // Required by callback signature, but widget has no XML attributes
     void* parent = lv_xml_state_get_parent(state);
     if (!parent) {
-        spdlog::error("[GCodeViewer] XML create: no parent object");
+        spdlog::error("[GCode Viewer] XML create: no parent object");
         return nullptr;
     }
 
     lv_obj_t* obj = ui_gcode_viewer_create((lv_obj_t*)parent);
     if (!obj) {
-        spdlog::error("[GCodeViewer] XML create: failed to create widget");
+        spdlog::error("[GCode Viewer] XML create: failed to create widget");
         return nullptr;
     }
 
-    spdlog::trace("[GCodeViewer] XML created widget");
+    spdlog::trace("[GCode Viewer] XML created widget");
     return (void*)obj;
 }
 
@@ -1466,14 +1468,14 @@ static void gcode_viewer_xml_apply(lv_xml_parser_state_t* state, const char** at
     lv_obj_t* obj = (lv_obj_t*)item;
 
     if (!obj) {
-        spdlog::error("[GCodeViewer] NULL object in xml_apply");
+        spdlog::error("[GCode Viewer] NULL object in xml_apply");
         return;
     }
 
     // Apply standard lv_obj properties from XML (size, style, align, name, etc.)
     lv_xml_obj_apply(state, attrs);
 
-    spdlog::trace("[GCodeViewer] Applied XML attributes");
+    spdlog::trace("[GCode Viewer] Applied XML attributes");
 }
 
 /**
@@ -1484,5 +1486,5 @@ static void gcode_viewer_xml_apply(lv_xml_parser_state_t* state, const char** at
  */
 extern "C" void ui_gcode_viewer_register(void) {
     lv_xml_register_widget("gcode_viewer", gcode_viewer_xml_create, gcode_viewer_xml_apply);
-    spdlog::trace("[GCodeViewer] Registered <gcode_viewer> widget with LVGL XML system");
+    spdlog::trace("[GCode Viewer] Registered <gcode_viewer> widget with LVGL XML system");
 }

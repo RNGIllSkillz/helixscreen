@@ -64,7 +64,7 @@ void ui_keypad_init_subjects() {
     lv_xml_register_subject(nullptr, "keypad_display", &keypad_display_subject);
 
     subjects_initialized = true;
-    spdlog::debug("Keypad subjects initialized");
+    spdlog::debug("[Keypad] Subjects initialized");
 }
 
 // ============================================================================
@@ -72,12 +72,12 @@ void ui_keypad_init_subjects() {
 // ============================================================================
 void ui_keypad_init(lv_obj_t* parent) {
     if (!parent) {
-        spdlog::error("Cannot init keypad: parent is null");
+        spdlog::error("[Keypad] Cannot init keypad: parent is null");
         return;
     }
 
     if (keypad_widget) {
-        spdlog::warn("Keypad already initialized");
+        spdlog::warn("[Keypad] Already initialized");
         return;
     }
 
@@ -89,14 +89,14 @@ void ui_keypad_init(lv_obj_t* parent) {
 
     keypad_widget = (lv_obj_t*)lv_xml_create(parent, "numeric_keypad_modal", attrs);
     if (!keypad_widget) {
-        spdlog::error("Failed to create keypad from XML");
+        spdlog::error("[Keypad] Failed to create keypad from XML");
         return;
     }
 
     // Wire button events
     wire_button_events();
 
-    spdlog::debug("Numeric keypad initialized");
+    spdlog::debug("[Keypad] Numeric keypad initialized");
 }
 
 // ============================================================================
@@ -104,7 +104,7 @@ void ui_keypad_init(lv_obj_t* parent) {
 // ============================================================================
 void ui_keypad_show(const ui_keypad_config_t* config) {
     if (!keypad_widget || !config) {
-        spdlog::error("Cannot show keypad: not initialized or invalid config");
+        spdlog::error("[Keypad] Cannot show keypad: not initialized or invalid config");
         return;
     }
 
@@ -120,7 +120,7 @@ void ui_keypad_show(const ui_keypad_config_t* config) {
     // Show via standard overlay navigation
     ui_nav_push_overlay(keypad_widget);
 
-    spdlog::info("Keypad: showing (initial={:.1f}, range={:.0f}-{:.0f})", config->initial_value,
+    spdlog::info("[Keypad] Showing (initial={:.1f}, range={:.0f}-{:.0f})", config->initial_value,
                  config->min_value, config->max_value);
 }
 
@@ -182,7 +182,7 @@ static void handle_backspace() {
 
 static void handle_cancel() {
     ui_keypad_hide();
-    spdlog::debug("Keypad: cancelled");
+    spdlog::debug("[Keypad] Cancelled");
 }
 
 static void handle_confirm() {
@@ -201,7 +201,7 @@ static void handle_confirm() {
     // Invoke callback
     if (current_config.callback) {
         current_config.callback(value, current_config.user_data);
-        spdlog::info("Keypad: confirmed value={:.1f}", value);
+        spdlog::info("[Keypad] Confirmed value={:.1f}", value);
     }
 }
 
@@ -260,5 +260,5 @@ static void wire_button_events() {
             LV_EVENT_CLICKED, nullptr);
     }
 
-    spdlog::debug("Keypad: events wired");
+    spdlog::debug("[Keypad] Events wired");
 }

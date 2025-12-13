@@ -170,8 +170,8 @@ void generate_mesh_quads(bed_mesh_renderer_t* renderer) {
                 renderer->mesh[static_cast<size_t>(center_row)][static_cast<size_t>(center_col)]);
         }
     }
-    spdlog::trace("Generated {} quads from {}x{} mesh", renderer->quads.size(), renderer->rows,
-                  renderer->cols);
+    spdlog::trace("[Bed Mesh Geometry] Generated {} quads from {}x{} mesh", renderer->quads.size(),
+                  renderer->rows, renderer->cols);
 }
 
 void sort_quads_by_depth(std::vector<bed_mesh_quad_3d_t>& quads) {

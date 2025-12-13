@@ -178,8 +178,9 @@ void GCodeTinyGLRenderer::init_tinygl() {
         return; // Already initialized
     }
 
-    spdlog::info("[GCode TinyGL] TinyGL init_tinygl() called with viewport_width_={}, viewport_height_={}",
-                 viewport_width_, viewport_height_);
+    spdlog::info(
+        "[GCode TinyGL] TinyGL init_tinygl() called with viewport_width_={}, viewport_height_={}",
+        viewport_width_, viewport_height_);
 
     // Initialize TinyGL (it allocates its own framebuffer)
     ZBuffer* zb = ZB_open(viewport_width_, viewport_height_, ZB_MODE_RGBA, 0);
@@ -195,8 +196,8 @@ void GCodeTinyGLRenderer::init_tinygl() {
 
     // Use the ACTUAL ZBuffer dimensions (TinyGL may round for alignment)
     // This is CRITICAL - using wrong dimensions causes massive rendering distortion!
-    spdlog::info("[GCode TinyGL] TinyGL ZBuffer created: requested={}x{}, actual={}x{}", viewport_width_,
-                 viewport_height_, zb->xsize, zb->ysize);
+    spdlog::info("[GCode TinyGL] TinyGL ZBuffer created: requested={}x{}, actual={}x{}",
+                 viewport_width_, viewport_height_, zb->xsize, zb->ysize);
     viewport_width_ = zb->xsize;
     viewport_height_ = zb->ysize;
 
@@ -226,7 +227,8 @@ void GCodeTinyGLRenderer::init_tinygl() {
         glShadeModel(GL_PHONG);
         spdlog::debug("[GCode TinyGL] G-code renderer using GL_PHONG (per-pixel) shading");
     } else {
-        spdlog::warn("[GCode TinyGL] Unknown shading model '{}', defaulting to phong", shading_model);
+        spdlog::warn("[GCode TinyGL] Unknown shading model '{}', defaulting to phong",
+                     shading_model);
         glShadeModel(GL_PHONG);
     }
 
@@ -303,7 +305,8 @@ void GCodeTinyGLRenderer::setup_lighting() {
 }
 
 void GCodeTinyGLRenderer::render_bounding_box(const ParsedGCodeFile& gcode) {
-    spdlog::trace("[GCode TinyGL] render_bounding_box: {} highlighted objects", highlighted_objects_.size());
+    spdlog::trace("[GCode TinyGL] render_bounding_box: {} highlighted objects",
+                  highlighted_objects_.size());
 
     // Only render if we have highlighted objects
     if (highlighted_objects_.empty()) {
@@ -315,7 +318,8 @@ void GCodeTinyGLRenderer::render_bounding_box(const ParsedGCodeFile& gcode) {
         // Find the highlighted object in the G-code data
         auto it = gcode.objects.find(object_name);
         if (it == gcode.objects.end()) {
-            spdlog::warn("[GCode TinyGL] TinyGL: Cannot render bounding box - object '{}' not found in G-code",
+            spdlog::warn("[GCode TinyGL] TinyGL: Cannot render bounding box - object '{}' not "
+                         "found in G-code",
                          object_name);
             continue; // Skip this object
         }
@@ -329,7 +333,8 @@ void GCodeTinyGLRenderer::render_bounding_box(const ParsedGCodeFile& gcode) {
         // to get it into the same coordinate space as the rendered geometry.
 
         if (!geometry_) {
-            spdlog::warn("[GCode TinyGL] TinyGL: No geometry available for bounding box quantization");
+            spdlog::warn(
+                "[GCode TinyGL] TinyGL: No geometry available for bounding box quantization");
             return;
         }
 
@@ -343,13 +348,14 @@ void GCodeTinyGLRenderer::render_bounding_box(const ParsedGCodeFile& gcode) {
         glm::vec3 bbox_min = quant.dequantize_vec3(qmin);
         glm::vec3 bbox_max = quant.dequantize_vec3(qmax);
 
-        spdlog::debug("[GCode TinyGL] TinyGL: Object '{}' AABB (original): min=({:.2f},{:.2f},{:.2f}) "
-                      "max=({:.2f},{:.2f},{:.2f})",
-                      object_name, bbox.min.x, bbox.min.y, bbox.min.z, bbox.max.x, bbox.max.y,
-                      bbox.max.z);
-        spdlog::debug("[GCode TinyGL] TinyGL: Object AABB (transformed): min=({:.2f},{:.2f},{:.2f}) "
-                      "max=({:.2f},{:.2f},{:.2f})",
-                      bbox_min.x, bbox_min.y, bbox_min.z, bbox_max.x, bbox_max.y, bbox_max.z);
+        spdlog::debug(
+            "[GCode TinyGL] TinyGL: Object '{}' AABB (original): min=({:.2f},{:.2f},{:.2f}) "
+            "max=({:.2f},{:.2f},{:.2f})",
+            object_name, bbox.min.x, bbox.min.y, bbox.min.z, bbox.max.x, bbox.max.y, bbox.max.z);
+        spdlog::debug(
+            "[GCode TinyGL] TinyGL: Object AABB (transformed): min=({:.2f},{:.2f},{:.2f}) "
+            "max=({:.2f},{:.2f},{:.2f})",
+            bbox_min.x, bbox_min.y, bbox_min.z, bbox_max.x, bbox_max.y, bbox_max.z);
 
         // Use material emission for subtle grey lines (matches theme_grey #808080)
         glDisable(GL_DEPTH_TEST);                  // Draw on top
@@ -459,7 +465,8 @@ void GCodeTinyGLRenderer::build_geometry(const ParsedGCodeFile& gcode) {
 
     // Use filament color from G-code metadata if available, otherwise use default
     if (!gcode.filament_color_hex.empty()) {
-        spdlog::info("[GCode TinyGL] Using filament color from G-code: {}", gcode.filament_color_hex);
+        spdlog::info("[GCode TinyGL] Using filament color from G-code: {}",
+                     gcode.filament_color_hex);
         geometry_builder_->set_filament_color(gcode.filament_color_hex);
     } else {
         spdlog::info("[GCode TinyGL] No filament color in G-code, using default: {}",
@@ -473,15 +480,18 @@ void GCodeTinyGLRenderer::build_geometry(const ParsedGCodeFile& gcode) {
         // Use perimeter width (most common for visual appearance)
         extrusion_width_ = gcode.perimeter_extrusion_width_mm;
         geometry_builder_->set_extrusion_width(extrusion_width_);
-        spdlog::info("[GCode TinyGL] Using perimeter extrusion width from G-code: {:.2f}mm", extrusion_width_);
+        spdlog::info("[GCode TinyGL] Using perimeter extrusion width from G-code: {:.2f}mm",
+                     extrusion_width_);
     } else if (gcode.extrusion_width_mm > 0.0f) {
         // Use default width if perimeter not specified
         extrusion_width_ = gcode.extrusion_width_mm;
         geometry_builder_->set_extrusion_width(extrusion_width_);
-        spdlog::info("[GCode TinyGL] Using extrusion width from G-code: {:.2f}mm", extrusion_width_);
+        spdlog::info("[GCode TinyGL] Using extrusion width from G-code: {:.2f}mm",
+                     extrusion_width_);
     } else {
         // Keep current width (user-set or default)
-        spdlog::info("[GCode TinyGL] No extrusion width in G-code, using current: {:.2f}mm", extrusion_width_);
+        spdlog::info("[GCode TinyGL] No extrusion width in G-code, using current: {:.2f}mm",
+                     extrusion_width_);
     }
 
     // Set layer height from G-code metadata for correct tube proportions
@@ -503,8 +513,8 @@ void GCodeTinyGLRenderer::build_geometry(const ParsedGCodeFile& gcode) {
         }
 
         filtered_gcode.layers = std::move(filtered_layers);
-        spdlog::debug("[GCode TinyGL] Layer filtering: showing layers {} to {} ({} layers)", layer_start_, end - 1,
-                      filtered_gcode.layers.size());
+        spdlog::debug("[GCode TinyGL] Layer filtering: showing layers {} to {} ({} layers)",
+                      layer_start_, end - 1, filtered_gcode.layers.size());
     }
 
     // Filter travel/extrusion moves
@@ -520,7 +530,8 @@ void GCodeTinyGLRenderer::build_geometry(const ParsedGCodeFile& gcode) {
             }
             layer.segments = std::move(filtered_segments);
         }
-        spdlog::debug("[GCode TinyGL] Move filtering: travels={}, extrusions={}", show_travels_, show_extrusions_);
+        spdlog::debug("[GCode TinyGL] Move filtering: travels={}, extrusions={}", show_travels_,
+                      show_extrusions_);
     }
 
     // Configure highlighted objects (segments will be brightened)
@@ -532,7 +543,8 @@ void GCodeTinyGLRenderer::build_geometry(const ParsedGCodeFile& gcode) {
     // Configure multi-color support: pass tool color palette from parsed G-code
     if (!gcode.tool_color_palette.empty()) {
         geometry_builder_->set_tool_color_palette(gcode.tool_color_palette);
-        spdlog::info("[GCode TinyGL] Multi-color print detected: {} tool colors", gcode.tool_color_palette.size());
+        spdlog::info("[GCode TinyGL] Multi-color print detected: {} tool colors",
+                     gcode.tool_color_palette.size());
     }
 
     // Build optimized ribbon geometry
@@ -540,14 +552,16 @@ void GCodeTinyGLRenderer::build_geometry(const ParsedGCodeFile& gcode) {
     current_gcode_filename_ = gcode.filename;
 
     const auto& stats = geometry_builder_->last_stats();
-    spdlog::info("[GCode TinyGL] Geometry built: {} vertices, {} triangles, {:.2f} MB", stats.vertices_generated,
-                 stats.triangles_generated, stats.memory_bytes / 1024.0 / 1024.0);
+    spdlog::info("[GCode TinyGL] Geometry built: {} vertices, {} triangles, {:.2f} MB",
+                 stats.vertices_generated, stats.triangles_generated,
+                 stats.memory_bytes / 1024.0 / 1024.0);
 }
 
 void GCodeTinyGLRenderer::set_prebuilt_geometry(std::unique_ptr<RibbonGeometry> geometry,
                                                 const std::string& filename) {
     if (!geometry) {
-        spdlog::warn("[GCode TinyGL] GCodeTinyGLRenderer::set_prebuilt_geometry called with null geometry");
+        spdlog::warn(
+            "[GCode TinyGL] GCodeTinyGLRenderer::set_prebuilt_geometry called with null geometry");
         return;
     }
 
@@ -910,7 +924,8 @@ void GCodeTinyGLRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode
     auto bbox_ms = std::chrono::duration<float, std::milli>(t2 - t1).count();
     auto lvgl_ms = std::chrono::duration<float, std::milli>(t3 - t2).count();
     auto total_ms = std::chrono::duration<float, std::milli>(t3 - t0).count();
-    spdlog::trace("[GCode TinyGL] TinyGL timing: geometry={:.1f}ms, bbox={:.1f}ms, lvgl={:.1f}ms, total={:.1f}ms",
+    spdlog::trace("[GCode TinyGL] TinyGL timing: geometry={:.1f}ms, bbox={:.1f}ms, lvgl={:.1f}ms, "
+                  "total={:.1f}ms",
                   geom_ms, bbox_ms, lvgl_ms, total_ms);
 
     // Update adaptive optimization based on measured render time (only during interaction)
@@ -1029,7 +1044,8 @@ void GCodeTinyGLRenderer::set_highlighted_objects(const std::unordered_set<std::
         // Trigger geometry rebuild to apply/remove highlighting
         geometry_.reset();
         current_gcode_filename_.clear();
-        spdlog::debug("[GCode TinyGL] TinyGL: Highlighted objects changed ({} selected), geometry will rebuild",
+        spdlog::debug("[GCode TinyGL] TinyGL: Highlighted objects changed ({} selected), geometry "
+                      "will rebuild",
                       names.size());
     }
 }
@@ -1041,8 +1057,9 @@ void GCodeTinyGLRenderer::set_excluded_objects(const std::unordered_set<std::str
         // Trigger geometry rebuild to apply excluded object coloring
         geometry_.reset();
         current_gcode_filename_.clear();
-        spdlog::debug("[GCode TinyGL] TinyGL: Excluded objects changed ({} excluded), geometry will rebuild",
-                      names.size());
+        spdlog::debug(
+            "[GCode TinyGL] TinyGL: Excluded objects changed ({} excluded), geometry will rebuild",
+            names.size());
     }
 }
 

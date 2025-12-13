@@ -110,7 +110,7 @@ static void init_color_gradient_lut() {
         g_color_gradient_lut[i] = lv_color_make(r, g, b);
     }
 
-    spdlog::debug("Initialized bed mesh color gradient LUT with {} samples",
+    spdlog::debug("[Bed Mesh Gradient] Initialized color gradient LUT with {} samples",
                   COLOR_GRADIENT_LUT_SIZE);
 }
 

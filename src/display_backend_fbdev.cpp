@@ -34,7 +34,8 @@ bool DisplayBackendFbdev::is_available() const {
 
     // Check if we can read it (need read access for display)
     if (access(fb_device_.c_str(), R_OK | W_OK) != 0) {
-        spdlog::debug("[Fbdev Backend] Framebuffer device {} not accessible (need R/W permissions)", fb_device_);
+        spdlog::debug("[Fbdev Backend] Framebuffer device {} not accessible (need R/W permissions)",
+                      fb_device_);
         return false;
     }
 
@@ -56,7 +57,8 @@ lv_display_t* DisplayBackendFbdev::create_display(int width, int height) {
     // Set the framebuffer device path
     lv_linux_fbdev_set_file(display_, fb_device_.c_str());
 
-    spdlog::info("[Fbdev Backend] Framebuffer display created: {}x{} on {}", width, height, fb_device_);
+    spdlog::info("[Fbdev Backend] Framebuffer display created: {}x{} on {}", width, height,
+                 fb_device_);
     return display_;
 }
 

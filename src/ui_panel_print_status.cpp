@@ -540,7 +540,7 @@ void PrintStatusPanel::handle_light_button() {
                     spdlog::info("[{}] LED turned ON - waiting for state update", get_name());
                 },
                 [](const MoonrakerError& err) {
-                    spdlog::error("Failed to turn LED on: {}", err.message);
+                    spdlog::error("[Print Status] Failed to turn LED on: {}", err.message);
                     NOTIFY_ERROR("Failed to turn light on: {}", err.user_message());
                 });
         } else {
@@ -550,7 +550,7 @@ void PrintStatusPanel::handle_light_button() {
                     spdlog::info("[{}] LED turned OFF - waiting for state update", get_name());
                 },
                 [](const MoonrakerError& err) {
-                    spdlog::error("Failed to turn LED off: {}", err.message);
+                    spdlog::error("[Print Status] Failed to turn LED off: {}", err.message);
                     NOTIFY_ERROR("Failed to turn light off: {}", err.user_message());
                 });
         }
@@ -609,7 +609,7 @@ void PrintStatusPanel::handle_pause_button() {
                     // State will update via PrinterState observer when Moonraker confirms
                 },
                 [](const MoonrakerError& err) {
-                    spdlog::error("Failed to pause print: {}", err.message);
+                    spdlog::error("[Print Status] Failed to pause print: {}", err.message);
                     NOTIFY_ERROR("Failed to pause print: {}", err.user_message());
                 });
         } else {
@@ -627,7 +627,7 @@ void PrintStatusPanel::handle_pause_button() {
                     // State will update via PrinterState observer when Moonraker confirms
                 },
                 [](const MoonrakerError& err) {
-                    spdlog::error("Failed to resume print: {}", err.message);
+                    spdlog::error("[Print Status] Failed to resume print: {}", err.message);
                     NOTIFY_ERROR("Failed to resume print: {}", err.user_message());
                 });
         } else {
@@ -693,7 +693,7 @@ void PrintStatusPanel::handle_cancel_button() {
                     // State will update via PrinterState observer when Moonraker confirms
                 },
                 [](const MoonrakerError& err) {
-                    spdlog::error("Failed to cancel print: {}", err.message);
+                    spdlog::error("[Print Status] Failed to cancel print: {}", err.message);
                     NOTIFY_ERROR("Failed to cancel print: {}", err.user_message());
                 });
         } else {

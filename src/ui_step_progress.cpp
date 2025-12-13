@@ -200,7 +200,7 @@ static void step_progress_delete_cb(lv_event_t* e) {
 lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int step_count,
                                   bool horizontal, const char* scope_name) {
     if (!parent || !steps || step_count <= 0) {
-        spdlog::error("Invalid parameters for step progress widget");
+        spdlog::error("[Step Progress] Invalid parameters for step progress widget");
         return nullptr;
     }
 
@@ -210,7 +210,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
     // Allocate widget data using RAII
     auto data_ptr = lvgl_make_unique<step_progress_data_t>();
     if (!data_ptr) {
-        spdlog::error("Failed to allocate step progress data");
+        spdlog::error("[Step Progress] Failed to allocate step progress data");
         return nullptr;
     }
 
@@ -223,7 +223,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
     auto states_ptr = lvgl_make_unique_array<ui_step_state_t>(static_cast<size_t>(step_count));
 
     if (!label_buffers_ptr || !states_ptr) {
-        spdlog::error("Failed to allocate step data arrays");
+        spdlog::error("[Step Progress] Failed to allocate step data arrays");
         return nullptr;
     }
 
@@ -365,7 +365,7 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
     if (!horizontal) {
         lv_obj_update_layout(container); // Force layout calculation
 
-        spdlog::debug("Creating vertical connectors for {} steps", step_count);
+        spdlog::debug("[Step Progress] Creating vertical connectors for {} steps", step_count);
 
         for (int i = 0; i < step_count - 1; i++) {
             lv_obj_t* current_step = lv_obj_get_child(container, i);
@@ -383,8 +383,9 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
                 lv_coord_t connector_height =
                     (next_y - connector_y) + 2; // Extend 2px into next circle
 
-                spdlog::debug("Connector {}: current_y={}, next_y={}, connector_y={}, height={}", i,
-                              current_y, next_y, connector_y, connector_height);
+                spdlog::debug("[Step Progress] Connector {}: current_y={}, next_y={}, "
+                              "connector_y={}, height={}",
+                              i, current_y, next_y, connector_y, connector_height);
 
                 // Create connector line
                 lv_obj_t* connector = lv_obj_create(container);
@@ -403,8 +404,8 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
                     (steps[i].state == UI_STEP_STATE_COMPLETED) ? color_completed : color_pending;
                 lv_obj_set_style_bg_color(connector, connector_color, 0);
 
-                spdlog::debug("Connector {} created at pos ({}, {}) size ({}, {})", i,
-                              lv_obj_get_x(connector), lv_obj_get_y(connector),
+                spdlog::debug("[Step Progress] Connector {} created at pos ({}, {}) size ({}, {})",
+                              i, lv_obj_get_x(connector), lv_obj_get_y(connector),
                               lv_obj_get_width(connector), lv_obj_get_height(connector));
             }
         }
@@ -422,7 +423,8 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
                 lv_obj_t* next_indicator = lv_obj_get_child(next_step, 0);
 
                 if (!current_indicator || !next_indicator) {
-                    spdlog::warn("Missing indicator widget for horizontal connector {}", i);
+                    spdlog::warn(
+                        "[Step Progress] Missing indicator widget for horizontal connector {}", i);
                     continue;
                 }
 
@@ -431,7 +433,8 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
                 lv_obj_t* next_circle = lv_obj_get_child(next_indicator, 0);
 
                 if (!current_circle || !next_circle) {
-                    spdlog::warn("Missing circle widget for horizontal connector {}", i);
+                    spdlog::warn(
+                        "[Step Progress] Missing circle widget for horizontal connector {}", i);
                     continue;
                 }
 
@@ -473,11 +476,12 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
                     (steps[i].state == UI_STEP_STATE_COMPLETED) ? color_completed : color_pending;
                 lv_obj_set_style_bg_color(connector, connector_color, 0);
 
-                spdlog::debug("Horizontal connector {}: circle_centers=({}, {}), connector "
-                              "pos=({}, {}) size=({}, {})",
-                              i, current_circle_center_x, next_circle_center_x,
-                              lv_obj_get_x(connector), lv_obj_get_y(connector),
-                              lv_obj_get_width(connector), lv_obj_get_height(connector));
+                spdlog::debug(
+                    "[Step Progress] Horizontal connector {}: circle_centers=({}, {}), connector "
+                    "pos=({}, {}) size=({}, {})",
+                    i, current_circle_center_x, next_circle_center_x, lv_obj_get_x(connector),
+                    lv_obj_get_y(connector), lv_obj_get_width(connector),
+                    lv_obj_get_height(connector));
             }
         }
     }
@@ -491,7 +495,7 @@ void ui_step_progress_set_current(lv_obj_t* widget, int step_index) {
 
     step_progress_data_t* data = (step_progress_data_t*)lv_obj_get_user_data(widget);
     if (!data || step_index < 0 || step_index >= data->step_count) {
-        spdlog::warn("Invalid step index: {}", step_index);
+        spdlog::warn("[Step Progress] Invalid step index: {}", step_index);
         return;
     }
 
@@ -541,7 +545,7 @@ void ui_step_progress_set_completed(lv_obj_t* widget, int step_index) {
 
     step_progress_data_t* data = (step_progress_data_t*)lv_obj_get_user_data(widget);
     if (!data || step_index < 0 || step_index >= data->step_count) {
-        spdlog::warn("Invalid step index: {}", step_index);
+        spdlog::warn("[Step Progress] Invalid step index: {}", step_index);
         return;
     }
 
@@ -560,7 +564,7 @@ void ui_step_progress_set_label(lv_obj_t* widget, int step_index, const char* ne
 
     step_progress_data_t* data = (step_progress_data_t*)lv_obj_get_user_data(widget);
     if (!data || step_index < 0 || step_index >= data->step_count) {
-        spdlog::warn("Invalid step index: {}", step_index);
+        spdlog::warn("[Step Progress] Invalid step index: {}", step_index);
         return;
     }
 

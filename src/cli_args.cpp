@@ -408,7 +408,7 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
             config.skip_splash = true;
         } else if (strncmp(argv[i], "--splash-pid=", 13) == 0) {
             config.splash_pid = static_cast<pid_t>(atoi(argv[i] + 13));
-            spdlog::info("Splash PID received from launcher: {}", config.splash_pid);
+            spdlog::info("[CLI] Splash PID received from launcher: {}", config.splash_pid);
         } else if (strcmp(argv[i], "--real-wifi") == 0) {
             config.use_real_wifi = true;
         } else if (strcmp(argv[i], "--real-ethernet") == 0) {

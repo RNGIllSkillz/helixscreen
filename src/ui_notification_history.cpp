@@ -41,7 +41,7 @@ void NotificationHistory::add(const NotificationHistoryEntry& entry) {
         head_index_ = (head_index_ + 1) % MAX_ENTRIES;
     }
 
-    spdlog::trace("Added notification to history: severity={}, message='{}'",
+    spdlog::trace("[Notification History] Added notification to history: severity={}, message='{}'",
                   static_cast<int>(entry.severity), entry.message);
 }
 
@@ -123,7 +123,7 @@ void NotificationHistory::mark_all_read() {
         entry.was_read = true;
     }
 
-    spdlog::debug("Marked all {} notifications as read", entries_.size());
+    spdlog::debug("[Notification History] Marked all {} notifications as read", entries_.size());
 }
 
 void NotificationHistory::clear() {
@@ -133,7 +133,7 @@ void NotificationHistory::clear() {
     head_index_ = 0;
     buffer_full_ = false;
 
-    spdlog::debug("Cleared notification history");
+    spdlog::debug("[Notification History] Cleared notification history");
 }
 
 size_t NotificationHistory::count() const {
@@ -199,7 +199,8 @@ bool NotificationHistory::save_to_disk(const char* path) const {
         file << j.dump(2); // Pretty-print with 2-space indent
         file.close();
 
-        spdlog::info("Saved {} notification entries to {}", save_count, path);
+        spdlog::info("[Notification History] Saved {} notification entries to {}", save_count,
+                     path);
         return true;
 
     } catch (const std::exception& e) {
@@ -214,7 +215,7 @@ bool NotificationHistory::load_from_disk(const char* path) {
     try {
         std::ifstream file(path);
         if (!file.is_open()) {
-            spdlog::debug("No notification history file found at {}", path);
+            spdlog::debug("[Notification History] No notification history file found at {}", path);
             return false;
         }
 
@@ -225,7 +226,8 @@ bool NotificationHistory::load_from_disk(const char* path) {
         // Check version
         int version = j.value("version", 0);
         if (version != 1) {
-            spdlog::warn("Unsupported notification history version: {}", version);
+            spdlog::warn("[Notification History] Unsupported notification history version: {}",
+                         version);
             return false;
         }
 
@@ -276,14 +278,15 @@ bool NotificationHistory::load_from_disk(const char* path) {
                 head_index_ = 0;
             }
 
-            spdlog::info("Loaded {} notification entries from {}", entries_.size(), path);
+            spdlog::info("[Notification History] Loaded {} notification entries from {}",
+                         entries_.size(), path);
             return true;
         }
 
         return false;
 
     } catch (const std::exception& e) {
-        spdlog::error("Failed to load notification history: {}", e.what());
+        spdlog::error("[Notification History] Failed to load notification history: {}", e.what());
         return false;
     }
 }

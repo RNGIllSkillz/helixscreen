@@ -107,9 +107,9 @@ void GCodeCamera::fit_to_bounds(const AABB& bounds) {
 
     update_matrices();
 
-    spdlog::debug(
-        "[GCode Camera] Fit camera to bounds: center=({:.1f},{:.1f},{:.1f}), size=({:.1f},{:.1f},{:.1f})",
-        target_.x, target_.y, target_.z, size.x, size.y, size.z);
+    spdlog::debug("[GCode Camera] Fit camera to bounds: center=({:.1f},{:.1f},{:.1f}), "
+                  "size=({:.1f},{:.1f},{:.1f})",
+                  target_.x, target_.y, target_.z, size.x, size.y, size.z);
 }
 
 void GCodeCamera::set_top_view() {

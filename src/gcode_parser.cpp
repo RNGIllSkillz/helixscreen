@@ -264,7 +264,8 @@ bool GCodeParser::parse_exclude_object_command(const std::string& line) {
                                 float y = std::stof(polygon_str.substr(pos, close - pos));
                                 obj.polygon.push_back(glm::vec2(x, y));
                                 pos = close + 1;
-                                spdlog::trace("[GCode Parser] Parsed polygon point: ({}, {})", x, y);
+                                spdlog::trace("[GCode Parser] Parsed polygon point: ({}, {})", x,
+                                              y);
                             } else {
                                 break;
                             }
@@ -281,7 +282,8 @@ bool GCodeParser::parse_exclude_object_command(const std::string& line) {
         }
 
         objects_[name] = obj;
-        spdlog::debug("[GCode Parser] Defined object: {} at ({}, {})", name, obj.center.x, obj.center.y);
+        spdlog::debug("[GCode Parser] Defined object: {} at ({}, {})", name, obj.center.x,
+                      obj.center.y);
         return true;
     }
     // EXCLUDE_OBJECT_START NAME=...
@@ -330,8 +332,8 @@ void GCodeParser::parse_metadata_comment(const std::string& line) {
         // Mark that we found layer markers (prefer this over Z-based detection)
         use_layer_markers_ = true;
         pending_layer_marker_ = true;
-        spdlog::trace("[GCode Parser] Layer marker detected: '{}' (use_markers={}, pending={})", line,
-                      use_layer_markers_, pending_layer_marker_);
+        spdlog::trace("[GCode Parser] Layer marker detected: '{}' (use_markers={}, pending={})",
+                      line, use_layer_markers_, pending_layer_marker_);
         return; // Don't process as key=value metadata
     }
 
@@ -593,8 +595,8 @@ void GCodeParser::parse_extruder_color_metadata(const std::string& line) {
             palette_str += ", ";
         palette_str += tool_color_palette_[i];
     }
-    spdlog::debug("[GCode Parser] Parsed {} extruder colors from metadata: [{}]", tool_color_palette_.size(),
-                  palette_str);
+    spdlog::debug("[GCode Parser] Parsed {} extruder colors from metadata: [{}]",
+                  tool_color_palette_.size(), palette_str);
 
     // Set metadata_filament_color_ to the first valid color (for single-color rendering fallback)
     if (!tool_color_palette_.empty() && !tool_color_palette_[0].empty()) {
@@ -788,9 +790,10 @@ void GCodeParser::add_segment(const glm::vec3& start, const glm::vec3& end, bool
         static std::map<std::string, int> segment_counts;
         segment_counts[current_object_]++;
         if (segment_counts[current_object_] <= 3) {
-            spdlog::trace("[GCode Parser] Object '{}' extrusion segment: start=({:.2f},{:.2f},{:.2f}) "
-                          "end=({:.2f},{:.2f},{:.2f})",
-                          current_object_, start.x, start.y, start.z, end.x, end.y, end.z);
+            spdlog::trace(
+                "[GCode Parser] Object '{}' extrusion segment: start=({:.2f},{:.2f},{:.2f}) "
+                "end=({:.2f},{:.2f},{:.2f})",
+                current_object_, start.x, start.y, start.z, end.x, end.y, end.z);
         }
     }
 }
@@ -869,8 +872,8 @@ ParsedGCodeFile GCodeParser::finalize() {
     // Transfer multi-color tool palette
     result.tool_color_palette = tool_color_palette_;
 
-    spdlog::info("[GCode Parser] Parsed G-code: {} layers, {} segments, {} objects", result.layers.size(),
-                 result.total_segments, result.objects.size());
+    spdlog::info("[GCode Parser] Parsed G-code: {} layers, {} segments, {} objects",
+                 result.layers.size(), result.total_segments, result.objects.size());
 
     // Log warning summary if any out-of-range width calculations occurred
     if (out_of_range_width_count_ > 0) {
@@ -880,7 +883,8 @@ ParsedGCodeFile GCodeParser::finalize() {
 
     // Debug: Log object bounding boxes
     for (const auto& [name, obj] : result.objects) {
-        spdlog::debug("[GCode Parser] Object '{}' AABB: min=({:.2f},{:.2f},{:.2f}) max=({:.2f},{:.2f},{:.2f}) "
+        spdlog::debug("[GCode Parser] Object '{}' AABB: min=({:.2f},{:.2f},{:.2f}) "
+                      "max=({:.2f},{:.2f},{:.2f}) "
                       "center=({:.2f},{:.2f},{:.2f})",
                       name, obj.bounding_box.min.x, obj.bounding_box.min.y, obj.bounding_box.min.z,
                       obj.bounding_box.max.x, obj.bounding_box.max.y, obj.bounding_box.max.z,
@@ -949,7 +953,8 @@ std::vector<GCodeThumbnail> extract_thumbnails(const std::string& filepath) {
 
     std::ifstream file(filepath);
     if (!file.is_open()) {
-        spdlog::warn("[GCode Parser] Cannot open G-code file for thumbnail extraction: {}", filepath);
+        spdlog::warn("[GCode Parser] Cannot open G-code file for thumbnail extraction: {}",
+                     filepath);
         return thumbnails;
     }
 
@@ -1041,7 +1046,8 @@ bool save_thumbnail_to_file(const std::string& gcode_path, const std::string& ou
 
     out.write(reinterpret_cast<const char*>(thumb.png_data.data()),
               static_cast<std::streamsize>(thumb.png_data.size()));
-    spdlog::debug("[GCode Parser] Saved {}x{} thumbnail to {}", thumb.width, thumb.height, output_path);
+    spdlog::debug("[GCode Parser] Saved {}x{} thumbnail to {}", thumb.width, thumb.height,
+                  output_path);
     return true;
 }
 
@@ -1098,7 +1104,8 @@ std::string get_cached_thumbnail(const std::string& gcode_path, const std::strin
 
     // Log write failures only once
     if (!write_error_shown) {
-        spdlog::warn("[GCode Parser] Could not cache some thumbnails (further warnings suppressed)");
+        spdlog::warn(
+            "[GCode Parser] Could not cache some thumbnails (further warnings suppressed)");
         write_error_shown = true;
     }
 

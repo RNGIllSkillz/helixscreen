@@ -71,13 +71,13 @@ void save_screenshot() {
     lv_draw_buf_t* snapshot = lv_snapshot_take(screen, LV_COLOR_FORMAT_ARGB8888);
 
     if (!snapshot) {
-        spdlog::error("Failed to take screenshot");
+        spdlog::error("[Screenshot] Failed to take screenshot");
         return;
     }
 
     // Write BMP file
     if (write_bmp(filename, snapshot->data, snapshot->header.w, snapshot->header.h)) {
-        spdlog::info("Screenshot saved: {}", filename);
+        spdlog::info("[Screenshot] saved: {}", filename);
     } else {
         NOTIFY_ERROR("Failed to save screenshot");
         LOG_ERROR_INTERNAL("Failed to save screenshot to {}", filename);

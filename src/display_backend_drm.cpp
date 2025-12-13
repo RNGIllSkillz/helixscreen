@@ -159,8 +159,9 @@ bool DisplayBackendDRM::is_available() const {
 
     // Check if we can access it
     if (access(drm_device_.c_str(), R_OK | W_OK) != 0) {
-        spdlog::debug("[DRM Backend] DRM device {} not accessible (need R/W permissions, check video group)",
-                      drm_device_);
+        spdlog::debug(
+            "[DRM Backend] DRM device {} not accessible (need R/W permissions, check video group)",
+            drm_device_);
         return false;
     }
 
@@ -192,7 +193,8 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
     const char* env_device = std::getenv("HELIX_TOUCH_DEVICE");
     if (env_device && env_device[0] != '\0') {
         device_override = env_device;
-        spdlog::info("[DRM Backend] Using touch device from HELIX_TOUCH_DEVICE: {}", device_override);
+        spdlog::info("[DRM Backend] Using touch device from HELIX_TOUCH_DEVICE: {}",
+                     device_override);
     }
 
     // Priority 2: Config file override

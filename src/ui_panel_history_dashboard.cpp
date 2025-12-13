@@ -29,7 +29,8 @@ static void on_history_row_clicked(lv_event_t* e);
 
 HistoryDashboardPanel& get_global_history_dashboard_panel() {
     if (!g_history_dashboard_panel) {
-        spdlog::error("get_global_history_dashboard_panel() called before initialization!");
+        spdlog::error("[History Dashboard] get_global_history_dashboard_panel() called before "
+                      "initialization!");
         throw std::runtime_error("HistoryDashboardPanel not initialized");
     }
     return *g_history_dashboard_panel;

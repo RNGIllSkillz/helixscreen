@@ -88,10 +88,11 @@ void QuantizationParams::calculate_scale(const AABB& bbox) {
         scale_factor = 1000.0f; // 1 unit = 1mm
     }
 
-    spdlog::debug("[GCode Geometry] Quantization: bounds=[{:.2f},{:.2f},{:.2f}] to [{:.2f},{:.2f},{:.2f}], "
-                  "scale={:.2f} units/mm, resolution={:.4f}mm",
-                  min_bounds.x, min_bounds.y, min_bounds.z, max_bounds.x, max_bounds.y,
-                  max_bounds.z, scale_factor, 1.0f / scale_factor);
+    spdlog::debug(
+        "[GCode Geometry] Quantization: bounds=[{:.2f},{:.2f},{:.2f}] to [{:.2f},{:.2f},{:.2f}], "
+        "scale={:.2f} units/mm, resolution={:.4f}mm",
+        min_bounds.x, min_bounds.y, min_bounds.z, max_bounds.x, max_bounds.y, max_bounds.z,
+        scale_factor, 1.0f / scale_factor);
 }
 
 int16_t QuantizationParams::quantize(float value, float min_bound) const {
@@ -278,7 +279,8 @@ uint16_t GeometryBuilder::add_to_normal_palette(RibbonGeometry& geometry, const 
 
     // Log palette size periodically
     if (geometry.normal_palette.size() % 1000 == 0) {
-        spdlog::trace("[GCode Geometry] Normal palette: {} entries", geometry.normal_palette.size());
+        spdlog::trace("[GCode Geometry] Normal palette: {} entries",
+                      geometry.normal_palette.size());
     }
 
     return index;
@@ -331,8 +333,9 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     expanded_bbox.max += glm::vec3(expansion_margin, expansion_margin, expansion_margin);
     quant_params_.calculate_scale(expanded_bbox);
 
-    spdlog::debug("[GCode Geometry] Expanded quantization bounds by {:.1f}mm for tube width {:.1f}mm",
-                  expansion_margin, max_tube_width);
+    spdlog::debug(
+        "[GCode Geometry] Expanded quantization bounds by {:.1f}mm for tube width {:.1f}mm",
+        expansion_margin, max_tube_width);
 
     // Build Z-height to layer index lookup map
     // Used later to assign layer indices to strips for ghost layer rendering
@@ -379,8 +382,9 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
         stats_.simplification_ratio =
             1.0f - (static_cast<float>(simplified.size()) / all_segments.size());
 
-        spdlog::info("[GCode::Builder] Toolpath simplification: {} → {} segments ({:.1f}% reduction)",
-                     all_segments.size(), simplified.size(), stats_.simplification_ratio * 100.0f);
+        spdlog::info(
+            "[GCode::Builder] Toolpath simplification: {} → {} segments ({:.1f}% reduction)",
+            all_segments.size(), simplified.size(), stats_.simplification_ratio * 100.0f);
     } else {
         simplified = all_segments;
         stats_.output_segments = simplified.size();
@@ -473,8 +477,9 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
             // Debug top layer connections
             float z = std::round(segment.start.z * 100.0f) / 100.0f;
             if (z == max_z) {
-                spdlog::trace("[GCode Geometry]   Seg {:3d}: dist={:.4f}mm, tol={:.4f}mm, width={:.4f}mm, can_share={}", i,
-                              dist, connection_tolerance, segment.width, can_share);
+                spdlog::trace("[GCode Geometry]   Seg {:3d}: dist={:.4f}mm, tol={:.4f}mm, "
+                              "width={:.4f}mm, can_share={}",
+                              i, dist, connection_tolerance, segment.width, can_share);
             }
         }
 
@@ -558,10 +563,11 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     }
 
     if (total_segs > 0) {
-        spdlog::debug("[GCode Geometry] Top layer Z={:.2f}mm: {} segments ({} extrusion, {} travel, angles: "
-                      "{}°±45°, {}°h, {}°v, {} other)",
-                      max_z, total_segs, extrusion_segs, travel_segs, diagonal_45_segs,
-                      horizontal_segs, vertical_segs, other_angle_segs);
+        spdlog::debug(
+            "[GCode Geometry] Top layer Z={:.2f}mm: {} segments ({} extrusion, {} travel, angles: "
+            "{}°±45°, {}°h, {}°v, {} other)",
+            max_z, total_segs, extrusion_segs, travel_segs, diagonal_45_segs, horizontal_segs,
+            vertical_segs, other_angle_segs);
     }
 
     // Store quantization parameters for dequantization during rendering
@@ -712,12 +718,14 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
 
         // Validate: only 4, 8, or 16 sides supported
         if (tube_sides != 4 && tube_sides != 8 && tube_sides != 16) {
-            spdlog::warn("[GCode Geometry] Invalid tube_sides={} (must be 4, 8, or 16), defaulting to 16",
-                         tube_sides);
+            spdlog::warn(
+                "[GCode Geometry] Invalid tube_sides={} (must be 4, 8, or 16), defaulting to 16",
+                tube_sides);
             tube_sides = 16;
         }
 
-        spdlog::info("[GCode Geometry] G-code tube geometry: N={} sides (elliptical cross-section)", tube_sides);
+        spdlog::info("[GCode Geometry] G-code tube geometry: N={} sides (elliptical cross-section)",
+                     tube_sides);
     }
 
     // All phases complete - use configured N value
@@ -784,7 +792,8 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
 
         static bool logged_once = false;
         if (!logged_once) {
-            spdlog::debug("[GCode Geometry] DEBUG FACE COLORS ACTIVE: N={} faces, colors cycle through Red/Yellow/Blue/Green",
+            spdlog::debug("[GCode Geometry] DEBUG FACE COLORS ACTIVE: N={} faces, colors cycle "
+                          "through Red/Yellow/Blue/Green",
                           N);
             logged_once = true;
         }
@@ -893,22 +902,24 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
 
     static int debug_count = 0;
     if (debug_count < 2 && debug_face_colors_) {
-        spdlog::info("[GCode Geometry] === Segment {} | N={} | is_first={} ===", debug_count, N, is_first_segment);
-        spdlog::info("[GCode Geometry]   Segment: start=({:.3f},{:.3f},{:.3f}) end=({:.3f},{:.3f},{:.3f})",
-                     segment.start.x, segment.start.y, segment.start.z, segment.end.x,
-                     segment.end.y, segment.end.z);
-        spdlog::info("[GCode Geometry]   Direction: dir=({:.3f},{:.3f},{:.3f}) right=({:.3f},{:.3f},{:.3f}) "
-                     "perp_up=({:.3f},{:.3f},{:.3f})",
-                     dir.x, dir.y, dir.z, right.x, right.y, right.z, perp_up.x, perp_up.y,
-                     perp_up.z);
+        spdlog::info("[GCode Geometry] === Segment {} | N={} | is_first={} ===", debug_count, N,
+                     is_first_segment);
+        spdlog::info(
+            "[GCode Geometry]   Segment: start=({:.3f},{:.3f},{:.3f}) end=({:.3f},{:.3f},{:.3f})",
+            segment.start.x, segment.start.y, segment.start.z, segment.end.x, segment.end.y,
+            segment.end.z);
+        spdlog::info(
+            "[GCode Geometry]   Direction: dir=({:.3f},{:.3f},{:.3f}) right=({:.3f},{:.3f},{:.3f}) "
+            "perp_up=({:.3f},{:.3f},{:.3f})",
+            dir.x, dir.y, dir.z, right.x, right.y, right.z, perp_up.x, perp_up.y, perp_up.z);
         spdlog::info("[GCode Geometry]   Cross-section center: prev_pos=({:.3f},{:.3f},{:.3f}) "
                      "curr_pos=({:.3f},{:.3f},{:.3f})",
                      prev_pos.x, prev_pos.y, prev_pos.z, curr_pos.x, curr_pos.y, curr_pos.z);
         spdlog::info("[GCode Geometry]   Curr vertices ({} total):", N);
         for (int i = 0; i < N; i++) {
             glm::vec3 pos = curr_pos + vertex_offsets[static_cast<size_t>(i)];
-            spdlog::info("[GCode Geometry]     v{}[{}]: ({:.3f},{:.3f},{:.3f})", i, end_cap[static_cast<size_t>(i)],
-                         pos.x, pos.y, pos.z);
+            spdlog::info("[GCode Geometry]     v{}[{}]: ({:.3f},{:.3f},{:.3f})", i,
+                         end_cap[static_cast<size_t>(i)], pos.x, pos.y, pos.z);
         }
         debug_count++;
     }
@@ -958,7 +969,8 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
         }
 
         if (debug_face_colors_) {
-            spdlog::info("[GCode Geometry] START CAP: N={} vertices, {} triangles (triangle fan)", N, N - 2);
+            spdlog::info("[GCode Geometry] START CAP: N={} vertices, {} triangles (triangle fan)",
+                         N, N - 2);
         }
     }
 
@@ -973,7 +985,8 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
     uint32_t idx_end_cap_start = idx_start;
 
     if (debug_face_colors_) {
-        spdlog::info("[GCode Geometry] END CAP SOURCE INDICES (first {} of {}):", std::min(N, 4), N);
+        spdlog::info("[GCode Geometry] END CAP SOURCE INDICES (first {} of {}):", std::min(N, 4),
+                     N);
         for (int i = 0; i < std::min(N, 4); i++) {
             spdlog::info("[GCode Geometry]   end_cap[{}]={}", i, end_cap[static_cast<size_t>(i)]);
         }
@@ -1002,8 +1015,11 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
     }
 
     if (debug_face_colors_) {
-        spdlog::info("[GCode Geometry] END CAP: N={} vertices, {} triangles (reversed triangle fan)", N, N - 2);
-        spdlog::info("[GCode Geometry]   Total geometry.strips.size() = {}", geometry.strips.size());
+        spdlog::info(
+            "[GCode Geometry] END CAP: N={} vertices, {} triangles (reversed triangle fan)", N,
+            N - 2);
+        spdlog::info("[GCode Geometry]   Total geometry.strips.size() = {}",
+                     geometry.strips.size());
     }
 
     // ========== TRIANGLE COUNT VALIDATION ==========
@@ -1054,8 +1070,8 @@ uint32_t GeometryBuilder::compute_color_rgb(float z_height, float z_min, float z
                          static_cast<uint32_t>(filament_b_);
         static bool logged_once = false;
         if (!logged_once) {
-            spdlog::debug("[GCode Geometry] compute_color_rgb: R={}, G={}, B={} -> 0x{:06X}", filament_r_,
-                          filament_g_, filament_b_, color);
+            spdlog::debug("[GCode Geometry] compute_color_rgb: R={}, G={}, B={} -> 0x{:06X}",
+                          filament_r_, filament_g_, filament_b_, color);
             logged_once = true;
         }
         return color;
@@ -1125,8 +1141,8 @@ void GeometryBuilder::set_filament_color(const std::string& hex_color) {
     filament_g_ = (rgb >> 8) & 0xFF;
     filament_b_ = rgb & 0xFF;
 
-    spdlog::info("[GCode Geometry] Filament color set to #{:02X}{:02X}{:02X} (R={}, G={}, B={})", filament_r_,
-                 filament_g_, filament_b_, filament_r_, filament_g_, filament_b_);
+    spdlog::info("[GCode Geometry] Filament color set to #{:02X}{:02X}{:02X} (R={}, G={}, B={})",
+                 filament_r_, filament_g_, filament_b_, filament_r_, filament_g_, filament_b_);
 }
 
 uint32_t GeometryBuilder::parse_hex_color(const std::string& hex_color) const {

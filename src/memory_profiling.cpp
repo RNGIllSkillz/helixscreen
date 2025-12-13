@@ -51,10 +51,10 @@ void log_memory_snapshot_impl(const char* label) {
 
         int64_t delta = (g_baseline_rss_kb > 0) ? (rss_kb - g_baseline_rss_kb) : 0;
 
-        spdlog::info("MEMORY: {} RSS={}KB HWM={}KB Private={}KB Delta={:+}KB", label, rss_kb,
-                     hwm_kb, private_dirty_kb, delta);
+        spdlog::info("[Memory Profiling] {} RSS={}KB HWM={}KB Private={}KB Delta={:+}KB", label,
+                     rss_kb, hwm_kb, private_dirty_kb, delta);
     } else {
-        spdlog::debug("MEMORY: stats not available (non-Linux platform)");
+        spdlog::debug("[Memory Profiling] stats not available (non-Linux platform)");
     }
 }
 
@@ -92,7 +92,7 @@ void memory_report_timer_cb(lv_timer_t* /*timer*/) {
 
 void MemoryProfiler::init(bool enable_periodic) {
     if (g_initialized) {
-        spdlog::warn("MemoryProfiler::init() called multiple times");
+        spdlog::warn("[Memory Profiling] MemoryProfiler::init() called multiple times");
         return;
     }
     g_initialized = true;
@@ -101,7 +101,7 @@ void MemoryProfiler::init(bool enable_periodic) {
     int64_t rss_kb = 0, hwm_kb = 0;
     if (read_memory_stats(rss_kb, hwm_kb)) {
         g_baseline_rss_kb = rss_kb;
-        spdlog::info("MEMORY: baseline RSS={}KB", rss_kb);
+        spdlog::info("[Memory Profiling] baseline RSS={}KB", rss_kb);
     }
 
     // Install SIGUSR1 handler for on-demand snapshots
@@ -110,7 +110,8 @@ void MemoryProfiler::init(bool enable_periodic) {
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
     if (sigaction(SIGUSR1, &sa, nullptr) == 0) {
-        spdlog::info("MEMORY: SIGUSR1 handler installed (kill -USR1 {} for snapshot)", getpid());
+        spdlog::info("[Memory Profiling] SIGUSR1 handler installed (kill -USR1 {} for snapshot)",
+                     getpid());
     }
 
     g_periodic_enabled.store(enable_periodic, std::memory_order_release);

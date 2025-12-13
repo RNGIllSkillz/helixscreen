@@ -80,7 +80,7 @@ void app_globals_init_subjects() {
     // Initialize modal dialog subjects (for modal_dialog.xml binding)
     ui_modal_init_subjects();
 
-    spdlog::debug("Global subjects initialized");
+    spdlog::debug("[App Globals] Global subjects initialized");
 }
 
 void app_store_argv(int argc, char** argv) {
@@ -100,20 +100,22 @@ void app_store_argv(int argc, char** argv) {
         // execv requires NULL-terminated array
         g_stored_argv.push_back(nullptr);
 
-        spdlog::debug("Stored {} command-line arguments for restart capability", argc);
+        spdlog::debug("[App Globals] Stored {} command-line arguments for restart capability",
+                      argc);
     }
 }
 
 void app_request_quit() {
-    spdlog::info("Application quit requested");
+    spdlog::info("[App Globals] Application quit requested");
     g_quit_requested = true;
 }
 
 void app_request_restart() {
-    spdlog::info("Application restart requested");
+    spdlog::info("[App Globals] Application restart requested");
 
     if (g_stored_argv.empty() || g_executable_path.empty()) {
-        spdlog::error("Cannot restart: argv not stored. Call app_store_argv() at startup.");
+        spdlog::error(
+            "[App Globals] Cannot restart: argv not stored. Call app_store_argv() at startup.");
         g_quit_requested = true; // Fall back to quit
         return;
     }
@@ -124,7 +126,7 @@ void app_request_restart() {
 
     if (pid < 0) {
         // Fork failed
-        spdlog::error("Fork failed during restart: {}", strerror(errno));
+        spdlog::error("[App Globals] Fork failed during restart: {}", strerror(errno));
         g_quit_requested = true; // Fall back to quit
         return;
     }
@@ -137,17 +139,17 @@ void app_request_restart() {
         execv(g_executable_path.c_str(), g_stored_argv.data());
 
         // If execv returns, it failed
-        spdlog::error("execv failed during restart: {}", strerror(errno));
+        spdlog::error("[App Globals] execv failed during restart: {}", strerror(errno));
         _exit(1); // Exit child without cleanup
     }
 
     // Parent process - signal main loop to exit cleanly
-    spdlog::info("Forked new process (PID {}), parent exiting", pid);
+    spdlog::info("[App Globals] Forked new process (PID {}), parent exiting", pid);
     g_quit_requested = true;
 
 #else
     // Unsupported platform - fall back to quit
-    spdlog::warn("Restart not supported on this platform, falling back to quit");
+    spdlog::warn("[App Globals] Restart not supported on this platform, falling back to quit");
     g_quit_requested = true;
 #endif
 }
@@ -214,10 +216,11 @@ static std::vector<char*> build_theme_restart_argv() {
 }
 
 void app_request_restart_for_theme() {
-    spdlog::info("Application restart requested for theme change");
+    spdlog::info("[App Globals] Application restart requested for theme change");
 
     if (g_stored_argv.empty() || g_executable_path.empty()) {
-        spdlog::error("Cannot restart: argv not stored. Call app_store_argv() at startup.");
+        spdlog::error(
+            "[App Globals] Cannot restart: argv not stored. Call app_store_argv() at startup.");
         g_quit_requested = true;
         return;
     }
@@ -234,13 +237,13 @@ void app_request_restart_for_theme() {
             cmd_line += arg;
         }
     }
-    spdlog::info("Restart command: {}", cmd_line);
+    spdlog::info("[App Globals] Restart command: {}", cmd_line);
 
 #if defined(__unix__) || defined(__APPLE__)
     pid_t pid = fork();
 
     if (pid < 0) {
-        spdlog::error("Fork failed during theme restart: {}", strerror(errno));
+        spdlog::error("[App Globals] Fork failed during theme restart: {}", strerror(errno));
         g_quit_requested = true;
         return;
     }
@@ -249,15 +252,17 @@ void app_request_restart_for_theme() {
         // Child process
         usleep(100000); // 100ms delay for parent cleanup
         execv(g_executable_path.c_str(), theme_argv.data());
-        spdlog::error("execv failed during theme restart: {}", strerror(errno));
+        spdlog::error("[App Globals] execv failed during theme restart: {}", strerror(errno));
         _exit(1);
     }
 
-    spdlog::info("Forked new process (PID {}) for theme restart, parent exiting", pid);
+    spdlog::info("[App Globals] Forked new process (PID {}) for theme restart, parent exiting",
+                 pid);
     g_quit_requested = true;
 
 #else
-    spdlog::warn("Theme restart not supported on this platform, falling back to quit");
+    spdlog::warn(
+        "[App Globals] Theme restart not supported on this platform, falling back to quit");
     g_quit_requested = true;
 #endif
 }

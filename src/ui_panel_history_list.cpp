@@ -29,7 +29,8 @@ static std::unique_ptr<HistoryListPanel> g_history_list_panel;
 
 HistoryListPanel& get_global_history_list_panel() {
     if (!g_history_list_panel) {
-        spdlog::error("get_global_history_list_panel() called before initialization!");
+        spdlog::error(
+            "[History List] get_global_history_list_panel() called before initialization!");
         throw std::runtime_error("HistoryListPanel not initialized");
     }
     return *g_history_list_panel;

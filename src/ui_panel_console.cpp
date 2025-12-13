@@ -459,7 +459,7 @@ static lv_obj_t* g_console_panel_obj = nullptr;
 
 ConsolePanel& get_global_console_panel() {
     if (!g_console_panel) {
-        spdlog::error("get_global_console_panel() called before initialization!");
+        spdlog::error("[Console Panel] get_global_console_panel() called before initialization!");
         throw std::runtime_error("ConsolePanel not initialized");
     }
     return *g_console_panel;
@@ -467,11 +467,11 @@ ConsolePanel& get_global_console_panel() {
 
 void init_global_console_panel(PrinterState& printer_state, MoonrakerAPI* api) {
     if (g_console_panel) {
-        spdlog::warn("ConsolePanel already initialized, skipping");
+        spdlog::warn("[Console Panel] ConsolePanel already initialized, skipping");
         return;
     }
     g_console_panel = std::make_unique<ConsolePanel>(printer_state, api);
-    spdlog::debug("ConsolePanel initialized");
+    spdlog::debug("[Console Panel] ConsolePanel initialized");
 }
 
 /**
@@ -482,25 +482,25 @@ void init_global_console_panel(PrinterState& printer_state, MoonrakerAPI* api) {
  */
 static void on_console_row_clicked(lv_event_t* e) {
     (void)e;
-    spdlog::debug("[Console] Console row clicked");
+    spdlog::debug("[Console Panel] Console row clicked");
 
     if (!g_console_panel) {
-        spdlog::error("[Console] Global instance not initialized!");
+        spdlog::error("[Console Panel] Global instance not initialized!");
         return;
     }
 
     // Lazy-create the console panel
     if (!g_console_panel_obj) {
-        spdlog::debug("[Console] Creating console panel...");
+        spdlog::debug("[Console Panel] Creating console panel...");
         g_console_panel_obj = static_cast<lv_obj_t*>(
             lv_xml_create(lv_display_get_screen_active(NULL), "console_panel", nullptr));
 
         if (g_console_panel_obj) {
             g_console_panel->setup(g_console_panel_obj, lv_display_get_screen_active(NULL));
             lv_obj_add_flag(g_console_panel_obj, LV_OBJ_FLAG_HIDDEN);
-            spdlog::info("[Console] Panel created and setup complete");
+            spdlog::info("[Console Panel] Panel created and setup complete");
         } else {
-            spdlog::error("[Console] Failed to create console_panel");
+            spdlog::error("[Console Panel] Failed to create console_panel");
             return;
         }
     }
@@ -517,10 +517,10 @@ static void on_console_row_clicked(lv_event_t* e) {
  */
 static void on_console_send_clicked(lv_event_t* e) {
     (void)e;
-    spdlog::debug("[Console] Send button clicked");
+    spdlog::debug("[Console Panel] Send button clicked");
 
     if (!g_console_panel) {
-        spdlog::error("[Console] Global instance not initialized!");
+        spdlog::error("[Console Panel] Global instance not initialized!");
         return;
     }
 
@@ -535,10 +535,10 @@ static void on_console_send_clicked(lv_event_t* e) {
  */
 static void on_console_clear_clicked(lv_event_t* e) {
     (void)e;
-    spdlog::debug("[Console] Clear button clicked");
+    spdlog::debug("[Console Panel] Clear button clicked");
 
     if (!g_console_panel) {
-        spdlog::error("[Console] Global instance not initialized!");
+        spdlog::error("[Console Panel] Global instance not initialized!");
         return;
     }
 

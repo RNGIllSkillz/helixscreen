@@ -16,7 +16,7 @@
 namespace helix {
 
 void register_fonts_and_images() {
-    spdlog::debug("Registering fonts and images...");
+    spdlog::debug("[XML Registration] Registering fonts and images...");
 
     // Material Design Icons (various sizes for different UI elements)
     // Source: https://pictogrammers.com/library/mdi/
@@ -81,7 +81,7 @@ void register_fonts_and_images() {
 }
 
 void register_xml_components() {
-    spdlog::debug("Registering XML components...");
+    spdlog::debug("[XML Registration] Registering XML components...");
 
     // Register responsive constants (AFTER globals, BEFORE components that use them)
     ui_switch_register_responsive_constants();
@@ -216,7 +216,7 @@ void register_xml_components() {
     lv_xml_register_component_from_file("A:ui_xml/wizard_led_select.xml");
     lv_xml_register_component_from_file("A:ui_xml/wizard_summary.xml");
 
-    spdlog::debug("XML component registration complete");
+    spdlog::debug("[XML Registration] XML component registration complete");
 }
 
 } // namespace helix
