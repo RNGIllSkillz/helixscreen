@@ -418,8 +418,9 @@ void PrintSelectPanel::refresh_files() {
         [self](const std::vector<FileInfo>& files) {
             spdlog::info("[{}] Received {} items from Moonraker", self->get_name(), files.size());
 
-            // Clear existing file list
+            // Clear existing file list and metadata tracking
             self->file_list_.clear();
+            self->metadata_fetched_.clear();
 
             // Add ".." parent directory entry if not at root
             if (!self->current_path_.empty()) {
@@ -512,9 +513,34 @@ void PrintSelectPanel::refresh_files() {
                         }
                     }
 
-                    // Now that views are populated, trigger metadata fetch
-                    // This ensures thumbnails arrive AFTER cards exist
-                    panel->fetch_all_metadata();
+                    // Now that views are populated, trigger metadata fetch for VISIBLE items only
+                    // This ensures thumbnails arrive AFTER cards exist, and we don't flood the
+                    // network with requests for off-screen files
+                    size_t visible_start = 0;
+                    size_t visible_end = 0;
+
+                    if (panel->current_view_mode_ == PrintSelectViewMode::CARD) {
+                        // Card view: compute from visible rows
+                        if (panel->visible_start_row_ >= 0 && panel->visible_end_row_ >= 0) {
+                            visible_start = static_cast<size_t>(panel->visible_start_row_) *
+                                            static_cast<size_t>(panel->cards_per_row_);
+                            visible_end = static_cast<size_t>(panel->visible_end_row_) *
+                                          static_cast<size_t>(panel->cards_per_row_);
+                        }
+                    } else {
+                        // List view: use visible list indices
+                        if (panel->visible_list_start_ >= 0 && panel->visible_list_end_ >= 0) {
+                            visible_start = static_cast<size_t>(panel->visible_list_start_);
+                            visible_end = static_cast<size_t>(panel->visible_list_end_);
+                        }
+                    }
+
+                    // Fallback: if no visible range computed, fetch first ~20 files
+                    if (visible_end == 0 && !panel->file_list_.empty()) {
+                        visible_end = std::min(panel->file_list_.size(), size_t{20});
+                    }
+
+                    panel->fetch_metadata_range(visible_start, visible_end);
                 },
                 self);
         },
@@ -526,17 +552,38 @@ void PrintSelectPanel::refresh_files() {
         });
 }
 
-void PrintSelectPanel::fetch_all_metadata() {
+void PrintSelectPanel::fetch_metadata_range(size_t start, size_t end) {
     if (!api_) {
         return;
     }
 
-    auto* self = this;
+    // Clamp range to file list bounds
+    start = std::min(start, file_list_.size());
+    end = std::min(end, file_list_.size());
 
-    // Fetch metadata for files only (not directories)
-    for (size_t i = 0; i < file_list_.size(); i++) {
+    if (start >= end) {
+        return;
+    }
+
+    // Ensure tracking vector is properly sized
+    if (metadata_fetched_.size() != file_list_.size()) {
+        metadata_fetched_.resize(file_list_.size(), false);
+    }
+
+    auto* self = this;
+    size_t fetch_count = 0;
+
+    // Fetch metadata for files in range only (not directories, not already fetched)
+    for (size_t i = start; i < end; i++) {
         if (file_list_[i].is_dir)
             continue; // Skip directories
+
+        if (metadata_fetched_[i])
+            continue; // Already fetched or in flight
+
+        // Mark as fetched immediately to prevent duplicate requests
+        metadata_fetched_[i] = true;
+        fetch_count++;
 
         const std::string filename = file_list_[i].filename;
 
@@ -688,6 +735,11 @@ void PrintSelectPanel::fetch_all_metadata() {
                 spdlog::warn("[{}] Failed to get metadata for {}: {} ({})", self->get_name(),
                              filename, error.message, error.get_type_string());
             });
+    }
+
+    if (fetch_count > 0) {
+        spdlog::debug("[{}] fetch_metadata_range({}, {}): started {} metadata requests", get_name(),
+                      start, end, fetch_count);
     }
 }
 
@@ -1190,8 +1242,19 @@ void PrintSelectPanel::update_visible_cards() {
 void PrintSelectPanel::handle_scroll(lv_obj_t* container) {
     if (container == card_view_container_) {
         update_visible_cards();
+        // Lazy-load metadata for newly visible cards
+        if (visible_start_row_ >= 0 && visible_end_row_ >= 0) {
+            size_t start = static_cast<size_t>(visible_start_row_) * static_cast<size_t>(cards_per_row_);
+            size_t end = static_cast<size_t>(visible_end_row_) * static_cast<size_t>(cards_per_row_);
+            fetch_metadata_range(start, end);
+        }
     } else if (container == list_rows_container_) {
         update_visible_list_rows();
+        // Lazy-load metadata for newly visible list items
+        if (visible_list_start_ >= 0 && visible_list_end_ >= 0) {
+            fetch_metadata_range(static_cast<size_t>(visible_list_start_),
+                                 static_cast<size_t>(visible_list_end_));
+        }
     }
 }
 

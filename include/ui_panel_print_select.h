@@ -212,12 +212,15 @@ class PrintSelectPanel : public PanelBase {
     void refresh_files();
 
     /**
-     * @brief Fetch metadata for all files in the current list
+     * @brief Fetch metadata for a range of files (lazy loading)
      *
-     * Called from main thread after views are populated.
-     * Triggers async metadata + thumbnail fetches.
+     * Only fetches metadata for files that haven't been fetched yet.
+     * Called initially for visible items, then on scroll for newly visible items.
+     *
+     * @param start Start index (inclusive)
+     * @param end End index (exclusive)
      */
-    void fetch_all_metadata();
+    void fetch_metadata_range(size_t start, size_t end);
 
     /**
      * @brief Navigate into a subdirectory
@@ -422,6 +425,7 @@ class PrintSelectPanel : public PanelBase {
     //
 
     std::vector<PrintFileData> file_list_;
+    std::vector<bool> metadata_fetched_; ///< Tracks which files have had metadata requested
     std::string current_path_;           ///< Current directory path (empty = root gcodes dir)
     std::string selected_filament_type_; ///< Filament type of selected file (for dropdown default)
     std::string

@@ -692,83 +692,80 @@ FileMetadata MoonrakerAPI::parse_file_metadata(const json& response) {
 
     const json& result = response["result"];
 
+    // Helper lambdas to safely extract values (Moonraker returns null for missing metadata)
+    auto get_string = [&result](const char* key) -> std::string {
+        if (result.contains(key) && result[key].is_string()) {
+            return result[key].get<std::string>();
+        }
+        return {};
+    };
+
+    auto get_double = [&result](const char* key) -> double {
+        if (result.contains(key) && result[key].is_number()) {
+            return result[key].get<double>();
+        }
+        return 0.0;
+    };
+
+    auto get_uint64 = [&result](const char* key) -> uint64_t {
+        if (result.contains(key) && result[key].is_number()) {
+            return result[key].get<uint64_t>();
+        }
+        return 0;
+    };
+
+    auto get_uint32 = [&result](const char* key) -> uint32_t {
+        if (result.contains(key) && result[key].is_number()) {
+            return result[key].get<uint32_t>();
+        }
+        return 0;
+    };
+
     // Basic file info
-    if (result.contains("filename")) {
-        metadata.filename = result["filename"].get<std::string>();
-    }
-    if (result.contains("size")) {
-        metadata.size = result["size"].get<uint64_t>();
-    }
-    if (result.contains("modified")) {
-        metadata.modified = result["modified"].get<double>();
-    }
+    metadata.filename = get_string("filename");
+    metadata.size = get_uint64("size");
+    metadata.modified = get_double("modified");
 
     // Slicer info
-    if (result.contains("slicer")) {
-        metadata.slicer = result["slicer"].get<std::string>();
-    }
-    if (result.contains("slicer_version")) {
-        metadata.slicer_version = result["slicer_version"].get<std::string>();
-    }
+    metadata.slicer = get_string("slicer");
+    metadata.slicer_version = get_string("slicer_version");
 
     // Print info
-    if (result.contains("print_start_time")) {
-        metadata.print_start_time = result["print_start_time"].get<double>();
-    }
-    if (result.contains("job_id")) {
-        metadata.job_id = result["job_id"].get<std::string>();
-    }
-    if (result.contains("layer_count")) {
-        metadata.layer_count = result["layer_count"].get<uint32_t>();
-    }
-    if (result.contains("object_height")) {
-        metadata.object_height = result["object_height"].get<double>();
-    }
-    if (result.contains("estimated_time")) {
-        metadata.estimated_time = result["estimated_time"].get<double>();
-    }
+    metadata.print_start_time = get_double("print_start_time");
+    metadata.job_id = get_string("job_id");
+    metadata.layer_count = get_uint32("layer_count");
+    metadata.object_height = get_double("object_height");
+    metadata.estimated_time = get_double("estimated_time");
 
     // Filament info
-    if (result.contains("filament_total")) {
-        metadata.filament_total = result["filament_total"].get<double>();
-    }
-    if (result.contains("filament_weight_total")) {
-        metadata.filament_weight_total = result["filament_weight_total"].get<double>();
-    }
-    if (result.contains("filament_type")) {
-        // Moonraker returns "PLA;PLA;PLA;PLA" for multi-extruder - take first value
-        std::string raw_type = result["filament_type"].get<std::string>();
+    metadata.filament_total = get_double("filament_total");
+    metadata.filament_weight_total = get_double("filament_weight_total");
+    // Moonraker returns "PLA;PLA;PLA;PLA" for multi-extruder - take first value
+    std::string raw_type = get_string("filament_type");
+    if (!raw_type.empty()) {
         size_t semicolon = raw_type.find(';');
         metadata.filament_type =
             (semicolon != std::string::npos) ? raw_type.substr(0, semicolon) : raw_type;
     }
 
     // Temperature info
-    if (result.contains("first_layer_bed_temp")) {
-        metadata.first_layer_bed_temp = result["first_layer_bed_temp"].get<double>();
-    }
-    if (result.contains("first_layer_extr_temp")) {
-        metadata.first_layer_extr_temp = result["first_layer_extr_temp"].get<double>();
-    }
+    metadata.first_layer_bed_temp = get_double("first_layer_bed_temp");
+    metadata.first_layer_extr_temp = get_double("first_layer_extr_temp");
 
     // G-code info
-    if (result.contains("gcode_start_byte")) {
-        metadata.gcode_start_byte = result["gcode_start_byte"].get<uint64_t>();
-    }
-    if (result.contains("gcode_end_byte")) {
-        metadata.gcode_end_byte = result["gcode_end_byte"].get<uint64_t>();
-    }
+    metadata.gcode_start_byte = get_uint64("gcode_start_byte");
+    metadata.gcode_end_byte = get_uint64("gcode_end_byte");
 
     // Thumbnails - parse with dimensions for selecting largest
-    if (result.contains("thumbnails")) {
+    if (result.contains("thumbnails") && result["thumbnails"].is_array()) {
         for (const auto& thumb : result["thumbnails"]) {
-            if (thumb.contains("relative_path")) {
+            if (thumb.contains("relative_path") && thumb["relative_path"].is_string()) {
                 ThumbnailInfo info;
                 info.relative_path = thumb["relative_path"].get<std::string>();
-                if (thumb.contains("width")) {
+                if (thumb.contains("width") && thumb["width"].is_number()) {
                     info.width = thumb["width"].get<int>();
                 }
-                if (thumb.contains("height")) {
+                if (thumb.contains("height") && thumb["height"].is_number()) {
                     info.height = thumb["height"].get<int>();
                 }
                 metadata.thumbnails.push_back(info);
