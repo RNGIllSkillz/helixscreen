@@ -73,6 +73,7 @@ class AmsBackendHappyHare : public AmsBackend {
     // Path visualization
     [[nodiscard]] PathTopology get_topology() const override;
     [[nodiscard]] PathSegment get_filament_segment() const override;
+    [[nodiscard]] PathSegment get_gate_filament_segment(int gate_index) const override;
     [[nodiscard]] PathSegment infer_error_segment() const override;
 
     // Operations

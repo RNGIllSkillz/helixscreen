@@ -836,8 +836,17 @@ static void filament_path_draw_cb(lv_event_t* e) {
             gate_segment = data->gate_filament_states[i].segment;
         }
 
-        // Draw vertical line from entry to prep sensor
-        draw_vertical_line(layer, gate_x, entry_y, prep_y - sensor_r, lane_color, lane_width);
+        // For non-active gates with filament:
+        // - Color the line FROM spool TO sensor (we know filament is here)
+        // - Color the sensor dot (filament detected)
+        // - Gray the line PAST sensor to merge (we don't know extent beyond sensor)
+        bool is_non_active_with_filament = !is_active_gate && has_filament;
+
+        // Line from entry to prep sensor: colored if filament present
+        lv_color_t entry_line_color = has_filament ? lane_color : idle_color;
+        int32_t entry_line_width = has_filament ? lane_width : line_idle;
+        draw_vertical_line(layer, gate_x, entry_y, prep_y - sensor_r, entry_line_color,
+                           entry_line_width);
 
         // Draw prep sensor dot (AFC topology shows these prominently)
         if (data->topology == 1) { // HUB topology
@@ -846,8 +855,16 @@ static void filament_path_draw_cb(lv_event_t* e) {
                             prep_active, sensor_r);
         }
 
-        // Draw line from prep to merge point (diagonal to center)
-        draw_line(layer, gate_x, prep_y + sensor_r, center_x, merge_y, lane_color, lane_width);
+        // Line from prep to merge: gray for non-active gates (don't imply extent past sensor)
+        lv_color_t merge_line_color = is_non_active_with_filament ? idle_color : lane_color;
+        int32_t merge_line_width = is_non_active_with_filament ? line_idle : lane_width;
+        // For gates with no filament, use idle color
+        if (!has_filament) {
+            merge_line_color = idle_color;
+            merge_line_width = line_idle;
+        }
+        draw_line(layer, gate_x, prep_y + sensor_r, center_x, merge_y, merge_line_color,
+                  merge_line_width);
     }
 
     // ========================================================================
@@ -902,10 +919,12 @@ static void filament_path_draw_cb(lv_event_t* e) {
         // Line from merge point to hub
         lv_color_t hub_line_color = idle_color;
         int32_t hub_line_width = line_idle;
+        bool hub_has_filament = false;
 
         if (data->active_gate >= 0 && is_segment_active(PathSegment::HUB, fil_seg)) {
             hub_line_color = active_color;
             hub_line_width = line_active;
+            hub_has_filament = true;
             if (has_error && error_seg == PathSegment::HUB) {
                 hub_line_color = error_color;
             }
@@ -914,9 +933,15 @@ static void filament_path_draw_cb(lv_event_t* e) {
         draw_vertical_line(layer, center_x, merge_y, hub_y - hub_h / 2, hub_line_color,
                            hub_line_width);
 
-        // Hub box
+        // Hub box - tint background with filament color when filament passes through
+        lv_color_t hub_bg_tinted = hub_bg;
+        if (hub_has_filament) {
+            // Subtle 33% blend of filament color into hub background
+            hub_bg_tinted = ph_blend(hub_bg, active_color, 0.33f);
+        }
+
         const char* hub_label = (data->topology == 0) ? "SELECTOR" : "HUB";
-        draw_hub_box(layer, center_x, hub_y, data->hub_width, hub_h, hub_bg, hub_border,
+        draw_hub_box(layer, center_x, hub_y, data->hub_width, hub_h, hub_bg_tinted, hub_border,
                      data->color_text, data->label_font, data->border_radius, hub_label);
     }
 

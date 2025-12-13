@@ -38,13 +38,10 @@ AmsBackendAfc::AmsBackendAfc(MoonrakerAPI* api, MoonrakerClient* client)
 }
 
 AmsBackendAfc::~AmsBackendAfc() {
-    // During static destruction (e.g., program exit), the mutex may be in an
-    // invalid state. Don't try to lock it or call stop() - the AmsState
-    // destructor has already set the shutdown flag and we just need to clean up.
-    // Normal cleanup path: AmsState::set_backend() calls stop() before replacing.
-    // Destruction path: Let unique_ptrs/RAII guards handle cleanup automatically.
-    //
-    // Note: SubscriptionGuard will safely unsubscribe if MoonrakerClient is still valid.
+    // During static destruction (e.g., program exit), the mutex and client may be
+    // in an invalid state. Release the subscription guard WITHOUT trying to
+    // unsubscribe - the MoonrakerClient may already be destroyed.
+    subscription_.release();
 }
 
 // ============================================================================
@@ -227,6 +224,42 @@ PathTopology AmsBackendAfc::get_topology() const {
 PathSegment AmsBackendAfc::get_filament_segment() const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     return compute_filament_segment_unlocked();
+}
+
+PathSegment AmsBackendAfc::get_gate_filament_segment(int gate_index) const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    // Check if this is the active gate - return the current filament segment
+    if (gate_index == system_info_.current_gate && system_info_.filament_loaded) {
+        return compute_filament_segment_unlocked();
+    }
+
+    // For non-active gates, check lane sensors to determine filament position
+    if (gate_index < 0 || gate_index >= static_cast<int>(lane_sensors_.size())) {
+        return PathSegment::NONE;
+    }
+
+    const LaneSensors& sensors = lane_sensors_[gate_index];
+
+    // Check sensors from furthest to nearest
+    if (sensors.loaded_to_hub) {
+        return PathSegment::HUB; // Filament reached hub sensor
+    }
+    if (sensors.load) {
+        return PathSegment::LANE; // Filament in lane (load sensor triggered)
+    }
+    if (sensors.prep) {
+        return PathSegment::PREP; // Filament at prep sensor
+    }
+
+    // Check gate status - if available, assume filament at spool
+    const GateInfo* gate = system_info_.get_gate_global(gate_index);
+    if (gate &&
+        (gate->status == GateStatus::AVAILABLE || gate->status == GateStatus::FROM_BUFFER)) {
+        return PathSegment::SPOOL;
+    }
+
+    return PathSegment::NONE;
 }
 
 PathSegment AmsBackendAfc::infer_error_segment() const {

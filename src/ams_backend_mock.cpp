@@ -135,6 +135,7 @@ AmsBackendMock::AmsBackendMock(int gate_count) {
         system_info_.current_gate = 0;
         system_info_.current_tool = 0;
         system_info_.filament_loaded = true;
+        filament_segment_ = PathSegment::NOZZLE; // Filament is fully loaded to nozzle
     }
 
     // Make gate index 3 (4th slot) empty for realistic demo
@@ -260,6 +261,29 @@ PathTopology AmsBackendMock::get_topology() const {
 PathSegment AmsBackendMock::get_filament_segment() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return filament_segment_;
+}
+
+PathSegment AmsBackendMock::get_gate_filament_segment(int gate_index) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Check if this is the active gate - return the current filament segment
+    if (gate_index == system_info_.current_gate && system_info_.filament_loaded) {
+        return filament_segment_;
+    }
+
+    // For non-active gates, check if filament is installed at the gate
+    // and return PREP segment (filament sitting at prep sensor)
+    const GateInfo* gate = system_info_.get_gate_global(gate_index);
+    if (!gate) {
+        return PathSegment::NONE;
+    }
+
+    // Gates with available filament show filament up to prep sensor
+    if (gate->status == GateStatus::AVAILABLE || gate->status == GateStatus::FROM_BUFFER) {
+        return PathSegment::PREP;
+    }
+
+    return PathSegment::NONE;
 }
 
 PathSegment AmsBackendMock::infer_error_segment() const {

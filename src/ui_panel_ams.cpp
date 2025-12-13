@@ -363,6 +363,18 @@ void AmsPanel::update_path_canvas_from_backend() {
         ui_filament_path_canvas_set_filament_color(path_canvas_, gate_info.color_rgb);
     }
 
+    // Set per-gate filament states for all gates with filament
+    // This allows non-active gates to show their filament color/position
+    ui_filament_path_canvas_clear_gate_filaments(path_canvas_);
+    for (int i = 0; i < info.total_gates; ++i) {
+        PathSegment gate_seg = backend->get_gate_filament_segment(i);
+        if (gate_seg != PathSegment::NONE) {
+            GateInfo gate_info = backend->get_gate_info(i);
+            ui_filament_path_canvas_set_gate_filament(path_canvas_, i, static_cast<int>(gate_seg),
+                                                      gate_info.color_rgb);
+        }
+    }
+
     spdlog::trace("[{}] Path canvas updated: gates={}, topology={}, active={}, segment={}",
                   get_name(), info.total_gates, static_cast<int>(topology), info.current_gate,
                   static_cast<int>(segment));
@@ -1000,15 +1012,16 @@ void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget) {
     }
 
     // Find and wire up callbacks
-    lv_obj_t* backdrop = lv_obj_find_by_name(context_menu_, "context_backdrop");
+    // Note: context_menu_ IS the backdrop (it's the root object from XML)
+    // lv_obj_find_by_name only searches children, not the object itself
+    lv_obj_t* backdrop = context_menu_; // The root IS the backdrop
     lv_obj_t* menu_card = lv_obj_find_by_name(context_menu_, "context_menu");
     lv_obj_t* btn_load = lv_obj_find_by_name(context_menu_, "btn_load");
     lv_obj_t* btn_unload = lv_obj_find_by_name(context_menu_, "btn_unload");
     lv_obj_t* btn_edit = lv_obj_find_by_name(context_menu_, "btn_edit");
 
-    if (backdrop) {
-        lv_obj_add_event_cb(backdrop, on_context_backdrop_clicked, LV_EVENT_CLICKED, this);
-    }
+    // Backdrop click dismisses the menu
+    lv_obj_add_event_cb(backdrop, on_context_backdrop_clicked, LV_EVENT_CLICKED, this);
     if (btn_load) {
         lv_obj_add_event_cb(btn_load, on_context_load_clicked, LV_EVENT_CLICKED, this);
     }

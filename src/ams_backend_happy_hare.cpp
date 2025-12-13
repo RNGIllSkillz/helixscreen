@@ -36,9 +36,10 @@ AmsBackendHappyHare::AmsBackendHappyHare(MoonrakerAPI* api, MoonrakerClient* cli
 }
 
 AmsBackendHappyHare::~AmsBackendHappyHare() {
-    // During static destruction, the mutex may be invalid. Don't call stop()
-    // which would try to lock it. Let RAII guards handle cleanup automatically.
-    // Normal cleanup: AmsState::set_backend() calls stop() before replacing.
+    // During static destruction (e.g., program exit), the mutex and client may be
+    // in an invalid state. Release the subscription guard WITHOUT trying to
+    // unsubscribe - the MoonrakerClient may already be destroyed.
+    subscription_.release();
 }
 
 // ============================================================================
@@ -180,6 +181,25 @@ PathSegment AmsBackendHappyHare::get_filament_segment() const {
     std::lock_guard<std::mutex> lock(mutex_);
     // Convert Happy Hare filament_pos to unified PathSegment
     return path_segment_from_happy_hare_pos(filament_pos_);
+}
+
+PathSegment AmsBackendHappyHare::get_gate_filament_segment(int gate_index) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Check if this is the active gate - return the current filament segment
+    if (gate_index == system_info_.current_gate && system_info_.filament_loaded) {
+        return path_segment_from_happy_hare_pos(filament_pos_);
+    }
+
+    // For non-active gates in Happy Hare (linear topology), check gate status
+    // Gates with available filament are assumed to have filament ready at the selector
+    const GateInfo* gate = system_info_.get_gate_global(gate_index);
+    if (gate &&
+        (gate->status == GateStatus::AVAILABLE || gate->status == GateStatus::FROM_BUFFER)) {
+        return PathSegment::SPOOL; // Filament at spool ready position
+    }
+
+    return PathSegment::NONE;
 }
 
 PathSegment AmsBackendHappyHare::infer_error_segment() const {

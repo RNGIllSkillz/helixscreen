@@ -182,6 +182,18 @@ class AmsBackend {
     [[nodiscard]] virtual PathSegment get_filament_segment() const = 0;
 
     /**
+     * @brief Get filament position for a specific gate
+     *
+     * Returns how far filament from a specific gate extends into the path.
+     * Used for visualizing all installed filaments, not just the active one.
+     * For non-active gates, this typically shows filament up to the prep sensor.
+     *
+     * @param gate_index Gate index (0 to total_gates-1)
+     * @return PathSegment enum value (NONE if no filament installed at gate)
+     */
+    [[nodiscard]] virtual PathSegment get_gate_filament_segment(int gate_index) const = 0;
+
+    /**
      * @brief Infer which segment has an error
      *
      * When an error occurs, this determines which segment of the path
