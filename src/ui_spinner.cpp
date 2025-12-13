@@ -17,6 +17,17 @@
 #include <cstdlib>
 #include <cstring>
 
+// Material Design indeterminate spinner timing constants
+namespace {
+constexpr uint32_t ROTATION_DURATION_MS = 1568; // Full 360° rotation of the arc
+constexpr uint32_t SWEEP_DURATION_MS = 667;     // Half of grow/shrink cycle
+constexpr int32_t ARC_MIN_SWEEP = 45;  // Minimum arc length (degrees) - larger for visible rotation
+constexpr int32_t ARC_MAX_SWEEP = 270; // Maximum arc length (degrees)
+
+// Debug: set to true to log animation values
+constexpr bool DEBUG_SPINNER = false;
+} // namespace
+
 /**
  * @brief Get integer value from a responsive token
  *
@@ -36,13 +47,136 @@ static int32_t get_responsive_px(const char* token_name, int32_t fallback) {
     return fallback;
 }
 
+// Animation callbacks - these update the arc properties each frame
+// Store last values for combined debug output
+static int32_t g_last_start = 0;
+static int32_t g_last_end = 0;
+
+static void arc_anim_start_angle(void* obj, int32_t value) {
+    g_last_start = value;
+    if (DEBUG_SPINNER) {
+        static int counter = 0;
+        static int32_t min_sweep = 999, max_sweep = 0;
+        int32_t sweep = g_last_end - value;
+        if (sweep < 0)
+            sweep += 360; // Handle wrap
+
+        if (sweep < min_sweep)
+            min_sweep = sweep;
+        if (sweep > max_sweep)
+            max_sweep = sweep;
+
+        // Log every 8 frames with min/max tracking
+        if (counter++ % 8 == 0) {
+            spdlog::info("[SPIN] start={:3d} end={:3d} sweep={:3d} [range: {:3d}-{:3d}]", value,
+                         g_last_end % 360, sweep, min_sweep, max_sweep);
+        }
+    }
+    lv_arc_set_start_angle(static_cast<lv_obj_t*>(obj), static_cast<uint32_t>(value));
+}
+
+static void arc_anim_end_angle(void* obj, int32_t value) {
+    g_last_end = value;
+    lv_arc_set_end_angle(static_cast<lv_obj_t*>(obj), static_cast<uint32_t>(value));
+}
+
+static void arc_anim_rotation(void* obj, int32_t value) {
+    lv_arc_set_rotation(static_cast<lv_obj_t*>(obj), static_cast<int32_t>(value));
+}
+
+/**
+ * @brief Cleanup callback when spinner is deleted
+ *
+ * Removes all running animations to prevent dangling pointer access.
+ */
+static void spinner_delete_cb(lv_event_t* e) {
+    lv_obj_t* obj = lv_event_get_target_obj(e);
+    lv_anim_delete(obj, arc_anim_start_angle);
+    lv_anim_delete(obj, arc_anim_end_angle);
+    lv_anim_delete(obj, arc_anim_rotation);
+}
+
+/**
+ * @brief Start Material Design indeterminate spinner animations
+ *
+ * Uses LVGL's proven approach: both start and end angles go 0→360,
+ * same duration, but different easing curves. NO playback!
+ *
+ * Both edges always move FORWARD (clockwise). Different speeds create grow/shrink:
+ * - When start moves slower than end: arc grows
+ * - When start moves faster than end: arc shrinks
+ *
+ * The bezier curve (0.4, 0.0, 0.2, 1.0) makes start:
+ * - Slow at the beginning (arc grows as end pulls ahead)
+ * - Fast in the middle (arc shrinks as start catches up)
+ * - Slow at the end (arc stabilizes, then repeats)
+ *
+ * End angle offset by ARC_MAX_SWEEP ensures arc is never zero.
+ *
+ * @param arc The arc object to animate
+ */
+static void start_material_spinner_animations(lv_obj_t* arc) {
+    // Material Design indeterminate spinner using OPPOSITE BEZIER CURVES
+    //
+    // Mathematical key: sweep(t) = offset + 360 * (ease_end(t) - ease_start(t))
+    //
+    // Using opposite curves creates maximum sweep variation:
+    // - End uses EASE-OUT (fast start, slow end): races ahead early
+    // - Start uses EASE-IN (slow start, fast end): catches up late
+    //
+    // At t=0 and t=1: both curves at same point → sweep = offset (minimum)
+    // At t=0.5: maximum difference between curves → sweep = maximum
+
+    // Animation 1: END angle (leading edge) - AGGRESSIVE EASE-OUT
+    // Races ahead VERY fast early, then crawls → maximizes sweep differential
+    lv_anim_t anim_end;
+    lv_anim_init(&anim_end);
+    lv_anim_set_var(&anim_end, arc);
+    lv_anim_set_exec_cb(&anim_end, arc_anim_end_angle);
+    lv_anim_set_duration(&anim_end, SWEEP_DURATION_MS * 2);
+    lv_anim_set_values(&anim_end, ARC_MIN_SWEEP, ARC_MIN_SWEEP + 360);
+    lv_anim_set_repeat_count(&anim_end, LV_ANIM_REPEAT_INFINITE);
+    // Aggressive ease-out: (0, 0, 0.2, 1) - very fast start, very slow end
+    lv_anim_set_path_cb(&anim_end, lv_anim_path_custom_bezier3);
+    lv_anim_set_bezier3_param(&anim_end, LV_BEZIER_VAL_FLOAT(0.0), LV_BEZIER_VAL_FLOAT(0.0),
+                              LV_BEZIER_VAL_FLOAT(0.2), LV_BEZIER_VAL_FLOAT(1.0));
+    lv_anim_start(&anim_end);
+
+    // Animation 2: START angle (trailing edge) - AGGRESSIVE EASE-IN
+    // Lingers VERY long at start, then races to catch up
+    lv_anim_t anim_start;
+    lv_anim_init(&anim_start);
+    lv_anim_set_var(&anim_start, arc);
+    lv_anim_set_exec_cb(&anim_start, arc_anim_start_angle);
+    lv_anim_set_duration(&anim_start, SWEEP_DURATION_MS * 2);
+    lv_anim_set_values(&anim_start, 0, 360);
+    lv_anim_set_repeat_count(&anim_start, LV_ANIM_REPEAT_INFINITE);
+    // Aggressive ease-in: (0.8, 0, 1, 1) - very slow start, very fast end
+    lv_anim_set_path_cb(&anim_start, lv_anim_path_custom_bezier3);
+    lv_anim_set_bezier3_param(&anim_start, LV_BEZIER_VAL_FLOAT(0.8), LV_BEZIER_VAL_FLOAT(0.0),
+                              LV_BEZIER_VAL_FLOAT(1.0), LV_BEZIER_VAL_FLOAT(1.0));
+    lv_anim_start(&anim_start);
+
+    // Animation 3: ROTATION - continuous clockwise spin of the whole arc
+    // This adds a base "progression around the circle" feeling
+    lv_anim_t anim_rot;
+    lv_anim_init(&anim_rot);
+    lv_anim_set_var(&anim_rot, arc);
+    lv_anim_set_exec_cb(&anim_rot, arc_anim_rotation);
+    lv_anim_set_duration(&anim_rot, ROTATION_DURATION_MS); // ~1.5s for full rotation
+    lv_anim_set_values(&anim_rot, 270, 270 + 360);         // Start at top, go full circle
+    lv_anim_set_repeat_count(&anim_rot, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_path_cb(&anim_rot, lv_anim_path_linear); // Constant rotation speed
+    lv_anim_start(&anim_rot);
+}
+
 /**
  * @brief XML create callback for <spinner> widget
  *
- * Creates a spinner with:
+ * Creates a Material Design-style indeterminate spinner with:
  * - Responsive size based on "size" attribute (xs, sm, md, lg)
  * - Primary color indicator arc
- * - Hidden background track for clean modern look
+ * - "Chasing tail" animation where arc grows/shrinks while rotating
  *
  * @param state XML parser state
  * @param attrs XML attributes
@@ -50,7 +184,9 @@ static int32_t get_responsive_px(const char* token_name, int32_t fallback) {
  */
 static void* ui_spinner_create(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_t* parent = static_cast<lv_obj_t*>(lv_xml_state_get_parent(state));
-    lv_obj_t* spinner = lv_spinner_create(parent);
+
+    // Create arc directly (not lv_spinner) for custom animation control
+    lv_obj_t* arc = lv_arc_create(parent);
 
     // Parse size attribute (default: lg)
     const char* size_str = lv_xml_get_value_of(attrs, "size");
@@ -76,22 +212,38 @@ static void* ui_spinner_create(lv_xml_parser_state_t* state, const char** attrs)
         arc_width = get_responsive_px("spinner_arc_lg", 4);
     }
 
-    // Apply size
-    lv_obj_set_size(spinner, size, size);
+    // Configure arc appearance
+    lv_obj_set_size(arc, size, size);
+    lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
+    lv_arc_set_bg_angles(arc, 0, 360); // Full circle background (hidden)
+    lv_arc_set_rotation(arc, 270);     // Start at top (12 o'clock)
+
+    // Hide knob (arc widgets have a draggable knob by default)
+    lv_obj_set_style_opa(arc, LV_OPA_0, LV_PART_KNOB);
 
     // Apply consistent styling - primary color indicator
-    // Use ui_theme_get_color() for token lookup (not ui_theme_parse_color which expects hex)
     lv_color_t primary = ui_theme_get_color("primary_color");
-    lv_obj_set_style_arc_color(spinner, primary, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(spinner, arc_width, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(arc, primary, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(arc, arc_width, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);
 
     // Hide background track for clean modern look
-    lv_obj_set_style_arc_opa(spinner, LV_OPA_0, LV_PART_MAIN);
+    lv_obj_set_style_arc_opa(arc, LV_OPA_0, LV_PART_MAIN);
 
-    spdlog::trace("[ui_spinner] Created spinner size='{}' ({}px, arc={}px)", size_str, size,
-                  arc_width);
+    // Set initial arc angles (will be animated immediately)
+    // start=0, end=270 gives a large initial arc
+    lv_arc_set_angles(arc, 0, ARC_MAX_SWEEP);
 
-    return spinner;
+    // Start the Material Design animations
+    start_material_spinner_animations(arc);
+
+    // Register cleanup callback to stop animations when spinner is deleted
+    lv_obj_add_event_cb(arc, spinner_delete_cb, LV_EVENT_DELETE, nullptr);
+
+    spdlog::trace("[ui_spinner] Created Material spinner size='{}' ({}px, arc={}px)", size_str,
+                  size, arc_width);
+
+    return arc;
 }
 
 /**
@@ -108,5 +260,5 @@ static void ui_spinner_apply(lv_xml_parser_state_t* state, const char** attrs) {
 
 void ui_spinner_init() {
     lv_xml_register_widget("spinner", ui_spinner_create, ui_spinner_apply);
-    spdlog::debug("[ui_spinner] Registered spinner widget with responsive sizing");
+    spdlog::debug("[ui_spinner] Registered Material Design spinner widget");
 }
