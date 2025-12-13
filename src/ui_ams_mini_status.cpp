@@ -4,7 +4,9 @@
 #include "ui_ams_mini_status.h"
 
 #include "ui_fonts.h"
+#include "ui_nav_manager.h"
 #include "ui_observer_guard.h"
+#include "ui_panel_ams.h"
 #include "ui_theme.h"
 
 #include "ams_backend.h"
@@ -27,8 +29,8 @@ static constexpr int32_t MIN_FILL_HEIGHT_PX = 2;
 /** Minimum bar width in pixels (prevents bars from becoming invisible) */
 static constexpr int32_t MIN_BAR_WIDTH_PX = 3;
 
-/** Border radius for bar corners in pixels */
-static constexpr int32_t BAR_BORDER_RADIUS_PX = 2;
+/** Border radius for bar corners in pixels (very rounded appearance) */
+static constexpr int32_t BAR_BORDER_RADIUS_PX = 8;
 
 // ============================================================================
 // Per-widget user data
@@ -41,13 +43,14 @@ static constexpr uint32_t AMS_MINI_STATUS_MAGIC = 0x414D5331;
  * @brief Per-slot data stored for each bar
  */
 struct SlotBarData {
-    lv_obj_t* bar_bg = nullptr;      // Background (gray when empty)
+    lv_obj_t* bar_bg = nullptr;      // Background outline container
     lv_obj_t* bar_fill = nullptr;    // Fill portion (colored)
-    lv_obj_t* status_line = nullptr; // Bottom line (green=loaded, red=empty)
+    lv_obj_t* status_line = nullptr; // Bottom line (green=loaded, red=error only)
     uint32_t color_rgb = 0x808080;
     int fill_pct = 100;
-    bool present = false; // Filament present in slot
-    bool loaded = false;  // Filament loaded to toolhead
+    bool present = false;   // Filament present in slot
+    bool loaded = false;    // Filament loaded to toolhead
+    bool has_error = false; // Gate is in error/blocked state
 };
 
 /**
@@ -91,63 +94,71 @@ static void on_ams_gates_version_changed(lv_observer_t* observer, lv_subject_t* 
 // Internal helpers
 // ============================================================================
 
-/** Calculate bar width based on container width and slot count */
-static int32_t calc_bar_width(int32_t container_width, int visible_count, int32_t gap) {
-    if (visible_count <= 0)
-        return 0;
-    int32_t total_gaps = (visible_count - 1) * gap;
-    return (container_width - total_gaps) / visible_count;
-}
-
 /** Height of the status indicator line at bottom of slot */
 static constexpr int32_t STATUS_LINE_HEIGHT_PX = 3;
+
+/** Gap between filament bar and status line underneath */
+static constexpr int32_t STATUS_LINE_GAP_PX = 2;
 
 /** Update a single slot bar's appearance */
 static void update_slot_bar(SlotBarData* slot, int32_t height) {
     if (!slot->bar_bg || !slot->bar_fill)
         return;
 
-    // Background: always show a subtle outline so empty slots are visible
-    // Use border instead of background fill for outline effect
+    // Background: outline only - opacity varies by state
+    // Empty slots get very dim "ghosted" outline, present slots get normal outline
     lv_obj_set_style_bg_opa(slot->bar_bg, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(slot->bar_bg, 1, LV_PART_MAIN);
     lv_obj_set_style_border_color(slot->bar_bg, ui_theme_get_color("text_secondary"), LV_PART_MAIN);
-    lv_obj_set_style_border_opa(slot->bar_bg, LV_OPA_50, LV_PART_MAIN);
 
-    // Fill: colored portion from bottom (above status line)
+    if (slot->present) {
+        // Normal visibility for slots with filament
+        lv_obj_set_style_border_opa(slot->bar_bg, LV_OPA_50, LV_PART_MAIN);
+    } else {
+        // Ghosted/dim outline for empty slots
+        lv_obj_set_style_border_opa(slot->bar_bg, LV_OPA_20, LV_PART_MAIN);
+    }
+
+    // Fill: colored portion from bottom (above status line + gap)
+    // Total reserved space at bottom = status line height + gap
+    int32_t bottom_reserved = STATUS_LINE_HEIGHT_PX + STATUS_LINE_GAP_PX;
+
     if (slot->present && slot->fill_pct > 0) {
         lv_obj_set_style_bg_color(slot->bar_fill, lv_color_hex(slot->color_rgb), LV_PART_MAIN);
         lv_obj_set_style_bg_opa(slot->bar_fill, LV_OPA_COVER, LV_PART_MAIN);
 
-        // Height based on fill percentage, leaving room for status line
-        int32_t available_height = height - STATUS_LINE_HEIGHT_PX;
+        // Height based on fill percentage, leaving room for status line + gap
+        int32_t available_height = height - bottom_reserved;
         int32_t fill_height = (available_height * slot->fill_pct) / 100;
         fill_height = std::max(MIN_FILL_HEIGHT_PX, fill_height);
         lv_obj_set_height(slot->bar_fill, fill_height);
-        // Position above the status line
-        lv_obj_set_y(slot->bar_fill, 0);
+        // Position above the status line + gap
+        lv_obj_set_y(slot->bar_fill, -bottom_reserved);
         lv_obj_set_align(slot->bar_fill, LV_ALIGN_BOTTOM_MID);
         lv_obj_remove_flag(slot->bar_fill, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_add_flag(slot->bar_fill, LV_OBJ_FLAG_HIDDEN);
     }
 
-    // Status line at bottom: green if loaded, red if empty
+    // Status line at bottom: green=loaded, red=error only
+    // Empty slots get NO status line (just ghosted outline)
     if (slot->status_line) {
-        if (slot->loaded) {
+        if (slot->has_error) {
+            // Red - gate is in error/blocked state
+            lv_obj_set_style_bg_color(slot->status_line, ui_theme_get_color("error_color"),
+                                      LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(slot->status_line, LV_OPA_COVER, LV_PART_MAIN);
+            lv_obj_remove_flag(slot->status_line, LV_OBJ_FLAG_HIDDEN);
+        } else if (slot->loaded) {
             // Green - filament loaded to toolhead from this lane
             lv_obj_set_style_bg_color(slot->status_line, ui_theme_get_color("success_color"),
                                       LV_PART_MAIN);
-        } else if (!slot->present) {
-            // Red - lane is empty (no filament)
-            lv_obj_set_style_bg_color(slot->status_line, ui_theme_get_color("error_color"),
-                                      LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(slot->status_line, LV_OPA_COVER, LV_PART_MAIN);
+            lv_obj_remove_flag(slot->status_line, LV_OBJ_FLAG_HIDDEN);
         } else {
-            // Gray - filament present but not loaded
-            lv_obj_set_style_bg_color(slot->status_line, ui_theme_get_color("text_secondary"),
-                                      LV_PART_MAIN);
+            // Present but not loaded, or empty - hide status line
+            lv_obj_add_flag(slot->status_line, LV_OBJ_FLAG_HIDDEN);
         }
-        lv_obj_set_style_bg_opa(slot->status_line, LV_OPA_COVER, LV_PART_MAIN);
     }
 }
 
@@ -198,7 +209,7 @@ static void rebuild_bars(AmsMiniStatusData* data) {
                 lv_obj_set_width(slot->bar_fill, LV_PCT(100));
                 lv_obj_set_align(slot->bar_fill, LV_ALIGN_BOTTOM_MID);
 
-                // Create status line at bottom (green=loaded, red=empty, gray=present)
+                // Create status line at bottom (green=loaded, red=error only)
                 slot->status_line = lv_obj_create(slot->bar_bg);
                 lv_obj_remove_flag(slot->status_line, LV_OBJ_FLAG_SCROLLABLE);
                 lv_obj_set_style_border_width(slot->status_line, 0, LV_PART_MAIN);
@@ -208,9 +219,11 @@ static void rebuild_bars(AmsMiniStatusData* data) {
                 lv_obj_set_align(slot->status_line, LV_ALIGN_BOTTOM_MID);
             }
 
-            lv_obj_set_size(slot->bar_bg, bar_width, data->height);
+            // Bars use 2/3 of container height, centered via flex alignment
+            int32_t bar_height = (data->height * 2) / 3;
+            lv_obj_set_size(slot->bar_bg, bar_width, bar_height);
             lv_obj_remove_flag(slot->bar_bg, LV_OBJ_FLAG_HIDDEN);
-            update_slot_bar(slot, data->height);
+            update_slot_bar(slot, bar_height);
         } else {
             // Hide this slot
             if (slot->bar_bg) {
@@ -260,6 +273,22 @@ static void on_delete(lv_event_t* e) {
         }
         delete data;
         s_registry.erase(it);
+    }
+}
+
+/** Click callback to open AMS panel */
+static void on_click(lv_event_t* e) {
+    (void)e;
+    spdlog::debug("[AmsMiniStatus] Clicked - opening AMS panel");
+
+    // Get or create the AMS panel and push it as an overlay
+    auto& ams_panel = get_global_ams_panel();
+    if (!ams_panel.are_subjects_initialized()) {
+        ams_panel.init_subjects();
+    }
+    lv_obj_t* panel_obj = ams_panel.get_panel();
+    if (panel_obj) {
+        ui_nav_push_overlay(panel_obj);
     }
 }
 
@@ -315,6 +344,10 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
     // Register and set up cleanup
     s_registry[container] = data;
     lv_obj_add_event_cb(container, on_delete, LV_EVENT_DELETE, nullptr);
+
+    // Make clickable to open AMS panel
+    lv_obj_add_flag(container, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(container, on_click, LV_EVENT_CLICKED, nullptr);
 
     // Initially hidden (no gates)
     lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
@@ -468,12 +501,14 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
 
         bool present = (gate.status != GateStatus::EMPTY && gate.status != GateStatus::UNKNOWN);
         bool loaded = (gate.status == GateStatus::LOADED);
+        bool has_error = (gate.status == GateStatus::BLOCKED);
 
         SlotBarData* slot = &data->slots[i];
         slot->color_rgb = gate.color_rgb;
         slot->fill_pct = fill_pct;
         slot->present = present;
         slot->loaded = loaded;
+        slot->has_error = has_error;
     }
 
     rebuild_bars(data);
