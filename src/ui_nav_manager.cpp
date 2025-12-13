@@ -161,8 +161,69 @@ void NavigationManager::connection_state_observer_cb([[maybe_unused]] lv_observe
 }
 
 // ============================================================================
-// EVENT CALLBACK
+// EVENT CALLBACKS
 // ============================================================================
+
+void NavigationManager::backdrop_click_event_cb(lv_event_t* e) {
+    lv_obj_t* target = static_cast<lv_obj_t*>(lv_event_get_target(e));
+    lv_obj_t* current = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+
+    // Only respond if click was directly on backdrop (not bubbled from child)
+    if (target != current) {
+        return;
+    }
+
+    auto& mgr = NavigationManager::instance();
+
+    // Only process if there's an overlay to close (stack > 1 means overlays exist)
+    if (mgr.panel_stack_.size() <= 1) {
+        return;
+    }
+
+    // Get click position to check if it's in the navbar area
+    lv_point_t click_point;
+    lv_indev_get_point(lv_indev_active(), &click_point);
+
+    // Check if click is in navbar area and find which button was clicked
+    if (mgr.navbar_widget_) {
+        int32_t navbar_width = lv_obj_get_width(mgr.navbar_widget_);
+
+        if (click_point.x < navbar_width) {
+            // Click is in navbar area - find which button and trigger navigation
+            const char* button_names[] = {"nav_btn_home",     "nav_btn_print_select",
+                                          "nav_btn_controls", "nav_btn_filament",
+                                          "nav_btn_settings", "nav_btn_advanced"};
+
+            for (int i = 0; i < UI_PANEL_COUNT; i++) {
+                lv_obj_t* btn = lv_obj_find_by_name(mgr.navbar_widget_, button_names[i]);
+                if (!btn) {
+                    continue;
+                }
+
+                // Check if click point is inside this button
+                lv_area_t btn_area;
+                lv_obj_get_coords(btn, &btn_area);
+
+                // Simple bounds check (point in rectangle)
+                if (click_point.x >= btn_area.x1 && click_point.x <= btn_area.x2 &&
+                    click_point.y >= btn_area.y1 && click_point.y <= btn_area.y2) {
+                    spdlog::debug(
+                        "[NavigationManager] Backdrop click forwarded to navbar button {}", i);
+                    // Simulate the navbar button click by sending a clicked event
+                    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+                    return;
+                }
+            }
+
+            // Click was in navbar area but not on a button - just close overlay
+            spdlog::debug("[NavigationManager] Backdrop clicked in navbar area (no button hit)");
+        }
+    }
+
+    // Regular backdrop click - close topmost overlay
+    spdlog::debug("[NavigationManager] Backdrop clicked, closing topmost overlay");
+    mgr.go_back();
+}
 
 void NavigationManager::nav_button_clicked_cb(lv_event_t* event) {
     LVGL_SAFE_EVENT_CB_BEGIN("nav_button_clicked_cb");
@@ -231,6 +292,11 @@ void NavigationManager::nav_button_clicked_cb(lv_event_t* event) {
         mgr.panel_stack_.clear();
         spdlog::trace("[NavigationManager] Panel stack cleared (nav button clicked)");
 
+        // Hide backdrop since all overlays are being cleared
+        if (mgr.overlay_backdrop_) {
+            ui_status_bar_set_backdrop_visible(false);
+        }
+
         // Show the clicked panel
         lv_obj_t* new_panel = mgr.panel_widgets_[panel_id];
         if (new_panel) {
@@ -286,6 +352,9 @@ void NavigationManager::init_overlay_backdrop(lv_obj_t* screen) {
         return;
     }
 
+    // Wire up click handler to close topmost overlay when backdrop is clicked
+    lv_obj_add_event_cb(overlay_backdrop_, backdrop_click_event_cb, LV_EVENT_CLICKED, nullptr);
+
     spdlog::debug("[NavigationManager] Overlay backdrop created from XML successfully");
 }
 
@@ -304,6 +373,9 @@ void NavigationManager::wire_events(lv_obj_t* navbar) {
         spdlog::error("[NavigationManager] Subjects not initialized! Call init() first!");
         return;
     }
+
+    // Store navbar reference for z-order management when showing overlays
+    navbar_widget_ = navbar;
 
     lv_obj_remove_flag(navbar, LV_OBJ_FLAG_CLICKABLE);
 

@@ -177,7 +177,8 @@ class NavigationManager {
     static void active_panel_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
     static void connection_state_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
 
-    // Event callback
+    // Event callbacks
+    static void backdrop_click_event_cb(lv_event_t* e);
     static void nav_button_clicked_cb(lv_event_t* event);
 
     // Active panel tracking
@@ -195,6 +196,9 @@ class NavigationManager {
 
     // Shared overlay backdrop widget
     lv_obj_t* overlay_backdrop_ = nullptr;
+
+    // Navbar widget reference (for z-order management)
+    lv_obj_t* navbar_widget_ = nullptr;
 
     // RAII observer guards
     ObserverGuard active_panel_observer_;
