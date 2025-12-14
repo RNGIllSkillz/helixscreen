@@ -123,6 +123,7 @@ MDI_ICONS+=",0xF00AF"    # bluetooth
 MDI_ICONS+=",0xF0B5C"    # backspace-outline
 
 # Check/Close/UI
+MDI_ICONS+=",0xF0120"    # tray-arrow-up (unload)
 MDI_ICONS+=",0xF012A"    # chart-line
 MDI_ICONS+=",0xF012C"    # check
 MDI_ICONS+=",0xF0140"    # chevron-down
@@ -156,6 +157,9 @@ MDI_ICONS+=",0xF0317"    # lan
 MDI_ICONS+=",0xF0328"    # layers
 MDI_ICONS+=",0xF0335"    # lightbulb
 MDI_ICONS+=",0xF033E"    # lock
+MDI_ICONS+=",0xF0374"    # minus
+MDI_ICONS+=",0xF040D"    # play-outline (optional)
+MDI_ICONS+=",0xF0415"    # plus
 MDI_ICONS+=",0xF03D6"    # package-variant (inventory)
 MDI_ICONS+=",0xF03E4"    # pause
 MDI_ICONS+=",0xF03EB"    # pencil (edit)
@@ -194,6 +198,7 @@ MDI_ICONS+=",0xF05A9"    # wifi
 MDI_ICONS+=",0xF05AA"    # wifi-off (wifi-slash)
 MDI_ICONS+=",0xF05E0"    # usb
 MDI_ICONS+=",0xF05E1"    # check-circle-outline (check-circle)
+MDI_ICONS+=",0xF062C"    # source-branch (bypass)
 
 # Tune/Update
 MDI_ICONS+=",0xF062E"    # tune

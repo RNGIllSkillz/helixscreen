@@ -125,15 +125,17 @@ static const IconMapping ICON_MAP[] = {
     {"list",               "\xF3\xB0\x89\xB9"},  // F0279 format-list-bulleted
     {"lock",               "\xF3\xB0\x8C\xBE"},  // F033E lock
 
-    // Misc
+    // Misc/Math
+    {"minus",              "\xF3\xB0\x8D\xB4"},  // F0374 minus
     {"move",               "\xF3\xB0\x81\x8C"},  // F004C arrow-expand-all
     {"network",            "\xF3\xB0\x88\x80"},  // F0200 ethernet (network)
     {"notifications",      "\xF3\xB0\x82\x9A"},  // F009A bell
 
-    // Pause/Play
+    // Pause/Play/Plus
     {"pause",              "\xF3\xB0\x8F\xA4"},  // F03E4 pause
     {"play",               "\xF3\xB0\x90\x8A"},  // F040A play
     {"play_circle",        "\xF3\xB0\x90\x8C"},  // F040C play-circle
+    {"plus",               "\xF3\xB0\x90\x95"},  // F0415 plus
     {"power",              "\xF3\xB0\x90\xA5"},  // F0425 power
     {"power_plug",         "\xF3\xB0\x9A\xA5"},  // F06A5 power-plug
     {"print",              "\xF3\xB0\x90\xAA"},  // F042A printer
@@ -156,6 +158,7 @@ static const IconMapping ICON_MAP[] = {
     {"send",               "\xF3\xB0\x92\x8A"},  // F048A send
     {"settings",           "\xF3\xB0\x92\x93"},  // F0493 cog
     {"sine_wave",          "\xF3\xB0\xA5\x9B"},  // F095B sine-wave
+    {"source_branch",      "\xF3\xB0\x98\xAC"},  // F062C source-branch (bypass/fork)
     {"speed",              "\xF3\xB0\x93\x85"},  // F04C5 speedometer
     {"speed_down",         "\xF3\xB0\xBE\x86"},  // F0F86 speedometer-slow
     {"speed_up",           "\xF3\xB0\xBE\x85"},  // F0F85 speedometer-medium
@@ -169,6 +172,7 @@ static const IconMapping ICON_MAP[] = {
     {"thermometer_plus",   "\xF3\xB0\xB8\x85"},  // F0E05 thermometer-plus
     {"tortoise",           "\xF3\xB0\xB4\x97"},  // F0D17 tortoise (AFC/Box Turtle logo)
     {"train_flatbed",      "\xF3\xB1\xAC\xB5"},  // F1B35 train-car-flatbed (print bed base)
+    {"tray_arrow_up",      "\xF3\xB0\x84\xA0"},  // F0120 tray-arrow-up (unload/eject)
     {"tune",               "\xF3\xB0\x98\xAE"},  // F062E tune
     {"undo",               "\xF3\xB0\x95\x8C"},  // F054C undo (counter-clockwise arrow - loosen)
     {"tune_variant",       "\xF3\xB0\xA3\xA9"},  // F08E9 tune-variant
