@@ -27,12 +27,17 @@ constexpr uint32_t AMS_DEFAULT_SLOT_COLOR = 0x808080;
 
 /**
  * @brief Type of AMS system detected
+ *
+ * Supports both filament-switching systems (MMU/AMS) and physical tool changers.
+ * Tool changers differ in that each "slot" is a complete toolhead with its own
+ * extruder, rather than a filament path to a shared toolhead.
  */
 enum class AmsType {
-    NONE = 0,       ///< No AMS detected
-    HAPPY_HARE = 1, ///< Happy Hare MMU (mmu object in Moonraker)
-    AFC = 2,        ///< AFC-Klipper-Add-On (afc object, lane_data database)
-    VALGACE = 3     ///< AnyCubic ACE Pro via ValgACE Klipper driver
+    NONE = 0,        ///< No AMS detected
+    HAPPY_HARE = 1,  ///< Happy Hare MMU (mmu object in Moonraker)
+    AFC = 2,         ///< AFC-Klipper-Add-On (afc object, lane_data database)
+    VALGACE = 3,     ///< AnyCubic ACE Pro via ValgACE Klipper driver
+    TOOL_CHANGER = 4 ///< Physical tool changer (viesturz/klipper-toolchanger)
 };
 
 /**
@@ -48,6 +53,8 @@ inline const char* ams_type_to_string(AmsType type) {
         return "AFC";
     case AmsType::VALGACE:
         return "ACE Pro";
+    case AmsType::TOOL_CHANGER:
+        return "Tool Changer";
     default:
         return "None";
     }
@@ -69,7 +76,39 @@ inline AmsType ams_type_from_string(std::string_view str) {
     if (str == "valgace" || str == "ValgACE" || str == "ace" || str == "ACE Pro") {
         return AmsType::VALGACE;
     }
+    if (str == "toolchanger" || str == "tool_changer" || str == "Tool Changer") {
+        return AmsType::TOOL_CHANGER;
+    }
     return AmsType::NONE;
+}
+
+/**
+ * @brief Check if AMS type is a physical tool changer
+ *
+ * Tool changers have fundamentally different behavior than filament systems:
+ * - Each "slot" is a complete toolhead with its own extruder
+ * - Path topology is PARALLEL (not converging to a single nozzle)
+ * - "Loading" means mounting the tool, not feeding filament
+ *
+ * @param type The AMS type to check
+ * @return true if this is a physical tool changer
+ */
+inline bool is_tool_changer(AmsType type) {
+    return type == AmsType::TOOL_CHANGER;
+}
+
+/**
+ * @brief Check if AMS type is a filament-switching system
+ *
+ * Filament systems route multiple filaments to a single toolhead:
+ * - Happy Hare, AFC, ValgACE all fall into this category
+ * - Path topology is LINEAR or HUB (converging to single nozzle)
+ *
+ * @param type The AMS type to check
+ * @return true if this is a filament-switching system
+ */
+inline bool is_filament_system(AmsType type) {
+    return type == AmsType::HAPPY_HARE || type == AmsType::AFC || type == AmsType::VALGACE;
 }
 
 /**
@@ -247,14 +286,16 @@ inline AmsAction ams_action_from_string(std::string_view action_str) {
 /**
  * @brief Path topology - affects visual rendering of the filament path
  *
- * Both Happy Hare and AFC map to these same logical segments but are rendered
- * differently based on their physical topology:
+ * Different multi-material systems have different physical topologies:
  * - LINEAR: Selector picks one input from multiple gates (Happy Hare ERCF)
  * - HUB: Multiple lanes merge into a common hub/merger (AFC Box Turtle)
+ * - PARALLEL: Each input has its own independent path to a separate toolhead
+ *             (physical tool changers like StealthChanger/TapChanger)
  */
 enum class PathTopology {
-    LINEAR = 0, ///< Happy Hare: selector picks one input
-    HUB = 1     ///< AFC: merger combines inputs through hub
+    LINEAR = 0,  ///< Happy Hare: selector picks one input
+    HUB = 1,     ///< AFC: merger combines inputs through hub
+    PARALLEL = 2 ///< Tool Changer: each slot is a separate toolhead
 };
 
 /**
@@ -268,6 +309,8 @@ inline const char* path_topology_to_string(PathTopology topology) {
         return "Linear (Selector)";
     case PathTopology::HUB:
         return "Hub (Merger)";
+    case PathTopology::PARALLEL:
+        return "Parallel (Tool Changer)";
     default:
         return "Unknown";
     }

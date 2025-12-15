@@ -21,6 +21,7 @@
 #include "ams_types.h"
 #include "app_globals.h"
 #include "color_utils.h"
+#include "filament_database.h"
 #include "moonraker_api.h"
 #include "printer_state.h"
 
@@ -2308,31 +2309,22 @@ void AmsPanel::update_edit_temp_display() {
     int nozzle_max = edit_slot_info_.nozzle_temp_max;
     int bed_temp = edit_slot_info_.bed_temp;
 
-    // Fall back to material-based defaults if not set
-    // (Phase 3 will use filament_database for proper lookup)
-    if (nozzle_min == 0 && nozzle_max == 0) {
-        // Simple material-based defaults
-        if (edit_slot_info_.material == "PLA") {
-            nozzle_min = 190;
-            nozzle_max = 230;
-            bed_temp = 60;
-        } else if (edit_slot_info_.material == "PETG") {
-            nozzle_min = 220;
-            nozzle_max = 250;
-            bed_temp = 70;
-        } else if (edit_slot_info_.material == "ABS" || edit_slot_info_.material == "ASA") {
-            nozzle_min = 240;
-            nozzle_max = 270;
-            bed_temp = 100;
-        } else if (edit_slot_info_.material == "TPU") {
-            nozzle_min = 210;
-            nozzle_max = 240;
-            bed_temp = 50;
+    // Fall back to material-based defaults from filament database if not set
+    if (nozzle_min == 0 && nozzle_max == 0 && !edit_slot_info_.material.empty()) {
+        auto mat_info = filament::find_material(edit_slot_info_.material);
+        if (mat_info) {
+            nozzle_min = mat_info->nozzle_min;
+            nozzle_max = mat_info->nozzle_max;
+            bed_temp = mat_info->bed_temp;
+            spdlog::debug("[{}] Using filament database temps for {}: {}-{}°C nozzle, {}°C bed",
+                          get_name(), edit_slot_info_.material, nozzle_min, nozzle_max, bed_temp);
         } else {
-            // Generic defaults
+            // Generic defaults for unknown materials
             nozzle_min = 200;
             nozzle_max = 230;
             bed_temp = 60;
+            spdlog::debug("[{}] Material '{}' not in database, using generic defaults", get_name(),
+                          edit_slot_info_.material);
         }
     }
 
