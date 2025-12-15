@@ -152,16 +152,30 @@ ssh thelio.local "sudo chown -R $(whoami) lib/tinygl lib/wpa_supplicant"
 ## Build Commands
 
 ```bash
-# Build AD5M on thelio (via Docker)
-ssh thelio.local "cd ~/Code/Printing/helixscreen-memory-opt && \
-  docker run --rm -u \$(id -u):\$(id -g) -v \$(pwd):/src \
-  helixscreen/toolchain-ad5m make PLATFORM_TARGET=ad5m SKIP_OPTIONAL_DEPS=1 -j\$(nproc)"
+# Build AD5M via remote build server (recommended)
+make remote-ad5m
 
-# Copy binary to AD5M (use -O for legacy scp protocol)
-scp -O thelio.local:~/Code/Printing/helixscreen-memory-opt/build/ad5m/bin/helix-screen root@192.168.1.67:/tmp/
+# Or build locally via Docker (slower)
+make ad5m-docker
+
+# Package release tarball (includes binaries + assets + ui_xml + config)
+make release-ad5m
+# Creates: releases/helixscreen-ad5m-<version>.tar.gz
+
+# Copy to AD5M
+scp releases/helixscreen-ad5m-*.tar.gz root@192.168.1.67:/tmp/
+
+# Install on AD5M (BusyBox tar doesn't support -z)
+ssh root@192.168.1.67 "cd /opt && gunzip -c /tmp/helixscreen-ad5m-*.tar.gz | tar xf -"
+
+# Install SysV init script (AD5M uses BusyBox init, NOT systemd)
+ssh root@192.168.1.67 "cp /opt/helixscreen/config/helixscreen.init /etc/init.d/S90helixscreen && chmod +x /etc/init.d/S90helixscreen"
+
+# Start HelixScreen
+ssh root@192.168.1.67 "/etc/init.d/S90helixscreen start"
 
 # Test on AD5M
-ssh root@192.168.1.67 "chmod +x /tmp/helix-screen && /tmp/helix-screen --help"
+ssh root@192.168.1.67 "/opt/helixscreen/helix-screen --help"
 ```
 
 ---

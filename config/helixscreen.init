@@ -1,0 +1,214 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# SysV init script for HelixScreen
+# For use on systems without systemd (e.g., FlashForge AD5M with BusyBox init)
+#
+# Installation (AD5M):
+#   cp /opt/helixscreen/config/helixscreen.init /etc/init.d/S90helixscreen
+#   chmod +x /etc/init.d/S90helixscreen
+#
+# Usage:
+#   /etc/init.d/S90helixscreen start|stop|restart|status
+#
+# Note: S90 prefix ensures we start after network (S40) and other services
+
+NAME="helixscreen"
+DESC="HelixScreen 3D Printer Touch UI"
+DAEMON_DIR="/opt/helixscreen"
+DAEMON="${DAEMON_DIR}/helix-screen"
+SPLASH="${DAEMON_DIR}/helix-splash"
+PIDFILE="/var/run/${NAME}.pid"
+LOGFILE="/tmp/helixscreen.log"
+
+# Screen dimensions
+SCREEN_WIDTH="${HELIX_SCREEN_WIDTH:-800}"
+SCREEN_HEIGHT="${HELIX_SCREEN_HEIGHT:-480}"
+
+# Check if binary exists
+[ -x "$DAEMON" ] || exit 0
+
+# Known competing screen UIs to stop
+COMPETING_UIS="guppyscreen GuppyScreen KlipperScreen klipperscreen featherscreen FeatherScreen"
+
+# Stop competing screen UIs
+stop_competing_uis() {
+    for ui in $COMPETING_UIS; do
+        # Check init.d scripts
+        for initscript in /etc/init.d/S*${ui}* /opt/config/mod/.root/S*${ui}*; do
+            if [ -x "$initscript" ] 2>/dev/null; then
+                echo "Stopping competing UI: $initscript"
+                "$initscript" stop 2>/dev/null || true
+            fi
+        done
+        # Kill any remaining processes
+        if command -v killall >/dev/null 2>&1; then
+            killall "$ui" 2>/dev/null || true
+        else
+            # BusyBox fallback - use pidof + kill
+            for pid in $(pidof "$ui" 2>/dev/null); do
+                kill "$pid" 2>/dev/null || true
+            done
+        fi
+    done
+    # Brief pause to let processes exit
+    sleep 1
+}
+
+# Start splash screen (if available)
+start_splash() {
+    if [ -x "$SPLASH" ]; then
+        echo "Starting splash screen..."
+        "$SPLASH" -w "$SCREEN_WIDTH" -h "$SCREEN_HEIGHT" &
+        SPLASH_PID=$!
+        echo "$SPLASH_PID" > /var/run/helix-splash.pid
+        echo "--splash-pid=$SPLASH_PID"
+    fi
+}
+
+# Stop splash screen
+stop_splash() {
+    if [ -f /var/run/helix-splash.pid ]; then
+        SPLASH_PID=$(cat /var/run/helix-splash.pid)
+        kill "$SPLASH_PID" 2>/dev/null || true
+        rm -f /var/run/helix-splash.pid
+    fi
+}
+
+start() {
+    echo "Starting $DESC..."
+
+    # Stop any competing UIs first
+    stop_competing_uis
+
+    # Check if already running
+    if [ -f "$PIDFILE" ]; then
+        PID=$(cat "$PIDFILE")
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "$NAME is already running (PID $PID)"
+            return 0
+        fi
+        rm -f "$PIDFILE"
+    fi
+
+    cd "$DAEMON_DIR"
+
+    # Start splash first
+    SPLASH_ARGS=$(start_splash)
+
+    # Start main daemon
+    # BusyBox start-stop-daemon has limited options
+    if command -v start-stop-daemon >/dev/null 2>&1; then
+        start-stop-daemon -S -b -m -p "$PIDFILE" -x "$DAEMON" -- $SPLASH_ARGS
+    else
+        # Fallback for systems without start-stop-daemon
+        "$DAEMON" $SPLASH_ARGS >> "$LOGFILE" 2>&1 &
+        echo $! > "$PIDFILE"
+    fi
+
+    # Wait briefly and check if started
+    sleep 2
+    if [ -f "$PIDFILE" ]; then
+        PID=$(cat "$PIDFILE")
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "$NAME started (PID $PID)"
+            return 0
+        fi
+    fi
+
+    echo "Failed to start $NAME"
+    stop_splash
+    return 1
+}
+
+stop() {
+    echo "Stopping $DESC..."
+
+    # Stop splash first
+    stop_splash
+
+    if [ -f "$PIDFILE" ]; then
+        PID=$(cat "$PIDFILE")
+        if kill -0 "$PID" 2>/dev/null; then
+            kill "$PID"
+            # Wait for process to exit
+            for i in 1 2 3 4 5; do
+                if ! kill -0 "$PID" 2>/dev/null; then
+                    break
+                fi
+                sleep 1
+            done
+            # Force kill if still running
+            if kill -0 "$PID" 2>/dev/null; then
+                kill -9 "$PID" 2>/dev/null || true
+            fi
+        fi
+        rm -f "$PIDFILE"
+    fi
+
+    # Also kill by name in case PID file is stale
+    if command -v killall >/dev/null 2>&1; then
+        killall helix-screen 2>/dev/null || true
+        killall helix-splash 2>/dev/null || true
+    else
+        for pid in $(pidof helix-screen 2>/dev/null); do
+            kill "$pid" 2>/dev/null || true
+        done
+        for pid in $(pidof helix-splash 2>/dev/null); do
+            kill "$pid" 2>/dev/null || true
+        done
+    fi
+
+    echo "$NAME stopped"
+}
+
+restart() {
+    stop
+    sleep 1
+    start
+}
+
+status() {
+    if [ -f "$PIDFILE" ]; then
+        PID=$(cat "$PIDFILE")
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "$NAME is running (PID $PID)"
+            return 0
+        fi
+        echo "$NAME is not running (stale PID file)"
+        return 1
+    fi
+
+    # Check if running without PID file
+    if command -v pidof >/dev/null 2>&1; then
+        PID=$(pidof helix-screen 2>/dev/null)
+        if [ -n "$PID" ]; then
+            echo "$NAME is running (PID $PID) [no PID file]"
+            return 0
+        fi
+    fi
+
+    echo "$NAME is not running"
+    return 1
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart|reload)
+        restart
+        ;;
+    status)
+        status
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
+
+exit $?

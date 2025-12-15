@@ -23,7 +23,22 @@ This guide walks you through installing HelixScreen on your 3D printer's touchsc
 
 ## Quick Start
 
-**For MainsailOS (Raspberry Pi):**
+**One-liner install (recommended):**
+```bash
+# Raspberry Pi (MainsailOS)
+curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | bash
+
+# Adventurer 5M (run as root)
+curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | bash
+```
+
+The installer automatically detects your platform and downloads the correct release.
+
+**Manual installation** (if you prefer):
+
+<details>
+<summary>MainsailOS (Raspberry Pi)</summary>
+
 ```bash
 # Download the latest release
 cd ~
@@ -37,19 +52,28 @@ sudo cp /opt/helixscreen/config/helixscreen.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now helixscreen
 ```
+</details>
 
-**For Adventurer 5M:**
+<details>
+<summary>Adventurer 5M</summary>
+
 ```bash
 # From your computer, copy to printer
-scp helixscreen-ad5m-*.tar.gz root@<printer-ip>:/opt/
+scp helixscreen-ad5m-*.tar.gz root@<printer-ip>:/tmp/
 
 # SSH into printer and install
 ssh root@<printer-ip>
-cd /opt && tar -xzf helixscreen-ad5m-*.tar.gz
+cd /opt && gunzip -c /tmp/helixscreen-ad5m-*.tar.gz | tar xf -
 cp /opt/helixscreen/config/helixscreen.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now helixscreen
+
+# Clean up
+rm /tmp/helixscreen-ad5m-*.tar.gz
 ```
+
+> **Note:** AD5M uses BusyBox utilities. Use `gunzip -c | tar xf -` instead of `tar -xzf`.
+</details>
 
 After installation, the setup wizard will guide you through initial configuration.
 
@@ -173,10 +197,12 @@ wget https://github.com/prestonbrown/helixscreen/releases/latest/download/helixs
 Transfer the package to your Adventurer 5M:
 
 ```bash
-scp helixscreen-ad5m.tar.gz root@<printer-ip>:/opt/
+scp helixscreen-ad5m.tar.gz root@<printer-ip>:/tmp/
 ```
 
 Replace `<printer-ip>` with your printer's IP address (check your router or printer settings).
+
+> **Note:** We copy to `/tmp/` first because `/opt/` may not have enough space for both the tarball and extracted files.
 
 ### Step 3: Install on the Printer
 
@@ -186,15 +212,27 @@ SSH into your printer and install:
 ssh root@<printer-ip>
 
 cd /opt
-tar -xzf helixscreen-ad5m.tar.gz
+# Note: AD5M uses BusyBox tar which doesn't support -z flag
+gunzip -c /tmp/helixscreen-ad5m.tar.gz | tar xf -
 
-# Install systemd service
-cp /opt/helixscreen/config/helixscreen.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable helixscreen
+# Stop existing screen UI (GuppyScreen, FeatherScreen, etc.)
+# The init script will do this automatically, but you can do it manually:
+/opt/config/mod/.root/S80guppyscreen stop 2>/dev/null || true
+
+# Install SysV init script (AD5M uses BusyBox init, NOT systemd)
+cp /opt/helixscreen/config/helixscreen.init /etc/init.d/S90helixscreen
+chmod +x /etc/init.d/S90helixscreen
+
+# Start HelixScreen
+/etc/init.d/S90helixscreen start
+
+# Clean up the tarball to free /tmp space
+rm /tmp/helixscreen-ad5m.tar.gz
 ```
 
 > **Note:** AD5M runs as root, so `sudo` is not needed.
+> **Note:** AD5M uses BusyBox utilities. Use `gunzip -c | tar xf -` instead of `tar -xzf`.
+> **Note:** AD5M uses SysV init (BusyBox), not systemd. Use `/etc/init.d/S90helixscreen` for service management.
 
 ### Step 4: Reboot
 
@@ -332,6 +370,7 @@ sudo systemctl enable helixscreen
 
 ### Service Management
 
+**MainsailOS (systemd):**
 ```bash
 # Start HelixScreen
 sudo systemctl start helixscreen
@@ -349,15 +388,47 @@ sudo systemctl status helixscreen
 sudo journalctl -u helixscreen -f
 ```
 
+**AD5M (SysV init):**
+```bash
+# Start HelixScreen
+/etc/init.d/S90helixscreen start
+
+# Stop HelixScreen
+/etc/init.d/S90helixscreen stop
+
+# Restart (after config changes)
+/etc/init.d/S90helixscreen restart
+
+# View status
+/etc/init.d/S90helixscreen status
+
+# View logs
+cat /tmp/helixscreen.log
+```
+
 ### Disabling Other UIs
 
-If you have KlipperScreen or another UI installed, disable it to avoid conflicts:
+If you have another UI installed, disable it to avoid conflicts:
 
+**MainsailOS (systemd):**
 ```bash
 # Disable KlipperScreen (if installed)
 sudo systemctl stop KlipperScreen
 sudo systemctl disable KlipperScreen
 ```
+
+**AD5M (SysV init):**
+```bash
+# Disable GuppyScreen (if installed via Forge-X)
+/opt/config/mod/.root/S80guppyscreen stop
+chmod -x /opt/config/mod/.root/S80guppyscreen
+
+# Disable FeatherScreen (if installed)
+/etc/init.d/S*featherscreen stop 2>/dev/null || true
+chmod -x /etc/init.d/S*featherscreen 2>/dev/null || true
+```
+
+> **Note:** The HelixScreen installer automatically stops and disables competing UIs.
 
 ---
 
@@ -372,19 +443,21 @@ Or via SSH, check the help output:
 /opt/helixscreen/bin/helix-screen --help | head -1
 ```
 
-### Download Update
+### Update Using Install Script (Recommended)
 
-Check the [releases page](https://github.com/prestonbrown/helixscreen/releases) for new versions.
+The easiest way to update is using the install script with `--update`:
 
 ```bash
-# MainsailOS
-cd ~
-wget https://github.com/prestonbrown/helixscreen/releases/download/vX.Y.Z/helixscreen-pi.tar.gz
+# Both Pi and AD5M
+curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | bash -s -- --update
+```
 
-# Extract and reinstall
-tar -xzf helixscreen-pi.tar.gz
-cd helixscreen
-sudo ./install.sh --update
+This preserves your configuration and updates to the latest version.
+
+### Update to Specific Version
+
+```bash
+curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | bash -s -- --update --version v1.2.0
 ```
 
 ### Preserving Configuration
@@ -400,7 +473,31 @@ sudo systemctl restart helixscreen
 
 ## Uninstalling
 
-### MainsailOS
+### Using Uninstall Script (Recommended)
+
+The uninstall script removes HelixScreen and **restores your previous UI** (GuppyScreen, FeatherScreen, etc.):
+
+```bash
+# If HelixScreen is installed (AD5M - run as root)
+/opt/helixscreen/scripts/uninstall.sh
+
+# If HelixScreen is installed (Pi - use sudo)
+sudo /opt/helixscreen/scripts/uninstall.sh
+
+# Or download and run
+curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/uninstall.sh | sudo bash
+```
+
+### Using Install Script
+
+```bash
+curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | bash -s -- --uninstall
+```
+
+### Manual Uninstall
+
+<details>
+<summary>MainsailOS</summary>
 
 ```bash
 # Stop and disable service
@@ -414,20 +511,28 @@ sudo systemctl daemon-reload
 # Remove installation
 sudo rm -rf /opt/helixscreen
 ```
+</details>
 
-### Adventurer 5M
+<details>
+<summary>Adventurer 5M</summary>
 
 ```bash
-# Stop service
-systemctl stop helixscreen
-systemctl disable helixscreen
+# Stop service (SysV init)
+/etc/init.d/S90helixscreen stop
+
+# Remove init script
+rm /etc/init.d/S90helixscreen
 
 # Remove files
 rm -rf /opt/helixscreen
 
-# Reboot to restore stock UI (if still present)
+# Re-enable previous UI (if desired)
+chmod +x /opt/config/mod/.root/S80guppyscreen 2>/dev/null || true
+
+# Reboot to restore previous UI
 reboot
 ```
+</details>
 
 ---
 
@@ -437,6 +542,7 @@ reboot
 
 Most issues are diagnosed from the logs:
 
+**MainsailOS (systemd):**
 ```bash
 # View recent logs
 sudo journalctl -u helixscreen -n 100
@@ -446,6 +552,15 @@ sudo journalctl -u helixscreen -f
 
 # Filter by error/warning level
 sudo journalctl -u helixscreen -p err
+```
+
+**AD5M (SysV init):**
+```bash
+# View log file
+cat /tmp/helixscreen.log
+
+# Follow live logs
+tail -f /tmp/helixscreen.log
 ```
 
 ### Common Issues

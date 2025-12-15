@@ -378,7 +378,7 @@ deploy-pi:
 		$(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/
 	@echo "$(GREEN)✓ Deployed to $(PI_HOST):$(PI_DEPLOY_DIR)$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(PI_HOST)...$(RESET)"
-	ssh $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && killall helix-screen helix-splash 2>/dev/null || true; sleep 0.5; nohup ./config/helix-launcher.sh > /tmp/helix.log 2>&1 &"
+	ssh $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && killall helix-screen helix-splash 2>/dev/null || true; sleep 0.5; setsid ./config/helix-launcher.sh > /tmp/helix.log 2>&1 < /dev/null &"
 	@echo "$(GREEN)✓ helix-screen restarted in background$(RESET)"
 	@echo "$(DIM)Logs: ssh $(PI_SSH_TARGET) 'tail -f /tmp/helix.log'$(RESET)"
 
@@ -420,3 +420,64 @@ pi-ssh:
 
 # Full cycle: build + deploy + run in foreground
 pi-test: pi-docker deploy-pi-fg
+
+# =============================================================================
+# Release Packaging
+# =============================================================================
+# Creates distributable tar.gz archives for each platform
+# Includes: binaries, ui_xml, config, assets (fonts/images only, no test files)
+
+RELEASE_DIR := releases
+VERSION := $(shell cat VERSION.txt 2>/dev/null || echo "dev")
+
+# Assets to include (exclude test_gcodes, gcode test files)
+RELEASE_ASSETS := assets/fonts assets/images
+
+.PHONY: release-pi release-ad5m release-all release-clean
+
+# Package Pi release
+release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash
+	@echo "$(CYAN)$(BOLD)Packaging Pi release v$(VERSION)...$(RESET)"
+	@mkdir -p $(RELEASE_DIR)/helixscreen
+	@cp build/pi/bin/helix-screen build/pi/bin/helix-splash $(RELEASE_DIR)/helixscreen/
+	@cp -r ui_xml config $(RELEASE_DIR)/helixscreen/
+	@mkdir -p $(RELEASE_DIR)/helixscreen/scripts
+	@cp scripts/uninstall.sh $(RELEASE_DIR)/helixscreen/scripts/
+	@mkdir -p $(RELEASE_DIR)/helixscreen/assets
+	@for asset in $(RELEASE_ASSETS); do \
+		if [ -d "$$asset" ]; then cp -r "$$asset" $(RELEASE_DIR)/helixscreen/assets/; fi; \
+	done
+	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
+	@cd $(RELEASE_DIR) && COPYFILE_DISABLE=1 tar -czvf helixscreen-pi-$(VERSION).tar.gz helixscreen
+	@rm -rf $(RELEASE_DIR)/helixscreen
+	@echo "$(GREEN)✓ Created $(RELEASE_DIR)/helixscreen-pi-$(VERSION).tar.gz$(RESET)"
+	@ls -lh $(RELEASE_DIR)/helixscreen-pi-$(VERSION).tar.gz
+
+# Package AD5M release
+# Note: AD5M uses BusyBox which doesn't support tar -z, so we create uncompressed tar + gzip separately
+release-ad5m: | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
+	@echo "$(CYAN)$(BOLD)Packaging AD5M release v$(VERSION)...$(RESET)"
+	@mkdir -p $(RELEASE_DIR)/helixscreen
+	@cp build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash $(RELEASE_DIR)/helixscreen/
+	@cp -r ui_xml config $(RELEASE_DIR)/helixscreen/
+	@mkdir -p $(RELEASE_DIR)/helixscreen/scripts
+	@cp scripts/uninstall.sh $(RELEASE_DIR)/helixscreen/scripts/
+	@mkdir -p $(RELEASE_DIR)/helixscreen/assets
+	@for asset in $(RELEASE_ASSETS); do \
+		if [ -d "$$asset" ]; then cp -r "$$asset" $(RELEASE_DIR)/helixscreen/assets/; fi; \
+	done
+	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
+	@cd $(RELEASE_DIR) && COPYFILE_DISABLE=1 tar -czvf helixscreen-ad5m-$(VERSION).tar.gz helixscreen
+	@rm -rf $(RELEASE_DIR)/helixscreen
+	@echo "$(GREEN)✓ Created $(RELEASE_DIR)/helixscreen-ad5m-$(VERSION).tar.gz$(RESET)"
+	@ls -lh $(RELEASE_DIR)/helixscreen-ad5m-$(VERSION).tar.gz
+
+# Package all releases
+release-all: release-pi release-ad5m
+	@echo "$(GREEN)$(BOLD)✓ All releases packaged in $(RELEASE_DIR)/$(RESET)"
+	@ls -lh $(RELEASE_DIR)/*.tar.gz
+
+# Clean release artifacts
+release-clean:
+	@rm -rf $(RELEASE_DIR)
+	@echo "$(GREEN)✓ Release directory cleaned$(RESET)"
