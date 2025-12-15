@@ -154,6 +154,26 @@ class AmsBackendMock : public AmsBackend {
      */
     [[nodiscard]] bool is_realistic_mode() const;
 
+    /**
+     * @brief Enable tool changer simulation mode
+     * @param enabled true to simulate a tool changer, false for filament system
+     *
+     * When enabled, the mock will:
+     * - Report type as TOOL_CHANGER instead of HAPPY_HARE
+     * - Use PARALLEL path topology (each slot → own toolhead)
+     * - Disable bypass mode (not applicable for tool changers)
+     * - Label slots as "T0", "T1", etc.
+     *
+     * Can also be set via HELIX_MOCK_AMS_TYPE=toolchanger environment variable.
+     */
+    void set_tool_changer_mode(bool enabled);
+
+    /**
+     * @brief Check if tool changer mode is enabled
+     * @return true if simulating a tool changer
+     */
+    [[nodiscard]] bool is_tool_changer_mode() const;
+
   private:
     /**
      * @brief Initialize mock state with sample data
@@ -264,4 +284,7 @@ class AmsBackendMock : public AmsBackend {
     std::atomic<bool> dryer_thread_running_{false}; ///< Guards against double-join
     std::atomic<bool> dryer_stop_requested_{false}; ///< Signal dryer thread to stop
     int dryer_speed_x_ = 60; ///< Speed multiplier (60 = 1 real sec = 1 sim min)
+
+    // Tool changer mode (alternative to filament system simulation)
+    bool tool_changer_mode_ = false; ///< Simulate tool changer instead of filament system
 };

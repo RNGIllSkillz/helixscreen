@@ -880,6 +880,47 @@ bool AmsBackendMock::is_realistic_mode() const {
     return realistic_mode_;
 }
 
+void AmsBackendMock::set_tool_changer_mode(bool enabled) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    tool_changer_mode_ = enabled;
+
+    if (enabled) {
+        // Configure mock as a tool changer
+        system_info_.type = AmsType::TOOL_CHANGER;
+        system_info_.type_name = "Tool Changer (Mock)";
+        system_info_.supports_bypass = false; // Not applicable for tool changers
+
+        // Use parallel topology (each slot → own toolhead)
+        topology_ = PathTopology::PARALLEL;
+
+        // Rename unit to reflect tool changer nature
+        if (!system_info_.units.empty()) {
+            system_info_.units[0].name = "Mock Tool Changer";
+            // Slots retain their filament data - represents what's loaded in each toolhead
+        }
+
+        spdlog::info("[AmsBackendMock] Tool changer mode enabled ({} tools)",
+                     system_info_.total_slots);
+    } else {
+        // Revert to filament system (Happy Hare)
+        system_info_.type = AmsType::HAPPY_HARE;
+        system_info_.type_name = "Happy Hare (Mock)";
+        system_info_.supports_bypass = true;
+        topology_ = PathTopology::HUB;
+
+        if (!system_info_.units.empty()) {
+            system_info_.units[0].name = "Mock MMU";
+        }
+
+        spdlog::info("[AmsBackendMock] Tool changer mode disabled, reverting to filament system");
+    }
+}
+
+bool AmsBackendMock::is_tool_changer_mode() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return tool_changer_mode_;
+}
+
 int AmsBackendMock::get_effective_delay_ms(int base_ms, float variance) const {
     double speedup = get_runtime_config().sim_speedup;
     if (speedup <= 0)

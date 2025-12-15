@@ -264,6 +264,15 @@ class AmsErrorHelper {
     }
 
     /**
+     * @brief Create a "not loaded" error (no filament/tool active)
+     * @return AmsError configured for UI display
+     */
+    static AmsError not_loaded() {
+        return AmsError(AmsResult::WRONG_STATE, "No filament or tool is currently loaded",
+                        "Nothing loaded", "Load a filament first before trying to unload");
+    }
+
+    /**
      * @brief Create a filament jam error
      * @param slot Slot index where jam occurred
      * @param location Description of jam location (e.g., "bowden tube", "extruder")

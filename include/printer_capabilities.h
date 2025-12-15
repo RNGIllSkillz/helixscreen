@@ -184,6 +184,19 @@ class PrinterCapabilities {
     }
 
     /**
+     * @brief Check if printer has a physical tool changer
+     *
+     * Detects viesturz/klipper-toolchanger ([toolchanger] object in Klipper).
+     * Tool changers have multiple physical toolheads that are swapped
+     * rather than routing filament to a single toolhead.
+     *
+     * @return true if toolchanger object was detected
+     */
+    [[nodiscard]] bool has_tool_changer() const {
+        return has_tool_changer_;
+    }
+
+    /**
      * @brief Check if Moonraker-Timelapse plugin is installed
      *
      * Detects the timelapse object exposed by the Moonraker-Timelapse plugin.
@@ -196,11 +209,28 @@ class PrinterCapabilities {
     }
 
     /**
-     * @brief Get the detected MMU/AMS type
-     * @return AmsType enum (NONE, HAPPY_HARE, or AFC)
+     * @brief Get the detected MMU/AMS/tool changer type
+     *
+     * Returns the type of multi-tool system detected:
+     * - HAPPY_HARE, AFC, VALGACE for filament systems
+     * - TOOL_CHANGER for physical tool changers
+     *
+     * @return AmsType enum value
      */
     [[nodiscard]] AmsType get_mmu_type() const {
         return mmu_type_;
+    }
+
+    /**
+     * @brief Get discovered tool names from printer.objects.list
+     *
+     * Extracted from objects like "tool T0", "tool T1", etc.
+     * Only populated when a toolchanger is detected.
+     *
+     * @return Vector of tool names (e.g., {"T0", "T1", "T2"})
+     */
+    [[nodiscard]] const std::vector<std::string>& get_tool_names() const {
+        return tool_names_;
     }
 
     /**
@@ -365,6 +395,7 @@ class PrinterCapabilities {
     bool has_klippain_shaketune_ = false;
     bool has_speaker_ = false;
     bool has_mmu_ = false;
+    bool has_tool_changer_ = false;
     bool has_timelapse_ = false;
     AmsType mmu_type_ = AmsType::NONE;
 
@@ -380,6 +411,9 @@ class PrinterCapabilities {
     // AFC-specific discovery (from printer.objects.list, works for ALL AFC versions)
     std::vector<std::string> afc_lane_names_; ///< Lane names from "AFC_stepper lane*"
     std::vector<std::string> afc_hub_names_;  ///< Hub names from "AFC_hub *"
+
+    // Tool changer discovery (from printer.objects.list)
+    std::vector<std::string> tool_names_; ///< Tool names from "tool T0", "tool T1", etc.
 
     /**
      * @brief Convert string to uppercase for comparison

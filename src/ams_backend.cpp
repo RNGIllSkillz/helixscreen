@@ -6,19 +6,36 @@
 #include "ams_backend_afc.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_mock.h"
+#include "ams_backend_toolchanger.h"
 #include "ams_backend_valgace.h"
 #include "moonraker_api.h"
 #include "runtime_config.h"
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 
 // Helper to create mock backend with optional features
 static std::unique_ptr<AmsBackendMock> create_mock_with_features(int gate_count) {
     auto mock = std::make_unique<AmsBackendMock>(gate_count);
 
+    // Check for tool changer simulation mode
+    const char* ams_type_env = std::getenv("HELIX_MOCK_AMS_TYPE");
+    if (ams_type_env) {
+        std::string type_str(ams_type_env);
+        // Convert to lowercase for comparison
+        std::transform(type_str.begin(), type_str.end(), type_str.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        if (type_str == "toolchanger" || type_str == "tool_changer" || type_str == "tc") {
+            mock->set_tool_changer_mode(true);
+            spdlog::info("[AMS Backend] Mock tool changer mode enabled via HELIX_MOCK_AMS_TYPE");
+        }
+    }
+
     // Enable mock dryer if requested via environment variable
+    // Note: Dryer is typically not applicable for tool changers, but allow override
     const char* dryer_env = std::getenv("HELIX_MOCK_DRYER");
     if (dryer_env && (std::string(dryer_env) == "1" || std::string(dryer_env) == "true")) {
         mock->set_dryer_enabled(true);
@@ -58,6 +75,10 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type) {
 
     case AmsType::VALGACE:
         spdlog::warn("[AMS Backend] ValgACE detected but no API/client provided - using mock");
+        return std::make_unique<AmsBackendMock>(config.mock_ams_gate_count);
+
+    case AmsType::TOOL_CHANGER:
+        spdlog::warn("[AMS Backend] Tool changer detected but no API/client provided - using mock");
         return std::make_unique<AmsBackendMock>(config.mock_ams_gate_count);
 
     case AmsType::NONE:
@@ -102,6 +123,15 @@ std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, MoonrakerA
         }
         spdlog::debug("[AMS Backend] Creating ValgACE backend");
         return std::make_unique<AmsBackendValgACE>(api, client);
+
+    case AmsType::TOOL_CHANGER:
+        if (!api || !client) {
+            spdlog::error("[AMS Backend] Tool changer requires MoonrakerAPI and MoonrakerClient");
+            return nullptr;
+        }
+        spdlog::debug("[AMS Backend] Creating Tool Changer backend");
+        // Note: Caller must use set_discovered_tools() after creation to set tool names
+        return std::make_unique<AmsBackendToolChanger>(api, client);
 
     case AmsType::NONE:
     default:

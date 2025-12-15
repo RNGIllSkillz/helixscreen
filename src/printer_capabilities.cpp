@@ -125,6 +125,21 @@ void PrinterCapabilities::parse_objects(const json& objects) {
             has_timelapse_ = true;
             spdlog::debug("[PrinterCapabilities] Detected Moonraker-Timelapse plugin");
         }
+        // Tool changer detection (viesturz/klipper-toolchanger)
+        else if (name == "toolchanger") {
+            has_tool_changer_ = true;
+            // Note: mmu_type_ set after loop to ensure we see all tool objects first
+            spdlog::debug("[PrinterCapabilities] Detected physical tool changer");
+        }
+        // Tool object discovery (klipper-toolchanger creates "tool T0", "tool T1", etc.)
+        else if (name.rfind("tool ", 0) == 0) {
+            // Extract tool name from "tool T0" → "T0"
+            std::string tool_name = name.substr(5); // Remove "tool " prefix
+            if (!tool_name.empty()) {
+                tool_names_.push_back(tool_name);
+                spdlog::debug("[PrinterCapabilities] Discovered tool: {}", tool_name);
+            }
+        }
         // Macro detection
         else if (name.rfind("gcode_macro ", 0) == 0) {
             std::string macro_name = name.substr(12); // Remove "gcode_macro " prefix
@@ -191,6 +206,28 @@ void PrinterCapabilities::parse_objects(const json& objects) {
                      }());
     }
 
+    // Sort tool names for consistent ordering (T0, T1, T2, ...)
+    if (!tool_names_.empty()) {
+        std::sort(tool_names_.begin(), tool_names_.end());
+        spdlog::info("[PrinterCapabilities] Discovered {} tools: {}", tool_names_.size(), [this]() {
+            std::ostringstream oss;
+            for (size_t i = 0; i < tool_names_.size(); ++i) {
+                if (i > 0)
+                    oss << ", ";
+                oss << tool_names_[i];
+            }
+            return oss.str();
+        }());
+    }
+
+    // Set mmu_type_ for tool changers (after all objects processed)
+    // Tool changers take precedence if both MMU and toolchanger are detected
+    // (though this would be unusual - most users have one or the other)
+    if (has_tool_changer_ && !tool_names_.empty()) {
+        mmu_type_ = AmsType::TOOL_CHANGER;
+        spdlog::info("[PrinterCapabilities] Tool changer with {} tools detected", tool_names_.size());
+    }
+
     spdlog::info("[PrinterCapabilities] {}", summary());
 }
 
@@ -209,6 +246,7 @@ void PrinterCapabilities::clear() {
     has_klippain_shaketune_ = false;
     has_speaker_ = false;
     has_mmu_ = false;
+    has_tool_changer_ = false;
     has_timelapse_ = false;
     mmu_type_ = AmsType::NONE;
     macros_.clear();
@@ -218,6 +256,7 @@ void PrinterCapabilities::clear() {
     heat_soak_macro_.clear();
     afc_lane_names_.clear();
     afc_hub_names_.clear();
+    tool_names_.clear();
 }
 
 // ============================================================================
@@ -294,6 +333,13 @@ std::string PrinterCapabilities::summary() const {
         caps.push_back("speaker");
     if (has_mmu_)
         caps.push_back(mmu_type_ == AmsType::HAPPY_HARE ? "Happy Hare" : "AFC");
+    if (has_tool_changer_) {
+        std::string tc_str = "Tool Changer";
+        if (!tool_names_.empty()) {
+            tc_str += " (" + std::to_string(tool_names_.size()) + " tools)";
+        }
+        caps.push_back(tc_str);
+    }
     if (has_timelapse_)
         caps.push_back("timelapse");
 

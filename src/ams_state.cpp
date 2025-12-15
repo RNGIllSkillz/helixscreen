@@ -4,6 +4,7 @@
 #include "ams_state.h"
 
 #include "ams_backend_afc.h"
+#include "ams_backend_toolchanger.h"
 #include "printer_capabilities.h"
 #include "runtime_config.h"
 
@@ -218,9 +219,9 @@ void AmsState::reset_for_testing() {
 
 void AmsState::init_backend_from_capabilities(const PrinterCapabilities& caps, MoonrakerAPI* api,
                                               MoonrakerClient* client) {
-    // Skip if no MMU detected
-    if (!caps.has_mmu()) {
-        spdlog::debug("[AMS State] No MMU detected, skipping backend initialization");
+    // Skip if no MMU or tool changer detected
+    if (!caps.has_mmu() && !caps.has_tool_changer()) {
+        spdlog::debug("[AMS State] No MMU or tool changer detected, skipping backend initialization");
         return;
     }
 
@@ -251,6 +252,15 @@ void AmsState::init_backend_from_capabilities(const PrinterCapabilities& caps, M
             if (afc_backend) {
                 afc_backend->set_discovered_lanes(caps.get_afc_lane_names(),
                                                   caps.get_afc_hub_names());
+            }
+        }
+
+        // For Tool Changer backend, pass discovered tool names from capabilities
+        // Tool names are extracted from "tool T0", "tool T1", etc. in printer.objects.list
+        if (detected_type == AmsType::TOOL_CHANGER) {
+            auto* tc_backend = dynamic_cast<AmsBackendToolChanger*>(backend.get());
+            if (tc_backend) {
+                tc_backend->set_discovered_tools(caps.get_tool_names());
             }
         }
 
