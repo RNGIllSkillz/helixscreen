@@ -409,6 +409,10 @@ static void initialize_subjects() {
     // Note: In mock mode, init_subjects() also creates the mock backend internally
     AmsState::instance().init_subjects(true);
 
+    // Initialize FilamentSensorManager subjects BEFORE panels so XML bindings can work
+    // Actual sensor discovery happens later in on_hardware_discovered callback
+    helix::FilamentSensorManager::instance().init_subjects();
+
     // NOTE: AMS panel is lazily initialized when first accessed via get_global_ams_panel()
 
     // Register print completion notification observer (watches print_state_enum for terminal

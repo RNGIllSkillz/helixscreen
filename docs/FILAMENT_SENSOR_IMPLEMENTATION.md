@@ -7,7 +7,7 @@ This document tracks the implementation of comprehensive standalone filament sen
 **Branch:** `feat/filament-sensors`
 **Worktree:** `/Users/pbrown/Code/Printing/helixscreen-filament-sensors`
 **Started:** 2025-12-15
-**Status:** Phase 1 Complete, Phase 2-5 Pending
+**Status:** Phase 1-2 Complete, Phase 3-5 Pending
 
 ---
 
@@ -41,6 +41,7 @@ This document tracks the implementation of comprehensive standalone filament sen
 ## Implementation Phases
 
 ### Phase 1: Backend Foundation ✅ COMPLETE
+**Commit:** `61aa6ab` (2025-12-15)
 
 #### 1.1 Data Types ✅
 **File:** `include/filament_sensor_types.h`
@@ -134,27 +135,27 @@ Added `filament_sensors` section:
 
 ---
 
-### Phase 2: UI Status Indicators 🔲 PENDING
+### Phase 2: UI Status Indicators ✅ COMPLETE
 
-#### 2.1 Filament Sensor Indicator Component
+#### 2.1 Filament Sensor Indicator Component ✅
 **New file:** `ui_xml/filament_sensor_indicator.xml`
 
 Small reusable component showing sensor status as a colored dot:
-- Green when filament detected
-- Red when no filament
-- Hidden when master disabled or no sensor assigned
+- Green when filament detected (success_color)
+- Red when no filament (error_color)
+- Hidden when master disabled or no sensor assigned (value = -1)
+- Uses bind_style for reactive color changes
 
-#### 2.2 Panel Integrations
-Add dot indicators to:
-- **Home Panel** (`ui_xml/home_panel.xml`) - Near temperature/network icons
-- **Filament Panel** (`ui_xml/filament_panel.xml`) - Status section with all configured sensors
-- **Controls Panel** (`ui_xml/controls_panel.xml`) - On filament card header
-- **Print Panel** (`ui_xml/print_status_panel.xml`) - Near temperature displays
+#### 2.2 Panel Integrations ✅
+Added dot indicators to:
+- **Home Panel** (`ui_xml/home_panel.xml`) - In status card bottom row with "Filament" label
+- **Controls Panel** (`ui_xml/controls_panel.xml`) - Next to filament card icon
+- **Print Panel** (`ui_xml/print_status_panel.xml`) - Below bed temp, above control buttons
 
-#### 2.3 Motion Sensor Activity Indicator
-**New file:** `ui_xml/motion_sensor_indicator.xml`
+Note: Filament Panel integration deferred to Phase 3 (settings panel will show all sensors)
 
-Pulsing dot when encoder active (for motion sensors during extrusion).
+#### 2.3 Motion Sensor Activity Indicator 🔲 DEFERRED
+Pulsing animation for motion sensors deferred to Phase 5 polish.
 
 ---
 
