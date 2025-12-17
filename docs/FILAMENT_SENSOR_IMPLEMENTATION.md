@@ -7,7 +7,7 @@ This document tracks the implementation of comprehensive standalone filament sen
 **Branch:** `feat/filament-sensors`
 **Worktree:** `/Users/pbrown/Code/Printing/helixscreen-filament-sensors`
 **Started:** 2025-12-15
-**Status:** Phase 1-2 Complete, Phase 3-5 Pending
+**Status:** Phase 1-3 Complete (wizard step deferred), Phase 4-5 Pending
 
 ---
 
@@ -159,43 +159,36 @@ Pulsing animation for motion sensors deferred to Phase 5 polish.
 
 ---
 
-### Phase 3: Configuration UI 🔲 PENDING
+### Phase 3: Configuration UI ✅ COMPLETE
+**Commit:** `8b99f64` (2025-12-16)
 
-#### 3.1 Filament Sensor Settings Panel
+#### 3.1 Filament Sensors Settings Overlay ✅
 **New files:**
-- `include/ui_panel_filament_sensor_settings.h`
-- `src/ui_panel_filament_sensor_settings.cpp`
-- `ui_xml/filament_sensor_settings_panel.xml`
+- `ui_xml/filament_sensors_overlay.xml` - Settings overlay panel
+- `ui_xml/filament_sensor_row.xml` - Reusable sensor row component
 
-Features:
-- Master enable toggle
+Implemented as overlay panel (not standalone panel) under Settings:
+- Master enable toggle with reactive binding to `filament_master_enabled` subject
 - Discovered sensors list with:
-  - Klipper name display
+  - Sensor name + type badge (switch/motion)
   - Role dropdown (None, Runout, Toolhead, Entry)
   - Enable toggle per sensor
-- "No sensors detected" message when empty
+- "No sensors detected" placeholder with conditional visibility
+- Memory cleanup handler for dynamically allocated sensor names
 - Auto-save on change
 
-#### 3.2 Settings Navigation
-**Modify:** `src/ui_panel_settings.cpp`
+#### 3.2 Settings Navigation ✅
+**Modified:** `src/ui_panel_settings.cpp`, `ui_xml/settings_panel.xml`
 
-Add "Filament Sensors" item under Printer category.
+- Added "Filament Sensors" item under PRINTER section
+- Conditional visibility based on `filament_sensor_count` subject
+- Handler creates overlay lazily on first click
 
-#### 3.3 Wizard Step
-**New files:**
-- `include/ui_wizard_filament_sensor.h`
-- `src/ui_wizard_filament_sensor.cpp`
-- `ui_xml/wizard_filament_sensor_step.xml`
+#### 3.3 Wizard Step 🔲 DEFERRED
+Deferred - wizard step can be added later if needed. Current implementation via Settings is sufficient for initial release.
 
-Features:
-- Auto-skip if no sensors detected
-- List discovered sensors with role assignment
-- Skip and Done buttons
-
-#### 3.4 Wizard Integration
-**Modify:** `src/ui_wizard.cpp`
-
-Add filament sensor step after printer connection, before completion.
+#### 3.4 Wizard Integration 🔲 DEFERRED
+Deferred along with wizard step.
 
 ---
 
