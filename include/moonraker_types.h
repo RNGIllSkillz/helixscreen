@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <json.hpp>  // nlohmann/json from libhv
+#include <json.hpp> // nlohmann/json from libhv
 #include <string>
 #include <vector>
 
@@ -116,6 +116,57 @@ struct FileMetadata {
             }
         }
         return best->relative_path;
+    }
+
+    /**
+     * @brief Get the best thumbnail for a target display size
+     *
+     * Selects the smallest thumbnail that meets or exceeds the target dimensions.
+     * This minimizes download size while ensuring sufficient resolution for display.
+     *
+     * Selection priority:
+     * 1. Smallest thumbnail where width >= target_w AND height >= target_h
+     * 2. Fallback: largest available thumbnail (better to upscale slightly than use tiny)
+     *
+     * @param target_w Minimum acceptable width in pixels
+     * @param target_h Minimum acceptable height in pixels
+     * @return Pointer to best thumbnail, or nullptr if no thumbnails available
+     *
+     * Example usage:
+     * @code
+     *   // For a 160x160 display card
+     *   const ThumbnailInfo* best = metadata.get_best_thumbnail(160, 160);
+     *   if (best) {
+     *       // 300x300 slicer thumb chosen over 32x32 icon
+     *       download(best->relative_path);
+     *   }
+     * @endcode
+     */
+    [[nodiscard]] const ThumbnailInfo* get_best_thumbnail(int target_w, int target_h) const {
+        if (thumbnails.empty()) {
+            return nullptr;
+        }
+
+        const ThumbnailInfo* best_adequate = nullptr;  // Smallest that meets target
+        const ThumbnailInfo* largest = &thumbnails[0]; // Fallback
+
+        for (const auto& t : thumbnails) {
+            // Track largest for fallback
+            if (t.pixel_count() > largest->pixel_count()) {
+                largest = &t;
+            }
+
+            // Check if this thumbnail meets minimum requirements
+            if (t.width >= target_w && t.height >= target_h) {
+                // Prefer smaller adequate thumbnails (less to download/process)
+                if (!best_adequate || t.pixel_count() < best_adequate->pixel_count()) {
+                    best_adequate = &t;
+                }
+            }
+        }
+
+        // Return adequate thumbnail if found, otherwise largest available
+        return best_adequate ? best_adequate : largest;
     }
 };
 

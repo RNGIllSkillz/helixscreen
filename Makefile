@@ -358,7 +358,9 @@ PCH_FLAGS := -include $(PCH_HEADER)
 # Include paths
 # Project includes use -I (warnings enabled), library includes use -isystem (warnings suppressed)
 # This allows `make strict` to catch issues in project code while ignoring third-party header warnings
-INCLUDES := -I. -I$(INC_DIR) -isystem lib -isystem lib/glm $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(TINYGL_INC) $(WPA_INC) $(SDL2_INC)
+# stb_image headers are in tinygl/include-demo (used for thumbnail processing)
+STB_INC := -isystem lib/tinygl/include-demo
+INCLUDES := -I. -I$(INC_DIR) -isystem lib -isystem lib/glm $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(TINYGL_INC) $(STB_INC) $(WPA_INC) $(SDL2_INC)
 
 # Common linker flags (used by both macOS and Linux)
 LDFLAGS_COMMON := $(SDL2_LIBS) $(LIBHV_LIBS) $(TINYGL_LIB) $(FMT_LIBS) -lm -lpthread

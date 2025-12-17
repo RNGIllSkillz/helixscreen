@@ -99,5 +99,13 @@
     "_master_enabled_comment": "Global toggle to enable/disable all filament sensor monitoring. When false, sensor states are ignored.",
     "sensors": [],
     "_sensors_comment": "Array of sensor configurations. Each sensor has: klipper_name (full Klipper object name like 'filament_switch_sensor fsensor'), role ('none', 'runout', 'toolhead', 'entry'), enabled (boolean). Sensors are auto-discovered from Moonraker."
+  },
+  "cache": {
+    "thumbnail_max_mb": 20,
+    "_thumbnail_max_mb_comment": "Maximum thumbnail cache size in MB. Auto-sizes to 5% of available disk, clamped to this ceiling. AD5M default: 20",
+    "disk_critical_mb": 5,
+    "_disk_critical_mb_comment": "Stop caching when available disk falls below this (MB). Prevents filling filesystem. AD5M default: 5",
+    "disk_low_mb": 20,
+    "_disk_low_mb_comment": "Evict aggressively when available disk falls below this (MB). Reduces cache to half normal limit. AD5M default: 20"
   }
 }

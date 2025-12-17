@@ -22,6 +22,7 @@
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "settings_manager.h"
+#include "thumbnail_cache.h"
 #include "usb_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -665,8 +666,14 @@ void PrintSelectPanel::fetch_metadata_range(size_t start, size_t end) {
                 int print_time_minutes = static_cast<int>(metadata.estimated_time / 60.0);
                 float filament_grams = static_cast<float>(metadata.filament_weight_total);
                 std::string filament_type = metadata.filament_type;
-                std::string thumb_path = metadata.get_largest_thumbnail();
                 uint32_t layer_count = metadata.layer_count;
+
+                // Smart thumbnail selection: pick smallest that meets display requirements
+                // This reduces download size while ensuring adequate resolution
+                helix::ThumbnailTarget target = helix::ThumbnailProcessor::get_target_for_display();
+                const ThumbnailInfo* best_thumb =
+                    metadata.get_best_thumbnail(target.width, target.height);
+                std::string thumb_path = best_thumb ? best_thumb->relative_path : "";
 
                 // Format strings on background thread (uses standalone helper functions)
                 std::string print_time_str = format_print_time(print_time_minutes);
@@ -675,15 +682,6 @@ void PrintSelectPanel::fetch_metadata_range(size_t start, size_t end) {
 
                 // Check if thumbnail is a local file (background thread - filesystem OK)
                 bool thumb_is_local = !thumb_path.empty() && std::filesystem::exists(thumb_path);
-
-                // Prepare cache path for remote thumbnails
-                std::string cache_file;
-                if (!thumb_path.empty() && !thumb_is_local) {
-                    std::hash<std::string> hasher;
-                    size_t hash = hasher(thumb_path);
-                    cache_file = "/tmp/helix_thumbs/" + std::to_string(hash) + ".png";
-                    std::filesystem::create_directories("/tmp/helix_thumbs");
-                }
 
                 // CRITICAL: Dispatch file_list_ modifications to main thread to avoid race
                 // conditions with populate_card_view/populate_list_view reading file_list_
@@ -699,15 +697,15 @@ void PrintSelectPanel::fetch_metadata_range(size_t start, size_t end) {
                     uint32_t layer_count;
                     std::string layer_count_str;
                     std::string thumb_path;
-                    std::string cache_file;
                     bool thumb_is_local;
+                    helix::ThumbnailTarget thumb_target; // Target size for pre-scaling
                 };
 
                 ui_async_call_safe<MetadataUpdate>(
                     std::make_unique<MetadataUpdate>(
                         MetadataUpdate{self, i, filename, print_time_minutes, filament_grams,
                                        filament_type, print_time_str, filament_str, layer_count,
-                                       layer_count_str, thumb_path, cache_file, thumb_is_local}),
+                                       layer_count_str, thumb_path, thumb_is_local, target}),
                     [](MetadataUpdate* d) {
                         auto* self = d->panel;
 
@@ -732,7 +730,7 @@ void PrintSelectPanel::fetch_metadata_range(size_t start, size_t end) {
                                       self->get_name(), d->filename, d->print_time_minutes,
                                       d->filament_grams, d->layer_count);
 
-                        // Handle thumbnail
+                        // Handle thumbnail with pre-scaling optimization
                         if (!d->thumb_path.empty() && self->api_) {
                             if (d->thumb_is_local) {
                                 // Local file exists - use directly (mock mode)
@@ -741,34 +739,35 @@ void PrintSelectPanel::fetch_metadata_range(size_t start, size_t end) {
                                               self->get_name(), d->filename,
                                               self->file_list_[d->index].thumbnail_path);
                             } else {
-                                // Remote path - download from Moonraker
-                                spdlog::trace("[{}] Downloading thumbnail for {}: {} -> {}",
-                                              self->get_name(), d->filename, d->thumb_path,
-                                              d->cache_file);
+                                // Remote path - fetch with pre-scaling for optimal display
+                                spdlog::trace("[{}] Fetching optimized thumbnail for {}: {}",
+                                              self->get_name(), d->filename, d->thumb_path);
 
                                 size_t file_idx = d->index;
                                 std::string filename_copy = d->filename;
-                                self->api_->download_thumbnail(
-                                    d->thumb_path, d->cache_file,
-                                    // Success callback - also dispatch to main thread!
-                                    [self, file_idx, filename_copy](const std::string& local_path) {
+                                helix::ThumbnailTarget target = d->thumb_target;
+
+                                get_thumbnail_cache().fetch_optimized(
+                                    self->api_, d->thumb_path, target,
+                                    // Success callback - receives pre-scaled .lvbin path
+                                    [self, file_idx, filename_copy](const std::string& lvgl_path) {
                                         struct ThumbUpdate {
                                             PrintSelectPanel* panel;
                                             size_t index;
                                             std::string filename;
-                                            std::string local_path;
+                                            std::string lvgl_path;
                                         };
                                         ui_async_call_safe<ThumbUpdate>(
                                             std::make_unique<ThumbUpdate>(ThumbUpdate{
-                                                self, file_idx, filename_copy, local_path}),
+                                                self, file_idx, filename_copy, lvgl_path}),
                                             [](ThumbUpdate* t) {
                                                 if (t->index < t->panel->file_list_.size() &&
                                                     t->panel->file_list_[t->index].filename ==
                                                         t->filename) {
                                                     t->panel->file_list_[t->index].thumbnail_path =
-                                                        "A:" + t->local_path;
+                                                        t->lvgl_path;
                                                     spdlog::debug(
-                                                        "[{}] Thumbnail cached for {}: {}",
+                                                        "[{}] Optimized thumbnail for {}: {}",
                                                         t->panel->get_name(), t->filename,
                                                         t->panel->file_list_[t->index]
                                                             .thumbnail_path);
@@ -777,10 +776,9 @@ void PrintSelectPanel::fetch_metadata_range(size_t start, size_t end) {
                                             });
                                     },
                                     // Error callback
-                                    [self, filename_copy](const MoonrakerError& error) {
-                                        spdlog::warn("[{}] Failed to download thumbnail for {}: {}",
-                                                     self->get_name(), filename_copy,
-                                                     error.message);
+                                    [self, filename_copy](const std::string& error) {
+                                        spdlog::warn("[{}] Failed to fetch thumbnail for {}: {}",
+                                                     self->get_name(), filename_copy, error);
                                     });
                             }
                         }

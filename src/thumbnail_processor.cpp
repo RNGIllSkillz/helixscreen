@@ -1,0 +1,430 @@
+// Copyright 2025 HelixScreen
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// Define STB implementations in this compilation unit only
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+
+#include "thumbnail_processor.h"
+
+#include <hv/hthreadpool.h>
+#include <spdlog/spdlog.h>
+
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <functional>
+
+// stb headers - single-file libraries for image processing
+// Located in lib/tinygl/include-demo/
+#include "stb_image.h"
+#include "stb_image_resize.h"
+
+// LVGL headers for correct binary format
+#include <lvgl/src/draw/lv_image_dsc.h>
+
+namespace helix {
+
+// Constants matching ThumbnailCache for shared cache directory
+static constexpr const char* DEFAULT_CACHE_DIR = "/tmp/helix_thumbs";
+
+// LVGL 9 color format constants (magic comes from lv_image_dsc.h)
+static constexpr uint8_t COLOR_FORMAT_ARGB8888 = 0x10;
+static constexpr uint8_t COLOR_FORMAT_RGB565 = 0x12;
+
+// Thread pool configuration
+static constexpr int MIN_WORKER_THREADS = 1;
+static constexpr int MAX_WORKER_THREADS = 2; // Don't starve UI thread on single-core
+
+// Safety limits to prevent memory exhaustion and integer overflow
+static constexpr size_t MAX_PNG_INPUT_SIZE = 10 * 1024 * 1024; // 10 MB compressed
+static constexpr int MAX_SOURCE_DIMENSION = 4096;              // 4K max source
+static constexpr int MAX_OUTPUT_DIMENSION = 1024;              // 1K max output
+
+// ============================================================================
+// Singleton
+// ============================================================================
+
+ThumbnailProcessor& ThumbnailProcessor::instance() {
+    static ThumbnailProcessor instance;
+    return instance;
+}
+
+ThumbnailProcessor::ThumbnailProcessor()
+    : thread_pool_(std::make_unique<HThreadPool>(MIN_WORKER_THREADS, MAX_WORKER_THREADS)),
+      cache_dir_(DEFAULT_CACHE_DIR) {
+    // Ensure cache directory exists
+    try {
+        std::filesystem::create_directories(cache_dir_);
+    } catch (const std::filesystem::filesystem_error& e) {
+        spdlog::warn("[ThumbnailProcessor] Failed to create cache directory: {}", e.what());
+    }
+
+    // Start thread pool
+    thread_pool_->start(MIN_WORKER_THREADS);
+    spdlog::info("[ThumbnailProcessor] Initialized with {} worker threads, cache: {}",
+                 MIN_WORKER_THREADS, cache_dir_);
+}
+
+ThumbnailProcessor::~ThumbnailProcessor() {
+    shutdown();
+}
+
+void ThumbnailProcessor::shutdown() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (shutdown_) {
+        return;
+    }
+    shutdown_ = true;
+
+    if (thread_pool_) {
+        thread_pool_->stop();
+        thread_pool_.reset();
+    }
+    spdlog::debug("[ThumbnailProcessor] Shutdown complete");
+}
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+void ThumbnailProcessor::process_async(const std::vector<uint8_t>& png_data,
+                                       const std::string& source_path,
+                                       const ThumbnailTarget& target,
+                                       ProcessSuccessCallback on_success,
+                                       ProcessErrorCallback on_error) {
+    // Copy cache_dir under lock to avoid race with set_cache_dir()
+    std::string cache_dir_copy;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (shutdown_ || !thread_pool_) {
+            if (on_error) {
+                on_error("ThumbnailProcessor is shutdown");
+            }
+            return;
+        }
+        cache_dir_copy = cache_dir_;
+    }
+
+    // Capture by value for thread safety
+    auto png_copy = png_data;
+    auto source_copy = source_path;
+
+    thread_pool_->commit(
+        [this, png_copy = std::move(png_copy), source_copy = std::move(source_copy),
+         cache_dir_copy = std::move(cache_dir_copy), target, on_success, on_error]() {
+            ProcessResult result = do_process(png_copy, source_copy, target, cache_dir_copy);
+
+            if (result.success) {
+                spdlog::debug("[ThumbnailProcessor] Processed {} -> {} ({}x{})", source_copy,
+                              result.output_path, result.output_width, result.output_height);
+                if (on_success) {
+                    on_success(result.output_path);
+                }
+            } else {
+                spdlog::warn("[ThumbnailProcessor] Failed to process {}: {}", source_copy,
+                             result.error);
+                if (on_error) {
+                    on_error(result.error);
+                }
+            }
+        });
+}
+
+ProcessResult ThumbnailProcessor::process_sync(const std::vector<uint8_t>& png_data,
+                                               const std::string& source_path,
+                                               const ThumbnailTarget& target) {
+    // Get cache_dir under lock for thread safety
+    std::string cache_dir_copy;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        cache_dir_copy = cache_dir_;
+    }
+    return do_process(png_data, source_path, target, cache_dir_copy);
+}
+
+std::string ThumbnailProcessor::get_if_processed(const std::string& source_path,
+                                                 const ThumbnailTarget& target) const {
+    // Get cache_dir under lock for thread safety
+    std::string cache_dir_copy;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        cache_dir_copy = cache_dir_;
+    }
+
+    std::string filename = generate_cache_filename(source_path, target);
+    std::string full_path = cache_dir_copy + "/" + filename;
+
+    if (std::filesystem::exists(full_path)) {
+        spdlog::trace("[ThumbnailProcessor] Cache hit: {}", full_path);
+        return "A:" + full_path;
+    }
+
+    return "";
+}
+
+ThumbnailTarget ThumbnailProcessor::get_target_for_display() {
+    // TODO: Query actual display size from LVGL
+    // For now, use medium breakpoint as default (most common case)
+    //
+    // Display breakpoints from THUMBNAIL_OPTIMIZATION_PLAN.md:
+    // - SMALL (<=480px):  card ~107px -> target 120x120
+    // - MEDIUM (<=800px): card ~151px -> target 160x160
+    // - LARGE (>800px):   card ~205px -> target 220x220
+
+    ThumbnailTarget target;
+    target.width = 160;
+    target.height = 160;
+    target.color_format = COLOR_FORMAT_ARGB8888;
+
+    // TODO: Check lv_display_get_horizontal_resolution() when available
+    // and adjust target accordingly
+
+    return target;
+}
+
+void ThumbnailProcessor::set_cache_dir(const std::string& path) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    cache_dir_ = path;
+
+    try {
+        std::filesystem::create_directories(cache_dir_);
+    } catch (const std::filesystem::filesystem_error& e) {
+        spdlog::warn("[ThumbnailProcessor] Failed to create cache directory {}: {}", cache_dir_,
+                     e.what());
+    }
+}
+
+void ThumbnailProcessor::clear_cache() {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    try {
+        for (const auto& entry : std::filesystem::directory_iterator(cache_dir_)) {
+            if (entry.path().extension() == ".lvbin") {
+                std::filesystem::remove(entry.path());
+            }
+        }
+        spdlog::info("[ThumbnailProcessor] Cache cleared");
+    } catch (const std::filesystem::filesystem_error& e) {
+        spdlog::warn("[ThumbnailProcessor] Failed to clear cache: {}", e.what());
+    }
+}
+
+size_t ThumbnailProcessor::pending_tasks() const {
+    if (!thread_pool_) {
+        return 0;
+    }
+    return thread_pool_->taskNum();
+}
+
+void ThumbnailProcessor::wait_for_completion() {
+    if (thread_pool_) {
+        thread_pool_->wait();
+    }
+}
+
+// ============================================================================
+// Private Implementation
+// ============================================================================
+
+std::string ThumbnailProcessor::generate_cache_filename(const std::string& source_path,
+                                                        const ThumbnailTarget& target) const {
+    // Hash the source path for a unique identifier
+    std::hash<std::string> hasher;
+    size_t hash = hasher(source_path);
+
+    // Format string for color format
+    const char* format_str = (target.color_format == COLOR_FORMAT_RGB565) ? "RGB565" : "ARGB8888";
+
+    // Generate filename: {hash}_{w}x{h}_{format}.lvbin
+    char filename[128];
+    std::snprintf(filename, sizeof(filename), "%zu_%dx%d_%s.lvbin", hash, target.width,
+                  target.height, format_str);
+
+    return filename;
+}
+
+ProcessResult ThumbnailProcessor::do_process(const std::vector<uint8_t>& png_data,
+                                             const std::string& source_path,
+                                             const ThumbnailTarget& target,
+                                             const std::string& cache_dir) {
+    ProcessResult result;
+
+    if (png_data.empty()) {
+        result.error = "Empty PNG data";
+        return result;
+    }
+
+    // Safety check: reject excessively large PNG files
+    if (png_data.size() > MAX_PNG_INPUT_SIZE) {
+        result.error = "PNG too large (" + std::to_string(png_data.size() / 1024 / 1024) +
+                       " MB, max " + std::to_string(MAX_PNG_INPUT_SIZE / 1024 / 1024) + " MB)";
+        return result;
+    }
+
+    // ========================================================================
+    // Step 1: Decode PNG with stb_image
+    // ========================================================================
+    int src_width = 0, src_height = 0, src_channels = 0;
+
+    // stbi_load_from_memory returns RGBA data (4 channels) when we request it
+    unsigned char* src_pixels = stbi_load_from_memory(
+        png_data.data(), static_cast<int>(png_data.size()), &src_width, &src_height, &src_channels,
+        4 // Request RGBA output regardless of source format
+    );
+
+    if (!src_pixels) {
+        result.error = std::string("Failed to decode PNG: ") + stbi_failure_reason();
+        return result;
+    }
+
+    // Safety check: reject excessively large decoded images
+    if (src_width > MAX_SOURCE_DIMENSION || src_height > MAX_SOURCE_DIMENSION) {
+        stbi_image_free(src_pixels);
+        result.error = "Source image too large (" + std::to_string(src_width) + "x" +
+                       std::to_string(src_height) + ", max " +
+                       std::to_string(MAX_SOURCE_DIMENSION) + ")";
+        return result;
+    }
+
+    spdlog::trace("[ThumbnailProcessor] Decoded {}x{} ({} channels)", src_width, src_height,
+                  src_channels);
+
+    // ========================================================================
+    // Step 2: Calculate output dimensions (preserve aspect ratio, cover target)
+    // ========================================================================
+    // We want to scale so the image covers the target area while maintaining
+    // aspect ratio. This means taking the larger scale factor.
+
+    float scale_x = static_cast<float>(target.width) / src_width;
+    float scale_y = static_cast<float>(target.height) / src_height;
+    float scale = std::max(scale_x, scale_y);
+
+    int out_width = static_cast<int>(src_width * scale);
+    int out_height = static_cast<int>(src_height * scale);
+
+    // Ensure minimum dimensions
+    out_width = std::max(out_width, 1);
+    out_height = std::max(out_height, 1);
+
+    // Clamp output dimensions to prevent integer overflow in buffer allocation
+    out_width = std::min(out_width, MAX_OUTPUT_DIMENSION);
+    out_height = std::min(out_height, MAX_OUTPUT_DIMENSION);
+
+    spdlog::trace("[ThumbnailProcessor] Scaling {}x{} -> {}x{} (scale: {:.2f})", src_width,
+                  src_height, out_width, out_height, scale);
+
+    // ========================================================================
+    // Step 3: Resize with stb_image_resize (high-quality Mitchell filter)
+    // ========================================================================
+    std::vector<unsigned char> resized_pixels(out_width * out_height * 4);
+
+    int resize_result =
+        stbir_resize_uint8(src_pixels, src_width, src_height, 0,            // input
+                           resized_pixels.data(), out_width, out_height, 0, // output
+                           4                                                // RGBA channels
+        );
+
+    // Free source pixels - we're done with them
+    stbi_image_free(src_pixels);
+
+    if (!resize_result) {
+        result.error = "Failed to resize image";
+        return result;
+    }
+
+    // ========================================================================
+    // Step 4: Convert RGBA to ARGB8888 (LVGL's expected format)
+    // ========================================================================
+    // stb_image gives us RGBA (R,G,B,A order)
+    // LVGL ARGB8888 expects (B,G,R,A order) - actually BGRA in memory
+    //
+    // Wait, let's check the LVGL format more carefully...
+    // LV_COLOR_FORMAT_ARGB8888 on little-endian is stored as B,G,R,A in memory
+    // because when read as uint32_t, it's 0xAARRGGBB
+
+    for (size_t i = 0; i < resized_pixels.size(); i += 4) {
+        // Swap R and B channels: RGBA -> BGRA
+        std::swap(resized_pixels[i], resized_pixels[i + 2]);
+    }
+
+    // ========================================================================
+    // Step 5: Write LVGL binary file
+    // ========================================================================
+    std::string filename = generate_cache_filename(source_path, target);
+    std::string output_path = cache_dir + "/" + filename;
+
+    if (!write_lvbin(output_path, out_width, out_height, target.color_format, resized_pixels.data(),
+                     resized_pixels.size())) {
+        result.error = "Failed to write .lvbin file";
+        return result;
+    }
+
+    result.success = true;
+    result.output_path = "A:" + output_path;
+    result.output_width = out_width;
+    result.output_height = out_height;
+
+    return result;
+}
+
+bool ThumbnailProcessor::write_lvbin(const std::string& path, int width, int height,
+                                     uint8_t color_format, const uint8_t* pixel_data,
+                                     size_t data_size) {
+    // Use atomic write: write to temp file, then rename
+    // This prevents partial/corrupted files if process crashes mid-write
+    std::string temp_path = path + ".tmp";
+
+    std::ofstream file(temp_path, std::ios::binary);
+    if (!file) {
+        spdlog::warn("[ThumbnailProcessor] Cannot open {} for writing", temp_path);
+        return false;
+    }
+
+    // ========================================================================
+    // LVGL 9 Image Header - Use lv_image_header_t struct directly
+    // ========================================================================
+    // This ensures correct byte layout regardless of compiler/platform,
+    // as we're using the same struct LVGL uses to read the file.
+
+    int bytes_per_pixel = (color_format == COLOR_FORMAT_RGB565) ? 2 : 4;
+    int stride = width * bytes_per_pixel;
+
+    lv_image_header_t header = {};
+    header.magic = LV_IMAGE_HEADER_MAGIC;
+    header.cf = static_cast<lv_color_format_t>(color_format);
+    header.flags = 0;
+    header.w = static_cast<uint16_t>(width);
+    header.h = static_cast<uint16_t>(height);
+    header.stride = static_cast<uint16_t>(stride);
+    header.reserved_2 = 0;
+
+    // Write header using the actual struct (guarantees correct layout)
+    file.write(reinterpret_cast<const char*>(&header), sizeof(header));
+
+    // Write pixel data
+    file.write(reinterpret_cast<const char*>(pixel_data), data_size);
+
+    if (!file.good()) {
+        spdlog::warn("[ThumbnailProcessor] Write error for {}", temp_path);
+        file.close();
+        std::filesystem::remove(temp_path); // Clean up partial file
+        return false;
+    }
+    file.close();
+
+    // Atomic rename - if this fails, the temp file is left but no corrupted final file
+    try {
+        std::filesystem::rename(temp_path, path);
+    } catch (const std::filesystem::filesystem_error& e) {
+        spdlog::warn("[ThumbnailProcessor] Atomic rename failed: {}", e.what());
+        std::filesystem::remove(temp_path);
+        return false;
+    }
+
+    spdlog::trace("[ThumbnailProcessor] Wrote {} bytes to {}", sizeof(header) + data_size, path);
+
+    return true;
+}
+
+} // namespace helix

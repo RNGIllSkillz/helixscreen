@@ -3,9 +3,12 @@
 
 #include "thumbnail_cache.h"
 
+#include "config.h"
+
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <fstream>
 #include <functional>
 #include <vector>
 
@@ -16,7 +19,7 @@ ThumbnailCache& get_thumbnail_cache() {
 }
 
 // Helper to calculate dynamic cache size based on available disk space
-static size_t calculate_dynamic_max_size() {
+static size_t calculate_dynamic_max_size(size_t configured_max) {
     try {
         std::filesystem::space_info space = std::filesystem::space(ThumbnailCache::CACHE_DIR);
         size_t available = space.available;
@@ -24,12 +27,12 @@ static size_t calculate_dynamic_max_size() {
         // Use 5% of available space
         size_t dynamic_size = static_cast<size_t>(available * ThumbnailCache::DEFAULT_DISK_PERCENT);
 
-        // Clamp to min/max bounds
-        size_t clamped = std::clamp(dynamic_size, ThumbnailCache::MIN_CACHE_SIZE,
-                                    ThumbnailCache::MAX_CACHE_SIZE);
+        // Clamp to min/configured_max bounds
+        size_t clamped = std::clamp(dynamic_size, ThumbnailCache::MIN_CACHE_SIZE, configured_max);
 
-        spdlog::info("[ThumbnailCache] Available disk: {} MB, cache limit: {} MB",
-                     available / (1024 * 1024), clamped / (1024 * 1024));
+        spdlog::info("[ThumbnailCache] Available disk: {} MB, cache limit: {} MB (max: {} MB)",
+                     available / (1024 * 1024), clamped / (1024 * 1024),
+                     configured_max / (1024 * 1024));
 
         return clamped;
     } catch (const std::filesystem::filesystem_error& e) {
@@ -38,13 +41,18 @@ static size_t calculate_dynamic_max_size() {
     }
 }
 
-ThumbnailCache::ThumbnailCache() : max_size_(MIN_CACHE_SIZE) {
+ThumbnailCache::ThumbnailCache()
+    : max_size_(MIN_CACHE_SIZE), disk_critical_(DEFAULT_DISK_CRITICAL), disk_low_(DEFAULT_DISK_LOW),
+      configured_max_(DEFAULT_MAX_CACHE_SIZE) {
     ensure_cache_dir();
-    // Now that directory exists, we can query disk space
-    max_size_ = calculate_dynamic_max_size();
+    load_config();
+    // Now that directory exists and config is loaded, calculate dynamic size
+    max_size_ = calculate_dynamic_max_size(configured_max_);
 }
 
-ThumbnailCache::ThumbnailCache(size_t max_size) : max_size_(max_size) {
+ThumbnailCache::ThumbnailCache(size_t max_size)
+    : max_size_(max_size), disk_critical_(DEFAULT_DISK_CRITICAL), disk_low_(DEFAULT_DISK_LOW),
+      configured_max_(max_size) {
     ensure_cache_dir();
     spdlog::debug("[ThumbnailCache] Using explicit max size: {} MB", max_size_ / (1024 * 1024));
 }
@@ -56,6 +64,38 @@ void ThumbnailCache::ensure_cache_dir() const {
         spdlog::warn("[ThumbnailCache] Failed to create cache directory {}: {}", CACHE_DIR,
                      e.what());
     }
+}
+
+void ThumbnailCache::load_config() {
+    Config* config = Config::get_instance();
+    if (!config) {
+        spdlog::debug("[ThumbnailCache] Config not available, using defaults");
+        return;
+    }
+
+    // Read cache settings from config (values are in MB, convert to bytes)
+    int max_mb = config->get<int>("/cache/thumbnail_max_mb",
+                                  static_cast<int>(DEFAULT_MAX_CACHE_SIZE / (1024 * 1024)));
+    int critical_mb = config->get<int>("/cache/disk_critical_mb",
+                                       static_cast<int>(DEFAULT_DISK_CRITICAL / (1024 * 1024)));
+    int low_mb =
+        config->get<int>("/cache/disk_low_mb", static_cast<int>(DEFAULT_DISK_LOW / (1024 * 1024)));
+
+    // Convert to bytes and store
+    configured_max_ = static_cast<size_t>(max_mb) * 1024 * 1024;
+    disk_critical_ = static_cast<size_t>(critical_mb) * 1024 * 1024;
+    disk_low_ = static_cast<size_t>(low_mb) * 1024 * 1024;
+
+    // Sanity check: critical should be less than low
+    if (disk_critical_ >= disk_low_) {
+        spdlog::warn("[ThumbnailCache] disk_critical_mb ({}) >= disk_low_mb ({}), adjusting",
+                     critical_mb, low_mb);
+        disk_critical_ = disk_low_ / 2;
+    }
+
+    spdlog::info("[ThumbnailCache] Config loaded: max={} MB, critical={} MB, low={} MB",
+                 configured_max_ / (1024 * 1024), disk_critical_ / (1024 * 1024),
+                 disk_low_ / (1024 * 1024));
 }
 
 std::string ThumbnailCache::compute_hash(const std::string& path) {
@@ -107,14 +147,62 @@ void ThumbnailCache::set_max_size(size_t max_size) {
     evict_if_needed();
 }
 
+size_t ThumbnailCache::get_available_disk_space() const {
+    try {
+        std::filesystem::space_info space = std::filesystem::space(CACHE_DIR);
+        return space.available;
+    } catch (const std::filesystem::filesystem_error& e) {
+        spdlog::warn("[ThumbnailCache] Failed to query disk space: {}", e.what());
+        return 0;
+    }
+}
+
+ThumbnailCache::DiskPressure ThumbnailCache::get_disk_pressure() const {
+    size_t available = get_available_disk_space();
+
+    if (available < disk_critical_) {
+        return DiskPressure::Critical;
+    } else if (available < disk_low_) {
+        return DiskPressure::Low;
+    }
+    return DiskPressure::Normal;
+}
+
+bool ThumbnailCache::is_caching_allowed() const {
+    return get_disk_pressure() != DiskPressure::Critical;
+}
+
 void ThumbnailCache::evict_if_needed() {
     size_t current_size = get_cache_size();
-    if (current_size <= max_size_) {
+    DiskPressure pressure = get_disk_pressure();
+
+    // Determine effective limit based on disk pressure
+    size_t effective_limit = max_size_;
+    const char* reason = nullptr;
+
+    if (pressure == DiskPressure::Critical) {
+        // Critical: evict everything possible to free disk space
+        effective_limit = 0;
+        reason = "disk critically low";
+    } else if (pressure == DiskPressure::Low) {
+        // Low: reduce cache to half of normal limit
+        effective_limit = max_size_ / 2;
+        reason = "disk space low";
+    }
+
+    if (current_size <= effective_limit) {
         return;
     }
 
-    spdlog::debug("[ThumbnailCache] Cache size {} MB exceeds limit {} MB, evicting oldest files",
-                  current_size / (1024 * 1024), max_size_ / (1024 * 1024));
+    if (reason) {
+        spdlog::warn("[ThumbnailCache] {} (available: {} MB), reducing cache from {} MB to {} MB",
+                     reason, get_available_disk_space() / (1024 * 1024),
+                     current_size / (1024 * 1024), effective_limit / (1024 * 1024));
+    } else {
+        spdlog::debug(
+            "[ThumbnailCache] Cache size {} MB exceeds limit {} MB, evicting oldest files",
+            current_size / (1024 * 1024), effective_limit / (1024 * 1024));
+    }
 
     // Collect files with their modification times
     struct CacheEntry {
@@ -143,7 +231,7 @@ void ThumbnailCache::evict_if_needed() {
     size_t evicted_count = 0;
     size_t evicted_bytes = 0;
     for (const auto& entry : entries) {
-        if (current_size <= max_size_) {
+        if (current_size <= effective_limit) {
             break;
         }
 
@@ -212,6 +300,16 @@ void ThumbnailCache::fetch(MoonrakerAPI* api, const std::string& relative_path,
         return;
     }
 
+    // Check disk pressure before downloading
+    if (!is_caching_allowed()) {
+        spdlog::warn("[ThumbnailCache] Disk critically low, skipping download of {}",
+                     relative_path);
+        if (on_error) {
+            on_error("Disk space critically low - caching disabled");
+        }
+        return;
+    }
+
     // Evict old files before downloading new one
     evict_if_needed();
 
@@ -267,4 +365,147 @@ size_t ThumbnailCache::get_cache_size() const {
         spdlog::warn("[ThumbnailCache] Error calculating cache size: {}", e.what());
     }
     return total;
+}
+
+// ============================================================================
+// Optimized Thumbnail Fetching (Pre-scaling)
+// ============================================================================
+
+std::string ThumbnailCache::get_if_optimized(const std::string& relative_path,
+                                             const helix::ThumbnailTarget& target) const {
+    if (relative_path.empty()) {
+        return "";
+    }
+
+    // Check for pre-scaled .lvbin via ThumbnailProcessor
+    return helix::ThumbnailProcessor::instance().get_if_processed(relative_path, target);
+}
+
+void ThumbnailCache::fetch_optimized(MoonrakerAPI* api, const std::string& relative_path,
+                                     const helix::ThumbnailTarget& target,
+                                     SuccessCallback on_success, ErrorCallback on_error) {
+    if (relative_path.empty()) {
+        if (on_error) {
+            on_error("Empty thumbnail path");
+        }
+        return;
+    }
+
+    // Step 1: Check for pre-scaled .lvbin (instant return)
+    std::string optimized = get_if_optimized(relative_path, target);
+    if (!optimized.empty()) {
+        spdlog::trace("[ThumbnailCache] Pre-scaled cache hit: {}", optimized);
+        if (on_success) {
+            on_success(optimized);
+        }
+        return;
+    }
+
+    // Step 2: Check for cached PNG
+    std::string cached_png = get_if_cached(relative_path);
+    if (!cached_png.empty()) {
+        // PNG exists, queue for pre-scaling
+        spdlog::trace("[ThumbnailCache] PNG cached, queuing pre-scale: {}", relative_path);
+        process_and_callback(cached_png, relative_path, target, on_success, on_error);
+        return;
+    }
+
+    // Step 3: Download PNG, then pre-scale
+    if (!api) {
+        if (on_error) {
+            on_error("No API available for thumbnail download");
+        }
+        return;
+    }
+
+    // Check disk pressure before downloading
+    if (!is_caching_allowed()) {
+        spdlog::warn("[ThumbnailCache] Disk critically low, skipping optimized fetch of {}",
+                     relative_path);
+        if (on_error) {
+            on_error("Disk space critically low - caching disabled");
+        }
+        return;
+    }
+
+    evict_if_needed();
+
+    std::string cache_path = get_cache_path(relative_path);
+    spdlog::trace("[ThumbnailCache] Downloading for optimization: {} -> {}", relative_path,
+                  cache_path);
+
+    // Capture target and callbacks for the download completion handler
+    api->download_thumbnail(
+        relative_path, cache_path,
+        // Success callback - PNG downloaded, now pre-scale it
+        [this, on_success, on_error, relative_path, target](const std::string& local_path) {
+            spdlog::trace("[ThumbnailCache] Downloaded, now pre-scaling: {}", local_path);
+            evict_if_needed();
+
+            // Process the downloaded PNG
+            std::string lvgl_path = to_lvgl_path(local_path);
+            process_and_callback(lvgl_path, relative_path, target, on_success, on_error);
+        },
+        // Error callback - download failed
+        [on_error, relative_path](const MoonrakerError& error) {
+            spdlog::warn("[ThumbnailCache] Optimized fetch failed for {}: {}", relative_path,
+                         error.message);
+            if (on_error) {
+                on_error(error.message);
+            }
+        });
+}
+
+void ThumbnailCache::process_and_callback(const std::string& png_lvgl_path,
+                                          const std::string& source_path,
+                                          const helix::ThumbnailTarget& target,
+                                          SuccessCallback on_success, ErrorCallback on_error) {
+    // Read PNG file into memory
+    std::string local_path = png_lvgl_path;
+    if (is_lvgl_path(local_path)) {
+        local_path = local_path.substr(2); // Remove "A:" prefix
+    }
+
+    std::ifstream file(local_path, std::ios::binary | std::ios::ate);
+    if (!file) {
+        spdlog::warn("[ThumbnailCache] Cannot read PNG for processing: {}", local_path);
+        // Fallback: return PNG path (still works, just not optimized)
+        if (on_success) {
+            on_success(png_lvgl_path);
+        }
+        return;
+    }
+
+    size_t size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::vector<uint8_t> png_data(size);
+    if (!file.read(reinterpret_cast<char*>(png_data.data()), size)) {
+        spdlog::warn("[ThumbnailCache] Failed to read PNG data: {}", local_path);
+        // Fallback: return PNG path
+        if (on_success) {
+            on_success(png_lvgl_path);
+        }
+        return;
+    }
+    file.close();
+
+    // Queue for background processing
+    helix::ThumbnailProcessor::instance().process_async(
+        png_data, source_path, target,
+        // Success - return optimized path
+        [on_success](const std::string& lvbin_path) {
+            spdlog::debug("[ThumbnailCache] Pre-scaling complete: {}", lvbin_path);
+            if (on_success) {
+                on_success(lvbin_path);
+            }
+        },
+        // Error - fallback to PNG
+        [on_success, png_lvgl_path](const std::string& error) {
+            spdlog::warn("[ThumbnailCache] Pre-scaling failed ({}), using PNG fallback", error);
+            // Fallback: return PNG path (still works, just slower)
+            if (on_success) {
+                on_success(png_lvgl_path);
+            }
+        });
 }
