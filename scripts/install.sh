@@ -200,19 +200,20 @@ check_requirements() {
 }
 
 # Install runtime dependencies for Pi platform
-# OpenGL ES libraries needed for GPU-accelerated rendering
+# Required for DRM display and evdev input handling
 install_runtime_deps() {
     local platform=$1
 
-    # Only needed for Pi - AD5M uses framebuffer, no GPU accel
+    # Only needed for Pi - AD5M uses framebuffer with static linking
     if [ "$platform" != "pi" ]; then
         return 0
     fi
 
-    log_info "Checking runtime dependencies for GPU rendering..."
+    log_info "Checking runtime dependencies for display/input..."
 
-    # Required libraries for OpenGL ES / EGL / GBM
-    local deps="libgles2 libegl1 libgbm1 libdrm2 libinput10"
+    # Required libraries for DRM display and libinput
+    # Note: GPU libs (libgles2, libegl1, libgbm1) not needed - using software rendering
+    local deps="libdrm2 libinput10"
     local missing=""
 
     for dep in $deps; do
@@ -223,13 +224,13 @@ install_runtime_deps() {
     done
 
     if [ -n "$missing" ]; then
-        log_info "Installing missing GPU libraries: $missing"
+        log_info "Installing missing libraries: $missing"
         $SUDO apt-get update -qq
         # shellcheck disable=SC2086
         $SUDO apt-get install -y --no-install-recommends $missing
-        log_success "GPU libraries installed"
+        log_success "Runtime libraries installed"
     else
-        log_success "All GPU libraries already installed"
+        log_success "All runtime libraries already installed"
     fi
 }
 

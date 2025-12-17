@@ -31,11 +31,12 @@ ifeq ($(PLATFORM_TARGET),pi)
     TARGET_CFLAGS := -march=armv8-a -I/usr/aarch64-linux-gnu/include -I/usr/include/libdrm -Wno-error=conversion -Wno-error=sign-conversion
     DISPLAY_BACKEND := drm
     ENABLE_SDL := no
-    # OpenGL ES disabled - LVGL's implementation has C++11 raw strings in .c files
-    # and tightly couples draw backend with display driver. Software rendering via
-    # DRM is reliable and performant enough for UI. Can revisit GPU accel later.
+    # OpenGL ES disabled for LVGL UI - their implementation has C++11 raw strings
+    # in .c files and tightly couples draw backend with display driver. Software
+    # rendering via DRM is reliable and performant for UI. Can revisit GPU later.
     ENABLE_OPENGLES := no
-    ENABLE_TINYGL_3D := no
+    # TinyGL enabled for 3D G-code preview (separate from LVGL UI rendering)
+    ENABLE_TINYGL_3D := yes
     ENABLE_EVDEV := yes
     BUILD_SUBDIR := pi
     # Strip binary for size - embedded targets don't need debug symbols

@@ -255,12 +255,10 @@
 
 /* Draw using OpenGL ES textures - GPU-accelerated on Pi via DRM+EGL.
  * Uses LVGL's bundled GLAD loader for OpenGL ES function loading.
- * Requires runtime: libgles2 libegl1 libgbm1 on target system. */
+ * Currently disabled: LVGL's implementation uses C++11 raw strings in .c files. */
 #ifdef HELIX_ENABLE_OPENGLES
     #define LV_USE_DRAW_OPENGLES 1
-    #if LV_USE_DRAW_OPENGLES
-        #define LV_DRAW_OPENGLES_TEXTURE_CACHE_COUNT 64
-    #endif
+    #define LV_DRAW_OPENGLES_TEXTURE_CACHE_COUNT 64
 #else
     #define LV_USE_DRAW_OPENGLES 0
 #endif
