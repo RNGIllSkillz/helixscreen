@@ -22,6 +22,14 @@ try:
 except ImportError:
     raise ImportError("Need lz4 package. Run `make venv-setup` to install dependencies.")
 
+# Pillow is optional - only needed for resize operations
+PIL_AVAILABLE = False
+try:
+    from PIL import Image as PILImage
+    PIL_AVAILABLE = True
+except ImportError:
+    pass  # Will error at runtime if resize is requested
+
 
 def uint8_t(val) -> bytes:
     return val.to_bytes(1, byteorder='little')
@@ -51,6 +59,70 @@ def color_pre_multiply(r, g, b, a, background):
 
     return ((r * a + (255 - a) * br) >> 8, (g * a + (255 - a) * bg) >> 8,
             (b * a + (255 - a) * bb) >> 8, a)
+
+
+def resize_png(input_path: str, width: int = None, height: int = None,
+               fit: bool = False) -> str:
+    """
+    Resize a PNG image using Pillow.
+
+    Args:
+        input_path: Path to input PNG file
+        width: Target width (None to auto-calculate from height)
+        height: Target height (None to auto-calculate from width)
+        fit: If True, fit within bounds preserving aspect ratio.
+             If False, resize to exact dimensions (may distort).
+
+    Returns:
+        Path to temporary resized PNG file
+
+    Raises:
+        ImportError: If Pillow is not installed
+        ValueError: If neither width nor height is specified
+    """
+    if not PIL_AVAILABLE:
+        raise ImportError(
+            "Pillow required for resize. Run `pip install Pillow` or `make venv-setup`.")
+
+    if width is None and height is None:
+        raise ValueError("Must specify at least width or height for resize")
+
+    img = PILImage.open(input_path)
+    orig_w, orig_h = img.size
+
+    if fit:
+        # Fit within bounds, preserving aspect ratio
+        if width is None:
+            width = orig_w
+        if height is None:
+            height = orig_h
+
+        # Calculate scale to fit within target bounds
+        scale = min(width / orig_w, height / orig_h)
+        new_w = int(orig_w * scale)
+        new_h = int(orig_h * scale)
+    else:
+        # Exact resize (may distort if only one dimension given)
+        if width is None:
+            # Calculate width to preserve aspect ratio
+            width = int(orig_w * (height / orig_h))
+        if height is None:
+            # Calculate height to preserve aspect ratio
+            height = int(orig_h * (width / orig_w))
+        new_w, new_h = width, height
+
+    # Use LANCZOS for high-quality downscaling
+    resized = img.resize((new_w, new_h), PILImage.Resampling.LANCZOS)
+
+    # Write to temp file with unique name based on dimensions
+    import tempfile
+    temp_dir = tempfile.gettempdir()
+    base_name = path.splitext(path.basename(input_path))[0]
+    temp_path = path.join(temp_dir, f"{base_name}_{new_w}x{new_h}.png")
+    resized.save(temp_path, "PNG")
+
+    logging.info(f"Resized {orig_w}x{orig_h} -> {new_w}x{new_h}: {temp_path}")
+    return temp_path
 
 
 class Error(Exception):
@@ -1334,7 +1406,10 @@ class PNGConverter:
                  compress: CompressMethod = CompressMethod.NONE,
                  keep_folder=True,
                  rgb565_dither=False,
-                 nema_gfx=False) -> None:
+                 nema_gfx=False,
+                 resize_width: int = None,
+                 resize_height: int = None,
+                 resize_fit: bool = False) -> None:
         self.files = files
         self.cf = cf
         self.ofmt = ofmt
@@ -1347,6 +1422,9 @@ class PNGConverter:
         self.background = background
         self.rgb565_dither = rgb565_dither
         self.nema_gfx = nema_gfx
+        self.resize_width = resize_width
+        self.resize_height = resize_height
+        self.resize_fit = resize_fit
 
     def _replace_ext(self, input, ext, outputname: str = None):
         if self.keep_folder:
@@ -1367,20 +1445,32 @@ class PNGConverter:
             raise ValueError("Cannot specify output name when converting more than one file.")
 
         output = []
+        temp_files = []  # Track temp files for cleanup
         for f in self.files:
+            # Apply resize if requested
+            actual_input = str(f)
+            if self.resize_width is not None or self.resize_height is not None:
+                actual_input = resize_png(
+                    str(f),
+                    width=self.resize_width,
+                    height=self.resize_height,
+                    fit=self.resize_fit
+                )
+                temp_files.append(actual_input)
+
             if self.cf in (ColorFormat.RAW, ColorFormat.RAW_ALPHA):
                 # Process RAW image explicitly
-                img = RAWImage().from_file(f, self.cf)
+                img = RAWImage().from_file(actual_input, self.cf)
                 img.to_c_array(self._replace_ext(f, ".c", outputname), outputname=outputname)
             else:
-                img = LVGLImage().from_png(f, self.cf, background=self.background, rgb565_dither=self.rgb565_dither, nema_gfx=self.nema_gfx)
+                img = LVGLImage().from_png(actual_input, self.cf, background=self.background, rgb565_dither=self.rgb565_dither, nema_gfx=self.nema_gfx)
                 img.adjust_stride(align=self.align)
 
                 if self.premultiply:
                     img.premultiply()
                 output.append((f, img))
                 if self.ofmt == OutputFormat.BIN_FILE:
-                    img.to_bin(self._replace_ext(f, ".bin"),
+                    img.to_bin(self._replace_ext(f, ".bin", outputname),
                                compress=self.compress)
                 elif self.ofmt == OutputFormat.C_ARRAY:
                     img.to_c_array(self._replace_ext(f, ".c", outputname),
@@ -1388,6 +1478,13 @@ class PNGConverter:
                                    outputname=outputname)
                 elif self.ofmt == OutputFormat.PNG_FILE:
                     img.to_png(self._replace_ext(f, ".png"))
+
+        # Clean up temp files from resize operations
+        for temp_file in temp_files:
+            try:
+                os.remove(temp_file)
+            except OSError:
+                pass  # Ignore cleanup errors
 
         return output
 
@@ -1442,6 +1539,27 @@ def main():
                         default=None,
                         help="Specify name for output file. Only applies when input is a file, not a directory. (Also used for variable name inside .c file when format is 'C')")
     parser.add_argument('-v', '--verbose', action='store_true')
+
+    # Resize options (requires Pillow)
+    parser.add_argument('--resize',
+                        help="Resize image to WxH (e.g., '320x240'). Preserves aspect ratio if only width or height given.",
+                        metavar='WxH',
+                        default=None)
+    parser.add_argument('--resize-width',
+                        help="Resize to width, preserving aspect ratio",
+                        type=int,
+                        metavar='W',
+                        default=None)
+    parser.add_argument('--resize-height',
+                        help="Resize to height, preserving aspect ratio",
+                        type=int,
+                        metavar='H',
+                        default=None)
+    parser.add_argument('--resize-fit',
+                        action='store_true',
+                        help="When using --resize WxH, fit within bounds instead of exact resize",
+                        default=False)
+
     parser.add_argument(
         'input', help="the filename or folder to be recursively converted")
 
@@ -1471,6 +1589,21 @@ def main():
         ColorFormat.RAW, ColorFormat.RAW_ALPHA) else OutputFormat.C_ARRAY
     compress = CompressMethod[args.compress]
 
+    # Parse resize dimensions
+    resize_width = args.resize_width
+    resize_height = args.resize_height
+    if args.resize:
+        # Parse WxH format (e.g., "320x240")
+        try:
+            parts = args.resize.lower().split('x')
+            if len(parts) == 2:
+                resize_width = int(parts[0]) if parts[0] else None
+                resize_height = int(parts[1]) if parts[1] else None
+            else:
+                raise ValueError("Invalid format")
+        except ValueError:
+            raise ValueError(f"Invalid --resize format '{args.resize}'. Use WxH (e.g., '320x240')")
+
     converter = PNGConverter(files,
                              cf,
                              ofmt,
@@ -1481,7 +1614,10 @@ def main():
                              compress=compress,
                              keep_folder=False,
                              rgb565_dither=args.rgb565dither,
-                             nema_gfx=args.nemagfx)
+                             nema_gfx=args.nemagfx,
+                             resize_width=resize_width,
+                             resize_height=resize_height,
+                             resize_fit=args.resize_fit)
     output = converter.convert(args.name)
     for f, img in output:
         logging.info(f"len: {img.data_len} for {path.basename(f)} ")

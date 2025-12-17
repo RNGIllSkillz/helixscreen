@@ -81,10 +81,12 @@
 #include "print_completion.h"
 #include "print_history_data.h"
 #include "print_start_collector.h"
+#include "print_start_navigation.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "settings_manager.h"
 #include "sound_manager.h"
+#include "splash_screen.h"
 #include "tips_manager.h"
 #include "usb_backend_mock.h"
 #include "usb_manager.h"
@@ -326,6 +328,9 @@ struct OverlayPanels {
 // Print completion notification observer (implementation in print_completion.cpp)
 static ObserverGuard print_completion_observer;
 
+// Print start navigation observer (auto-navigate to print status when print starts from home)
+static ObserverGuard print_start_navigation_observer;
+
 // PRINT_START progress collector (monitors G-code responses during print initialization)
 static std::shared_ptr<PrintStartCollector> print_start_collector;
 static ObserverGuard print_start_observer;
@@ -450,6 +455,10 @@ static void initialize_subjects() {
     // Register print completion notification observer (watches print_state_enum for terminal
     // states) - implementation in print_completion.cpp handles panel detection
     print_completion_observer = helix::init_print_completion_observer();
+
+    // Register print start navigation observer (auto-navigate to print status when print starts
+    // and user is on home panel)
+    print_start_navigation_observer = helix::init_print_start_navigation_observer();
 
     get_global_home_panel().init_subjects();                  // Home panel data bindings
     get_global_controls_panel().init_subjects();              // Controls panel launcher
@@ -645,87 +654,6 @@ static bool init_lvgl() {
     lv_svg_decoder_init();
 
     return true;
-}
-
-// Show splash screen with HelixScreen logo
-static void show_splash_screen() {
-    spdlog::debug("[Splash] Showing splash screen");
-
-    // Get the active screen
-    lv_obj_t* screen = lv_screen_active();
-
-    // Apply theme background color (app_bg_color runtime constant set by ui_theme_init)
-    ui_theme_apply_bg_color(screen, "app_bg_color", LV_PART_MAIN);
-
-    // Disable scrollbars on screen
-    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Create centered container for logo (disable scrolling)
-    lv_obj_t* container = lv_obj_create(screen);
-    lv_obj_set_size(container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
-    lv_obj_clear_flag(container, LV_OBJ_FLAG_SCROLLABLE);         // Disable scrollbars
-    lv_obj_set_style_opa(container, LV_OPA_TRANSP, LV_PART_MAIN); // Start invisible for fade-in
-    lv_obj_center(container);
-
-    // Create image widget for logo
-    lv_obj_t* logo = lv_image_create(container);
-    const char* logo_path = "A:assets/images/helixscreen-logo.png";
-    lv_image_set_src(logo, logo_path);
-
-    // Get actual image dimensions
-    lv_image_header_t header;
-    lv_result_t res = lv_image_decoder_get_info(logo_path, &header);
-
-    if (res == LV_RESULT_OK) {
-        // Scale logo to fill more of the screen (60% of screen width)
-        lv_coord_t target_size = (SCREEN_WIDTH * 3) / 5; // 60% of screen width
-        if (SCREEN_HEIGHT < 500) {                       // Tiny screen
-            target_size = SCREEN_WIDTH / 2;              // 50% on tiny screens
-        }
-
-        // Calculate scale: (target_size * 256) / actual_width
-        // LVGL uses 1/256 scale units (256 = 100%, 128 = 50%, etc.)
-        uint32_t width = header.w;  // Copy bit-field to local var for logging
-        uint32_t height = header.h; // Copy bit-field to local var for logging
-        uint32_t scale = (static_cast<uint32_t>(target_size) * 256U) / width;
-        lv_image_set_scale(logo, scale);
-
-        spdlog::debug("[Splash] Logo: {}x{} scaled to {} (scale factor: {})", width, height,
-                      target_size, scale);
-    } else {
-        spdlog::warn("[Splash] Could not get logo dimensions, using default scale");
-        lv_image_set_scale(logo, 128); // 50% scale as fallback
-    }
-
-    // Create fade-in animation (0.5 seconds)
-    lv_anim_t anim;
-    lv_anim_init(&anim);
-    lv_anim_set_var(&anim, container);
-    lv_anim_set_values(&anim, LV_OPA_TRANSP, LV_OPA_COVER);
-    lv_anim_set_duration(&anim, 500); // 500ms = 0.5 seconds
-    lv_anim_set_path_cb(&anim, lv_anim_path_ease_in);
-    lv_anim_set_exec_cb(&anim, [](void* obj, int32_t value) {
-        lv_obj_set_style_opa((lv_obj_t*)obj, static_cast<lv_opa_t>(value), LV_PART_MAIN);
-    });
-    lv_anim_start(&anim);
-
-    // Run LVGL timer to process fade-in animation and keep splash visible
-    // Total display time: 2 seconds (including 0.5s fade-in)
-    uint32_t splash_start = helix_get_ticks();
-    uint32_t splash_duration = 2000; // 2 seconds total
-
-    while (helix_get_ticks() - splash_start < splash_duration) {
-        lv_timer_handler(); // Process animations and rendering
-        helix_delay(5);
-    }
-
-    // Clean up splash screen
-    lv_obj_delete(container);
-
-    spdlog::debug("[Splash] Splash screen complete");
 }
 
 // Save screenshot using SDL renderer
@@ -1257,8 +1185,9 @@ int main(int argc, char** argv) {
 
     // Show splash screen AFTER theme init (skip if requested via --skip-splash or --test)
     // Theme must be initialized first so app_bg_color runtime constant is available
+    // Uses pre-rendered images when available (instant display), PNG fallback otherwise
     if (!g_runtime_config.should_skip_splash()) {
-        show_splash_screen();
+        helix::show_splash_screen(SCREEN_WIDTH, SCREEN_HEIGHT);
     }
 
     // Register custom widgets (must be before XML component registration)

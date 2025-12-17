@@ -385,19 +385,21 @@ endif
 # Deploy full application to Pi and restart in background
 # Uses rsync for efficient delta transfers - only changed files are sent
 # Kills any existing instance and restarts automatically
-deploy-pi:
+# Generates pre-rendered splash images for all screen sizes (Pi can have any display)
+deploy-pi: gen-images-pi
 	@test -f build/pi/bin/helix-screen || { echo "$(RED)Error: build/pi/bin/helix-screen not found. Run 'make pi-docker' first.$(RESET)"; exit 1; }
 	@test -f build/pi/bin/helix-splash || { echo "$(RED)Error: build/pi/bin/helix-splash not found. Run 'make pi-docker' first.$(RESET)"; exit 1; }
 	@echo "$(CYAN)Deploying HelixScreen to $(PI_SSH_TARGET):$(PI_DEPLOY_DIR)...$(RESET)"
 	@echo "  Binaries: helix-screen, helix-splash"
-	@echo "  Assets: ui_xml/, assets/, config/"
-	ssh $(PI_SSH_TARGET) "mkdir -p $(PI_DEPLOY_DIR)"
+	@echo "  Assets: ui_xml/, assets/, config/, prerendered splash images"
+	ssh $(PI_SSH_TARGET) "mkdir -p $(PI_DEPLOY_DIR)/build/assets/images"
 	rsync -avz --progress \
 		build/pi/bin/helix-screen \
 		build/pi/bin/helix-splash \
 		ui_xml \
 		assets \
 		config \
+		build/assets/images/prerendered \
 		$(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/
 	@echo "$(GREEN)✓ Deployed to $(PI_HOST):$(PI_DEPLOY_DIR)$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(PI_HOST)...$(RESET)"
@@ -407,32 +409,34 @@ deploy-pi:
 
 # Deploy and run in foreground with debug logging (for interactive debugging)
 # Uses --debug for debug-level logging and --log-dest=console for immediate output
-deploy-pi-fg:
+deploy-pi-fg: gen-images-pi
 	@test -f build/pi/bin/helix-screen || { echo "$(RED)Error: build/pi/bin/helix-screen not found. Run 'make pi-docker' first.$(RESET)"; exit 1; }
 	@test -f build/pi/bin/helix-splash || { echo "$(RED)Error: build/pi/bin/helix-splash not found. Run 'make pi-docker' first.$(RESET)"; exit 1; }
 	@echo "$(CYAN)Deploying HelixScreen to $(PI_SSH_TARGET):$(PI_DEPLOY_DIR)...$(RESET)"
-	ssh $(PI_SSH_TARGET) "mkdir -p $(PI_DEPLOY_DIR)"
+	ssh $(PI_SSH_TARGET) "mkdir -p $(PI_DEPLOY_DIR)/build/assets/images"
 	rsync -avz --progress \
 		build/pi/bin/helix-screen \
 		build/pi/bin/helix-splash \
 		ui_xml \
 		assets \
 		config \
+		build/assets/images/prerendered \
 		$(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/
 	@echo "$(CYAN)Starting helix-screen on $(PI_HOST) (foreground, debug mode)...$(RESET)"
 	ssh -t $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && killall helix-screen helix-splash 2>/dev/null || true; sleep 0.5; ./config/helix-launcher.sh --debug --log-dest=console"
 
 # Deploy and run in foreground without debug logging (production mode)
-deploy-pi-quiet:
+deploy-pi-quiet: gen-images-pi
 	@test -f build/pi/bin/helix-screen || { echo "$(RED)Error: build/pi/bin/helix-screen not found. Run 'make pi-docker' first.$(RESET)"; exit 1; }
 	@test -f build/pi/bin/helix-splash || { echo "$(RED)Error: build/pi/bin/helix-splash not found. Run 'make pi-docker' first.$(RESET)"; exit 1; }
-	ssh $(PI_SSH_TARGET) "mkdir -p $(PI_DEPLOY_DIR)"
+	ssh $(PI_SSH_TARGET) "mkdir -p $(PI_DEPLOY_DIR)/build/assets/images"
 	rsync -avz --progress \
 		build/pi/bin/helix-screen \
 		build/pi/bin/helix-splash \
 		ui_xml \
 		assets \
 		config \
+		build/assets/images/prerendered \
 		$(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/
 	@echo "$(CYAN)Starting helix-screen on $(PI_HOST) (foreground)...$(RESET)"
 	ssh -t $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && killall helix-screen helix-splash 2>/dev/null || true; sleep 0.5; ./config/helix-launcher.sh"
@@ -467,16 +471,17 @@ AD5M_SSH_TARGET := $(AD5M_USER)@$(AD5M_HOST)
 # Deploy full application to AD5M and restart
 # Uses tar over SSH since scp doesn't support exclusions and AD5M has limited storage
 # Excludes test_gcodes/ and gcode/ (~170MB of dev files)
-deploy-ad5m:
+# Generates pre-rendered splash image for AD5M's fixed 800x480 display only
+deploy-ad5m: gen-images-ad5m
 	@test -f build/ad5m/bin/helix-screen || { echo "$(RED)Error: build/ad5m/bin/helix-screen not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
 	@test -f build/ad5m/bin/helix-splash || { echo "$(RED)Error: build/ad5m/bin/helix-splash not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
 	@echo "$(CYAN)Deploying HelixScreen to $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)...$(RESET)"
 	@echo "  Binaries: helix-screen, helix-splash"
-	@echo "  Assets: ui_xml/, assets/ (excl. test files), config/"
-	ssh $(AD5M_SSH_TARGET) "killall helix-screen helix-splash 2>/dev/null || true; mkdir -p $(AD5M_DEPLOY_DIR)"
+	@echo "  Assets: ui_xml/, assets/ (excl. test files), config/, prerendered splash (800x480)"
+	ssh $(AD5M_SSH_TARGET) "killall helix-screen helix-splash 2>/dev/null || true; mkdir -p $(AD5M_DEPLOY_DIR)/build/assets/images"
 	scp -O build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/
 	@echo "$(DIM)Transferring assets (excluding test files)...$(RESET)"
-	tar -cf - --exclude='test_gcodes' --exclude='gcode' --exclude='.DS_Store' ui_xml assets config | ssh $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && tar -xf -"
+	tar -cf - --exclude='test_gcodes' --exclude='gcode' --exclude='.DS_Store' ui_xml assets config build/assets/images/prerendered | ssh $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && tar -xf -"
 	@echo "$(GREEN)✓ Deployed to $(AD5M_HOST):$(AD5M_DEPLOY_DIR)$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(AD5M_HOST)...$(RESET)"
 	ssh $(AD5M_SSH_TARGET) "killall helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./helix-screen -vv > /tmp/helix.log 2>&1 &"
@@ -484,14 +489,14 @@ deploy-ad5m:
 	@echo "$(DIM)Logs: ssh $(AD5M_SSH_TARGET) 'tail -f /tmp/helix.log'$(RESET)"
 
 # Deploy and run in foreground with verbose logging (for interactive debugging)
-deploy-ad5m-fg:
+deploy-ad5m-fg: gen-images-ad5m
 	@test -f build/ad5m/bin/helix-screen || { echo "$(RED)Error: build/ad5m/bin/helix-screen not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
 	@test -f build/ad5m/bin/helix-splash || { echo "$(RED)Error: build/ad5m/bin/helix-splash not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
 	@echo "$(CYAN)Deploying HelixScreen to $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)...$(RESET)"
-	ssh $(AD5M_SSH_TARGET) "killall helix-screen helix-splash 2>/dev/null || true; mkdir -p $(AD5M_DEPLOY_DIR)"
+	ssh $(AD5M_SSH_TARGET) "killall helix-screen helix-splash 2>/dev/null || true; mkdir -p $(AD5M_DEPLOY_DIR)/build/assets/images"
 	scp -O build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/
 	@echo "$(DIM)Transferring assets (excluding test files)...$(RESET)"
-	tar -cf - --exclude='test_gcodes' --exclude='gcode' --exclude='.DS_Store' ui_xml assets config | ssh $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && tar -xf -"
+	tar -cf - --exclude='test_gcodes' --exclude='gcode' --exclude='.DS_Store' ui_xml assets config build/assets/images/prerendered | ssh $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && tar -xf -"
 	@echo "$(CYAN)Starting helix-screen on $(AD5M_HOST) (foreground, verbose)...$(RESET)"
 	ssh -t $(AD5M_SSH_TARGET) "killall helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./helix-screen -vv"
 
@@ -527,8 +532,8 @@ RELEASE_ASSETS := assets/fonts assets/images
 
 .PHONY: release-pi release-ad5m release-all release-clean
 
-# Package Pi release
-release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash
+# Package Pi release (includes all splash sizes for variable displays)
+release-pi: gen-images-pi | build/pi/bin/helix-screen build/pi/bin/helix-splash
 	@echo "$(CYAN)$(BOLD)Packaging Pi release v$(VERSION)...$(RESET)"
 	@mkdir -p $(RELEASE_DIR)/helixscreen
 	@cp build/pi/bin/helix-screen build/pi/bin/helix-splash $(RELEASE_DIR)/helixscreen/
@@ -539,15 +544,17 @@ release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash
 	@for asset in $(RELEASE_ASSETS); do \
 		if [ -d "$$asset" ]; then cp -r "$$asset" $(RELEASE_DIR)/helixscreen/assets/; fi; \
 	done
+	@mkdir -p $(RELEASE_DIR)/helixscreen/build/assets/images
+	@cp -r build/assets/images/prerendered $(RELEASE_DIR)/helixscreen/build/assets/images/
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
 	@cd $(RELEASE_DIR) && COPYFILE_DISABLE=1 tar -czvf helixscreen-pi-$(VERSION).tar.gz helixscreen
 	@rm -rf $(RELEASE_DIR)/helixscreen
 	@echo "$(GREEN)✓ Created $(RELEASE_DIR)/helixscreen-pi-$(VERSION).tar.gz$(RESET)"
 	@ls -lh $(RELEASE_DIR)/helixscreen-pi-$(VERSION).tar.gz
 
-# Package AD5M release
+# Package AD5M release (includes only 800x480 splash for fixed display)
 # Note: AD5M uses BusyBox which doesn't support tar -z, so we create uncompressed tar + gzip separately
-release-ad5m: | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
+release-ad5m: gen-images-ad5m | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
 	@echo "$(CYAN)$(BOLD)Packaging AD5M release v$(VERSION)...$(RESET)"
 	@mkdir -p $(RELEASE_DIR)/helixscreen
 	@cp build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash $(RELEASE_DIR)/helixscreen/
@@ -558,6 +565,8 @@ release-ad5m: | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
 	@for asset in $(RELEASE_ASSETS); do \
 		if [ -d "$$asset" ]; then cp -r "$$asset" $(RELEASE_DIR)/helixscreen/assets/; fi; \
 	done
+	@mkdir -p $(RELEASE_DIR)/helixscreen/build/assets/images
+	@cp -r build/assets/images/prerendered $(RELEASE_DIR)/helixscreen/build/assets/images/
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
 	@cd $(RELEASE_DIR) && COPYFILE_DISABLE=1 tar -czvf helixscreen-ad5m-$(VERSION).tar.gz helixscreen
 	@rm -rf $(RELEASE_DIR)/helixscreen

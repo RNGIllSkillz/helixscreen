@@ -561,6 +561,7 @@ include mk/deps.mk
 include mk/patches.mk
 include mk/tests.mk
 include mk/fonts.mk
+include mk/images.mk
 include mk/format.mk
 include mk/tools.mk
 include mk/display-lib.mk
