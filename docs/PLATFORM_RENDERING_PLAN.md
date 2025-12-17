@@ -603,17 +603,34 @@ Update this section after each phase:
 | Phase | Status | Started | Completed | Notes |
 |-------|--------|---------|-----------|-------|
 | 1 | ✅ Complete | 2025-12-15 | 2025-12-15 | TinyGL disabled, NEON enabled, 2D renderer API compatibility |
-| 2 | ⬜ Not Started | - | - | |
-| 3 | ⬜ Not Started | - | - | |
-| 4 | ⬜ Not Started | - | - | |
-| 5 | ⬜ Not Started | - | - | |
-| 6 | ⬜ Not Started | - | - | Image optimization - critical for AD5M perf (PNG decode bottleneck) |
+| 2 | ⬜ Not Started | - | - | Pi OpenGL ES integration |
+| 3 | ⬜ Not Started | - | - | Testing & validation |
+| 4 | ⬜ Not Started | - | - | 2D Bed Mesh Heatmap for AD5M |
+| 5 | ⬜ Not Started | - | - | 2D G-code Layer View for AD5M |
+| 6 | ✅ Complete | 2025-12-16 | 2025-12-16 | Pre-rendered splash images (~2 FPS → ~116 FPS). See docs/PRE_RENDERED_IMAGES.md |
 
 **Status Legend**: ⬜ Not Started | 🔄 In Progress | ✅ Complete | ⚠️ Blocked
 
 ### Session Log
 
 Record progress across sessions:
+
+### Session 2025-12-16
+- Phase 6: ✅ Complete (Image Asset Optimization)
+- Implementation approach changed from "sized PNGs" to "pre-rendered LVGL binary"
+- Changes made:
+  - `scripts/LVGLImage.py`: Added `--resize`, `--resize-fit` options using Pillow LANCZOS
+  - `scripts/regen_images.sh`: New script for build-time splash image pre-rendering
+  - `mk/images.mk`: New Makefile module with platform-specific targets
+  - `mk/cross.mk`: Updated deploy/release targets to include image generation
+  - `src/splash_screen.cpp`: Added pre-rendered image detection with PNG fallback
+  - `src/main.cpp`: Removed duplicate `show_splash_screen()`, now calls `helix::show_splash_screen()`
+  - `docs/PRE_RENDERED_IMAGES.md`: Full documentation
+- Key decisions:
+  - **Platform-aware generation**: AD5M only gets `small` (400px), Pi gets all sizes
+  - **Build artifacts**: Generated images in `build/assets/images/prerendered/`, not committed
+  - **Fallback mechanism**: PNG + runtime scaling if pre-rendered not found
+- Performance result: ~2 FPS → ~116 FPS during splash on AD5M
 
 ### Session 2025-12-15 (continued)
 - **Image Performance Discovery**: Benchmark proved PNG decoding is the bottleneck
