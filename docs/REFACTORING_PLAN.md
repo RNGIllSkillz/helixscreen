@@ -1288,12 +1288,12 @@ Update this table as work progresses:
 
 | Priority | Status | Progress | Completed Date | Notes |
 |----------|--------|----------|----------------|-------|
-| P1: Critical Safety | [ ] | 0% | | |
-| P2: RAII Compliance | [ ] | 0% | | |
+| P1: Critical Safety | [x] | 100% | 2025-12-16 | Timer leak fix + LvglTimerGuard RAII wrapper |
+| P2: RAII Compliance | [~] | 10% | | Example fix in ui_hsv_picker.cpp; 14+ files remaining |
 | P3: XML Tokens | [ ] | 0% | | |
 | P4: Declarative UI | [ ] | 0% | | |
 | P5: File Splitting | [ ] | 0% | | |
-| P6: Documentation | [ ] | 0% | | |
+| P6: Documentation | [~] | 50% | | Timer docs + doc consolidation in progress |
 | P7: Tooling | [ ] | 0% | | |
 
 ---
@@ -1302,5 +1302,8 @@ Update this table as work progresses:
 
 | Date | Author | Changes |
 |------|--------|---------|
+| 2025-12-16 | Claude | P1 completed: HomePanel timer fix, LvglTimerGuard RAII wrapper, ARCHITECTURE.md timer docs |
+| 2025-12-16 | Claude | P2 started: Example RAII fix in ui_hsv_picker.cpp |
+| 2025-12-16 | Claude | P6 in progress: Documentation consolidation (ARCHITECTURE.md + QUICK_REFERENCE.md) |
 | 2024-12-16 | Claude | Initial plan created from comprehensive 5-agent audit |
 
