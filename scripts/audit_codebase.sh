@@ -15,6 +15,59 @@
 # Exit codes:
 #   0 = All checks passed (or only warnings)
 #   1 = Critical violations found (with --strict, any warnings also fail)
+#
+# ============================================================================
+# ADDING NEW AUDIT CHECKS
+# ============================================================================
+#
+# This script has two modes that need to stay in sync:
+#   1. FILE MODE (lines ~124-259): Checks individual files (for pre-commit)
+#   2. FULL MODE (lines ~263-end): Scans entire codebase with thresholds
+#
+# To add a new check:
+#
+# 1. DEFINE WHAT YOU'RE CHECKING
+#    - What pattern indicates a problem? (regex for grep)
+#    - Is it an ERROR (blocks commit) or WARNING (informational)?
+#    - What files should be checked? (.cpp, .xml, ui_*.cpp, etc.)
+#
+# 2. ADD TO FULL MODE (bottom section)
+#    - Add a new section with: section "P#: Your Check Name"
+#    - Use grep to count violations: count=$(grep -rn 'pattern' path/ | wc -l)
+#    - Set a threshold: YOUR_THRESHOLD=50
+#    - Compare: if [ "$count" -gt "$YOUR_THRESHOLD" ]; then warning/error "..."; fi
+#
+# 3. ADD TO FILE MODE (top section, for pre-commit)
+#    - Add matching check inside: if [ ${#relevant_files[@]} -gt 0 ]; then
+#    - Loop over files: for f in "${relevant_files[@]}"; do ... done
+#    - Use per-file grep, not recursive
+#
+# 4. UPDATE THRESHOLDS AS CODEBASE IMPROVES
+#    - Start with current count + small buffer
+#    - Ratchet down as violations are fixed
+#
+# Example check structure (Full Mode):
+#
+#   section "P99: Example Check"
+#   set +e
+#   bad_pattern=$(grep -rn 'dangerous_function' src/ --include='*.cpp' 2>/dev/null | wc -l)
+#   set -e
+#   echo "Dangerous function calls: $bad_pattern"
+#   DANGEROUS_THRESHOLD=10
+#   if [ "$bad_pattern" -gt "$DANGEROUS_THRESHOLD" ]; then
+#       warning "Dangerous calls ($bad_pattern) exceed threshold ($DANGEROUS_THRESHOLD)"
+#   fi
+#
+# Current check categories:
+#   P1  - Memory Safety (timers, RAII)
+#   P2  - RAII Compliance (new/delete, lv_malloc)
+#   P2b - Memory Anti-Patterns (vector pointers, user_data leaks)
+#   P3  - Design Tokens (hardcoded spacing in XML)
+#   P4  - Declarative UI (event handlers, text updates, visibility)
+#   P5  - Code Organization (file size limits)
+#   --  - C++ Hardcoded Colors
+#
+# ============================================================================
 
 set -euo pipefail
 
