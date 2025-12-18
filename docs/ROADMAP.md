@@ -36,7 +36,7 @@ Support for Happy Hare and AFC-Klipper multi-filament systems with Bambu-inspire
 - [x] Phase 4.6: External Spool Bypass Support - UI and backend
 - [ ] Phase 2.6: Configurable visualization (deferred)
 - [x] Phase 3: Spoolman integration - UI complete (panel, picker, AMS integration)
-- [ ] Phase 3b: Spoolman real API - 4 Moonraker methods (small effort)
+- [x] Phase 3b: Spoolman real API - 6 Moonraker methods implemented
 - [ ] Phase 5: Print integration - Color requirements display
 - [ ] Phase 6: Error recovery wizard
 - [ ] Phase 7: Advanced features - Mapping, endless spool, calibration
@@ -83,8 +83,8 @@ All TIER 1 features are now implemented:
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| **Firmware Retraction** | ⬜ | View/adjust retraction settings |
-| **Spoolman Integration** | 🔄 | UI 100%, needs 4 API methods (~1hr work) |
+| **Firmware Retraction** | 🔄 | Toggle implemented; full settings panel TODO |
+| **Spoolman Integration** | ✅ | Complete - 6 API methods, panel, picker, AMS integration |
 | **Job Queue** | ⬜ | Batch printing queue |
 | **Update Manager** | ⬜ | Software updates via Moonraker |
 
