@@ -80,14 +80,15 @@ enum class FileSource {
  */
 struct PrintFileData {
     std::string filename;
-    std::string thumbnail_path;
-    size_t file_size_bytes;    ///< File size in bytes
-    time_t modified_timestamp; ///< Last modified timestamp
-    int print_time_minutes;    ///< Print time in minutes
-    float filament_grams;      ///< Filament weight in grams
-    std::string filament_type; ///< Filament type (e.g., "PLA", "PETG", "ABS")
-    uint32_t layer_count = 0;  ///< Total layer count from slicer
-    bool is_dir = false;       ///< True if this is a directory
+    std::string thumbnail_path;         ///< Pre-scaled .bin path for cards (fast rendering)
+    std::string original_thumbnail_url; ///< Moonraker relative URL (for detail view PNG lookup)
+    size_t file_size_bytes;             ///< File size in bytes
+    time_t modified_timestamp;          ///< Last modified timestamp
+    int print_time_minutes;             ///< Print time in minutes
+    float filament_grams;               ///< Filament weight in grams
+    std::string filament_type;          ///< Filament type (e.g., "PLA", "PETG", "ABS")
+    uint32_t layer_count = 0;           ///< Total layer count from slicer
+    bool is_dir = false;                ///< True if this is a directory
 
     // Formatted strings (cached for performance)
     std::string size_str;
@@ -267,12 +268,14 @@ class PrintSelectPanel : public PanelBase {
      * @brief Set selected file data and update subjects
      *
      * @param filename File name
-     * @param thumbnail_src Thumbnail path
+     * @param thumbnail_src Pre-scaled thumbnail path for cards (.bin)
+     * @param original_url Moonraker thumbnail URL (for detail view PNG lookup)
      * @param print_time Formatted print time
      * @param filament_weight Formatted filament weight
      * @param layer_count Formatted layer count (or "--" if unknown)
      */
-    void set_selected_file(const char* filename, const char* thumbnail_src, const char* print_time,
+    void set_selected_file(const char* filename, const char* thumbnail_src,
+                           const char* original_url, const char* print_time,
                            const char* filament_weight, const char* layer_count);
 
     /**
@@ -402,6 +405,9 @@ class PrintSelectPanel : public PanelBase {
 
     lv_subject_t selected_thumbnail_subject_;
     char selected_thumbnail_buffer_[256];
+
+    lv_subject_t selected_detail_thumbnail_subject_; ///< Full-res PNG for detail view
+    char selected_detail_thumbnail_buffer_[256];
 
     lv_subject_t selected_print_time_subject_;
     char selected_print_time_buffer_[32];

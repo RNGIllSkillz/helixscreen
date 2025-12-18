@@ -157,11 +157,20 @@ void PrintSelectPanel::init_subjects() {
     UI_SUBJECT_INIT_AND_REGISTER_STRING(selected_filename_subject_, selected_filename_buffer_, "",
                                         "selected_filename");
 
-    // Thumbnail uses POINTER subject (required by lv_image_bind_src)
+    // Card thumbnail uses POINTER subject (required by lv_image_bind_src)
+    // This is the pre-scaled .bin for fast card rendering
     strncpy(selected_thumbnail_buffer_, DEFAULT_PLACEHOLDER_THUMB,
             sizeof(selected_thumbnail_buffer_) - 1);
     UI_SUBJECT_INIT_AND_REGISTER_POINTER(selected_thumbnail_subject_, selected_thumbnail_buffer_,
                                          "selected_thumbnail");
+
+    // Detail view thumbnail - uses cached PNG for better upscaling quality
+    strncpy(selected_detail_thumbnail_buffer_, DEFAULT_PLACEHOLDER_THUMB,
+            sizeof(selected_detail_thumbnail_buffer_) - 1);
+    UI_SUBJECT_INIT_AND_REGISTER_POINTER(selected_detail_thumbnail_subject_,
+                                         selected_detail_thumbnail_buffer_,
+                                         "selected_detail_thumbnail");
+
     UI_SUBJECT_INIT_AND_REGISTER_STRING(selected_print_time_subject_, selected_print_time_buffer_,
                                         "", "selected_print_time");
     UI_SUBJECT_INIT_AND_REGISTER_STRING(selected_filament_weight_subject_,
@@ -732,6 +741,9 @@ void PrintSelectPanel::fetch_metadata_range(size_t start, size_t end) {
 
                         // Handle thumbnail with pre-scaling optimization
                         if (!d->thumb_path.empty() && self->api_) {
+                            // Store original URL for detail view PNG lookup
+                            self->file_list_[d->index].original_thumbnail_url = d->thumb_path;
+
                             if (d->thumb_is_local) {
                                 // Local file exists - use directly (mock mode)
                                 self->file_list_[d->index].thumbnail_path = "A:" + d->thumb_path;
@@ -793,6 +805,7 @@ void PrintSelectPanel::fetch_metadata_range(size_t start, size_t end) {
                             self->set_selected_file(
                                 d->filename.c_str(),
                                 self->file_list_[d->index].thumbnail_path.c_str(),
+                                self->file_list_[d->index].original_thumbnail_url.c_str(),
                                 d->print_time_str.c_str(), d->filament_str.c_str(),
                                 d->layer_count_str.c_str());
                         }
@@ -885,14 +898,41 @@ void PrintSelectPanel::navigate_up() {
 }
 
 void PrintSelectPanel::set_selected_file(const char* filename, const char* thumbnail_src,
-                                         const char* print_time, const char* filament_weight,
-                                         const char* layer_count) {
+                                         const char* original_url, const char* print_time,
+                                         const char* filament_weight, const char* layer_count) {
     lv_subject_copy_string(&selected_filename_subject_, filename);
 
-    // Thumbnail uses POINTER subject - copy to buffer then update pointer
+    // Card thumbnail uses POINTER subject - copy to buffer then update pointer
+    // This is the pre-scaled .bin for fast card rendering
     strncpy(selected_thumbnail_buffer_, thumbnail_src, sizeof(selected_thumbnail_buffer_) - 1);
     selected_thumbnail_buffer_[sizeof(selected_thumbnail_buffer_) - 1] = '\0';
     lv_subject_set_pointer(&selected_thumbnail_subject_, selected_thumbnail_buffer_);
+
+    // Detail view thumbnail - use cached PNG for better upscaling quality
+    // The PNG was downloaded by ThumbnailCache alongside the pre-scaled .bin
+    if (original_url && original_url[0] != '\0') {
+        // Look up the PNG path from the original Moonraker URL
+        std::string png_path = get_thumbnail_cache().get_if_cached(original_url);
+        if (!png_path.empty()) {
+            strncpy(selected_detail_thumbnail_buffer_, png_path.c_str(),
+                    sizeof(selected_detail_thumbnail_buffer_) - 1);
+            selected_detail_thumbnail_buffer_[sizeof(selected_detail_thumbnail_buffer_) - 1] = '\0';
+            spdlog::debug("[{}] Using cached PNG for detail view: {}", get_name(), png_path);
+        } else {
+            // Fallback to pre-scaled thumbnail if PNG not cached
+            strncpy(selected_detail_thumbnail_buffer_, thumbnail_src,
+                    sizeof(selected_detail_thumbnail_buffer_) - 1);
+            selected_detail_thumbnail_buffer_[sizeof(selected_detail_thumbnail_buffer_) - 1] = '\0';
+            spdlog::debug("[{}] PNG not cached, using pre-scaled for detail: {}", get_name(),
+                          thumbnail_src);
+        }
+    } else {
+        // No original URL - use same as card thumbnail
+        strncpy(selected_detail_thumbnail_buffer_, thumbnail_src,
+                sizeof(selected_detail_thumbnail_buffer_) - 1);
+        selected_detail_thumbnail_buffer_[sizeof(selected_detail_thumbnail_buffer_) - 1] = '\0';
+    }
+    lv_subject_set_pointer(&selected_detail_thumbnail_subject_, selected_detail_thumbnail_buffer_);
 
     lv_subject_copy_string(&selected_print_time_subject_, print_time);
     lv_subject_copy_string(&selected_filament_weight_subject_, filament_weight);
@@ -1977,8 +2017,8 @@ void PrintSelectPanel::handle_file_click(size_t file_index) {
     } else {
         // File clicked - show detail view
         set_selected_file(file.filename.c_str(), file.thumbnail_path.c_str(),
-                          file.print_time_str.c_str(), file.filament_str.c_str(),
-                          file.layer_count_str.c_str());
+                          file.original_thumbnail_url.c_str(), file.print_time_str.c_str(),
+                          file.filament_str.c_str(), file.layer_count_str.c_str());
         selected_filament_type_ = file.filament_type;
         show_detail_view();
     }

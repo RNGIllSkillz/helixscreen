@@ -25,9 +25,9 @@
                style_margin_left="#space_sm">
         <!-- Gradient background -->
         <ui_gradient_canvas width="100%" height="100%" dither="true"/>
-        <!-- Thumbnail with reactive binding -->
+        <!-- Thumbnail with reactive binding - uses cached PNG for better upscaling quality -->
         <lv_image name="detail_thumbnail"
-                  width="100%" height="100%" bind_src="selected_thumbnail" style_bg_opa="0" align="center"
+                  width="100%" height="100%" bind_src="selected_detail_thumbnail" style_bg_opa="0" align="center"
                   inner_align="contain" style_translate_y="-20%"/>
         <!-- Metadata clip container - clips top rounded corners of inner overlay -->
         <lv_obj name="detail_metadata_clip"
