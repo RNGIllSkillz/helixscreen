@@ -633,15 +633,10 @@ void MoonrakerClient::emit_event(MoonrakerEventType type, const std::string& mes
 }
 
 void MoonrakerClient::dispatch_status_update(const json& status) {
-    fprintf(stderr, "[DEBUG] dispatch_status_update called, status keys: %zu\n", status.size());
-    fflush(stderr);
-
     // Parse bed mesh data before dispatching (mirrors WebSocket handler behavior)
     // This ensures bed mesh is populated on initial subscription response,
     // not just on subsequent notify_status_update messages
     if (status.contains("bed_mesh") && status["bed_mesh"].is_object()) {
-        fprintf(stderr, "[DEBUG] parsing bed_mesh\n");
-        fflush(stderr);
         parse_bed_mesh(status["bed_mesh"]);
 
         // Also extract build volume from bed_mesh bounds for printer detection
@@ -688,18 +683,10 @@ void MoonrakerClient::dispatch_status_update(const json& status) {
         }
     }
 
-    fprintf(stderr, "[DEBUG] invoking %zu callbacks\n", callbacks_copy.size());
-    fflush(stderr);
-    int cb_idx = 0;
     for (const auto& cb : callbacks_copy) {
         if (cb) {
-            fprintf(stderr, "[DEBUG] calling callback %d\n", cb_idx);
-            fflush(stderr);
             cb(notification);
-            fprintf(stderr, "[DEBUG] callback %d returned\n", cb_idx);
-            fflush(stderr);
         }
-        cb_idx++;
     }
 
     spdlog::debug("[Moonraker Client] Dispatched status update to {} callbacks",
@@ -1181,6 +1168,14 @@ void MoonrakerClient::complete_discovery_subscription(std::function<void()> on_c
     if (capabilities_.has_firmware_retraction()) {
         subscription_objects["firmware_retraction"] = nullptr;
     }
+
+    // Print start macros (for detecting when prep phase completes)
+    // These are optional - printers without these macros will silently not receive updates
+    // AD5M/KAMP macros:
+    subscription_objects["gcode_macro _START_PRINT"] = nullptr;
+    subscription_objects["gcode_macro START_PRINT"] = nullptr;
+    // HelixScreen custom macro:
+    subscription_objects["gcode_macro _HELIX_STATE"] = nullptr;
 
     json subscribe_params = {{"objects", subscription_objects}};
 

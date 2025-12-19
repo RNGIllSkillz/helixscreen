@@ -1082,18 +1082,42 @@ void PrinterState::set_print_start_state(PrintStartPhase phase, const char* mess
     spdlog::debug("[PrinterState] Print start: phase={}, message='{}', progress={}%",
                   static_cast<int>(phase), message ? message : "", progress);
 
-    lv_subject_set_int(&print_start_phase_, static_cast<int>(phase));
-    if (message) {
-        lv_subject_copy_string(&print_start_message_, message);
-    }
-    lv_subject_set_int(&print_start_progress_, std::clamp(progress, 0, 100));
+    // CRITICAL: Defer to main thread via lv_async_call to avoid LVGL assertion
+    // when subject updates trigger lv_obj_invalidate() during rendering.
+    // This is called from WebSocket callbacks (background thread).
+    struct Ctx {
+        PrinterState* ps;
+        PrintStartPhase phase;
+        std::string message;
+        int progress;
+    };
+    auto* ctx = new Ctx{this, phase, message ? message : "", std::clamp(progress, 0, 100)};
+    lv_async_call(
+        [](void* user_data) {
+            auto* c = static_cast<Ctx*>(user_data);
+            lv_subject_set_int(&c->ps->print_start_phase_, static_cast<int>(c->phase));
+            if (!c->message.empty()) {
+                lv_subject_copy_string(&c->ps->print_start_message_, c->message.c_str());
+            }
+            lv_subject_set_int(&c->ps->print_start_progress_, c->progress);
+            delete c;
+        },
+        ctx);
 }
 
 void PrinterState::reset_print_start_state() {
-    if (is_in_print_start()) {
-        spdlog::info("[PrinterState] Resetting print start state to IDLE");
-        lv_subject_set_int(&print_start_phase_, static_cast<int>(PrintStartPhase::IDLE));
-        lv_subject_copy_string(&print_start_message_, "");
-        lv_subject_set_int(&print_start_progress_, 0);
-    }
+    // CRITICAL: Defer to main thread via lv_async_call
+    lv_async_call(
+        [](void* user_data) {
+            auto* ps = static_cast<PrinterState*>(user_data);
+            int phase = lv_subject_get_int(&ps->print_start_phase_);
+            if (phase != static_cast<int>(PrintStartPhase::IDLE)) {
+                spdlog::info("[PrinterState] Resetting print start state to IDLE");
+                lv_subject_set_int(&ps->print_start_phase_,
+                                   static_cast<int>(PrintStartPhase::IDLE));
+                lv_subject_copy_string(&ps->print_start_message_, "");
+                lv_subject_set_int(&ps->print_start_progress_, 0);
+            }
+        },
+        this);
 }

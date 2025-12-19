@@ -7,7 +7,9 @@
 #include "printer_state.h"
 
 #include <atomic>
+#include <chrono>
 #include <memory>
+#include <mutex>
 #include <regex>
 #include <set>
 #include <string>
@@ -74,6 +76,23 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      */
     void reset();
 
+    /**
+     * @brief Check fallback completion conditions
+     *
+     * Called by observers when layer count or progress changes.
+     * Checks multiple fallback signals for printers that don't emit
+     * layer markers in G-code responses (e.g., FlashForge AD5M).
+     */
+    void check_fallback_completion();
+
+    /**
+     * @brief Enable fallback detection after initial G-code response window
+     *
+     * Called shortly after start() to enable fallback signals.
+     * Gives G-code response detection priority for the first few seconds.
+     */
+    void enable_fallbacks();
+
   private:
     /**
      * @brief Phase pattern for regex matching
@@ -106,6 +125,11 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     int calculate_progress() const;
 
     /**
+     * @brief Calculate progress (must be called with state_mutex_ held)
+     */
+    int calculate_progress_locked() const;
+
+    /**
      * @brief Check for PRINT_START start marker
      */
     bool is_print_start_marker(const std::string& line) const;
@@ -124,13 +148,26 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     std::atomic<bool> active_{false};
     std::atomic<bool> registered_{false};
 
-    // Phase tracking
+    // Thread safety: protects all non-atomic members below
+    // WebSocket callbacks run on background thread, check_fallback_completion() runs on main thread
+    mutable std::mutex state_mutex_;
+
+    // Phase tracking (protected by state_mutex_)
     std::set<PrintStartPhase> detected_phases_;
     PrintStartPhase current_phase_ = PrintStartPhase::IDLE;
     bool print_start_detected_ = false;
+    std::chrono::steady_clock::time_point printing_state_start_;
 
-    // Static phase patterns (initialized once)
+    // Static phase patterns (initialized once, immutable after)
     static const std::vector<PhasePattern> phase_patterns_;
     static const std::regex print_start_pattern_;
     static const std::regex completion_pattern_;
+
+    // Fallback detection constants
+    static constexpr auto FALLBACK_TIMEOUT = std::chrono::seconds(45);
+    static constexpr int TEMP_TOLERANCE_DECIDEGREES = 50; // 5°C (temps stored as value * 10)
+
+    // Fallback detection state (for printers without G-code layer markers)
+    std::atomic<bool> fallbacks_enabled_{false};
+    std::atomic<SubscriptionId> macro_subscription_id_{0};
 };

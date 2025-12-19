@@ -65,8 +65,9 @@ const std::regex
                                               std::regex::icase);
 
 // Pattern to detect print start completion (first layer indicator)
+// Includes HELIX:PRINT_STARTED for our custom macro integration
 const std::regex PrintStartCollector::completion_pattern_(
-    R"(SET_PRINT_STATS_INFO\s+CURRENT_LAYER=|LAYER:?\s*1\b|;LAYER:1|First layer)",
+    R"(SET_PRINT_STATS_INFO\s+CURRENT_LAYER=|LAYER:?\s*1\b|;LAYER:1|First layer|HELIX:PRINT_STARTED)",
     std::regex::icase);
 
 // ============================================================================
@@ -97,14 +98,68 @@ void PrintStartCollector::start() {
         return;
     }
 
-    // Generate unique handler name
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        // Record start time for timeout fallback
+        printing_state_start_ = std::chrono::steady_clock::now();
+        detected_phases_.clear();
+        current_phase_ = PrintStartPhase::IDLE;
+        print_start_detected_ = false;
+    }
+    fallbacks_enabled_.store(false); // Will be enabled after initial window
+
+    // Generate unique handler name for G-code response callback
     static std::atomic<uint64_t> s_collector_id{0};
     handler_name_ = "print_start_collector_" + std::to_string(++s_collector_id);
 
-    // Register for G-code responses
+    // Register for G-code responses (primary detection method)
     auto self = shared_from_this();
     client_.register_method_callback("notify_gcode_response", handler_name_,
                                      [self](const json& msg) { self->on_gcode_response(msg); });
+
+    // Register for printer status updates (fallback for printers with KAMP/custom macros)
+    // This watches for _START_PRINT.print_started, START_PRINT.preparation_done, etc.
+    macro_subscription_id_ = client_.register_notify_update([self](const json& notification) {
+        if (!self->active_.load())
+            return;
+
+        if (!notification.contains("params") || !notification["params"].is_array() ||
+            notification["params"].empty()) {
+            return;
+        }
+
+        const auto& status = notification["params"][0];
+
+        // Check _START_PRINT.print_started (AD5M KAMP macro)
+        if (status.contains("gcode_macro _START_PRINT")) {
+            const auto& macro = status["gcode_macro _START_PRINT"];
+            if (macro.contains("print_started") && macro["print_started"].get<bool>()) {
+                spdlog::info("[PrintStartCollector] Macro signal: print_started=true");
+                self->update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+                return;
+            }
+        }
+
+        // Check START_PRINT.preparation_done
+        if (status.contains("gcode_macro START_PRINT")) {
+            const auto& macro = status["gcode_macro START_PRINT"];
+            if (macro.contains("preparation_done") && macro["preparation_done"].get<bool>()) {
+                spdlog::info("[PrintStartCollector] Macro signal: preparation_done=true");
+                self->update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+                return;
+            }
+        }
+
+        // Check _HELIX_STATE.print_started (our custom macro)
+        if (status.contains("gcode_macro _HELIX_STATE")) {
+            const auto& macro = status["gcode_macro _HELIX_STATE"];
+            if (macro.contains("print_started") && macro["print_started"].get<bool>()) {
+                spdlog::info("[PrintStartCollector] Helix macro signal: print_started=true");
+                self->update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+                return;
+            }
+        }
+    });
 
     registered_.store(true);
     active_.store(true);
@@ -116,28 +171,113 @@ void PrintStartCollector::start() {
 }
 
 void PrintStartCollector::stop() {
+    // Mark inactive first to stop callbacks from processing
+    bool was_active = active_.exchange(false);
     bool was_registered = registered_.exchange(false);
+
     if (was_registered) {
         client_.unregister_method_callback("notify_gcode_response", handler_name_);
-        spdlog::debug("[PrintStartCollector] Unregistered callback");
+        spdlog::debug("[PrintStartCollector] Unregistered G-code callback");
     }
 
-    if (active_.exchange(false)) {
+    // Unregister macro subscription using atomic exchange to prevent double-unsubscribe
+    SubscriptionId sub_id = macro_subscription_id_.exchange(0);
+    if (sub_id != 0) {
+        client_.unsubscribe_notify_update(sub_id);
+        spdlog::debug("[PrintStartCollector] Unsubscribed from status updates");
+    }
+
+    fallbacks_enabled_.store(false);
+
+    if (was_active) {
         state_.reset_print_start_state();
         spdlog::info("[PrintStartCollector] Stopped monitoring");
     }
 }
 
 void PrintStartCollector::reset() {
-    detected_phases_.clear();
-    current_phase_ = PrintStartPhase::IDLE;
-    print_start_detected_ = false;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        detected_phases_.clear();
+        current_phase_ = PrintStartPhase::IDLE;
+        print_start_detected_ = false;
+        printing_state_start_ = std::chrono::steady_clock::now();
+    }
+    fallbacks_enabled_.store(false);
 
     if (active_.load()) {
         state_.set_print_start_state(PrintStartPhase::INITIALIZING, "Preparing Print...", 0);
     }
 
     spdlog::debug("[PrintStartCollector] Reset state");
+}
+
+void PrintStartCollector::enable_fallbacks() {
+    if (!active_.load())
+        return;
+
+    fallbacks_enabled_.store(true);
+    spdlog::debug("[PrintStartCollector] Fallback detection enabled");
+
+    // Immediately check if any fallback conditions are already met
+    check_fallback_completion();
+}
+
+void PrintStartCollector::check_fallback_completion() {
+    if (!active_.load() || !fallbacks_enabled_.load()) {
+        return;
+    }
+
+    // Check current phase under lock
+    std::chrono::steady_clock::time_point start_time;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        // Already complete - nothing to do
+        if (current_phase_ == PrintStartPhase::COMPLETE) {
+            return;
+        }
+        start_time = printing_state_start_;
+    }
+
+    // Fallback 1: Layer count (slicer-dependent but reliable when present)
+    int layer = lv_subject_get_int(state_.get_print_layer_current_subject());
+    if (layer >= 1) {
+        spdlog::info("[PrintStartCollector] Fallback: layer {} detected", layer);
+        update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+        return;
+    }
+
+    // Get temperature data for remaining fallback checks
+    int ext_temp = lv_subject_get_int(state_.get_extruder_temp_subject());
+    int ext_target = lv_subject_get_int(state_.get_extruder_target_subject());
+    int bed_temp = lv_subject_get_int(state_.get_bed_temp_subject());
+    int bed_target = lv_subject_get_int(state_.get_bed_target_subject());
+
+    // Temps are in decidegrees (value * 10), targets may be 0 if not set
+    // TEMP_TOLERANCE_DECIDEGREES = 50 = 5°C
+    bool temps_ready = (ext_target <= 0 || ext_temp >= ext_target - TEMP_TOLERANCE_DECIDEGREES) &&
+                       (bed_target <= 0 || bed_temp >= bed_target - TEMP_TOLERANCE_DECIDEGREES);
+
+    // Fallback 2: Progress threshold with temps at target
+    // 2% progress means file has advanced past typical preamble/macros
+    int progress = lv_subject_get_int(state_.get_print_progress_subject());
+    if (progress >= 2 && temps_ready) {
+        spdlog::info("[PrintStartCollector] Fallback: progress {}% with temps ready", progress);
+        update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+        return;
+    }
+
+    // Fallback 3: Timeout with temps near target (90% of target)
+    bool temps_near = (ext_target <= 0 || ext_temp >= static_cast<int>(ext_target * 0.9)) &&
+                      (bed_target <= 0 || bed_temp >= static_cast<int>(bed_target * 0.9));
+
+    auto elapsed = std::chrono::steady_clock::now() - start_time;
+    if (elapsed > FALLBACK_TIMEOUT && temps_near) {
+        auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
+        spdlog::info("[PrintStartCollector] Fallback: timeout ({} sec)", elapsed_sec);
+        update_phase(PrintStartPhase::COMPLETE, "Starting Print...");
+        return;
+    }
 }
 
 // ============================================================================
@@ -164,8 +304,15 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
     spdlog::trace("[PrintStartCollector] G-code: {}", line);
 
     // Check for PRINT_START marker (once per session)
-    if (!print_start_detected_ && is_print_start_marker(line)) {
-        print_start_detected_ = true;
+    bool should_set_initializing = false;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        if (!print_start_detected_ && is_print_start_marker(line)) {
+            print_start_detected_ = true;
+            should_set_initializing = true;
+        }
+    }
+    if (should_set_initializing) {
         update_phase(PrintStartPhase::INITIALIZING, "Starting Print...");
         spdlog::info("[PrintStartCollector] PRINT_START detected");
         return;
@@ -187,8 +334,15 @@ void PrintStartCollector::check_phase_patterns(const std::string& line) {
     for (const auto& pattern : phase_patterns_) {
         if (std::regex_search(line, pattern.pattern)) {
             // Only update if this is a new phase
-            if (detected_phases_.find(pattern.phase) == detected_phases_.end()) {
-                detected_phases_.insert(pattern.phase);
+            bool is_new_phase = false;
+            {
+                std::lock_guard<std::mutex> lock(state_mutex_);
+                if (detected_phases_.find(pattern.phase) == detected_phases_.end()) {
+                    detected_phases_.insert(pattern.phase);
+                    is_new_phase = true;
+                }
+            }
+            if (is_new_phase) {
                 update_phase(pattern.phase, pattern.message);
 
                 spdlog::debug("[PrintStartCollector] Detected phase: {} (progress: {}%)",
@@ -200,12 +354,22 @@ void PrintStartCollector::check_phase_patterns(const std::string& line) {
 }
 
 void PrintStartCollector::update_phase(PrintStartPhase phase, const char* message) {
-    current_phase_ = phase;
-    int progress = calculate_progress();
+    int progress;
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        current_phase_ = phase;
+        progress = calculate_progress_locked();
+    }
+    // Call PrinterState outside the lock to avoid potential deadlocks
     state_.set_print_start_state(phase, message, progress);
 }
 
 int PrintStartCollector::calculate_progress() const {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    return calculate_progress_locked();
+}
+
+int PrintStartCollector::calculate_progress_locked() const {
     int total_weight = 0;
 
     for (const auto& pattern : phase_patterns_) {

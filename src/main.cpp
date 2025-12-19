@@ -368,6 +368,10 @@ static std::shared_ptr<PrintStartCollector> print_start_collector;
 static ObserverGuard print_start_observer;
 static ObserverGuard print_start_phase_observer;
 
+// Fallback observers for print start completion (for printers without G-code layer markers)
+static ObserverGuard print_layer_fallback_observer;
+static ObserverGuard print_progress_fallback_observer;
+
 const RuntimeConfig& get_runtime_config() {
     return g_runtime_config;
 }
@@ -956,7 +960,9 @@ static void initialize_moonraker_client(Config* config) {
                 if (!print_start_collector->is_active()) {
                     print_start_collector->reset();
                     print_start_collector->start();
-                    spdlog::info("[main] PRINT_START collector started");
+                    // Enable fallback detection immediately (macro detection is primary fallback)
+                    print_start_collector->enable_fallbacks();
+                    spdlog::info("[main] PRINT_START collector started with fallbacks enabled");
                 }
             } else {
                 // Any non-printing state stops the collector
@@ -984,6 +990,31 @@ static void initialize_moonraker_client(Config* config) {
             }
         },
         nullptr);
+
+    // Fallback observers for printers that don't emit layer markers in G-code responses
+    // (e.g., FlashForge AD5M). These trigger check_fallback_completion() when layer count
+    // or print progress changes.
+    print_layer_fallback_observer = ObserverGuard(
+        get_printer_state().get_print_layer_current_subject(),
+        [](lv_observer_t* /*observer*/, lv_subject_t* /*subject*/) {
+            if (print_start_collector && print_start_collector->is_active()) {
+                print_start_collector->check_fallback_completion();
+            }
+        },
+        nullptr);
+
+    print_progress_fallback_observer = ObserverGuard(
+        get_printer_state().get_print_progress_subject(),
+        [](lv_observer_t* /*observer*/, lv_subject_t* /*subject*/) {
+            if (print_start_collector && print_start_collector->is_active()) {
+                print_start_collector->check_fallback_completion();
+            }
+        },
+        nullptr);
+
+    // Enable fallbacks shortly after collector starts (give G-code response detection priority)
+    // This is done via a timer that fires 5 seconds after the collector starts
+    // For now, we enable fallbacks immediately since macro detection is the primary fallback
 
     // Test print history API if requested (for Stage 1 validation)
     if (get_runtime_config().test_history_api) {
