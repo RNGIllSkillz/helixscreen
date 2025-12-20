@@ -62,6 +62,8 @@
 #   P1  - Memory Safety (timers, RAII)
 #   P2  - RAII Compliance (new/delete, lv_malloc)
 #   P2b - Memory Anti-Patterns (vector pointers, user_data leaks)
+#   P2c - LVGL Shutdown Safety (manual cleanup calls)
+#   P2d - spdlog in Destructors (crashes after shutdown)
 #   P3  - Design Tokens (hardcoded spacing in XML)
 #   P4  - Declarative UI (event handlers, text updates, visibility)
 #   P5  - Code Organization (file size limits)
@@ -247,6 +249,80 @@ if [ "$FILE_MODE" = true ]; then
     fi
 
     #
+    # === P2c: LVGL Shutdown Safety (per-file, CRITICAL) ===
+    #
+    # These LVGL cleanup functions cause double-free crashes because lv_deinit()
+    # already handles them internally. This check prevents this bug from regressing.
+    #
+    if [ ${#cpp_files[@]} -gt 0 ]; then
+        section "P2c: LVGL Shutdown Safety"
+
+        for f in "${cpp_files[@]}"; do
+            fname=$(basename "$f")
+
+            # Check for manual lv_display_delete (lv_deinit iterates and deletes all displays)
+            # Exclude comments (lines with //)
+            set +e
+            display_delete=$(grep -n 'lv_display_delete' "$f" 2>/dev/null | grep -v '//')
+            set -e
+            if [ -n "$display_delete" ]; then
+                error "$fname: uses lv_display_delete() - lv_deinit() handles this, causes double-free"
+                echo "$display_delete" | head -3
+            fi
+
+            # Check for manual lv_group_delete (lv_deinit calls lv_group_deinit)
+            set +e
+            group_delete=$(grep -n 'lv_group_delete' "$f" 2>/dev/null | grep -v '//')
+            set -e
+            if [ -n "$group_delete" ]; then
+                error "$fname: uses lv_group_delete() - lv_deinit() handles this, causes crash on dangling pointers"
+                echo "$group_delete" | head -3
+            fi
+
+            # Check for manual lv_indev_delete (also managed by lv_deinit)
+            set +e
+            indev_delete=$(grep -n 'lv_indev_delete' "$f" 2>/dev/null | grep -v '//')
+            set -e
+            if [ -n "$indev_delete" ]; then
+                error "$fname: uses lv_indev_delete() - lv_deinit() handles this, causes double-free"
+                echo "$indev_delete" | head -3
+            fi
+        done
+
+        if [ "$ERRORS" -eq 0 ]; then
+            success "No dangerous LVGL cleanup calls found"
+        fi
+    fi
+
+    #
+    # === P2d: spdlog Shutdown Guard (per-file, CRITICAL) ===
+    #
+    # Application::shutdown() must have a guard to prevent double-shutdown.
+    # Objects destroyed after spdlog::shutdown() can't log safely.
+    #
+    if [ ${#cpp_files[@]} -gt 0 ]; then
+        section "P2d: spdlog Shutdown Safety"
+
+        for f in "${cpp_files[@]}"; do
+            fname=$(basename "$f")
+
+            # Only check application shutdown files - most destructors run before spdlog::shutdown
+            if [[ "$fname" == "application.cpp" ]]; then
+                set +e
+                has_shutdown=$(grep -l 'spdlog::shutdown' "$f" 2>/dev/null)
+                has_guard=$(grep -l 'm_shutdown_complete\|shutdown_complete' "$f" 2>/dev/null)
+                set -e
+
+                if [ -n "$has_shutdown" ] && [ -z "$has_guard" ]; then
+                    error "$fname: calls spdlog::shutdown() but has no shutdown guard (causes double-shutdown crash)"
+                fi
+            fi
+        done
+
+        success "Shutdown safety check complete"
+    fi
+
+    #
     # === P3: Design Tokens (per-file) ===
     #
     if [ ${#xml_files[@]} -gt 0 ]; then
@@ -428,6 +504,73 @@ for f in src/ui_*.cpp; do
 done
 if [ "$userdata_leak_risk" -eq 0 ]; then
     success "All user_data allocations have DELETE handlers"
+fi
+
+#
+# === P2c: LVGL Shutdown Safety (Critical) ===
+#
+# These LVGL cleanup functions cause double-free crashes because lv_deinit()
+# already handles them internally. See display_manager.cpp comments.
+#
+section "P2c: LVGL Shutdown Safety"
+
+echo "Checking for dangerous manual LVGL cleanup calls:"
+# Exclude comments (lines starting with // or containing NOTE:)
+set +e
+lv_display_delete_count=$(grep -rn 'lv_display_delete' src/ --include='*.cpp' 2>/dev/null | grep -v '^\s*//' | grep -v 'NOTE:' | grep -v '^[^:]*:[^:]*:\s*//' | wc -l | tr -d ' ')
+lv_group_delete_count=$(grep -rn 'lv_group_delete' src/ --include='*.cpp' 2>/dev/null | grep -v '^\s*//' | grep -v 'NOTE:' | grep -v '^[^:]*:[^:]*:\s*//' | wc -l | tr -d ' ')
+lv_indev_delete_count=$(grep -rn 'lv_indev_delete' src/ --include='*.cpp' 2>/dev/null | grep -v '^\s*//' | grep -v 'NOTE:' | grep -v '^[^:]*:[^:]*:\s*//' | wc -l | tr -d ' ')
+set -e
+
+echo "  lv_display_delete: $lv_display_delete_count (should be 0)"
+echo "  lv_group_delete:   $lv_group_delete_count (should be 0)"
+echo "  lv_indev_delete:   $lv_indev_delete_count (should be 0)"
+
+total_dangerous=$((lv_display_delete_count + lv_group_delete_count + lv_indev_delete_count))
+if [ "$total_dangerous" -gt 0 ]; then
+    error "Found $total_dangerous dangerous LVGL cleanup calls - these cause double-free crashes!"
+    echo ""
+    echo "EXPLANATION: lv_deinit() already cleans up all displays, groups, and input devices."
+    echo "Manually calling these functions causes double-free or dangling pointer crashes."
+    echo ""
+    echo "Violations:"
+    set +e
+    grep -rn 'lv_display_delete\|lv_group_delete\|lv_indev_delete' src/ --include='*.cpp' 2>/dev/null | head -10
+    set -e
+else
+    success "No dangerous LVGL cleanup calls found"
+fi
+
+#
+# === P2d: spdlog Shutdown Guard ===
+#
+# Application::shutdown() must have a guard to prevent double-shutdown.
+# Most destructors run before spdlog::shutdown(), so we only check the
+# Application shutdown path which is the high-risk area.
+#
+section "P2d: spdlog Shutdown Safety"
+
+echo "Checking application shutdown guard..."
+set +e
+app_file=$(find src/ -name "application.cpp" 2>/dev/null | head -1)
+set -e
+
+if [ -n "$app_file" ] && [ -f "$app_file" ]; then
+    set +e
+    has_shutdown=$(grep -l 'spdlog::shutdown' "$app_file" 2>/dev/null)
+    has_guard=$(grep -l 'm_shutdown_complete\|shutdown_complete' "$app_file" 2>/dev/null)
+    set -e
+
+    if [ -n "$has_shutdown" ] && [ -z "$has_guard" ]; then
+        error "application.cpp: calls spdlog::shutdown() but has no shutdown guard!"
+        echo ""
+        echo "This causes crashes when shutdown() is called multiple times."
+        echo "Add a guard like: if (m_shutdown_complete) return; m_shutdown_complete = true;"
+    else
+        success "Application shutdown has proper guard"
+    fi
+else
+    echo "ℹ️  application.cpp not found - skipping"
 fi
 
 #

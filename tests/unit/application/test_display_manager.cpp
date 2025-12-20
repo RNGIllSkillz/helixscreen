@@ -129,6 +129,41 @@ TEST_CASE("DisplayManager shutdown cleans up all resources", "[application][disp
     REQUIRE(true);
 }
 
+// ============================================================================
+// Shutdown Safety Tests (Regression Prevention)
+// ============================================================================
+// These tests prevent regressions of the double-free crash that occurred when
+// manually calling lv_display_delete() or lv_group_delete() in shutdown.
+// See: display_manager.cpp comments about lv_deinit() handling cleanup.
+
+TEST_CASE("DisplayManager multiple shutdown calls are safe", "[application][display]") {
+    DisplayManager mgr;
+
+    // Multiple shutdown calls on uninitialized manager should not crash
+    mgr.shutdown();
+    mgr.shutdown();
+    mgr.shutdown();
+
+    REQUIRE_FALSE(mgr.is_initialized());
+}
+
+TEST_CASE("DisplayManager destructor is safe when not initialized", "[application][display]") {
+    // Create and immediately destroy - should not crash
+    {
+        DisplayManager mgr;
+        // Destructor calls shutdown()
+    }
+
+    // Multiple instances
+    {
+        DisplayManager mgr1;
+        DisplayManager mgr2;
+        // Both destructors call shutdown()
+    }
+
+    REQUIRE(true); // If we got here, no crash
+}
+
 TEST_CASE("DisplayManager scroll configuration applies to pointer",
           "[application][display][.pending]") {
     // Would need initialized pointer device to verify

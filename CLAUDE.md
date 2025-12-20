@@ -82,6 +82,7 @@
 | 15 | **NO lv_label_set_text for data** | `lv_label_set_text(lbl, "value")` | Subject binding: `<text_body bind_text="my_subject"/>` |
 | 16 | **NO inline styling** | `lv_obj_set_style_bg_color(obj, ...)` | XML design tokens: `style_bg_color="#card_bg"` |
 | 17 | **Observer cleanup in DELETE** | Free struct with subjects | Save & remove observers first (see Rule 17 below) |
+| 18 | **NO manual LVGL cleanup** | `lv_display_delete()`, `lv_group_delete()` | Just call `lv_deinit()` - it handles everything |
 
 **Rule 1 - Design Tokens (MANDATORY):**
 
@@ -228,6 +229,8 @@ lv_xml_register_widget()               // was: lv_xml_widget_register
 5. **Component names = filename** - `nozzle_temp_panel.xml` → component name is `nozzle_temp_panel`
 6. **WebSocket callbacks = background thread** - libhv callbacks run on a separate thread. NEVER call `lv_subject_set_*()` directly - use `lv_async_call()` to defer to main thread. See `printer_state.cpp` for the `set_*_internal()` pattern.
 7. **Deferred dependency propagation** - When `set_X()` updates a member, also update child objects that cached the old value. Example: `PrintSelectPanel::set_api()` must call `file_provider_->set_api()` because `file_provider_` was created with nullptr.
+8. **LVGL shutdown order** - NEVER call `lv_display_delete()`, `lv_group_delete()`, or `lv_indev_delete()` manually. `lv_deinit()` handles all cleanup internally. Manual calls cause double-free crashes. See `display_manager.cpp` comments.
+9. **Application shutdown guard** - `Application::shutdown()` must guard against double-calls with `m_shutdown_complete` flag. Without it, the destructor calls shutdown again after `spdlog::shutdown()`, causing SIGABRT in `fmt::detail::throw_format_error`.
 
 ---
 
