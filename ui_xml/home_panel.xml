@@ -51,7 +51,8 @@
                 style_pad_all="0" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center">
           <lv_obj-bind_flag_if_eq subject="printer_info_visible" flag="hidden" ref_value="0"/>
           <text_small width="100%"
-                      bind_text="printer_type_text" style_text_color="#text_primary" style_text_align="center"/>
+                      bind_text="printer_type_text" style_text_color="#text_primary" style_text_align="center"
+                      stroke_width="1" stroke_color="#000000" stroke_opa="180"/>
         </lv_obj>
       </lv_obj>
       <!-- Status Message with accent bar (flex-grows to fill remaining horizontal space) -->
