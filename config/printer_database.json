@@ -81,9 +81,16 @@
         {
           "type": "led_match",
           "field": "leds",
-          "pattern": "led_strip",
+          "pattern": "chamber_led",
           "confidence": 97,
           "reason": "LED chamber light (AD5M Pro exclusive - regular 5M doesn't have this)"
+        },
+        {
+          "type": "led_match",
+          "field": "leds",
+          "pattern": "led_strip",
+          "confidence": 97,
+          "reason": "LED strip chamber light (AD5M Pro exclusive)"
         },
         {
           "type": "led_match",
