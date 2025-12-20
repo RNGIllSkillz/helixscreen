@@ -4,18 +4,21 @@
 # SysV init script for HelixScreen
 # For use on systems without systemd (e.g., FlashForge AD5M with BusyBox init)
 #
-# Installation (AD5M):
-#   cp /opt/helixscreen/config/helixscreen.init /etc/init.d/S90helixscreen
-#   chmod +x /etc/init.d/S90helixscreen
+# Installation varies by firmware:
+#   Forge-X:      /etc/init.d/S90helixscreen -> /opt/helixscreen
+#   Klipper Mod:  /etc/init.d/S80helixscreen -> /root/printer_software/helixscreen
+#
+# The install.sh script automatically selects the correct paths.
+# DAEMON_DIR below is updated by the installer to match the install location.
 #
 # Usage:
-#   /etc/init.d/S90helixscreen start|stop|restart|status
+#   /etc/init.d/S*helixscreen start|stop|restart|status
 #
-# Note: S90 prefix ensures we start after network (S40) and other services
+# Note: S80/S90 prefix ensures we start after network and Moonraker
 
 NAME="helixscreen"
 DESC="HelixScreen 3D Printer Touch UI"
-DAEMON_DIR="/opt/helixscreen"
+DAEMON_DIR="/opt/helixscreen"  # Updated by installer for different firmware
 DAEMON="${DAEMON_DIR}/helix-screen"
 SPLASH="${DAEMON_DIR}/helix-splash"
 PIDFILE="/var/run/${NAME}.pid"

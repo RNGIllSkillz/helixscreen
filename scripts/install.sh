@@ -22,10 +22,13 @@ set -euo pipefail
 
 # Configuration
 GITHUB_REPO="prestonbrown/helixscreen"
-INSTALL_DIR="/opt/helixscreen"
+INSTALL_DIR="/opt/helixscreen"  # Default, may be changed by set_install_paths()
 SERVICE_NAME="helixscreen"
 TMP_DIR="/tmp/helixscreen-install"
 INIT_SYSTEM=""  # Will be set to "systemd" or "sysv"
+AD5M_FIRMWARE=""  # Will be set to "klipper_mod" or "forge_x" on AD5M
+INIT_SCRIPT_DEST=""  # Will be set by set_install_paths()
+PREVIOUS_UI_SCRIPT=""  # Init script of the previous UI (for re-enabling on uninstall)
 
 # Known competing screen UIs to stop
 COMPETING_UIS="guppyscreen GuppyScreen KlipperScreen klipperscreen featherscreen FeatherScreen"
@@ -142,6 +145,62 @@ detect_platform() {
     fi
 
     echo "unsupported"
+}
+
+# Detect AD5M firmware variant (Klipper Mod vs Forge-X)
+# Only called when platform is "ad5m"
+detect_ad5m_firmware() {
+    # Klipper Mod indicators - check for its specific directory structure
+    # Klipper Mod runs in a chroot on /mnt/data/.klipper_mod/chroot
+    # and puts printer software in /root/printer_software/
+    if [ -d "/root/printer_software" ] || [ -d "/mnt/data/.klipper_mod" ]; then
+        echo "klipper_mod"
+        return
+    fi
+
+    # Forge-X indicators - check for its mod overlay structure
+    if [ -d "/opt/config/mod/.root" ]; then
+        echo "forge_x"
+        return
+    fi
+
+    # Default to forge_x (original behavior, most common)
+    echo "forge_x"
+}
+
+# Set installation paths based on platform and firmware
+# Sets: INSTALL_DIR, INIT_SCRIPT_DEST, PREVIOUS_UI_SCRIPT, TMP_DIR
+set_install_paths() {
+    local platform=$1
+    local firmware=${2:-}
+
+    if [ "$platform" = "ad5m" ]; then
+        case "$firmware" in
+            klipper_mod)
+                INSTALL_DIR="/root/printer_software/helixscreen"
+                INIT_SCRIPT_DEST="/etc/init.d/S80helixscreen"
+                PREVIOUS_UI_SCRIPT="/etc/init.d/S80klipperscreen"
+                # Klipper Mod has small tmpfs (~54MB), package is ~70MB
+                # Use /mnt/data which has 4+ GB available
+                TMP_DIR="/mnt/data/helixscreen-install"
+                log_info "AD5M firmware: Klipper Mod"
+                log_info "Install directory: ${INSTALL_DIR}"
+                log_info "Using /mnt/data for temp files (tmpfs too small)"
+                ;;
+            forge_x|*)
+                INSTALL_DIR="/opt/helixscreen"
+                INIT_SCRIPT_DEST="/etc/init.d/S90helixscreen"
+                PREVIOUS_UI_SCRIPT="/opt/config/mod/.root/S80guppyscreen"
+                log_info "AD5M firmware: Forge-X"
+                log_info "Install directory: ${INSTALL_DIR}"
+                ;;
+        esac
+    else
+        # Pi and other platforms - use default paths
+        INSTALL_DIR="/opt/helixscreen"
+        INIT_SCRIPT_DEST="/etc/init.d/S90helixscreen"
+        PREVIOUS_UI_SCRIPT=""
+    fi
 }
 
 # Check if running as root (required for AD5M, optional for Pi)
@@ -284,6 +343,15 @@ stop_competing_uis() {
 
     local found_any=false
 
+    # First, handle the specific previous UI if we know it (for clean reversibility)
+    if [ -n "$PREVIOUS_UI_SCRIPT" ] && [ -x "$PREVIOUS_UI_SCRIPT" ] 2>/dev/null; then
+        log_info "Stopping previous UI: $PREVIOUS_UI_SCRIPT"
+        $SUDO "$PREVIOUS_UI_SCRIPT" stop 2>/dev/null || true
+        # Disable by removing execute permission (non-destructive, reversible)
+        $SUDO chmod -x "$PREVIOUS_UI_SCRIPT" 2>/dev/null || true
+        found_any=true
+    fi
+
     for ui in $COMPETING_UIS; do
         # Check systemd services
         if [ "$INIT_SYSTEM" = "systemd" ]; then
@@ -295,8 +363,12 @@ stop_competing_uis() {
             fi
         fi
 
-        # Check SysV init scripts
+        # Check SysV init scripts (various locations)
         for initscript in /etc/init.d/S*${ui}* /etc/init.d/${ui}* /opt/config/mod/.root/S*${ui}*; do
+            # Skip if this is the PREVIOUS_UI_SCRIPT we already handled
+            if [ "$initscript" = "$PREVIOUS_UI_SCRIPT" ]; then
+                continue
+            fi
             if [ -x "$initscript" ] 2>/dev/null; then
                 log_info "Stopping $ui ($initscript)..."
                 $SUDO "$initscript" stop 2>/dev/null || true
@@ -324,6 +396,16 @@ stop_competing_uis() {
             fi
         fi
     done
+
+    # Also kill python processes running KlipperScreen (common on Klipper Mod)
+    if command -v pidof &> /dev/null; then
+        # KlipperScreen runs as python3 with screen.py
+        for pid in $(ps aux 2>/dev/null | grep -E 'KlipperScreen.*screen\.py' | grep -v grep | awk '{print $2}'); do
+            log_info "Killing KlipperScreen python process (PID $pid)..."
+            $SUDO kill "$pid" 2>/dev/null || true
+            found_any=true
+        done
+    fi
 
     if [ "$found_any" = true ]; then
         log_info "Waiting for competing UIs to stop..."
@@ -503,7 +585,6 @@ install_service_sysv() {
     log_info "Installing SysV init script..."
 
     local init_src="${INSTALL_DIR}/config/helixscreen.init"
-    local init_dest="/etc/init.d/S90helixscreen"
 
     if [ ! -f "$init_src" ]; then
         log_error "Init script not found: $init_src"
@@ -511,11 +592,17 @@ install_service_sysv() {
         exit 1
     fi
 
-    $SUDO cp "$init_src" "$init_dest"
-    $SUDO chmod +x "$init_dest"
+    # Use the dynamically set INIT_SCRIPT_DEST (varies by firmware)
+    $SUDO cp "$init_src" "$INIT_SCRIPT_DEST"
+    $SUDO chmod +x "$INIT_SCRIPT_DEST"
+
+    # Update the DAEMON_DIR in the init script to match the install location
+    # This is important for Klipper Mod which uses a different path
+    $SUDO sed -i "s|DAEMON_DIR=.*|DAEMON_DIR=\"${INSTALL_DIR}\"|" "$INIT_SCRIPT_DEST" 2>/dev/null || \
+    $SUDO sed -i '' "s|DAEMON_DIR=.*|DAEMON_DIR=\"${INSTALL_DIR}\"|" "$INIT_SCRIPT_DEST" 2>/dev/null || true
 
     CLEANUP_SERVICE=true
-    log_success "Installed SysV init script at $init_dest"
+    log_success "Installed SysV init script at $INIT_SCRIPT_DEST"
 }
 
 # Enable and start service
@@ -556,14 +643,12 @@ start_service_systemd() {
 start_service_sysv() {
     log_info "Starting HelixScreen (SysV init)..."
 
-    local init_script="/etc/init.d/S90helixscreen"
-
-    if [ ! -x "$init_script" ]; then
-        log_error "Init script not executable: $init_script"
+    if [ ! -x "$INIT_SCRIPT_DEST" ]; then
+        log_error "Init script not executable: $INIT_SCRIPT_DEST"
         exit 1
     fi
 
-    if ! $SUDO "$init_script" start; then
+    if ! $SUDO "$INIT_SCRIPT_DEST" start; then
         log_error "Failed to start HelixScreen."
         log_error "Check logs in: /tmp/helixscreen.log"
         exit 1
@@ -571,11 +656,11 @@ start_service_sysv() {
 
     # Wait and verify
     sleep 2
-    if $SUDO "$init_script" status >/dev/null 2>&1; then
+    if $SUDO "$INIT_SCRIPT_DEST" status >/dev/null 2>&1; then
         log_success "HelixScreen is running!"
     else
         log_warn "Service may not have started correctly."
-        log_warn "Check: $init_script status"
+        log_warn "Check: $INIT_SCRIPT_DEST status"
     fi
 }
 
@@ -587,11 +672,18 @@ stop_service() {
             $SUDO systemctl stop "$SERVICE_NAME" || true
         fi
     else
-        local init_script="/etc/init.d/S90helixscreen"
-        if [ -x "$init_script" ]; then
+        # Try the configured init script location first
+        if [ -n "$INIT_SCRIPT_DEST" ] && [ -x "$INIT_SCRIPT_DEST" ]; then
             log_info "Stopping existing HelixScreen service (SysV)..."
-            $SUDO "$init_script" stop 2>/dev/null || true
+            $SUDO "$INIT_SCRIPT_DEST" stop 2>/dev/null || true
         fi
+        # Also check both possible locations (for updates/uninstalls)
+        for init_script in /etc/init.d/S80helixscreen /etc/init.d/S90helixscreen; do
+            if [ -x "$init_script" ]; then
+                log_info "Stopping HelixScreen at $init_script..."
+                $SUDO "$init_script" stop 2>/dev/null || true
+            fi
+        done
         # Also try to kill by name
         if command -v killall &> /dev/null; then
             $SUDO killall helix-screen 2>/dev/null || true
@@ -602,6 +694,8 @@ stop_service() {
 
 # Uninstall HelixScreen
 uninstall() {
+    local platform=${1:-}
+
     log_info "Uninstalling HelixScreen..."
 
     # Detect init system first
@@ -614,12 +708,14 @@ uninstall() {
         $SUDO rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
         $SUDO systemctl daemon-reload
     else
-        # Stop and remove SysV init script
-        local init_script="/etc/init.d/S90helixscreen"
-        if [ -x "$init_script" ]; then
-            $SUDO "$init_script" stop 2>/dev/null || true
-            $SUDO rm -f "$init_script"
-        fi
+        # Stop and remove SysV init scripts (check both possible locations)
+        for init_script in /etc/init.d/S80helixscreen /etc/init.d/S90helixscreen; do
+            if [ -f "$init_script" ]; then
+                log_info "Stopping and removing $init_script..."
+                $SUDO "$init_script" stop 2>/dev/null || true
+                $SUDO rm -f "$init_script"
+            fi
+        done
     fi
 
     # Kill any remaining processes
@@ -628,14 +724,47 @@ uninstall() {
         $SUDO killall helix-splash 2>/dev/null || true
     fi
 
-    # Remove installation
-    if [ -d "$INSTALL_DIR" ]; then
-        $SUDO rm -rf "$INSTALL_DIR"
-        log_success "Removed ${INSTALL_DIR}"
+    # Remove installation (check both possible locations)
+    local removed_dir=""
+    for install_dir in "/root/printer_software/helixscreen" "/opt/helixscreen"; do
+        if [ -d "$install_dir" ]; then
+            $SUDO rm -rf "$install_dir"
+            log_success "Removed ${install_dir}"
+            removed_dir="$install_dir"
+        fi
+    done
+
+    if [ -z "$removed_dir" ]; then
+        log_warn "No HelixScreen installation found"
+    fi
+
+    # Re-enable the previous UI based on firmware
+    log_info "Re-enabling previous screen UI..."
+    local restored_ui=""
+
+    if [ "$AD5M_FIRMWARE" = "klipper_mod" ] || [ -f "/etc/init.d/S80klipperscreen" ]; then
+        # Klipper Mod - restore KlipperScreen
+        if [ -f "/etc/init.d/S80klipperscreen" ]; then
+            $SUDO chmod +x "/etc/init.d/S80klipperscreen" 2>/dev/null || true
+            restored_ui="KlipperScreen (/etc/init.d/S80klipperscreen)"
+        fi
+    fi
+
+    if [ -z "$restored_ui" ]; then
+        # Forge-X - restore GuppyScreen
+        if [ -f "/opt/config/mod/.root/S80guppyscreen" ]; then
+            $SUDO chmod +x "/opt/config/mod/.root/S80guppyscreen" 2>/dev/null || true
+            restored_ui="GuppyScreen (/opt/config/mod/.root/S80guppyscreen)"
+        fi
     fi
 
     log_success "HelixScreen uninstalled"
-    log_info "Note: Reboot to restore previous UI (if applicable)"
+    if [ -n "$restored_ui" ]; then
+        log_info "Re-enabled: $restored_ui"
+        log_info "Reboot to start the previous UI"
+    else
+        log_info "Note: No previous UI found to restore"
+    fi
 }
 
 # Print usage
@@ -714,12 +843,18 @@ main() {
         exit 1
     fi
 
+    # For AD5M, detect firmware variant and set appropriate paths
+    if [ "$platform" = "ad5m" ]; then
+        AD5M_FIRMWARE=$(detect_ad5m_firmware)
+    fi
+    set_install_paths "$platform" "$AD5M_FIRMWARE"
+
     # Check permissions
     check_permissions "$platform"
 
     # Handle uninstall (doesn't need all checks)
     if [ "$uninstall_mode" = true ]; then
-        uninstall
+        uninstall "$platform"
         exit 0
     fi
 
@@ -771,9 +906,9 @@ main() {
         echo "  journalctl -u ${SERVICE_NAME} -f    # View logs"
         echo "  systemctl restart ${SERVICE_NAME}   # Restart"
     else
-        echo "  /etc/init.d/S90helixscreen status   # Check status"
+        echo "  ${INIT_SCRIPT_DEST} status   # Check status"
         echo "  cat /tmp/helixscreen.log            # View logs"
-        echo "  /etc/init.d/S90helixscreen restart  # Restart"
+        echo "  ${INIT_SCRIPT_DEST} restart  # Restart"
     fi
     echo ""
 

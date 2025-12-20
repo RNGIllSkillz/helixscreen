@@ -106,9 +106,20 @@ After installation, the setup wizard will guide you through initial configuratio
   - Network connection
 
 - **Software:**
-  - [Forge-X](https://github.com/DrA1ex/ff5m) or similar Klipper firmware installed and working
+  - Custom Klipper firmware: [Forge-X](https://github.com/DrA1ex/ff5m) **or** [Klipper Mod](https://github.com/xblax/flashforge_ad5m_klipper_mod)
   - SSH access to the printer (usually `root@<printer-ip>`)
   - About 100MB free disk space
+
+#### AD5M Firmware Variants
+
+The installer automatically detects which firmware you're running and configures paths accordingly:
+
+| Firmware | Replaces | Install Location | Init Script |
+|----------|----------|------------------|-------------|
+| **Forge-X** | GuppyScreen | `/opt/helixscreen/` | `S90helixscreen` |
+| **Klipper Mod** | KlipperScreen | `/root/printer_software/helixscreen/` | `S80helixscreen` |
+
+**Memory Savings:** On Klipper Mod, HelixScreen (~5-10MB) replaces KlipperScreen (~36MB), freeing significant RAM on the memory-constrained AD5M.
 
 ---
 
@@ -184,60 +195,95 @@ See [First Boot & Setup Wizard](#first-boot--setup-wizard) for details.
 
 ## Adventurer 5M Installation
 
-> **Important:** Installing HelixScreen replaces the stock FlashForge UI. Make sure you have a backup method to access your printer (SSH, Mainsail/Fluidd web interface).
+> **Important:** Installing HelixScreen replaces your current screen UI (GuppyScreen on Forge-X, KlipperScreen on Klipper Mod). Make sure you have a backup method to access your printer (SSH, Mainsail/Fluidd web interface).
 
-### Step 1: Download the AD5M Package
+### Automated Installation (Recommended)
 
-On your computer, download the Adventurer 5M release:
-
-```bash
-# From the releases page
-wget https://github.com/prestonbrown/helixscreen/releases/latest/download/helixscreen-ad5m.tar.gz
-```
-
-### Step 2: Copy to Your Printer
-
-Transfer the package to your Adventurer 5M:
-
-```bash
-# AD5M requires scp -O (legacy protocol) since BusyBox lacks sftp-server
-scp -O helixscreen-ad5m.tar.gz root@<printer-ip>:/tmp/
-```
-
-Replace `<printer-ip>` with your printer's IP address (check your router or printer settings).
-
-> **Note:** We copy to `/tmp/` first because `/opt/` may not have enough space for both the tarball and extracted files.
-> AD5M requires `scp -O` (OpenSSH legacy protocol) since BusyBox lacks the sftp-server that modern scp uses by default.
-
-### Step 3: Install on the Printer
-
-SSH into your printer and install:
+The install script automatically detects your firmware (Forge-X or Klipper Mod) and installs to the correct location:
 
 ```bash
 ssh root@<printer-ip>
+curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | bash
+```
 
+### Manual Installation
+
+<details>
+<summary>Forge-X Manual Installation</summary>
+
+```bash
+# Download on your computer
+wget https://github.com/prestonbrown/helixscreen/releases/latest/download/helixscreen-ad5m.tar.gz
+
+# Copy to printer (AD5M requires scp -O for legacy protocol)
+scp -O helixscreen-ad5m.tar.gz root@<printer-ip>:/tmp/
+
+# SSH into printer
+ssh root@<printer-ip>
+
+# Extract to /opt (Forge-X location)
 cd /opt
-# Note: AD5M uses BusyBox tar which doesn't support -z flag
 gunzip -c /tmp/helixscreen.tar.gz | tar xf -
 
-# Stop existing screen UI (GuppyScreen, FeatherScreen, etc.)
-# The init script will do this automatically, but you can do it manually:
+# Stop GuppyScreen
 /opt/config/mod/.root/S80guppyscreen stop 2>/dev/null || true
+chmod -x /opt/config/mod/.root/S80guppyscreen
 
-# Install SysV init script (AD5M uses BusyBox init, NOT systemd)
+# Install init script
 cp /opt/helixscreen/config/helixscreen.init /etc/init.d/S90helixscreen
 chmod +x /etc/init.d/S90helixscreen
 
 # Start HelixScreen
 /etc/init.d/S90helixscreen start
 
-# Clean up the tarball to free /tmp space
+# Clean up
 rm /tmp/helixscreen.tar.gz
 ```
 
+</details>
+
+<details>
+<summary>Klipper Mod Manual Installation</summary>
+
+> **Note:** Klipper Mod's `/tmp` is a small tmpfs (~54MB). The package is ~70MB, so we must use `/mnt/data` instead.
+
+```bash
+# Download on your computer
+wget https://github.com/prestonbrown/helixscreen/releases/latest/download/helixscreen-ad5m.tar.gz
+
+# Copy to printer's data partition (NOT /tmp - it's too small!)
+scp -O helixscreen-ad5m.tar.gz root@<printer-ip>:/mnt/data/
+
+# SSH into printer
+ssh root@<printer-ip>
+
+# Extract to /root/printer_software (Klipper Mod location)
+cd /root/printer_software
+gunzip -c /mnt/data/helixscreen-ad5m.tar.gz | tar xf -
+
+# Stop KlipperScreen
+/etc/init.d/S80klipperscreen stop 2>/dev/null || true
+chmod -x /etc/init.d/S80klipperscreen
+
+# Install init script (S80 to match KlipperScreen's boot order)
+cp /root/printer_software/helixscreen/config/helixscreen.init /etc/init.d/S80helixscreen
+chmod +x /etc/init.d/S80helixscreen
+
+# Update the install path in the init script
+sed -i 's|DAEMON_DIR=.*|DAEMON_DIR="/root/printer_software/helixscreen"|' /etc/init.d/S80helixscreen
+
+# Start HelixScreen
+/etc/init.d/S80helixscreen start
+
+# Clean up
+rm /mnt/data/helixscreen-ad5m.tar.gz
+```
+
+</details>
+
 > **Note:** AD5M runs as root, so `sudo` is not needed.
 > **Note:** AD5M uses BusyBox utilities. Use `gunzip -c | tar xf -` instead of `tar -xzf`.
-> **Note:** AD5M uses SysV init (BusyBox), not systemd. Use `/etc/init.d/S90helixscreen` for service management.
+> **Note:** AD5M uses SysV init (BusyBox), not systemd.
 
 ### Step 4: Reboot
 
@@ -394,21 +440,17 @@ sudo journalctl -u helixscreen -f
 ```
 
 **AD5M (SysV init):**
+
+*Forge-X:*
 ```bash
-# Start HelixScreen
-/etc/init.d/S90helixscreen start
+/etc/init.d/S90helixscreen start|stop|restart|status
+cat /tmp/helixscreen.log  # View logs
+```
 
-# Stop HelixScreen
-/etc/init.d/S90helixscreen stop
-
-# Restart (after config changes)
-/etc/init.d/S90helixscreen restart
-
-# View status
-/etc/init.d/S90helixscreen status
-
-# View logs
-cat /tmp/helixscreen.log
+*Klipper Mod:*
+```bash
+/etc/init.d/S80helixscreen start|stop|restart|status
+cat /tmp/helixscreen.log  # View logs
 ```
 
 ### Disabling Other UIs
@@ -422,15 +464,18 @@ sudo systemctl stop KlipperScreen
 sudo systemctl disable KlipperScreen
 ```
 
-**AD5M (SysV init):**
+**AD5M Forge-X (SysV init):**
 ```bash
-# Disable GuppyScreen (if installed via Forge-X)
+# Disable GuppyScreen
 /opt/config/mod/.root/S80guppyscreen stop
 chmod -x /opt/config/mod/.root/S80guppyscreen
+```
 
-# Disable FeatherScreen (if installed)
-/etc/init.d/S*featherscreen stop 2>/dev/null || true
-chmod -x /etc/init.d/S*featherscreen 2>/dev/null || true
+**AD5M Klipper Mod (SysV init):**
+```bash
+# Disable KlipperScreen
+/etc/init.d/S80klipperscreen stop
+chmod -x /etc/init.d/S80klipperscreen
 ```
 
 > **Note:** The HelixScreen installer automatically stops and disables competing UIs.
@@ -519,22 +564,39 @@ sudo rm -rf /opt/helixscreen
 </details>
 
 <details>
-<summary>Adventurer 5M</summary>
+<summary>AD5M Forge-X</summary>
 
 ```bash
-# Stop service (SysV init)
+# Stop and remove service
 /etc/init.d/S90helixscreen stop
-
-# Remove init script
 rm /etc/init.d/S90helixscreen
 
 # Remove files
 rm -rf /opt/helixscreen
 
-# Re-enable previous UI (if desired)
+# Re-enable GuppyScreen
 chmod +x /opt/config/mod/.root/S80guppyscreen 2>/dev/null || true
 
-# Reboot to restore previous UI
+# Reboot to restore GuppyScreen
+reboot
+```
+</details>
+
+<details>
+<summary>AD5M Klipper Mod</summary>
+
+```bash
+# Stop and remove service
+/etc/init.d/S80helixscreen stop
+rm /etc/init.d/S80helixscreen
+
+# Remove files
+rm -rf /root/printer_software/helixscreen
+
+# Re-enable KlipperScreen
+chmod +x /etc/init.d/S80klipperscreen 2>/dev/null || true
+
+# Reboot to restore KlipperScreen
 reboot
 ```
 </details>
@@ -617,11 +679,21 @@ HelixScreen is optimized for low memory, but if you experience issues:
 
 ### Adventurer 5M Memory Constraints
 
-The AD5M has limited RAM (~36MB free with Klipper running). HelixScreen is built with static linking and memory optimization for this environment.
+The AD5M has limited RAM (~108MB total, with only ~24MB free after Klipper, Moonraker, and screen UI). HelixScreen is built with static linking and memory optimization for this environment.
+
+**Measured memory comparison (VmRSS):**
+| Component | KlipperScreen | HelixScreen |
+|-----------|---------------|-------------|
+| Screen UI | ~36 MB (Python) | **~3.6 MB** (C++) |
+| X Server | ~4.6 MB | **0 MB** (framebuffer) |
+| **Total** | ~40.5 MB | **~3.6 MB** |
+
+On Klipper Mod systems, switching from KlipperScreen to HelixScreen frees approximately **37 MB** of RAM - a significant improvement on a memory-constrained device!
 
 If you experience memory issues:
 - Reduce print history retention in Moonraker
 - Avoid keeping many G-code files on the printer
+- Consider disabling the camera stream if not needed
 
 ---
 
