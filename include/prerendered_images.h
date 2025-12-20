@@ -1,0 +1,94 @@
+// Copyright 2025 HelixScreen
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#pragma once
+
+#include <string>
+
+/**
+ * @file prerendered_images.h
+ * @brief Helpers for selecting pre-rendered LVGL binary images
+ *
+ * Pre-rendered images are PNG files converted to LVGL's .bin format at specific
+ * sizes. This eliminates runtime PNG decoding and scaling, dramatically improving
+ * display performance on embedded devices.
+ *
+ * Image sizes are generated at build time by:
+ *   - make gen-images         (splash screen)
+ *   - make gen-printer-images (printer images)
+ *
+ * ## Splash Screen Sizes
+ * - tiny:   240px (480x320 displays)
+ * - small:  400px (800x480 displays, AD5M)
+ * - medium: 614px (1024x600 displays)
+ * - large:  768px (1280x720 displays)
+ *
+ * ## Printer Image Sizes
+ * - 300px: For medium-large displays (800x480+)
+ * - 150px: For small displays (480x320)
+ *
+ * @see scripts/regen_images.sh
+ * @see scripts/regen_printer_images.sh
+ */
+
+namespace helix {
+
+/**
+ * @brief Get path to pre-rendered splash screen logo
+ *
+ * Selects the appropriate pre-rendered size based on screen width.
+ * Falls back to original PNG if pre-rendered version doesn't exist.
+ *
+ * @param screen_width Display width in pixels
+ * @return LVGL path (A:...) to the image, or empty string if none found
+ */
+[[nodiscard]] std::string get_prerendered_splash_path(int screen_width);
+
+/**
+ * @brief Get size category name for a screen width
+ *
+ * Maps screen width to size category:
+ *   - < 600:  "tiny"   (480x320 class)
+ *   - < 900:  "small"  (800x480 class, AD5M)
+ *   - < 1100: "medium" (1024x600 class)
+ *   - >= 1100: "large" (1280x720+ class)
+ *
+ * @param screen_width Display width in pixels
+ * @return Size category name ("tiny", "small", "medium", "large")
+ */
+[[nodiscard]] const char* get_splash_size_name(int screen_width);
+
+/**
+ * @brief Get path to pre-rendered printer image
+ *
+ * Selects the appropriate pre-rendered size based on screen width.
+ * Falls back to original PNG if pre-rendered version doesn't exist.
+ *
+ * @param printer_name Printer name (e.g., "creality-k1", "voron-24r2")
+ * @param screen_width Display width in pixels (used to pick 300px vs 150px)
+ * @return LVGL path (A:...) to the image
+ */
+[[nodiscard]] std::string get_prerendered_printer_path(const std::string& printer_name,
+                                                       int screen_width);
+
+/**
+ * @brief Get optimal printer image size for a screen width
+ *
+ * Returns the target size in pixels:
+ *   - screen_width >= 600: 300px (medium-large displays)
+ *   - screen_width < 600:  150px (small displays)
+ *
+ * @param screen_width Display width in pixels
+ * @return Target size in pixels (300 or 150)
+ */
+[[nodiscard]] int get_printer_image_size(int screen_width);
+
+/**
+ * @brief Check if a pre-rendered image exists
+ *
+ * @param path Filesystem path (without A: prefix)
+ * @return true if file exists and is readable
+ */
+[[nodiscard]] bool prerendered_exists(const std::string& path);
+
+} // namespace helix

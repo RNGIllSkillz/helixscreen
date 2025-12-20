@@ -401,9 +401,14 @@ deploy-pi:
 		config \
 		$(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/
 	@if [ -d build/assets/images/prerendered ]; then \
-		echo "$(DIM)Transferring pre-rendered images...$(RESET)"; \
+		echo "$(DIM)Transferring pre-rendered splash images...$(RESET)"; \
 		ssh $(PI_SSH_TARGET) "mkdir -p $(PI_DEPLOY_DIR)/assets/images/prerendered"; \
 		rsync -avz build/assets/images/prerendered/ $(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/assets/images/prerendered/; \
+	fi
+	@if [ -d build/assets/images/printers/prerendered ]; then \
+		echo "$(DIM)Transferring pre-rendered printer images...$(RESET)"; \
+		ssh $(PI_SSH_TARGET) "mkdir -p $(PI_DEPLOY_DIR)/assets/images/printers/prerendered"; \
+		rsync -avz build/assets/images/printers/prerendered/ $(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/assets/images/printers/prerendered/; \
 	fi
 	@echo "$(GREEN)✓ Deployed to $(PI_HOST):$(PI_DEPLOY_DIR)$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(PI_HOST)...$(RESET)"
@@ -487,10 +492,14 @@ AD5M_SSH_TARGET := $(AD5M_USER)@$(AD5M_HOST)
 deploy-ad5m:
 	@test -f build/ad5m/bin/helix-screen || { echo "$(RED)Error: build/ad5m/bin/helix-screen not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
 	@test -f build/ad5m/bin/helix-splash || { echo "$(RED)Error: build/ad5m/bin/helix-splash not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
-	@# Generate pre-rendered splash images if missing (requires Python/PIL)
+	@# Generate pre-rendered images if missing (requires Python/PIL)
 	@if [ ! -f build/assets/images/prerendered/splash-logo-small.bin ]; then \
 		echo "$(CYAN)Generating pre-rendered splash images for AD5M...$(RESET)"; \
 		$(MAKE) gen-images-ad5m; \
+	fi
+	@if [ ! -d build/assets/images/printers/prerendered ]; then \
+		echo "$(CYAN)Generating pre-rendered printer images...$(RESET)"; \
+		$(MAKE) gen-printer-images; \
 	fi
 	@echo "$(CYAN)Deploying HelixScreen to $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)...$(RESET)"
 	@echo "  Binaries: helix-screen, helix-splash"
@@ -514,10 +523,14 @@ deploy-ad5m:
 deploy-ad5m-fg:
 	@test -f build/ad5m/bin/helix-screen || { echo "$(RED)Error: build/ad5m/bin/helix-screen not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
 	@test -f build/ad5m/bin/helix-splash || { echo "$(RED)Error: build/ad5m/bin/helix-splash not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
-	@# Generate pre-rendered splash images if missing (requires Python/PIL)
+	@# Generate pre-rendered images if missing (requires Python/PIL)
 	@if [ ! -f build/assets/images/prerendered/splash-logo-small.bin ]; then \
 		echo "$(CYAN)Generating pre-rendered splash images for AD5M...$(RESET)"; \
 		$(MAKE) gen-images-ad5m; \
+	fi
+	@if [ ! -d build/assets/images/printers/prerendered ]; then \
+		echo "$(CYAN)Generating pre-rendered printer images...$(RESET)"; \
+		$(MAKE) gen-printer-images; \
 	fi
 	@echo "$(CYAN)Deploying HelixScreen to $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)...$(RESET)"
 	ssh $(AD5M_SSH_TARGET) "killall helix-screen helix-splash 2>/dev/null || true; mkdir -p $(AD5M_DEPLOY_DIR)"

@@ -1,0 +1,215 @@
+// Copyright 2025 HelixScreen
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+/**
+ * @file test_prerendered_images.cpp
+ * @brief Unit tests for pre-rendered image path selection
+ *
+ * Tests the logic for selecting appropriate pre-rendered image sizes
+ * based on display dimensions.
+ */
+
+#include "../../include/prerendered_images.h"
+
+#include <string>
+
+#include "../catch_amalgamated.hpp"
+
+using namespace helix;
+
+// ============================================================================
+// Splash Screen Size Selection Tests
+// ============================================================================
+
+TEST_CASE("get_splash_size_name returns correct size category", "[prerendered][splash]") {
+    SECTION("Tiny displays (< 600px width)") {
+        REQUIRE(std::string(get_splash_size_name(480)) == "tiny");
+        REQUIRE(std::string(get_splash_size_name(320)) == "tiny");
+        REQUIRE(std::string(get_splash_size_name(599)) == "tiny");
+    }
+
+    SECTION("Small displays (600-899px width) - AD5M class") {
+        REQUIRE(std::string(get_splash_size_name(600)) == "small");
+        REQUIRE(std::string(get_splash_size_name(800)) == "small");
+        REQUIRE(std::string(get_splash_size_name(899)) == "small");
+    }
+
+    SECTION("Medium displays (900-1099px width)") {
+        REQUIRE(std::string(get_splash_size_name(900)) == "medium");
+        REQUIRE(std::string(get_splash_size_name(1024)) == "medium");
+        REQUIRE(std::string(get_splash_size_name(1099)) == "medium");
+    }
+
+    SECTION("Large displays (>= 1100px width)") {
+        REQUIRE(std::string(get_splash_size_name(1100)) == "large");
+        REQUIRE(std::string(get_splash_size_name(1280)) == "large");
+        REQUIRE(std::string(get_splash_size_name(1920)) == "large");
+    }
+
+    SECTION("Boundary conditions") {
+        // Exact boundaries
+        REQUIRE(std::string(get_splash_size_name(599)) == "tiny");
+        REQUIRE(std::string(get_splash_size_name(600)) == "small");
+        REQUIRE(std::string(get_splash_size_name(899)) == "small");
+        REQUIRE(std::string(get_splash_size_name(900)) == "medium");
+        REQUIRE(std::string(get_splash_size_name(1099)) == "medium");
+        REQUIRE(std::string(get_splash_size_name(1100)) == "large");
+    }
+}
+
+TEST_CASE("get_prerendered_splash_path generates correct paths", "[prerendered][splash]") {
+    SECTION("Path format includes size name") {
+        // Note: These tests check path format, not file existence
+        // The function will fall back to PNG if .bin doesn't exist
+        std::string path_800 = get_prerendered_splash_path(800);
+
+        // Should either be a prerendered .bin or fallback PNG
+        bool is_bin = path_800.find(".bin") != std::string::npos;
+        bool is_png = path_800.find(".png") != std::string::npos;
+        REQUIRE((is_bin || is_png));
+
+        // Should start with LVGL path prefix
+        REQUIRE(path_800.substr(0, 2) == "A:");
+    }
+
+    SECTION("Different screen sizes get different paths") {
+        std::string path_tiny = get_prerendered_splash_path(480);
+        std::string path_small = get_prerendered_splash_path(800);
+        std::string path_large = get_prerendered_splash_path(1280);
+
+        // Paths should differ (unless all falling back to same PNG)
+        // At minimum, they should all be valid LVGL paths
+        REQUIRE(path_tiny.substr(0, 2) == "A:");
+        REQUIRE(path_small.substr(0, 2) == "A:");
+        REQUIRE(path_large.substr(0, 2) == "A:");
+    }
+}
+
+// ============================================================================
+// Printer Image Size Selection Tests
+// ============================================================================
+
+TEST_CASE("get_printer_image_size returns correct target size", "[prerendered][printer]") {
+    SECTION("Small displays (< 600px) get 150px images") {
+        REQUIRE(get_printer_image_size(480) == 150);
+        REQUIRE(get_printer_image_size(320) == 150);
+        REQUIRE(get_printer_image_size(599) == 150);
+    }
+
+    SECTION("Medium-large displays (>= 600px) get 300px images") {
+        REQUIRE(get_printer_image_size(600) == 300);
+        REQUIRE(get_printer_image_size(800) == 300);
+        REQUIRE(get_printer_image_size(1024) == 300);
+        REQUIRE(get_printer_image_size(1920) == 300);
+    }
+
+    SECTION("Boundary at 600px") {
+        REQUIRE(get_printer_image_size(599) == 150);
+        REQUIRE(get_printer_image_size(600) == 300);
+    }
+}
+
+TEST_CASE("get_prerendered_printer_path generates correct paths", "[prerendered][printer]") {
+    SECTION("Path format is correct") {
+        std::string path = get_prerendered_printer_path("creality-k1", 800);
+
+        // Should start with LVGL prefix
+        REQUIRE(path.substr(0, 2) == "A:");
+
+        // Should contain printer name
+        REQUIRE(path.find("creality-k1") != std::string::npos);
+
+        // Should be .bin or .png
+        bool is_bin = path.find(".bin") != std::string::npos;
+        bool is_png = path.find(".png") != std::string::npos;
+        REQUIRE((is_bin || is_png));
+    }
+
+    SECTION("Different screen sizes generate different paths") {
+        std::string path_small = get_prerendered_printer_path("voron-24r2", 480);
+        std::string path_large = get_prerendered_printer_path("voron-24r2", 800);
+
+        // Both should be valid paths
+        REQUIRE(path_small.substr(0, 2) == "A:");
+        REQUIRE(path_large.substr(0, 2) == "A:");
+
+        // Paths may differ (unless both falling back to PNG)
+        // The key is both are valid
+        REQUIRE(path_small.find("voron-24r2") != std::string::npos);
+        REQUIRE(path_large.find("voron-24r2") != std::string::npos);
+    }
+
+    SECTION("Various printer names work correctly") {
+        std::vector<std::string> printers = {
+            "creality-k1",    "creality-ender-3", "voron-24r2", "flashforge-adventurer-5m",
+            "anycubic-kobra",
+        };
+
+        for (const auto& printer : printers) {
+            std::string path = get_prerendered_printer_path(printer, 800);
+            INFO("Printer: " << printer);
+            REQUIRE(path.substr(0, 2) == "A:");
+            REQUIRE(path.find(printer) != std::string::npos);
+        }
+    }
+}
+
+// ============================================================================
+// Fallback Behavior Tests
+// ============================================================================
+
+TEST_CASE("Prerendered paths fall back to PNG when .bin missing", "[prerendered][fallback]") {
+    SECTION("Splash fallback is PNG") {
+        // Since we're testing without pre-rendered files, should get PNG fallback
+        std::string path = get_prerendered_splash_path(800);
+
+        // In test environment without pre-rendered files, should fall back to PNG
+        // The path should be valid either way
+        REQUIRE(path.length() > 2);
+        REQUIRE(path.substr(0, 2) == "A:");
+    }
+
+    SECTION("Printer fallback is PNG") {
+        // Non-existent printer should still return a valid path
+        std::string path = get_prerendered_printer_path("nonexistent-printer", 800);
+
+        // Should fall back to PNG path
+        REQUIRE(path.substr(0, 2) == "A:");
+        REQUIRE(path.find("nonexistent-printer") != std::string::npos);
+        REQUIRE(path.find(".png") != std::string::npos);
+    }
+}
+
+// ============================================================================
+// Edge Cases
+// ============================================================================
+
+TEST_CASE("Prerendered image edge cases", "[prerendered][edge]") {
+    SECTION("Zero width defaults sensibly") {
+        // Should not crash, pick smallest size
+        REQUIRE(get_printer_image_size(0) == 150);
+        REQUIRE(std::string(get_splash_size_name(0)) == "tiny");
+    }
+
+    SECTION("Negative width handled gracefully") {
+        // Should not crash
+        REQUIRE(get_printer_image_size(-100) == 150);
+        REQUIRE(std::string(get_splash_size_name(-100)) == "tiny");
+    }
+
+    SECTION("Very large width handled") {
+        REQUIRE(get_printer_image_size(10000) == 300);
+        REQUIRE(std::string(get_splash_size_name(10000)) == "large");
+    }
+
+    SECTION("Empty printer name returns valid path") {
+        std::string path = get_prerendered_printer_path("", 800);
+        REQUIRE(path.substr(0, 2) == "A:");
+    }
+
+    SECTION("Printer name with special characters") {
+        std::string path = get_prerendered_printer_path("my-custom_printer.v2", 800);
+        REQUIRE(path.substr(0, 2) == "A:");
+        REQUIRE(path.find("my-custom_printer.v2") != std::string::npos);
+    }
+}

@@ -30,23 +30,19 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-# Default output to build directory (not repo - binary files don't belong in git)
-OUTPUT_DIR="${OUTPUT_DIR:-$PROJECT_DIR/build/assets/images/prerendered}"
-LVGL_IMAGE_PY="$SCRIPT_DIR/LVGLImage.py"
-PYTHON="${PYTHON:-python3}"
 
-# Check for virtual environment
-if [ -f "$PROJECT_DIR/.venv/bin/python" ]; then
-    PYTHON="$PROJECT_DIR/.venv/bin/python"
-fi
+# Source shared library
+source "$SCRIPT_DIR/lib/lvgl_image_lib.sh"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+# Configuration
+OUTPUT_DIR="${OUTPUT_DIR:-$LVGL_PROJECT_DIR/build/assets/images/prerendered}"
+
+# Use colors from library
+RED="$LVGL_RED"
+GREEN="$LVGL_GREEN"
+YELLOW="$LVGL_YELLOW"
+CYAN="$LVGL_CYAN"
+NC="$LVGL_NC"
 
 # Screen size definitions matching ui_theme.h
 # Format: "name:width:height:logo_size"
@@ -110,18 +106,7 @@ print_header() {
     echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
 }
 
-check_dependencies() {
-    if [ ! -f "$LVGL_IMAGE_PY" ]; then
-        echo -e "${RED}Error: LVGLImage.py not found at $LVGL_IMAGE_PY${NC}"
-        exit 1
-    fi
-
-    # Check if Pillow is available (required for resize)
-    if ! $PYTHON -c "import PIL" 2>/dev/null; then
-        echo -e "${RED}Error: Pillow not installed. Install with: pip install Pillow${NC}"
-        exit 1
-    fi
-}
+# check_dependencies - delegated to shared library's lvgl_check_deps()
 
 ensure_output_dir() {
     mkdir -p "$OUTPUT_DIR"
@@ -158,7 +143,7 @@ render_image() {
     local screen_name="$3"
     local target_size="$4"
 
-    local full_source="$PROJECT_DIR/$source_path"
+    local full_source="$LVGL_PROJECT_DIR/$source_path"
     local output_name="${output_prefix}-${screen_name}"
     local output_file="$OUTPUT_DIR/${output_name}.bin"
 
@@ -169,22 +154,8 @@ render_image() {
 
     echo -ne "    ${screen_name} (${target_size}x${target_size})... "
 
-    # Run LVGLImage.py with resize options
-    # -o sets output directory, --name sets filename (without extension)
-    # --resize-fit preserves aspect ratio
-    if $PYTHON "$LVGL_IMAGE_PY" \
-        --cf ARGB8888 \
-        --ofmt BIN \
-        --resize "${target_size}x${target_size}" \
-        --resize-fit \
-        -o "$OUTPUT_DIR" \
-        --name "$output_name" \
-        "$full_source" 2>/dev/null; then
-
-        # LVGLImage.py outputs .bin which is what LVGL's bin decoder requires
-        # (lv_bin_decoder.c only accepts .bin extension)
-
-        local size=$(du -h "$output_file" | cut -f1)
+    if lvgl_render_image "$full_source" "$OUTPUT_DIR" "$output_name" "$target_size"; then
+        local size=$(lvgl_file_size "$output_file")
         echo -e "${GREEN}✓${NC} ($size)"
         return 0
     else
@@ -266,7 +237,7 @@ case "${1:-}" in
         ;;
     *)
         print_header
-        check_dependencies
+        lvgl_check_deps
         ensure_output_dir
         render_all
         ;;
