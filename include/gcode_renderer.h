@@ -414,16 +414,22 @@ class GCodeRenderer {
     int viewport_height_{480};
     RenderOptions options_;
 
-    // Colors (will be set from theme in constructor)
-    lv_color_t color_extrusion_;
-    lv_color_t color_travel_;
-    lv_color_t color_object_boundary_;
-    lv_color_t color_highlighted_;
-    lv_color_t color_excluded_; ///< Red/orange for excluded objects
+    // Colors (lazily loaded from theme on first render)
+    lv_color_t color_extrusion_{};
+    lv_color_t color_travel_{};
+    lv_color_t color_object_boundary_{};
+    lv_color_t color_highlighted_{};
+    lv_color_t color_excluded_{}; ///< Red/orange for excluded objects
 
     // Theme default colors (for reset)
-    lv_color_t theme_color_extrusion_;
-    lv_color_t theme_color_travel_;
+    lv_color_t theme_color_extrusion_{};
+    lv_color_t theme_color_travel_{};
+
+    // Lazy initialization flag (colors loaded on first render when theme is ready)
+    bool colors_initialized_{false};
+
+    // Initialize colors from theme (called on first render)
+    void ensure_colors_initialized();
 
     // Rendering control
     bool use_custom_extrusion_color_{false};

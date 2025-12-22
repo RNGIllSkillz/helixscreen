@@ -23,14 +23,21 @@ namespace helix {
 namespace gcode {
 
 GCodeRenderer::GCodeRenderer() {
-    // Load colors from theme
-    // Note: ui_theme_parse_color requires theme to be initialized
-    // If called before theme init, will use fallback colors
-    color_extrusion_ = ui_theme_parse_color(lv_xml_get_const(NULL, "primary_color"));
-    color_travel_ = ui_theme_parse_color(lv_xml_get_const(NULL, "text_secondary"));
-    color_object_boundary_ = ui_theme_parse_color(lv_xml_get_const(NULL, "secondary_color"));
-    color_highlighted_ = ui_theme_parse_color(lv_xml_get_const(NULL, "secondary_color"));
-    color_excluded_ = ui_theme_parse_color(lv_xml_get_const(NULL, "danger_color"));
+    // Colors are lazily initialized on first render to ensure theme is loaded
+}
+
+void GCodeRenderer::ensure_colors_initialized() {
+    if (colors_initialized_) {
+        return;
+    }
+    colors_initialized_ = true;
+
+    // Load colors from theme (theme is guaranteed to be loaded by first render)
+    color_extrusion_ = ui_theme_get_color("primary_color");
+    color_travel_ = ui_theme_get_color("text_secondary");
+    color_object_boundary_ = ui_theme_get_color("secondary_color");
+    color_highlighted_ = ui_theme_get_color("secondary_color");
+    color_excluded_ = ui_theme_get_color("error_color");
 
     // Save theme defaults for reset
     theme_color_extrusion_ = color_extrusion_;
@@ -102,6 +109,7 @@ void GCodeRenderer::set_brightness_factor(float factor) {
 }
 
 void GCodeRenderer::reset_colors() {
+    ensure_colors_initialized();
     color_extrusion_ = theme_color_extrusion_;
     color_travel_ = theme_color_travel_;
     use_custom_extrusion_color_ = false;
@@ -112,6 +120,9 @@ void GCodeRenderer::reset_colors() {
 
 void GCodeRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
                            const GCodeCamera& camera, const lv_area_t* widget_coords) {
+    // Ensure colors are loaded from theme on first render
+    ensure_colors_initialized();
+
     // widget_coords parameter is for API compatibility with TinyGL renderer
     // In the 2D renderer, we use LVGL layer directly and don't need widget offset
     (void)widget_coords;
