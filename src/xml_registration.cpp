@@ -191,14 +191,10 @@ void register_xml_components() {
 
     // NOTE: AMS panel (ams_panel.xml) is registered lazily in ui_panel_ams.cpp
 
-    // Feature parity stub panel support
-    lv_xml_register_component_from_file("A:ui_xml/coming_soon_overlay.xml");
-
-    // Feature parity panels (functional or stub)
+    // Feature parity panels
     lv_xml_register_component_from_file("A:ui_xml/macro_card.xml");
     lv_xml_register_component_from_file("A:ui_xml/macro_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/console_panel.xml");
-    lv_xml_register_component_from_file("A:ui_xml/camera_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/power_device_row.xml");
     lv_xml_register_component_from_file("A:ui_xml/power_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/screws_tilt_panel.xml");
