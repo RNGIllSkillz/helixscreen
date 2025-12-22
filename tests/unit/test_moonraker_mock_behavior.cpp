@@ -76,6 +76,7 @@
  * - Initial subscription response has full status in result.status
  */
 
+#include "../../include/app_globals.h"
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_api_mock.h"
 #include "../../include/moonraker_client_mock.h"
@@ -2674,6 +2675,74 @@ TEST_CASE("MoonrakerClientMock parses EXCLUDE_OBJECT command", "[slow][mock][gco
         mock.gcode_script("SDCARD_PRINT_FILE FILENAME=test.gcode");
 
         REQUIRE(mock.get_excluded_objects().empty());
+    }
+}
+
+// ============================================================================
+// Emergency Stop and Restart Handler Tests
+// ============================================================================
+
+/**
+ * @brief Tests for emergency stop and restart mock handlers
+ *
+ * These handlers are essential for testing the recovery dialog UI flow.
+ * The E-stop should set klippy state to SHUTDOWN, and restart commands
+ * should transition back to READY after a delay.
+ */
+TEST_CASE("MoonrakerClientMock handles emergency_stop", "[mock][emergency]") {
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+    mock.connect("ws://test", []() {}, []() {});
+
+    struct Cleanup {
+        MoonrakerClientMock& m;
+        ~Cleanup() {
+            m.disconnect();
+        }
+    } cleanup{mock};
+
+    SECTION("emergency_stop calls success callback") {
+        bool success_called = false;
+        bool error_called = false;
+
+        mock.send_jsonrpc(
+            "printer.emergency_stop", json::object(),
+            [&success_called](json) { success_called = true; },
+            [&error_called](const MoonrakerError&) { error_called = true; });
+
+        REQUIRE(success_called);
+        REQUIRE_FALSE(error_called);
+    }
+}
+
+TEST_CASE("MoonrakerClientMock handles printer restart commands", "[mock][restart]") {
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+    mock.connect("ws://test", []() {}, []() {});
+
+    struct Cleanup {
+        MoonrakerClientMock& m;
+        ~Cleanup() {
+            m.disconnect();
+        }
+    } cleanup{mock};
+
+    SECTION("printer.restart calls success callback") {
+        bool success_called = false;
+
+        mock.send_jsonrpc(
+            "printer.restart", json::object(), [&success_called](json) { success_called = true; },
+            nullptr);
+
+        REQUIRE(success_called);
+    }
+
+    SECTION("printer.firmware_restart calls success callback") {
+        bool success_called = false;
+
+        mock.send_jsonrpc(
+            "printer.firmware_restart", json::object(),
+            [&success_called](json) { success_called = true; }, nullptr);
+
+        REQUIRE(success_called);
     }
 }
 

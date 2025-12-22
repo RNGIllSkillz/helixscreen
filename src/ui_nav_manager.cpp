@@ -47,6 +47,11 @@ bool NavigationManager::is_printer_connected() const {
     return lv_subject_get_int(subject) == 2;
 }
 
+bool NavigationManager::is_klippy_ready() const {
+    auto* subject = get_printer_state().get_klippy_state_subject();
+    return lv_subject_get_int(subject) == 0; // KlippyState::READY
+}
+
 void NavigationManager::clear_overlay_stack() {
     // Hide all overlay panels immediately (no animation for connection loss)
     while (panel_stack_.size() > 1) {
@@ -245,6 +250,26 @@ void NavigationManager::connection_state_observer_cb([[maybe_unused]] lv_observe
     mgr.previous_connection_state_ = state;
 }
 
+void NavigationManager::klippy_state_observer_cb([[maybe_unused]] lv_observer_t* observer,
+                                                 lv_subject_t* subject) {
+    auto& mgr = NavigationManager::instance();
+    int state = lv_subject_get_int(subject);
+    bool was_ready = (mgr.previous_klippy_state_ == 0); // KlippyState::READY
+    bool is_ready = (state == 0);
+
+    // Redirect to home if klippy enters non-READY state (SHUTDOWN/ERROR) while on restricted panel
+    if (was_ready && !is_ready && panel_requires_connection(mgr.active_panel_)) {
+        const char* state_name = (state == 2) ? "SHUTDOWN" : (state == 3) ? "ERROR" : "non-READY";
+        spdlog::info("[NavigationManager] Klippy {} on panel {} - navigating to home", state_name,
+                     static_cast<int>(mgr.active_panel_));
+
+        mgr.clear_overlay_stack();
+        mgr.set_active(UI_PANEL_HOME);
+    }
+
+    mgr.previous_klippy_state_ = state;
+}
+
 // ============================================================================
 // EVENT CALLBACKS
 // ============================================================================
@@ -328,12 +353,19 @@ void NavigationManager::nav_button_clicked_cb(lv_event_t* event) {
             return;
         }
 
-        // Block navigation to connection-required panels when disconnected
-        if (panel_requires_connection(static_cast<ui_panel_id_t>(panel_id)) &&
-            !mgr.is_printer_connected()) {
-            spdlog::info("[NavigationManager] Navigation to panel {} blocked - not connected",
-                         panel_id);
-            return;
+        // Block navigation to connection-required panels when disconnected or klippy not ready
+        if (panel_requires_connection(static_cast<ui_panel_id_t>(panel_id))) {
+            if (!mgr.is_printer_connected()) {
+                spdlog::info("[NavigationManager] Navigation to panel {} blocked - not connected",
+                             panel_id);
+                return;
+            }
+            if (!mgr.is_klippy_ready()) {
+                spdlog::info(
+                    "[NavigationManager] Navigation to panel {} blocked - klippy not ready",
+                    panel_id);
+                return;
+            }
         }
 
         // Hide ALL visible overlay panels
@@ -502,12 +534,17 @@ void NavigationManager::wire_events(lv_obj_t* navbar) {
         lv_obj_add_event_cb(btn, nav_button_clicked_cb, LV_EVENT_CLICKED, (void*)(uintptr_t)i);
     }
 
-    // Register connection state observer
+    // Register connection state observer for redirect on disconnect
     connection_state_observer_ =
         ObserverGuard(get_printer_state().get_printer_connection_state_subject(),
                       connection_state_observer_cb, nullptr);
 
-    spdlog::debug("[NavigationManager] Navigation button events wired (with connection gating)");
+    // Register klippy state observer for redirect on SHUTDOWN/ERROR
+    klippy_state_observer_ = ObserverGuard(get_printer_state().get_klippy_state_subject(),
+                                           klippy_state_observer_cb, nullptr);
+
+    spdlog::debug(
+        "[NavigationManager] Navigation button events wired (with connection/klippy gating)");
 }
 
 void NavigationManager::wire_status_icons(lv_obj_t* navbar) {

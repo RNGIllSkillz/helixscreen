@@ -189,6 +189,9 @@ class NavigationManager {
     // Check if printer is connected
     bool is_printer_connected() const;
 
+    // Check if klippy is in READY state
+    bool is_klippy_ready() const;
+
     // Clear overlay stack (used during connection loss)
     void clear_overlay_stack();
 
@@ -200,6 +203,7 @@ class NavigationManager {
     // Observer callbacks
     static void active_panel_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
     static void connection_state_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
+    static void klippy_state_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
 
     // Event callbacks
     static void backdrop_click_event_cb(lv_event_t* e);
@@ -233,9 +237,11 @@ class NavigationManager {
     // RAII observer guards
     ObserverGuard active_panel_observer_;
     ObserverGuard connection_state_observer_;
+    ObserverGuard klippy_state_observer_;
 
-    // Track previous connection state for detecting disconnection
+    // Track previous states for detecting transitions
     int previous_connection_state_ = -1;
+    int previous_klippy_state_ = -1;
 
     // Animation constants
     static constexpr uint32_t OVERLAY_ANIM_DURATION_MS = 200;

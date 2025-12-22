@@ -1,9 +1,13 @@
 // Copyright 2025 HelixScreen
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "app_globals.h"
 #include "moonraker_client_mock_internal.h"
+#include "printer_state.h"
 
 #include <spdlog/spdlog.h>
+
+#include <lvgl.h>
 
 namespace mock_internal {
 
@@ -107,6 +111,94 @@ void register_print_handlers(std::unordered_map<std::string, MethodHandler>& reg
             err.message = "Cannot cancel - no active print";
             err.method = "printer.print.cancel";
             error_cb(err);
+        }
+        return true;
+    };
+
+    // printer.emergency_stop - Execute emergency stop (M112)
+    registry["printer.emergency_stop"] =
+        []([[maybe_unused]] MoonrakerClientMock* self, [[maybe_unused]] const json& params,
+           std::function<void(json)> success_cb,
+           [[maybe_unused]] std::function<void(const MoonrakerError&)> error_cb) -> bool {
+        spdlog::warn("[MoonrakerClientMock] Emergency stop executed!");
+
+        // Set klippy state to SHUTDOWN (must defer to main thread)
+        lv_async_call(
+            [](void*) { get_printer_state().set_klippy_state_sync(KlippyState::SHUTDOWN); },
+            nullptr);
+
+        if (success_cb) {
+            success_cb(json::object());
+        }
+        return true;
+    };
+
+    // printer.firmware_restart - Restart firmware (MCU reset)
+    registry["printer.firmware_restart"] =
+        []([[maybe_unused]] MoonrakerClientMock* self, [[maybe_unused]] const json& params,
+           std::function<void(json)> success_cb,
+           [[maybe_unused]] std::function<void(const MoonrakerError&)> error_cb) -> bool {
+        spdlog::info("[MoonrakerClientMock] Firmware restart initiated");
+
+        // Simulate restart: briefly go SHUTDOWN, then READY after 1 second
+        lv_async_call(
+            [](void*) {
+                get_printer_state().set_klippy_state_sync(KlippyState::SHUTDOWN);
+
+                // Schedule recovery to READY after 1 second
+                static lv_timer_t* timer = nullptr;
+                if (timer) {
+                    lv_timer_delete(timer);
+                }
+                timer = lv_timer_create(
+                    [](lv_timer_t* t) {
+                        spdlog::info("[MoonrakerClientMock] Firmware restart complete - READY");
+                        get_printer_state().set_klippy_state_sync(KlippyState::READY);
+                        lv_timer_delete(t);
+                        timer = nullptr;
+                    },
+                    1000, nullptr);
+                lv_timer_set_repeat_count(timer, 1);
+            },
+            nullptr);
+
+        if (success_cb) {
+            success_cb(json::object());
+        }
+        return true;
+    };
+
+    // printer.restart - Restart Klipper (soft restart)
+    registry["printer.restart"] =
+        []([[maybe_unused]] MoonrakerClientMock* self, [[maybe_unused]] const json& params,
+           std::function<void(json)> success_cb,
+           [[maybe_unused]] std::function<void(const MoonrakerError&)> error_cb) -> bool {
+        spdlog::info("[MoonrakerClientMock] Klipper restart initiated");
+
+        // Simulate restart: briefly go SHUTDOWN, then READY after 500ms
+        lv_async_call(
+            [](void*) {
+                get_printer_state().set_klippy_state_sync(KlippyState::SHUTDOWN);
+
+                // Schedule recovery to READY after 500ms (faster than firmware restart)
+                static lv_timer_t* timer = nullptr;
+                if (timer) {
+                    lv_timer_delete(timer);
+                }
+                timer = lv_timer_create(
+                    [](lv_timer_t* t) {
+                        spdlog::info("[MoonrakerClientMock] Klipper restart complete - READY");
+                        get_printer_state().set_klippy_state_sync(KlippyState::READY);
+                        lv_timer_delete(t);
+                        timer = nullptr;
+                    },
+                    500, nullptr);
+                lv_timer_set_repeat_count(timer, 1);
+            },
+            nullptr);
+
+        if (success_cb) {
+            success_cb(json::object());
         }
         return true;
     };

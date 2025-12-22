@@ -46,9 +46,10 @@ void init(lv_obj_t* screen) {
 
 void cleanup() {
     if (virtual_indev) {
-        lv_indev_delete(virtual_indev);
+        // Note: Don't call lv_indev_delete() - lv_deinit() handles cleanup
+        // Just null our reference so we don't use a stale pointer
         virtual_indev = nullptr;
-        spdlog::info("[UITest] Virtual input device removed");
+        spdlog::info("[UITest] Virtual input device reference cleared");
     }
 }
 
@@ -391,9 +392,6 @@ class EmergencyStopOverlayStub {
         static EmergencyStopOverlayStub stub;
         return stub;
     }
-    void on_panel_changed(const std::string& /* panel_name */) {
-        // No-op in tests
-    }
     void set_require_confirmation(bool /* require */) {
         // No-op in tests
     }
@@ -403,10 +401,6 @@ class EmergencyStopOverlayStub {
 EmergencyStopOverlay& EmergencyStopOverlay::instance() {
     // Cast is safe because we only use no-op methods that match the interface
     return reinterpret_cast<EmergencyStopOverlay&>(EmergencyStopOverlayStub::instance());
-}
-
-void EmergencyStopOverlay::on_panel_changed(const std::string& /* panel_name */) {
-    // No-op in tests
 }
 
 void EmergencyStopOverlay::set_require_confirmation(bool /* require */) {

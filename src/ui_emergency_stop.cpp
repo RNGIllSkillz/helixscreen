@@ -50,6 +50,9 @@ void EmergencyStopOverlay::init_subjects() {
     lv_xml_register_event_cb(nullptr, "advanced_firmware_restart_clicked",
                              advanced_firmware_restart_clicked);
 
+    // Home panel firmware restart button (shown during klippy SHUTDOWN)
+    lv_xml_register_event_cb(nullptr, "firmware_restart_clicked", home_firmware_restart_clicked);
+
     subjects_initialized_ = true;
     spdlog::debug("[EmergencyStop] Subjects initialized");
 }
@@ -124,6 +127,18 @@ void EmergencyStopOverlay::execute_emergency_stop() {
         []() {
             spdlog::info("[EmergencyStop] Emergency stop command sent successfully");
             ui_toast_show(ToastSeverity::WARNING, "Emergency stop activated", 5000);
+
+            // Proactively show recovery dialog after E-stop
+            // We know Klipper will be in SHUTDOWN state - don't wait for notification
+            // which may not arrive due to WebSocket timing/disconnection
+            // NOTE: Must defer to main thread - this callback runs on WebSocket thread
+            spdlog::debug("[EmergencyStop] Queueing proactive recovery dialog (E-stop path)");
+            lv_async_call(
+                [](void*) {
+                    spdlog::debug("[EmergencyStop] Async callback executing (E-stop path)");
+                    EmergencyStopOverlay::instance().show_recovery_dialog();
+                },
+                nullptr);
         },
         [](const MoonrakerError& err) {
             spdlog::error("[EmergencyStop] Emergency stop failed: {}", err.message);
@@ -168,17 +183,21 @@ void EmergencyStopOverlay::dismiss_confirmation_dialog() {
 
 void EmergencyStopOverlay::show_recovery_dialog() {
     // Don't show if already visible
+    spdlog::debug("[KlipperRecovery] show_recovery_dialog() called, recovery_dialog_={}",
+                  static_cast<void*>(recovery_dialog_));
     if (recovery_dialog_) {
-        spdlog::debug("[KlipperRecovery] Recovery dialog already visible");
+        spdlog::debug("[KlipperRecovery] Recovery dialog already visible, skipping");
         return;
     }
 
-    spdlog::info("[KlipperRecovery] Showing recovery dialog (Klipper in SHUTDOWN state)");
+    spdlog::info("[KlipperRecovery] Creating recovery dialog (Klipper in SHUTDOWN state)");
 
     // Create dialog on current screen
     lv_obj_t* screen = lv_screen_active();
     recovery_dialog_ =
         static_cast<lv_obj_t*>(lv_xml_create(screen, "klipper_recovery_dialog", nullptr));
+    spdlog::debug("[KlipperRecovery] Dialog created, recovery_dialog_={}",
+                  static_cast<void*>(recovery_dialog_));
 
     if (!recovery_dialog_) {
         spdlog::error("[KlipperRecovery] Failed to create recovery dialog");
@@ -204,6 +223,9 @@ void EmergencyStopOverlay::restart_klipper() {
         return;
     }
 
+    // Suppress recovery dialog during restart - Klipper briefly enters SHUTDOWN
+    restart_in_progress_ = true;
+
     spdlog::info("[KlipperRecovery] Restarting Klipper...");
     ui_toast_show(ToastSeverity::INFO, "Restarting Klipper...", 3000);
 
@@ -225,6 +247,9 @@ void EmergencyStopOverlay::firmware_restart() {
         ui_toast_show(ToastSeverity::ERROR, "Restart failed: not connected", 4000);
         return;
     }
+
+    // Suppress recovery dialog during restart - Klipper briefly enters SHUTDOWN
+    restart_in_progress_ = true;
 
     spdlog::info("[KlipperRecovery] Firmware restarting...");
     ui_toast_show(ToastSeverity::INFO, "Firmware restarting...", 3000);
@@ -302,6 +327,12 @@ void EmergencyStopOverlay::advanced_firmware_restart_clicked(lv_event_t* e) {
     EmergencyStopOverlay::instance().firmware_restart();
 }
 
+void EmergencyStopOverlay::home_firmware_restart_clicked(lv_event_t* e) {
+    LV_UNUSED(e);
+    spdlog::info("[Home] Firmware Restart clicked from Home panel");
+    EmergencyStopOverlay::instance().firmware_restart();
+}
+
 // Static observer callbacks
 void EmergencyStopOverlay::print_state_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     LV_UNUSED(subject);
@@ -322,15 +353,37 @@ void EmergencyStopOverlay::klippy_state_observer_cb(lv_observer_t* observer,
     auto klippy_state = static_cast<KlippyState>(state);
 
     if (klippy_state == KlippyState::SHUTDOWN) {
-        // Auto-popup recovery dialog when Klipper enters SHUTDOWN state
-        spdlog::info("[KlipperRecovery] Detected Klipper SHUTDOWN state, showing recovery dialog");
-        self->show_recovery_dialog();
-    } else if (klippy_state == KlippyState::READY) {
-        // Auto-dismiss recovery dialog when Klipper is back to READY
-        if (self->recovery_dialog_) {
-            spdlog::info("[KlipperRecovery] Klipper is READY, dismissing recovery dialog");
-            self->dismiss_recovery_dialog();
-            ui_toast_show(ToastSeverity::SUCCESS, "Printer ready", 3000);
+        // Don't show recovery dialog if we initiated the restart operation
+        // (Klipper briefly enters SHUTDOWN during firmware/klipper restart)
+        if (self->restart_in_progress_) {
+            spdlog::debug("[KlipperRecovery] Ignoring SHUTDOWN during restart operation");
+            return;
         }
+        // Auto-popup recovery dialog when Klipper enters SHUTDOWN state
+        // NOTE: Must defer to main thread - observer may fire from WebSocket thread
+        spdlog::info("[KlipperRecovery] Detected Klipper SHUTDOWN state, queueing recovery dialog");
+        spdlog::debug("[KlipperRecovery] Queueing recovery dialog (observer path)");
+        lv_async_call(
+            [](void*) {
+                spdlog::debug("[KlipperRecovery] Async callback executing (observer path)");
+                EmergencyStopOverlay::instance().show_recovery_dialog();
+            },
+            nullptr);
+    } else if (klippy_state == KlippyState::READY) {
+        // Reset restart flag - operation complete
+        self->restart_in_progress_ = false;
+
+        // Auto-dismiss recovery dialog when Klipper is back to READY
+        // NOTE: Must defer to main thread - observer may fire from WebSocket thread
+        lv_async_call(
+            [](void*) {
+                auto& inst = EmergencyStopOverlay::instance();
+                if (inst.recovery_dialog_) {
+                    spdlog::info("[KlipperRecovery] Klipper is READY, dismissing recovery dialog");
+                    inst.dismiss_recovery_dialog();
+                    ui_toast_show(ToastSeverity::SUCCESS, "Printer ready", 3000);
+                }
+            },
+            nullptr);
     }
 }

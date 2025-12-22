@@ -109,6 +109,9 @@ class EmergencyStopOverlay {
     lv_obj_t* confirmation_dialog_ = nullptr;
     lv_obj_t* recovery_dialog_ = nullptr;
 
+    // Restart operation tracking - prevents recovery dialog during expected SHUTDOWN
+    bool restart_in_progress_ = false;
+
     // Visibility subject (1=visible, 0=hidden) - drives XML bindings
     lv_subject_t estop_visible_;
     bool subjects_initialized_ = false;
@@ -137,6 +140,7 @@ class EmergencyStopOverlay {
     static void advanced_estop_clicked(lv_event_t* e);
     static void advanced_restart_klipper_clicked(lv_event_t* e);
     static void advanced_firmware_restart_clicked(lv_event_t* e);
+    static void home_firmware_restart_clicked(lv_event_t* e);
     static void print_state_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
     static void klippy_state_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
 };

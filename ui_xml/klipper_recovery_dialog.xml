@@ -2,59 +2,69 @@
 <!-- Copyright 2025 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
+  <!-- Full-screen backdrop overlay -->
   <view name="klipper_recovery_backdrop"
-        extends="lv_obj" width="100%" height="100%" style_bg_color="0x000000" style_bg_opa="200" style_border_width="0"
-        align="center" clickable="true">
-    <!-- Dialog card -->
-    <lv_obj name="klipper_recovery_card"
-            width="440" height="320" align="center" style_radius="#border_radius" style_bg_color="#card_bg_dark"
-            style_bg_opa="255" style_border_width="3" style_border_color="#warning_color" style_pad_all="#space_2xl"
-            flex_flow="column" style_flex_main_place="space_between" style_flex_cross_place="center">
-      <!-- Header with icon and title -->
+        extends="lv_obj" width="100%" height="100%" style_bg_opa="200" style_border_width="0" style_radius="0"
+        style_pad_all="0" align="center" clickable="true">
+    <!-- Dialog card using ui_dialog (provides themed background, height="content") -->
+    <ui_dialog name="klipper_recovery_card"
+               width="85%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
+               style_pad_gap="0" style_border_width="2" style_border_color="#warning_color">
+      <!-- Content area -->
       <lv_obj width="100%"
-              height="content" style_bg_opa="0" style_border_width="0" flex_flow="column"
+              height="content" style_bg_opa="0" style_border_width="0" style_pad_left="#space_lg"
+              style_pad_right="#space_lg" style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column"
               style_flex_cross_place="center" style_pad_gap="#space_md">
-        <icon src="alert_octagon" size="xl" color="#warning_color"/>
-        <text_heading text="Printer Shutdown" style_text_align="center"/>
+        <!-- Warning icon -->
+        <icon src="alert_octagon" size="lg" color="#warning_color"/>
+        <!-- Title -->
+        <text_heading width="100%" text="Printer Shutdown" style_text_align="center"/>
+        <!-- Message -->
         <text_body width="100%"
-                   text="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error. Choose an option below to recover."
-                   long_mode="wrap" style_text_align="center"/>
+                   text="Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error."
+                   long_mode="wrap" style_text_align="center" style_text_color="#text_secondary"/>
       </lv_obj>
+      <!-- Horizontal divider above buttons -->
+      <lv_obj width="100%"
+              height="1" style_bg_color="#text_secondary" style_bg_opa="64" style_border_width="0" style_pad_all="0"/>
       <!-- Button column -->
       <lv_obj width="100%"
-              height="content" style_bg_opa="0" style_border_width="0" flex_flow="column" style_pad_gap="#space_md">
-        <!-- Restart Klipper (soft restart) -->
+              height="content" style_bg_opa="0" style_border_width="0" style_pad_all="#space_md" flex_flow="column"
+              style_pad_gap="#space_sm">
+        <!-- Restart Klipper (primary action) -->
         <lv_button name="restart_klipper_btn"
-                   width="100%" height="48" style_radius="#space_md" style_border_width="0"
+                   width="100%" height="#button_height" style_radius="#border_radius" style_border_width="0"
                    style_bg_color="#warning_color">
           <lv_obj width="100%"
                   height="100%" style_bg_opa="0" style_border_width="0" flex_flow="row" style_flex_main_place="center"
-                  style_flex_cross_place="center" style_pad_gap="#space_sm" clickable="false">
+                  style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_sm"
+                  clickable="false">
             <icon src="refresh" size="sm" color="#text_primary"/>
             <text_body text="Restart Klipper" style_text_color="#text_primary"/>
           </lv_obj>
           <event_cb trigger="clicked" callback="recovery_restart_klipper_clicked"/>
         </lv_button>
-        <!-- Firmware Restart (full MCU restart) -->
+        <!-- Firmware Restart (secondary action) -->
         <lv_button name="firmware_restart_btn"
-                   width="100%" height="48" style_radius="#space_md" style_border_width="0"
-                   style_bg_color="#surface_bg_dark">
+                   width="100%" height="#button_height" style_radius="#border_radius" style_border_width="0"
+                   style_bg_color="#surface_bg">
           <lv_obj width="100%"
                   height="100%" style_bg_opa="0" style_border_width="0" flex_flow="row" style_flex_main_place="center"
-                  style_flex_cross_place="center" style_pad_gap="#space_sm" clickable="false">
+                  style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_sm"
+                  clickable="false">
             <icon src="update" size="sm" color="#text_secondary"/>
             <text_body text="Firmware Restart" style_text_color="#text_secondary"/>
           </lv_obj>
           <event_cb trigger="clicked" callback="recovery_firmware_restart_clicked"/>
         </lv_button>
-        <!-- Dismiss (close without action) -->
+        <!-- Dismiss (tertiary action) -->
         <lv_button name="recovery_dismiss_btn"
-                   width="100%" height="40" style_radius="#space_md" style_border_width="1"
+                   width="100%" height="#button_height" style_radius="#border_radius" style_border_width="1"
                    style_border_color="#text_muted" style_bg_opa="0">
           <text_body text="Dismiss" style_text_color="#text_muted" align="center"/>
           <event_cb trigger="clicked" callback="recovery_dismiss_clicked"/>
         </lv_button>
       </lv_obj>
-    </lv_obj>
+    </ui_dialog>
   </view>
 </component>
