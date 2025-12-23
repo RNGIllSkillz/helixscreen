@@ -58,6 +58,7 @@ void AdvancedPanel::init_subjects() {
                              on_helix_plugin_install_clicked);
     lv_xml_register_event_cb(nullptr, "on_helix_plugin_uninstall_clicked",
                              on_helix_plugin_uninstall_clicked);
+    lv_xml_register_event_cb(nullptr, "on_restart_helix_clicked", on_restart_helix_clicked);
 
     // Note: Input shaping uses on_input_shaper_row_clicked registered by InputShaperPanel
     // Note: Restart row doesn't exist - restart buttons have their own callbacks in
@@ -88,9 +89,7 @@ void AdvancedPanel::on_activate() {
     // Check HelixPrint plugin status and update subject for conditional visibility
     if (api_) {
         api_->check_helix_plugin(
-            [this](bool available) {
-                printer_state_.set_helix_plugin_installed(available);
-            },
+            [this](bool available) { printer_state_.set_helix_plugin_installed(available); },
             [](const MoonrakerError&) {
                 // Silently ignore errors - assume not installed
             });
@@ -196,6 +195,10 @@ void AdvancedPanel::on_helix_plugin_uninstall_clicked(lv_event_t* /*e*/) {
     get_global_advanced_panel().handle_helix_plugin_uninstall_clicked();
 }
 
+void AdvancedPanel::on_restart_helix_clicked(lv_event_t* /*e*/) {
+    get_global_advanced_panel().handle_restart_helix_clicked();
+}
+
 // ============================================================================
 // HELIXPRINT PLUGIN HANDLERS
 // ============================================================================
@@ -231,4 +234,22 @@ void AdvancedPanel::handle_helix_plugin_uninstall_clicked() {
     spdlog::debug("[{}] HelixPrint Plugin Uninstall clicked", get_name());
     // TODO: Implement uninstall functionality
     ui_toast_show(ToastSeverity::INFO, "Uninstall: Coming soon", 2000);
+}
+
+// ============================================================================
+// RESTART HANDLER
+// ============================================================================
+
+void AdvancedPanel::handle_restart_helix_clicked() {
+    spdlog::info("[{}] Restart HelixScreen requested", get_name());
+    ui_toast_show(ToastSeverity::INFO, "Restarting HelixScreen...", 1500);
+
+    // Schedule restart after a brief delay to let toast display
+    // Uses fork/exec pattern from app_globals - works on both systemd and standalone
+    lv_async_call(
+        [](void*) {
+            spdlog::info("[Advanced Panel] Initiating restart...");
+            app_request_restart();
+        },
+        nullptr);
 }

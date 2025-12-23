@@ -159,6 +159,11 @@
                         label="Print History" icon="clock" description="View print statistics and job history">
       <event_cb trigger="clicked" callback="on_history_row_clicked"/>
     </setting_action_row>
+    <!-- Restart HelixScreen -->
+    <setting_action_row name="row_restart_helix"
+                        label="Restart HelixScreen" icon="refresh" description="Restart the display application">
+      <event_cb trigger="clicked" callback="on_restart_helix_clicked"/>
+    </setting_action_row>
     <!-- Bottom padding for scroll -->
     <lv_obj width="100%" height="#space_xl" style_bg_opa="0" style_border_width="0" scrollable="false"/>
   </view>
