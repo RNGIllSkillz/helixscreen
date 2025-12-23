@@ -1,10 +1,11 @@
 // Copyright 2025 HelixScreen
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "../catch_amalgamated.hpp"
+#include "ui_print_preparation_manager.h"
 
 #include "print_start_analyzer.h"
-#include "ui_print_preparation_manager.h"
+
+#include "../catch_amalgamated.hpp"
 
 using namespace helix;
 using namespace helix::ui;
@@ -91,7 +92,8 @@ TEST_CASE("PrintPreparationManager: check_modification_capability", "[print_prep
         REQUIRE(capability.has_plugin == false);
         // Should still check disk space
         // (can_modify depends on system - just verify it returns valid struct)
-        REQUIRE((capability.can_modify || !capability.can_modify)); // Always true, just checking no crash
+        REQUIRE((capability.can_modify ||
+                 !capability.can_modify)); // Always true, just checking no crash
     }
 }
 
@@ -113,7 +115,7 @@ TEST_CASE("PrintPreparationManager: set_cached_file_size", "[print_preparation][
 
     SECTION("Setting file size affects modification capability calculation") {
         // Set a reasonable file size
-        manager.set_cached_file_size(10 * 1024 * 1024);  // 10MB
+        manager.set_cached_file_size(10 * 1024 * 1024); // 10MB
 
         auto capability = manager.check_modification_capability();
         // Required bytes should account for file size
@@ -122,7 +124,7 @@ TEST_CASE("PrintPreparationManager: set_cached_file_size", "[print_preparation][
 
     SECTION("Very large file size may exceed available space") {
         // Set an extremely large file size
-        manager.set_cached_file_size(1000ULL * 1024 * 1024 * 1024);  // 1TB
+        manager.set_cached_file_size(1000ULL * 1024 * 1024 * 1024); // 1TB
 
         auto capability = manager.check_modification_capability();
         // Should report insufficient space for such a large file

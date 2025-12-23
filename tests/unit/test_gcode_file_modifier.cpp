@@ -671,10 +671,10 @@ TEST_CASE("PrintStartCallInfo - with_skip_params", "[gcode][detector][print_star
 
         // These should be rejected (spaces, special chars)
         std::vector<std::pair<std::string, std::string>> bad_params = {
-            {"SKIP MESH", "1"},   // space
-            {"SKIP;MESH", "1"},   // semicolon (G-code comment)
-            {"SKIP\nMESH", "1"},  // newline
-            {"", "1"}             // empty
+            {"SKIP MESH", "1"},  // space
+            {"SKIP;MESH", "1"},  // semicolon (G-code comment)
+            {"SKIP\nMESH", "1"}, // newline
+            {"", "1"}            // empty
         };
 
         std::string result = info.with_skip_params(bad_params);
@@ -690,9 +690,7 @@ TEST_CASE("PrintStartCallInfo - with_skip_params", "[gcode][detector][print_star
 
         // These should all be accepted
         std::vector<std::pair<std::string, std::string>> good_params = {
-            {"SKIP_BED_MESH", "1"},
-            {"SKIP123", "1"},
-            {"skip_lower", "0"}  // lowercase is valid
+            {"SKIP_BED_MESH", "1"}, {"SKIP123", "1"}, {"skip_lower", "0"} // lowercase is valid
         };
 
         std::string result = info.with_skip_params(good_params);
@@ -718,15 +716,16 @@ TEST_CASE("GCodeFileModifier - add_print_start_skip_params", "[gcode][modifier][
         REQUIRE(added);
 
         std::string result = modifier.apply_to_content(content);
-        REQUIRE(result.find("PRINT_START EXTRUDER=210 BED=60 SKIP_BED_MESH=1") != std::string::npos);
+        REQUIRE(result.find("PRINT_START EXTRUDER=210 BED=60 SKIP_BED_MESH=1") !=
+                std::string::npos);
     }
 
     SECTION("Adds multiple skip params") {
         std::string content = "; Start\nPRINT_START BED=55\nG1 X10\n";
         auto scan = detector.scan_content(content);
 
-        std::vector<std::pair<std::string, std::string>> skip_params = {
-            {"SKIP_MESH", "1"}, {"SKIP_QGL", "1"}};
+        std::vector<std::pair<std::string, std::string>> skip_params = {{"SKIP_MESH", "1"},
+                                                                        {"SKIP_QGL", "1"}};
 
         bool added = modifier.add_print_start_skip_params(scan, skip_params);
         REQUIRE(added);

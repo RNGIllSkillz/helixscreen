@@ -24,9 +24,10 @@
  * ```
  */
 
+#include "ui_modal.h"
+
 #include "print_start_analyzer.h"
 #include "print_start_enhancer.h"
-#include "ui_modal.h"
 
 #include <functional>
 #include <memory>
@@ -80,8 +81,12 @@ class MacroEnhanceWizard : public Modal {
     // Modal Interface
     // =========================================================================
 
-    [[nodiscard]] const char* get_name() const override { return "Macro Enhancement Wizard"; }
-    [[nodiscard]] const char* component_name() const override { return "macro_enhance_modal"; }
+    [[nodiscard]] const char* get_name() const override {
+        return "Macro Enhancement Wizard";
+    }
+    [[nodiscard]] const char* component_name() const override {
+        return "macro_enhance_modal";
+    }
 
     // =========================================================================
     // Setup
@@ -92,7 +97,9 @@ class MacroEnhanceWizard : public Modal {
      *
      * @param api MoonrakerAPI instance (must remain valid while wizard is open)
      */
-    void set_api(MoonrakerAPI* api) { api_ = api; }
+    void set_api(MoonrakerAPI* api) {
+        api_ = api;
+    }
 
     /**
      * @brief Set the analysis result to enhance
@@ -129,9 +136,15 @@ class MacroEnhanceWizard : public Modal {
     // State Access (for testing)
     // =========================================================================
 
-    [[nodiscard]] MacroEnhanceState get_state() const { return state_; }
-    [[nodiscard]] size_t get_current_operation_index() const { return current_op_index_; }
-    [[nodiscard]] size_t get_total_operations() const { return operations_.size(); }
+    [[nodiscard]] MacroEnhanceState get_state() const {
+        return state_;
+    }
+    [[nodiscard]] size_t get_current_operation_index() const {
+        return current_op_index_;
+    }
+    [[nodiscard]] size_t get_total_operations() const {
+        return operations_.size();
+    }
     [[nodiscard]] size_t get_approved_count() const;
 
   protected:

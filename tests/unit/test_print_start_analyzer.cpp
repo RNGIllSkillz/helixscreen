@@ -1,9 +1,9 @@
 // Copyright 2025 HelixScreen
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "../catch_amalgamated.hpp"
-
 #include "print_start_analyzer.h"
+
+#include "../catch_amalgamated.hpp"
 
 using namespace helix;
 
@@ -184,8 +184,10 @@ TEST_CASE("PrintStartAnalyzer: Partial controllability", "[print_start][parsing]
         bool has_qgl = false;
         bool has_clean = false;
         for (auto* op : uncontrollable) {
-            if (op->category == PrintStartOpCategory::QGL) has_qgl = true;
-            if (op->category == PrintStartOpCategory::NOZZLE_CLEAN) has_clean = true;
+            if (op->category == PrintStartOpCategory::QGL)
+                has_qgl = true;
+            if (op->category == PrintStartOpCategory::NOZZLE_CLEAN)
+                has_clean = true;
         }
         REQUIRE(has_qgl);
         REQUIRE(has_clean);
@@ -213,8 +215,7 @@ TEST_CASE("PrintStartAnalyzer: Minimal macro", "[print_start][parsing]") {
     }
 }
 
-TEST_CASE("PrintStartAnalyzer: Alternative skip parameter patterns",
-          "[print_start][parsing]") {
+TEST_CASE("PrintStartAnalyzer: Alternative skip parameter patterns", "[print_start][parsing]") {
     auto result = PrintStartAnalyzer::parse_macro("PRINT_START", ALT_PATTERN_PRINT_START);
 
     SECTION("Detects QGL with SKIP_GANTRY variant") {
