@@ -1,0 +1,235 @@
+<?xml version="1.0"?>
+<!-- Copyright 2025 HelixScreen -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!--
+    Macro Enhancement Wizard Modal
+
+    A step-by-step wizard for making PRINT_START operations skippable.
+    Shows each operation for approval, displays the Jinja2 wrapper code,
+    and applies changes with backup support.
+
+    Steps:
+    1. Per-operation confirmation (loops for each detected operation)
+    2. Summary of all approved changes
+    3. Apply with backup option
+
+    Required subjects:
+    - macro_enhance_step_title: Current step title (e.g., "Make BED_MESH_CALIBRATE Optional?")
+    - macro_enhance_step_progress: Progress indicator (e.g., "1 of 3")
+    - macro_enhance_description: Description of current operation
+    - macro_enhance_diff_preview: The Jinja2 code that will be added
+    - macro_enhance_summary: Summary of all approved changes
+    - macro_enhance_state: 0=operation, 1=summary, 2=applying, 3=complete, 4=error
+  -->
+  <view name="macro_enhance_modal"
+        extends="ui_dialog" width="90%" height="content" align="center" style_max_height="85%" flex_flow="column"
+        style_flex_main_place="start" style_pad_gap="0">
+    <!-- ============================================================ -->
+    <!-- HEADER: Progress indicator -->
+    <!-- ============================================================ -->
+    <lv_obj width="100%"
+            height="content" style_bg_opa="0" style_border_width="0" style_pad_left="#space_lg"
+            style_pad_right="#space_lg" style_pad_top="#space_lg" style_pad_bottom="#space_sm" flex_flow="row"
+            style_flex_main_place="space_between" style_flex_cross_place="center">
+      <text_heading name="step_title" bind_text="macro_enhance_step_title"/>
+      <text_small name="step_progress" bind_text="macro_enhance_step_progress" style_text_color="#text_secondary"/>
+    </lv_obj>
+    <!-- ============================================================ -->
+    <!-- STATE 0: Operation confirmation -->
+    <!-- ============================================================ -->
+    <lv_obj name="operation_container"
+            width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_left="#space_lg"
+            style_pad_right="#space_lg" style_pad_top="#space_sm" style_pad_bottom="#space_lg" flex_flow="column"
+            style_pad_gap="#space_md">
+      <!-- Only visible when state == 0 -->
+      <lv_obj-bind_flag_if_neq subject="macro_enhance_state" flag="hidden" ref_value="0"/>
+      <!-- Description of what this operation does -->
+      <text_body name="operation_description"
+                 width="100%" bind_text="macro_enhance_description" long_mode="wrap" style_text_color="#text_secondary"/>
+      <!-- Code preview label -->
+      <text_small text="Changes to add:" style_text_color="#text_secondary" style_pad_top="#space_sm"/>
+      <!-- Diff preview container with scroll support -->
+      <lv_obj width="100%"
+              height="content" style_max_height="200" style_bg_color="#surface_variant" style_bg_opa="255"
+              style_border_width="1" style_border_color="#text_secondary" style_border_opa="64"
+              style_radius="#border_radius" style_pad_all="#space_sm" scrollable="true" scroll_snap_y="none">
+        <lv_label name="diff_preview"
+                  width="100%" bind_text="macro_enhance_diff_preview" long_mode="wrap" style_text_font="#font_small"/>
+      </lv_obj>
+      <!-- Info note -->
+      <lv_obj width="100%"
+              height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
+              style_bg_opa="0" style_border_width="0" style_pad_all="0">
+        <icon src="information" size="sm" color="#text_secondary"/>
+        <text_small width="content" text="This adds a skip parameter to your macro" style_text_color="#text_secondary"/>
+      </lv_obj>
+    </lv_obj>
+    <!-- ============================================================ -->
+    <!-- STATE 1: Summary of approved changes -->
+    <!-- ============================================================ -->
+    <lv_obj name="summary_container"
+            width="100%" height="content" hidden="true" style_bg_opa="0" style_border_width="0"
+            style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
+            style_pad_bottom="#space_lg" flex_flow="column" style_pad_gap="#space_md">
+      <!-- Only visible when state == 1 -->
+      <lv_obj-bind_flag_if_neq subject="macro_enhance_state" flag="hidden" ref_value="1"/>
+      <!-- Summary icon and heading -->
+      <lv_obj width="100%"
+              height="content" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_sm"
+              style_bg_opa="0" style_border_width="0" style_pad_all="0">
+        <icon src="check_circle_outline" size="lg" color="#success_color"/>
+        <text_body text="Review your changes" style_text_align="center"/>
+      </lv_obj>
+      <!-- Summary list container -->
+      <lv_obj width="100%"
+              height="content" style_max_height="180" style_bg_color="#surface_variant" style_bg_opa="255"
+              style_border_width="1" style_border_color="#text_secondary" style_border_opa="64"
+              style_radius="#border_radius" style_pad_all="#space_md" scrollable="true" scroll_snap_y="none">
+        <lv_label name="summary_list"
+                  width="100%" bind_text="macro_enhance_summary" long_mode="wrap" style_text_font="#font_small"/>
+      </lv_obj>
+      <!-- Backup checkbox -->
+      <lv_obj width="100%"
+              height="content" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
+              style_bg_opa="0" style_border_width="0" style_pad_all="0">
+        <lv_checkbox name="backup_checkbox" checked="true" text="Create backup of printer.cfg before applying"/>
+      </lv_obj>
+      <!-- Warning note -->
+      <lv_obj width="100%"
+              height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
+              style_bg_opa="0" style_border_width="0" style_pad_all="0">
+        <icon src="alert" size="sm" color="#warning_color"/>
+        <text_small width="content" text="Klipper will restart to apply changes" style_text_color="#warning_color"/>
+      </lv_obj>
+    </lv_obj>
+    <!-- ============================================================ -->
+    <!-- STATE 2: Applying changes -->
+    <!-- ============================================================ -->
+    <lv_obj name="applying_container"
+            width="100%" height="content" hidden="true" style_bg_opa="0" style_border_width="0"
+            style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_xl"
+            style_pad_bottom="#space_xl" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_lg">
+      <!-- Only visible when state == 2 -->
+      <lv_obj-bind_flag_if_neq subject="macro_enhance_state" flag="hidden" ref_value="2"/>
+      <spinner size="lg"/>
+      <text_body name="applying_status" bind_text="macro_enhance_description" style_text_align="center"/>
+    </lv_obj>
+    <!-- ============================================================ -->
+    <!-- STATE 3: Success -->
+    <!-- ============================================================ -->
+    <lv_obj name="success_container"
+            width="100%" height="content" hidden="true" style_bg_opa="0" style_border_width="0"
+            style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_xl"
+            style_pad_bottom="#space_xl" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_md">
+      <!-- Only visible when state == 3 -->
+      <lv_obj-bind_flag_if_neq subject="macro_enhance_state" flag="hidden" ref_value="3"/>
+      <icon src="check_circle" size="xl" color="#success_color"/>
+      <text_heading text="Enhancement Complete!" style_text_align="center"/>
+      <text_body name="success_message"
+                 width="100%" bind_text="macro_enhance_description" long_mode="wrap" style_text_align="center"
+                 style_text_color="#text_secondary"/>
+    </lv_obj>
+    <!-- ============================================================ -->
+    <!-- STATE 4: Error -->
+    <!-- ============================================================ -->
+    <lv_obj name="error_container"
+            width="100%" height="content" hidden="true" style_bg_opa="0" style_border_width="0"
+            style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_xl"
+            style_pad_bottom="#space_xl" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_md">
+      <!-- Only visible when state == 4 -->
+      <lv_obj-bind_flag_if_neq subject="macro_enhance_state" flag="hidden" ref_value="4"/>
+      <icon src="alert_circle" size="xl" color="#error_color"/>
+      <text_heading text="Enhancement Failed" style_text_align="center"/>
+      <text_body name="error_message"
+                 width="100%" bind_text="macro_enhance_description" long_mode="wrap" style_text_align="center"
+                 style_text_color="#text_secondary"/>
+    </lv_obj>
+    <!-- ============================================================ -->
+    <!-- Divider above buttons -->
+    <!-- ============================================================ -->
+    <lv_obj width="100%"
+            height="1" style_bg_color="#text_secondary" style_bg_opa="64" style_border_width="0" style_pad_all="0"/>
+    <!-- ============================================================ -->
+    <!-- BUTTONS: Operation step (Skip/Approve) -->
+    <!-- ============================================================ -->
+    <lv_obj name="operation_buttons"
+            width="100%" height="#button_height" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+            style_pad_gap="0" flex_flow="row">
+      <!-- Only visible when state == 0 -->
+      <lv_obj-bind_flag_if_neq subject="macro_enhance_state" flag="hidden" ref_value="0"/>
+      <!-- Skip button -->
+      <lv_button name="btn_skip"
+                 height="100%" flex_grow="1" style_radius="0" style_border_width="0" style_shadow_width="0">
+        <event_cb trigger="clicked" callback="on_macro_enhance_skip"/>
+        <text_body text="Skip" align="center"/>
+      </lv_button>
+      <!-- Vertical divider -->
+      <lv_obj width="1"
+              height="100%" style_bg_color="#text_secondary" style_bg_opa="64" style_border_width="0" style_pad_all="0"/>
+      <!-- Approve button -->
+      <lv_button name="btn_approve"
+                 height="100%" flex_grow="1" style_radius="0" style_border_width="0" style_shadow_width="0"
+                 style_bg_color="#accent_color">
+        <event_cb trigger="clicked" callback="on_macro_enhance_approve"/>
+        <text_body text="Make Optional" align="center" style_text_color="#text_on_accent"/>
+      </lv_button>
+    </lv_obj>
+    <!-- ============================================================ -->
+    <!-- BUTTONS: Summary step (Cancel/Apply) -->
+    <!-- ============================================================ -->
+    <lv_obj name="summary_buttons"
+            width="100%" height="#button_height" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+            style_pad_gap="0" flex_flow="row" hidden="true">
+      <!-- Only visible when state == 1 -->
+      <lv_obj-bind_flag_if_neq subject="macro_enhance_state" flag="hidden" ref_value="1"/>
+      <!-- Cancel button -->
+      <lv_button name="btn_cancel"
+                 height="100%" flex_grow="1" style_radius="0" style_border_width="0" style_shadow_width="0">
+        <event_cb trigger="clicked" callback="on_macro_enhance_cancel"/>
+        <text_body text="Cancel" align="center"/>
+      </lv_button>
+      <!-- Vertical divider -->
+      <lv_obj width="1"
+              height="100%" style_bg_color="#text_secondary" style_bg_opa="64" style_border_width="0" style_pad_all="0"/>
+      <!-- Apply button -->
+      <lv_button name="btn_apply"
+                 height="100%" flex_grow="1" style_radius="0" style_border_width="0" style_shadow_width="0"
+                 style_bg_color="#success_color">
+        <event_cb trigger="clicked" callback="on_macro_enhance_apply"/>
+        <text_body text="Apply Changes" align="center" style_text_color="#text_on_accent"/>
+      </lv_button>
+    </lv_obj>
+    <!-- ============================================================ -->
+    <!-- BUTTONS: Applying state (disabled) -->
+    <!-- ============================================================ -->
+    <lv_obj name="applying_buttons"
+            width="100%" height="#button_height" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+            style_pad_gap="0" flex_flow="row" hidden="true">
+      <!-- Only visible when state == 2 -->
+      <lv_obj-bind_flag_if_neq subject="macro_enhance_state" flag="hidden" ref_value="2"/>
+      <!-- Placeholder - buttons disabled during apply -->
+      <lv_button height="100%"
+                 flex_grow="1" clickable="false" style_radius="0" style_border_width="0" style_shadow_width="0"
+                 style_bg_opa="128">
+        <text_body text="Applying..." align="center" style_text_opa="128"/>
+      </lv_button>
+    </lv_obj>
+    <!-- ============================================================ -->
+    <!-- BUTTONS: Success/Error state (Close) -->
+    <!-- ============================================================ -->
+    <lv_obj name="close_buttons"
+            width="100%" height="#button_height" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+            style_pad_gap="0" flex_flow="row" hidden="true">
+      <!-- Visible when state == 3 OR state == 4 -->
+      <!-- Note: We need OR logic, so we use a different approach -
+           the C++ code will manage visibility for states 3 and 4 -->
+      <!-- Close button -->
+      <lv_button name="btn_close"
+                 height="100%" flex_grow="1" style_radius="0" style_border_width="0" style_shadow_width="0">
+        <event_cb trigger="clicked" callback="on_macro_enhance_close"/>
+        <text_body text="Close" align="center"/>
+      </lv_button>
+    </lv_obj>
+  </view>
+</component>
