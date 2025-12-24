@@ -508,6 +508,15 @@ class PrintSelectPanel : public PanelBase {
     void refresh_visible_content();
 
     /**
+     * @brief Check if Moonraker has symlink access to USB files
+     *
+     * Queries Moonraker for files in the "usb/" path. If files exist,
+     * it means there's a symlink (gcodes/usb -> /media/sda1) and the
+     * USB tab should be hidden since files are accessible via Printer source.
+     */
+    void check_moonraker_usb_symlink();
+
+    /**
      * @brief Schedule a debounced view refresh
      *
      * Instead of rebuilding views immediately, this schedules a single refresh

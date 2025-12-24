@@ -151,7 +151,8 @@ class PrintSelectUsbSource {
     /**
      * @brief Handle USB drive insertion
      *
-     * Shows the USB tab in the source selector.
+     * Shows the USB tab in the source selector, unless Moonraker has
+     * symlink access to USB files (same-host setup).
      */
     void on_drive_inserted();
 
@@ -162,6 +163,24 @@ class PrintSelectUsbSource {
      * and invokes source changed callback.
      */
     void on_drive_removed();
+
+    /**
+     * @brief Set whether Moonraker has direct access to USB files via symlink
+     *
+     * When true, the USB tab is hidden permanently since files are accessible
+     * via the Printer source. This is the case when Klipper's mod creates
+     * a symlink like gcodes/usb -> /media/sda1.
+     *
+     * @param has_access true if Moonraker can see USB files via symlink
+     */
+    void set_moonraker_has_usb_access(bool has_access);
+
+    /**
+     * @brief Check if Moonraker has symlink access to USB files
+     */
+    [[nodiscard]] bool moonraker_has_usb_access() const {
+        return moonraker_has_usb_access_;
+    }
 
     // === File Operations ===
 
@@ -200,6 +219,7 @@ class PrintSelectUsbSource {
     // === State ===
     FileSource current_source_ = FileSource::PRINTER;
     std::vector<UsbGcodeFile> usb_files_;
+    bool moonraker_has_usb_access_ = false; ///< True if Moonraker has symlink to USB files
 
     // === Callbacks ===
     UsbFilesReadyCallback on_files_ready_;

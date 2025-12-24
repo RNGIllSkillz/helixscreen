@@ -876,6 +876,12 @@ void PrintSelectPanel::set_api(MoonrakerAPI* api) {
         detail_view_->set_dependencies(api_, &printer_state_);
     }
 
+    // Check if Moonraker has symlink access to USB files (same-host setup)
+    // If so, hide the USB tab since files are already accessible via Printer source
+    if (api_ && usb_source_) {
+        check_moonraker_usb_symlink();
+    }
+
     // Note: Don't auto-refresh here - WebSocket may not be connected yet.
     // refresh_files() has a connection check that will silently return if not connected.
     // Files will be loaded lazily via on_activate() when user navigates to this panel.
@@ -884,6 +890,44 @@ void PrintSelectPanel::set_api(MoonrakerAPI* api) {
         spdlog::debug("[{}] API set, files will load on first view", get_name());
         refresh_files(); // Will early-return if not connected
     }
+}
+
+void PrintSelectPanel::check_moonraker_usb_symlink() {
+    if (!api_ || !usb_source_) {
+        return;
+    }
+
+    spdlog::debug("[{}] Checking if Moonraker has USB symlink access...", get_name());
+
+    // Query Moonraker for files in the "usb" directory
+    // If it exists and has files, Klipper's mod has created a symlink
+    auto* self = this;
+    api_->list_files(
+        "gcodes", "usb", false,
+        [self](const std::vector<FileInfo>& files) {
+            // If there are any files or the directory exists, symlink is active
+            // Note: An empty directory still counts - the symlink exists even if USB is empty
+            if (!files.empty()) {
+                spdlog::info("[{}] Moonraker has USB symlink access ({} files) - hiding USB tab",
+                             self->get_name(), files.size());
+                if (self->usb_source_) {
+                    self->usb_source_->set_moonraker_has_usb_access(true);
+                }
+            } else {
+                spdlog::debug("[{}] Moonraker USB path exists but empty - symlink likely active",
+                              self->get_name());
+                // Even an empty usb/ directory suggests symlink is set up
+                if (self->usb_source_) {
+                    self->usb_source_->set_moonraker_has_usb_access(true);
+                }
+            }
+        },
+        [self](const MoonrakerError& error) {
+            // 404 or error means no symlink - USB tab should be available
+            spdlog::debug("[{}] No Moonraker USB symlink detected ({})", self->get_name(),
+                          error.message);
+            // usb_source_ will show USB tab when drive is inserted
+        });
 }
 
 void PrintSelectPanel::on_activate() {
