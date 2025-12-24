@@ -1367,8 +1367,9 @@ void GCodeLayerRenderer::load_config() {
         if (config_layers_per_frame_ == 0) { // Adaptive mode
             layers_per_frame_ = CONSTRAINED_START_LPF;
         }
-        spdlog::info("[GCodeLayerRenderer] Constrained device detected: lpf capped at {}, starting at {}",
-                     max_layers_per_frame_, layers_per_frame_);
+        spdlog::info(
+            "[GCodeLayerRenderer] Constrained device detected: lpf capped at {}, starting at {}",
+            max_layers_per_frame_, layers_per_frame_);
     }
 }
 

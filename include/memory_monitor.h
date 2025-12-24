@@ -27,12 +27,12 @@ namespace helix {
  * @brief Memory usage snapshot
  */
 struct MemoryStats {
-    size_t vm_size_kb = 0;   ///< Virtual memory size (total mapped)
-    size_t vm_rss_kb = 0;    ///< Resident set size (actual RAM)
-    size_t vm_data_kb = 0;   ///< Data + stack
-    size_t vm_swap_kb = 0;   ///< Swapped out memory
-    size_t vm_peak_kb = 0;   ///< Peak virtual memory
-    size_t vm_hwm_kb = 0;    ///< Peak RSS (high water mark)
+    size_t vm_size_kb = 0; ///< Virtual memory size (total mapped)
+    size_t vm_rss_kb = 0;  ///< Resident set size (actual RAM)
+    size_t vm_data_kb = 0; ///< Data + stack
+    size_t vm_swap_kb = 0; ///< Swapped out memory
+    size_t vm_peak_kb = 0; ///< Peak virtual memory
+    size_t vm_hwm_kb = 0;  ///< Peak RSS (high water mark)
 };
 
 /**
@@ -59,7 +59,9 @@ class MemoryMonitor {
     /**
      * @brief Check if monitoring is active
      */
-    bool is_running() const { return running_.load(); }
+    bool is_running() const {
+        return running_.load();
+    }
 
     /**
      * @brief Get current memory stats (can be called from any thread)

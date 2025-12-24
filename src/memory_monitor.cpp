@@ -87,10 +87,11 @@ void MemoryMonitor::log_now(const char* context) {
     MemoryStats stats = get_current_stats();
 
     if (context) {
-        spdlog::trace("[MemoryMonitor] [{}] RSS={}kB VmSize={}kB VmData={}kB Swap={}kB (Peak: RSS={}kB "
-                      "Vm={}kB)",
-                      context, stats.vm_rss_kb, stats.vm_size_kb, stats.vm_data_kb, stats.vm_swap_kb,
-                      stats.vm_hwm_kb, stats.vm_peak_kb);
+        spdlog::trace(
+            "[MemoryMonitor] [{}] RSS={}kB VmSize={}kB VmData={}kB Swap={}kB (Peak: RSS={}kB "
+            "Vm={}kB)",
+            context, stats.vm_rss_kb, stats.vm_size_kb, stats.vm_data_kb, stats.vm_swap_kb,
+            stats.vm_hwm_kb, stats.vm_peak_kb);
     } else {
         spdlog::trace("[MemoryMonitor] RSS={}kB VmSize={}kB VmData={}kB Swap={}kB (Peak: RSS={}kB "
                       "Vm={}kB)",
@@ -121,14 +122,17 @@ void MemoryMonitor::monitor_loop() {
         MemoryStats stats = get_current_stats();
 
         // Calculate deltas
-        int64_t rss_delta = static_cast<int64_t>(stats.vm_rss_kb) - static_cast<int64_t>(prev_stats.vm_rss_kb);
-        int64_t vm_delta = static_cast<int64_t>(stats.vm_size_kb) - static_cast<int64_t>(prev_stats.vm_size_kb);
+        int64_t rss_delta =
+            static_cast<int64_t>(stats.vm_rss_kb) - static_cast<int64_t>(prev_stats.vm_rss_kb);
+        int64_t vm_delta =
+            static_cast<int64_t>(stats.vm_size_kb) - static_cast<int64_t>(prev_stats.vm_size_kb);
 
         // Log with delta if significant change (>100kB)
         if (std::abs(rss_delta) > 100 || std::abs(vm_delta) > 100) {
-            spdlog::trace("[MemoryMonitor] RSS={}kB ({:+}kB) VmSize={}kB ({:+}kB) VmData={}kB Swap={}kB",
-                          stats.vm_rss_kb, rss_delta, stats.vm_size_kb, vm_delta, stats.vm_data_kb,
-                          stats.vm_swap_kb);
+            spdlog::trace(
+                "[MemoryMonitor] RSS={}kB ({:+}kB) VmSize={}kB ({:+}kB) VmData={}kB Swap={}kB",
+                stats.vm_rss_kb, rss_delta, stats.vm_size_kb, vm_delta, stats.vm_data_kb,
+                stats.vm_swap_kb);
         } else {
             spdlog::trace("[MemoryMonitor] RSS={}kB VmSize={}kB VmData={}kB Swap={}kB",
                           stats.vm_rss_kb, stats.vm_size_kb, stats.vm_data_kb, stats.vm_swap_kb);

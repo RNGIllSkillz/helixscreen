@@ -528,12 +528,12 @@ class GCodeLayerRenderer {
     uint32_t last_frame_render_ms_{0}; ///< Render time of last frame (for adaptive)
 
     // Device-aware limits
-    bool is_constrained_device_{false};               ///< True if device has < 256MB RAM
-    int max_layers_per_frame_{MAX_LAYERS_PER_FRAME};  ///< Device-adjusted max (15 on constrained)
+    bool is_constrained_device_{false};              ///< True if device has < 256MB RAM
+    int max_layers_per_frame_{MAX_LAYERS_PER_FRAME}; ///< Device-adjusted max (15 on constrained)
 
     // Warm-up frames: skip heavy rendering for first N frames to let panel layout complete
     static constexpr int WARMUP_FRAMES = 2;
-    int warmup_frames_remaining_{WARMUP_FRAMES};      ///< Countdown before heavy render starts
+    int warmup_frames_remaining_{WARMUP_FRAMES}; ///< Countdown before heavy render starts
 
     /// Load config values from helixconfig.json
     void load_config();
