@@ -1,5 +1,5 @@
 # HelixScreen Memory Usage Analysis
-*Last Updated: 2025-11-30*
+*Last Updated: 2025-12-24*
 
 ## Executive Summary
 
@@ -136,14 +136,47 @@ If print thumbnails become numerous:
 
 ---
 
+## G-code Layer Cache Tiering (2025-12-24)
+
+**Problem**: The layer cache for G-code visualization was consuming 32 MB on the AD5M (108 MB total RAM), leaving only ~15 MB free and causing severe performance issues.
+
+### Tiered Cache Budgets
+
+| Device Tier | Total RAM | Cache Budget | Adaptive Mode | Examples |
+|-------------|-----------|--------------|---------------|----------|
+| **Constrained** | < 256 MB | **4 MB** | Yes | AD5M (108 MB), embedded devices |
+| **Normal** | 256-512 MB | **16 MB** | Yes | Pi 3, low-end Pi 4 |
+| **Good** | > 512 MB | **32 MB** | No | Desktop, Pi 4 2GB+ |
+
+### Implementation Details
+
+- **Detection**: Uses `MemoryInfo::is_constrained_device()`, `is_normal_device()`, `is_good_device()` (see `include/memory_utils.h`)
+- **Adaptive Mode**: Constrained/normal devices use adaptive mode that responds to memory pressure
+- **Pressure Response**: `check_memory_pressure()` is called on every cache access to dynamically adjust budget
+
+### AD5M Reality Check (Measured 2025-12-24)
+
+| Metric | Before Fix | After Fix | Notes |
+|--------|------------|-----------|-------|
+| HelixScreen RSS | ~40 MB | ~16 MB | Still tight |
+| System Available | 15 MB | 37 MB | Marginal safety |
+| Layer Cache | 31.9 MB | < 4 MB | Trade-off: fewer cached layers |
+
+**Caveats**:
+- The 4 MB cache means more frequent layer re-parsing during G-code preview navigation
+- Large G-code files (10 MB+) may still cause memory pressure during initial loading
+- Adaptive mode can shrink cache to 1 MB under pressure, degrading preview performance
+- These numbers were measured at idle; actual usage during printing may differ
+
+---
+
 ## Conclusion
 
-The current architecture is **well-optimized** for the use case. Physical memory footprint is ~35 MB, well within budget for any modern SBC.
+The current architecture is **well-optimized** for the use case. Physical memory footprint is ~35 MB on desktop, ~16 MB on constrained devices like AD5M.
 
 **Don't refactor unless:**
-- Running on <64 MB RAM hardware (extremely unlikely)
-- Need to support 50+ panels
 - Profiling shows OOM crashes on target hardware
+- Need to support 50+ panels
 
 ---
 
