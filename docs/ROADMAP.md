@@ -55,6 +55,10 @@ See `docs/AMS_IMPLEMENTATION_PLAN.md` for detailed specification.
 - [ ] **Structured logging** - Log levels, rotation, remote debugging
 - [ ] **Edge case testing** - Print failures, filesystem errors
 
+### 3. Known Bugs (To Fix)
+- [ ] **Print file delete navigation** - After deleting a file from print select detail view, should return to file listing (cards/list) instead of staying on empty detail
+- [x] **Thumbnail cache race condition** - ~~Print Status panel invalidates thumbnails for "fresh download", deleting thumbnails Print Select just cached~~ Fixed: removed aggressive invalidation from Print Status; Print Select already handles file modification detection.
+
 ---
 
 ## Feature Parity Status (TIER 1 - Critical)
@@ -186,6 +190,7 @@ Configure Moonraker-Timelapse plugin:
 
 | Feature | Priority | Notes |
 |---------|----------|-------|
+| **Client-side thumbnail extraction** | Low | Fallback when Moonraker doesn't provide thumbnails (e.g., USB symlinked files). Would download G-code header via Moonraker file API and use `gcode_parser::extract_thumbnails()` locally. See `src/gcode_parser.cpp`. |
 | **mDNS discovery** | Low | Auto-find Moonraker (manual IP works) |
 | **OTA updates** | Future | Currently requires manual binary update |
 | **User manual** | Future | End-user documentation |

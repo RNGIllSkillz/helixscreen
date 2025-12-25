@@ -1826,13 +1826,11 @@ void PrintStatusPanel::load_thumbnail_for_file(const std::string& filename) {
 
             spdlog::debug("[{}] Found thumbnail: {}", get_name(), thumbnail_rel_path);
 
-            // Invalidate cached thumbnail to ensure we get fresh content
-            // This handles re-uploaded files with the same name but different thumbnails
-            size_t invalidated = get_thumbnail_cache().invalidate(thumbnail_rel_path);
-            if (invalidated > 0) {
-                spdlog::info("[{}] Invalidated {} cached thumbnail files for fresh download",
-                             get_name(), invalidated);
-            }
+            // Note: We intentionally do NOT invalidate the cache here.
+            // PrintSelectPanel already handles file modification detection and cache
+            // invalidation when files are re-uploaded. Aggressive invalidation here
+            // causes a race condition where Print Status deletes thumbnails that
+            // Print Select just cached, resulting in placeholder thumbnails.
 
             // Use centralized ThumbnailCache for download and LVGL path handling
             get_thumbnail_cache().fetch(
