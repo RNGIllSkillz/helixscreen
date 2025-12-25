@@ -5,6 +5,7 @@
 
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
+#include "ui_modal.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
@@ -160,6 +161,24 @@ void MoonrakerManager::process_notifications() {
             spdlog::trace("[MoonrakerManager] Processing connection state change: {}",
                           messages[new_state]);
             get_printer_state().set_printer_connection_state(new_state, messages[new_state]);
+
+            // Auto-close connection error modals when connection is restored
+            if (new_state == static_cast<int>(ConnectionState::CONNECTED)) {
+                lv_obj_t* modal = ui_modal_get_top();
+                if (modal) {
+                    lv_obj_t* title_label = lv_obj_find_by_name(modal, "lbl_title");
+                    if (title_label) {
+                        const char* title = lv_label_get_text(title_label);
+                        // Close modals that were showing connection/disconnection errors
+                        if (title && (strcmp(title, "Printer Firmware Disconnected") == 0 ||
+                                      strcmp(title, "Connection Failed") == 0)) {
+                            spdlog::info("[MoonrakerManager] Auto-closing '{}' modal on reconnect",
+                                         title);
+                            ui_modal_hide(modal);
+                        }
+                    }
+                }
+            }
         } else {
             // Regular Moonraker notification
             get_printer_state().update_from_notification(notification);
@@ -229,11 +248,13 @@ void MoonrakerManager::register_callbacks() {
 
     // Register event handler for UI notifications
     m_client->register_event_handler([](const MoonrakerEvent& evt) {
-        const char* title = nullptr;
+        const char* title = "Printer Error"; // Default title (never nullptr!)
         if (evt.type == MoonrakerEventType::CONNECTION_FAILED) {
             title = "Connection Failed";
         } else if (evt.type == MoonrakerEventType::KLIPPY_DISCONNECTED) {
             title = "Printer Firmware Disconnected";
+        } else if (evt.type == MoonrakerEventType::RPC_ERROR) {
+            title = "Request Failed";
         }
 
         if (evt.is_error) {
