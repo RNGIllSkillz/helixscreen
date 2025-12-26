@@ -306,10 +306,6 @@ class DeferredRenderQueue {
             std::swap(to_execute, deferred_);
         }
 
-        if (!to_execute.empty()) {
-            spdlog::debug("[DeferredRenderQueue] Draining {} callbacks", to_execute.size());
-        }
-
         // Execute all deferred callbacks - now safe because render has finished
         // Wrap each callback in try-catch to prevent exceptions from propagating
         // through LVGL's C code (undefined behavior)
@@ -359,10 +355,11 @@ inline void ui_update_queue_shutdown() {
 /**
  * @brief Thread-aware async call with automatic routing
  *
- * This function handles LVGL async calls correctly by ALWAYS deferring to a
- * safe execution point. We never use lv_async_call() directly because:
+ * This function handles LVGL async calls correctly by:
+ * - On main thread: Execute immediately if not rendering, else defer
+ * - On background thread: Always defer to next frame
  *
- * **The LVGL Timer Restart Problem:**
+ * **The LVGL Timer Restart Problem (why we can't always use lv_async_call):**
  * - lv_async_call() creates a period-0 timer
  * - LVGL's lv_timer_handler() restarts from the HEAD of the timer list
  *   when a new timer is created mid-iteration
@@ -370,20 +367,36 @@ inline void ui_update_queue_shutdown() {
  *   the async callback fires INSIDE the render phase → assertion failure
  *
  * **Solution:**
- * - Always queue to DeferredRenderQueue which drains at LV_EVENT_REFR_READY
- * - This guarantees callbacks never execute during the render phase
+ * - Main thread + not rendering: Execute callback directly (fast path)
+ * - Main thread + rendering: Defer to DeferredRenderQueue (drains at REFR_READY)
+ * - Background thread: Queue to UpdateQueue (drains at REFR_START)
  *
  * @param async_xcb Callback function (same signature as lv_async_call)
  * @param user_data User data passed to callback
  * @return LV_RESULT_OK on success
  */
 inline lv_result_t ui_async_call(lv_async_cb_t async_xcb, void* user_data) {
-    // Always defer to the queue - lv_async_call() is never safe due to
-    // LVGL's timer restart behavior during lv_timer_handler()
-    //
-    // DEBUG: Uncomment to trace deferred calls:
-    // spdlog::trace("[ui_async_call] Deferring callback {:p}", (void*)async_xcb);
-    helix::ui::DeferredRenderQueue::instance().queue(async_xcb, user_data);
+    if (!async_xcb) {
+        return LV_RESULT_OK;
+    }
+
+    // Check if we're on the main LVGL thread
+    if (helix::ui::UpdateQueue::is_main_thread()) {
+        // On main thread - check if rendering is in progress
+        lv_display_t* disp = lv_display_get_default();
+        if (disp && disp->rendering_in_progress) {
+            // During render - defer to after render completes
+            helix::ui::DeferredRenderQueue::instance().queue(async_xcb, user_data);
+        } else {
+            // Not rendering - safe to execute immediately (fast path)
+            async_xcb(user_data);
+        }
+    } else {
+        // Background thread - queue for main thread execution at REFR_START
+        helix::ui::UpdateQueue::instance().queue(
+            [async_xcb, user_data]() { async_xcb(user_data); });
+    }
+
     return LV_RESULT_OK;
 }
 
