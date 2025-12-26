@@ -121,7 +121,7 @@ struct OperationPattern {
     OperationType type;
     std::string pattern;          ///< Substring or regex to match
     OperationEmbedding embedding; ///< How this pattern indicates embedding
-    bool case_sensitive = false;
+    bool exact_match = false;     ///< True for G-codes (exact), false for macros (substring)
 };
 
 /**

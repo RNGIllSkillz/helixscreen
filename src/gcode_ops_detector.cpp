@@ -198,7 +198,7 @@ void GCodeOpsDetector::init_default_patterns() {
         }
 
         patterns_.push_back(
-            {to_operation_type(kw.category), pattern, embedding, kw.case_sensitive});
+            {to_operation_type(kw.category), pattern, embedding, kw.exact_match});
     }
 
     spdlog::debug("[GCodeOpsDetector] Initialized {} patterns from shared registry",
@@ -319,17 +319,18 @@ void GCodeOpsDetector::check_line(const std::string& line, size_t line_number, s
     for (const auto& pattern : patterns_) {
         bool found = false;
 
-        if (pattern.case_sensitive) {
-            found = trimmed.find(pattern.pattern) != std::string::npos;
+        // Always case-insensitive, but exact_match controls exact vs substring
+        std::string upper_trimmed = trimmed;
+        std::string upper_pattern = pattern.pattern;
+        std::transform(upper_trimmed.begin(), upper_trimmed.end(), upper_trimmed.begin(), ::toupper);
+        std::transform(upper_pattern.begin(), upper_pattern.end(), upper_pattern.begin(), ::toupper);
+
+        if (pattern.exact_match) {
+            // G-codes: exact match at start of line (avoid G28 inside FOO_G28_BAR)
+            found = (upper_trimmed.find(upper_pattern) == 0);
         } else {
-            // Case-insensitive search
-            std::string upper_trimmed = trimmed;
-            std::string upper_pattern = pattern.pattern;
-            std::transform(upper_trimmed.begin(), upper_trimmed.end(), upper_trimmed.begin(),
-                           ::toupper);
-            std::transform(upper_pattern.begin(), upper_pattern.end(), upper_pattern.begin(),
-                           ::toupper);
-            found = upper_trimmed.find(upper_pattern) != std::string::npos;
+            // Macros: substring match (catches _PRIME_NOZZLE, AUTO_BED_LEVEL, etc.)
+            found = (upper_trimmed.find(upper_pattern) != std::string::npos);
         }
 
         if (found) {

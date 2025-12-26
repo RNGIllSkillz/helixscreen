@@ -45,7 +45,7 @@ struct OperationKeyword {
     const char* keyword;        ///< Command/macro name to match (e.g., "BED_MESH_CALIBRATE")
     OperationCategory category; ///< Semantic category
     const char* skip_param;     ///< Suggested skip parameter name (e.g., "SKIP_BED_MESH")
-    bool case_sensitive;        ///< True for G-codes (G28, G29), false for macros
+    bool exact_match;           ///< True for G-codes (exact), false for macros (substring)
 };
 
 /**
@@ -57,10 +57,10 @@ struct OperationKeyword {
 // clang-format off
 inline const OperationKeyword OPERATION_KEYWORDS[] = {
     // === Bed Leveling ===
-    {"BED_MESH_CALIBRATE",   OperationCategory::BED_LEVELING, "SKIP_BED_MESH",     false},
+    // Substring matching: AUTO_BED_LEVEL matches BED_LEVEL, etc.
+    {"BED_MESH",             OperationCategory::BED_LEVELING, "SKIP_BED_MESH",     false},
+    {"BED_LEVEL",            OperationCategory::BED_LEVELING, "SKIP_BED_MESH",     false},
     {"G29",                  OperationCategory::BED_LEVELING, "SKIP_BED_MESH",     true},
-    {"BED_MESH_PROFILE LOAD",OperationCategory::BED_LEVELING, "SKIP_BED_MESH",     false},
-    {"AUTO_BED_MESH",        OperationCategory::BED_LEVELING, "SKIP_BED_MESH",     false},
 
     // === Quad Gantry Level ===
     {"QUAD_GANTRY_LEVEL",    OperationCategory::QGL,          "SKIP_QGL",          false},
@@ -71,6 +71,7 @@ inline const OperationKeyword OPERATION_KEYWORDS[] = {
     {"Z_TILT",               OperationCategory::Z_TILT,       "SKIP_Z_TILT",       false},
 
     // === Nozzle Cleaning ===
+    // Substring matching: _CLEAN_NOZZLE matches CLEAN_NOZZLE, etc.
     {"CLEAN_NOZZLE",         OperationCategory::NOZZLE_CLEAN, "SKIP_NOZZLE_CLEAN", false},
     {"NOZZLE_CLEAN",         OperationCategory::NOZZLE_CLEAN, "SKIP_NOZZLE_CLEAN", false},
     {"NOZZLE_WIPE",          OperationCategory::NOZZLE_CLEAN, "SKIP_NOZZLE_CLEAN", false},
@@ -79,10 +80,9 @@ inline const OperationKeyword OPERATION_KEYWORDS[] = {
     {"NOZZLE_BRUSH",         OperationCategory::NOZZLE_CLEAN, "SKIP_NOZZLE_CLEAN", false},
 
     // === Purge/Prime Line ===
-    {"PURGE_LINE",           OperationCategory::PURGE_LINE,   "SKIP_PURGE",        false},
-    {"PRIME_LINE",           OperationCategory::PURGE_LINE,   "SKIP_PURGE",        false},
-    {"PRIME_NOZZLE",         OperationCategory::PURGE_LINE,   "SKIP_PURGE",        false},
-    {"PURGE_NOZZLE",         OperationCategory::PURGE_LINE,   "SKIP_PURGE",        false},
+    // Substring matching: _PRIME_NOZZLE matches PRIME_NOZZLE, etc.
+    {"PURGE",                OperationCategory::PURGE_LINE,   "SKIP_PURGE",        false},
+    {"PRIME",                OperationCategory::PURGE_LINE,   "SKIP_PURGE",        false},
     {"INTRO_LINE",           OperationCategory::PURGE_LINE,   "SKIP_PURGE",        false},
 
     // === Homing ===
@@ -195,24 +195,37 @@ inline const std::vector<std::string>& get_skip_variations(OperationCategory cat
 }
 
 /**
- * @brief Find keyword entry by pattern string
+ * @brief Find keyword entry by pattern string (substring match, case-insensitive)
  *
- * @param pattern Pattern to search for (case-insensitive)
+ * Uses substring matching so `_PRIME_NOZZLE` matches `PRIME_NOZZLE`,
+ * `AUTO_BED_LEVEL` matches `BED_LEVEL`, etc. This catches custom macro
+ * prefixes/suffixes automatically.
+ *
+ * G-codes use exact matching to avoid false positives (G28 inside FOO_G28_BAR).
+ * All matching is case-insensitive.
+ *
+ * @param pattern Command to search for
  * @return Pointer to keyword entry, or nullptr if not found
  */
 inline const OperationKeyword* find_keyword(const std::string& pattern) {
+    // Always uppercase for case-insensitive comparison
+    std::string pat = pattern;
+    std::transform(pat.begin(), pat.end(), pat.begin(), ::toupper);
+
     for (size_t i = 0; i < OPERATION_KEYWORDS_COUNT; ++i) {
-        // Case-insensitive compare for non-case-sensitive patterns
         std::string keyword = OPERATION_KEYWORDS[i].keyword;
-        std::string pat = pattern;
+        std::transform(keyword.begin(), keyword.end(), keyword.begin(), ::toupper);
 
-        if (!OPERATION_KEYWORDS[i].case_sensitive) {
-            std::transform(keyword.begin(), keyword.end(), keyword.begin(), ::toupper);
-            std::transform(pat.begin(), pat.end(), pat.begin(), ::toupper);
-        }
-
-        if (keyword == pat) {
-            return &OPERATION_KEYWORDS[i];
+        if (OPERATION_KEYWORDS[i].exact_match) {
+            // G-codes: exact match only (avoid G28 matching inside FOO_G28_BAR)
+            if (pat == keyword) {
+                return &OPERATION_KEYWORDS[i];
+            }
+        } else {
+            // Macros: substring match (catches _PRIME_NOZZLE, AUTO_BED_LEVEL, etc.)
+            if (pat.find(keyword) != std::string::npos) {
+                return &OPERATION_KEYWORDS[i];
+            }
         }
     }
     return nullptr;
