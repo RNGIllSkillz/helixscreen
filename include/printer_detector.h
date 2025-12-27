@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -32,6 +33,38 @@ struct BuildVolume {
     float y_min = 0.0f;
     float y_max = 0.0f;
     float z_max = 0.0f; ///< Maximum Z height (if available)
+};
+
+/**
+ * @brief A single PRINT_START parameter capability
+ *
+ * Maps a capability (e.g., "bed_leveling") to the native param name and values.
+ */
+struct PrintStartParamCapability {
+    std::string param;         ///< Native param name (e.g., "FORCE_LEVELING")
+    std::string skip_value;    ///< Value to skip/disable (e.g., "false")
+    std::string enable_value;  ///< Value to enable/force (e.g., "true")
+    std::string default_value; ///< Default value if param not specified
+    std::string description;   ///< Human-readable description
+};
+
+/**
+ * @brief PRINT_START capabilities for a printer
+ *
+ * Contains the macro name and all supported skip/control parameters.
+ */
+struct PrintStartCapabilities {
+    std::string macro_name; ///< Macro name (e.g., "START_PRINT", "PRINT_START")
+    std::map<std::string, PrintStartParamCapability>
+        params; ///< Map of capability name to param info
+
+    bool empty() const {
+        return macro_name.empty() && params.empty();
+    }
+
+    bool has_capability(const std::string& name) const {
+        return params.find(name) != params.end();
+    }
 };
 
 /**
@@ -159,4 +192,16 @@ class PrinterDetector {
      * @return Index of the Unknown entry (last entry)
      */
     static int get_unknown_index();
+
+    /**
+     * @brief Get PRINT_START capabilities for a printer
+     *
+     * Looks up the print_start_capabilities field from the printer database JSON
+     * for the specified printer. This contains native macro parameters that can
+     * control pre-print operations (skip bed leveling, etc.) without file modification.
+     *
+     * @param printer_name Printer name (e.g., "FlashForge Adventurer 5M Pro")
+     * @return Capabilities struct, or empty struct if not found
+     */
+    static PrintStartCapabilities get_print_start_capabilities(const std::string& printer_name);
 };

@@ -9,7 +9,10 @@
 #include "ui_update_queue.h"
 
 #include "app_globals.h"
+#include "config.h"
 #include "memory_utils.h"
+#include "printer_detector.h"
+#include "wizard_config_paths.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -787,6 +790,46 @@ PrintPreparationManager::collect_macro_skip_params() const {
 
     std::vector<std::pair<std::string, std::string>> skip_params;
 
+    // PRIORITY 1: Check printer capability database for known native params
+    // If we have capabilities for this printer type, use them directly instead of
+    // relying on macro analysis. This is faster and more reliable.
+    Config* config = Config::get_instance();
+    if (config) {
+        std::string printer_type = config->get<std::string>(helix::wizard::PRINTER_TYPE, "");
+        if (!printer_type.empty()) {
+            PrintStartCapabilities caps =
+                PrinterDetector::get_print_start_capabilities(printer_type);
+
+            if (!caps.empty()) {
+                spdlog::info("[PrintPreparationManager] Using capability database for '{}' ({} "
+                             "capabilities)",
+                             printer_type, caps.params.size());
+
+                // Bed leveling - use database param if available
+                if (caps.has_capability("bed_leveling") &&
+                    is_option_disabled(bed_leveling_checkbox_)) {
+                    const auto& cap = caps.params.at("bed_leveling");
+                    skip_params.emplace_back(cap.param, cap.skip_value);
+                    spdlog::debug("[PrintPreparationManager] Using database param: {}={}",
+                                  cap.param, cap.skip_value);
+                }
+
+                // Priming - use database param if available
+                // Note: We don't have a priming checkbox yet, but AD5M supports it
+                // Future: Add priming_checkbox_ and use it here
+
+                // If we found capabilities, return them and skip macro analysis
+                if (!skip_params.empty()) {
+                    spdlog::info(
+                        "[PrintPreparationManager] Using {} params from capability database",
+                        skip_params.size());
+                    return skip_params;
+                }
+            }
+        }
+    }
+
+    // PRIORITY 2: Fall back to macro analysis
     // If no macro analysis, nothing to skip
     if (!macro_analysis_.has_value() || !macro_analysis_->found) {
         return skip_params;
@@ -840,7 +883,7 @@ PrintPreparationManager::collect_macro_skip_params() const {
     }
 
     if (!skip_params.empty()) {
-        spdlog::info("[PrintPreparationManager] Collected {} macro skip params",
+        spdlog::info("[PrintPreparationManager] Collected {} macro skip params (via analysis)",
                      skip_params.size());
     }
 

@@ -8,6 +8,8 @@
 
 #include "config.h"
 #include "moonraker_api.h"
+#include "printer_detector.h"
+#include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
 
@@ -22,6 +24,39 @@ namespace helix {
 static constexpr const char* CONFIG_PATH_DISMISSED = "/print_start_wizard/dismissed";
 static constexpr const char* CONFIG_PATH_CONFIGURED = "/print_start_wizard/configured";
 static constexpr const char* CONFIG_PATH_MACRO_HASH = "/print_start_wizard/macro_hash";
+
+// ============================================================================
+// Operation Category to Capability Database Key Mapping
+// ============================================================================
+
+/**
+ * @brief Map PrintStartOpCategory to capability database key
+ *
+ * Maps the operation categories detected by PrintStartAnalyzer to the
+ * capability keys used in printer_database.json's print_start_capabilities.
+ *
+ * @param category The operation category
+ * @return Capability key string, or empty string if no mapping exists
+ */
+static std::string category_to_capability_key(PrintStartOpCategory category) {
+    switch (category) {
+    case PrintStartOpCategory::BED_LEVELING:
+        return "bed_leveling";
+    case PrintStartOpCategory::QGL:
+        return "qgl";
+    case PrintStartOpCategory::Z_TILT:
+        return "z_tilt";
+    case PrintStartOpCategory::NOZZLE_CLEAN:
+        return "priming"; // AD5M calls this DISABLE_PRIMING
+    case PrintStartOpCategory::CHAMBER_SOAK:
+        return "chamber_soak";
+    case PrintStartOpCategory::HOMING:
+        return ""; // Homing cannot be skipped - no capability key
+    case PrintStartOpCategory::UNKNOWN:
+        return "";
+    }
+    return "";
+}
 
 // ============================================================================
 // Hash Implementation (simple djb2)
@@ -242,11 +277,44 @@ bool MacroAnalysisManager::is_wizard_visible() const {
 bool MacroAnalysisManager::should_show_notification(
     const PrintStartAnalysis& analysis, const PrintStartWizardConfig& wizard_config) const {
     // Use get_uncontrollable_operations() which excludes HOMING (same as wizard)
-    size_t uncontrollable = analysis.get_uncontrollable_operations().size();
+    auto uncontrollable_ops = analysis.get_uncontrollable_operations();
+    size_t uncontrollable = uncontrollable_ops.size();
 
     if (uncontrollable == 0) {
         // All operations are already controllable (or only homing which can't be skipped)
         return false;
+    }
+
+    // Check if printer has native capabilities in database that cover these operations
+    Config* config = Config::get_instance();
+    if (config) {
+        std::string printer_type = config->get<std::string>(wizard::PRINTER_TYPE, "");
+        if (!printer_type.empty()) {
+            PrintStartCapabilities caps =
+                PrinterDetector::get_print_start_capabilities(printer_type);
+
+            if (!caps.empty()) {
+                // Count how many uncontrollable ops are covered by native capabilities
+                size_t covered_by_native = 0;
+                for (const auto* op : uncontrollable_ops) {
+                    std::string cap_key = category_to_capability_key(op->category);
+                    if (!cap_key.empty() && caps.has_capability(cap_key)) {
+                        covered_by_native++;
+                    }
+                }
+
+                if (covered_by_native == uncontrollable) {
+                    // All uncontrollable operations have native params - no wizard needed!
+                    spdlog::info("[MacroAnalysisManager] Suppressing wizard toast: {} ops covered "
+                                 "by native {} capabilities for '{}'",
+                                 uncontrollable, caps.macro_name, printer_type);
+                    return false;
+                } else if (covered_by_native > 0) {
+                    spdlog::debug("[MacroAnalysisManager] {}/{} ops covered by native capabilities",
+                                  covered_by_native, uncontrollable);
+                }
+            }
+        }
     }
 
     // Compute current hash

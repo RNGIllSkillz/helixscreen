@@ -70,7 +70,33 @@
           "confidence": 90,
           "reason": "Hostname contains 'ad5m' (Adventurer 5M)"
         }
-      ]
+      ],
+      "print_start_capabilities": {
+        "macro_name": "START_PRINT",
+        "params": {
+          "bed_leveling": {
+            "param": "FORCE_LEVELING",
+            "skip_value": "false",
+            "enable_value": "true",
+            "default_value": "false",
+            "description": "Skip bed leveling if mesh already exists"
+          },
+          "priming": {
+            "param": "DISABLE_PRIMING",
+            "skip_value": "true",
+            "enable_value": "false",
+            "default_value": "false",
+            "description": "Skip nozzle purge/prime line"
+          },
+          "skew_correct": {
+            "param": "DISABLE_SKEW_CORRECT",
+            "skip_value": "true",
+            "enable_value": "false",
+            "default_value": "false",
+            "description": "Skip skew correction profile"
+          }
+        }
+      }
     },
     {
       "id": "flashforge_ad5m_pro",
@@ -141,7 +167,33 @@
           "confidence": 96,
           "reason": "Hostname contains 'ad5mpro'"
         }
-      ]
+      ],
+      "print_start_capabilities": {
+        "macro_name": "START_PRINT",
+        "params": {
+          "bed_leveling": {
+            "param": "FORCE_LEVELING",
+            "skip_value": "false",
+            "enable_value": "true",
+            "default_value": "false",
+            "description": "Skip bed leveling if mesh already exists"
+          },
+          "priming": {
+            "param": "DISABLE_PRIMING",
+            "skip_value": "true",
+            "enable_value": "false",
+            "default_value": "false",
+            "description": "Skip nozzle purge/prime line"
+          },
+          "skew_correct": {
+            "param": "DISABLE_SKEW_CORRECT",
+            "skip_value": "true",
+            "enable_value": "false",
+            "default_value": "false",
+            "description": "Skip skew correction profile"
+          }
+        }
+      }
     },
     {
       "id": "voron_2_4",

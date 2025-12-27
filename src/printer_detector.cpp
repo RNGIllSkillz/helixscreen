@@ -585,3 +585,66 @@ int PrinterDetector::get_unknown_index() {
     }
     return static_cast<int>(g_roller_cache.names.size() - 1);
 }
+
+// ============================================================================
+// Print Start Capabilities Lookup
+// ============================================================================
+
+PrintStartCapabilities
+PrinterDetector::get_print_start_capabilities(const std::string& printer_name) {
+    PrintStartCapabilities result;
+
+    // Load database if not already loaded
+    if (!g_database.load()) {
+        spdlog::warn("[PrinterDetector] Cannot lookup capabilities without database");
+        return result;
+    }
+
+    if (!g_database.data.contains("printers") || !g_database.data["printers"].is_array()) {
+        return result;
+    }
+
+    // Case-insensitive search by printer name
+    std::string name_lower = printer_name;
+    std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    for (const auto& printer : g_database.data["printers"]) {
+        std::string db_name = printer.value("name", "");
+        std::string db_name_lower = db_name;
+        std::transform(db_name_lower.begin(), db_name_lower.end(), db_name_lower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+
+        if (db_name_lower == name_lower) {
+            // Found matching printer - check for capabilities
+            if (!printer.contains("print_start_capabilities")) {
+                spdlog::debug("[PrinterDetector] Printer '{}' has no print_start_capabilities",
+                              printer_name);
+                return result;
+            }
+
+            const auto& caps = printer["print_start_capabilities"];
+            result.macro_name = caps.value("macro_name", "");
+
+            if (caps.contains("params") && caps["params"].is_object()) {
+                for (const auto& [key, value] : caps["params"].items()) {
+                    PrintStartParamCapability param;
+                    param.param = value.value("param", "");
+                    param.skip_value = value.value("skip_value", "");
+                    param.enable_value = value.value("enable_value", "");
+                    param.default_value = value.value("default_value", "");
+                    param.description = value.value("description", "");
+
+                    result.params[key] = param;
+                }
+            }
+
+            spdlog::info("[PrinterDetector] Found {} capabilities for '{}' (macro: {})",
+                         result.params.size(), printer_name, result.macro_name);
+            return result;
+        }
+    }
+
+    spdlog::debug("[PrinterDetector] No capabilities found for printer '{}'", printer_name);
+    return result;
+}
