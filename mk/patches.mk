@@ -116,3 +116,10 @@ apply-patches:
 	else \
 		echo "$(GREEN)✓ libhv streaming upload patch already applied$(RESET)"; \
 	fi
+	$(Q)if [ -d "$(LIBHV_DIR)/include/hv" ]; then \
+		if ! diff -q "$(LIBHV_DIR)/http/client/requests.h" "$(LIBHV_DIR)/include/hv/requests.h" >/dev/null 2>&1; then \
+			echo "$(YELLOW)→ Syncing patched requests.h to include/hv/$(RESET)"; \
+			cp "$(LIBHV_DIR)/http/client/requests.h" "$(LIBHV_DIR)/include/hv/requests.h" && \
+			echo "$(GREEN)✓ Patched header synced$(RESET)"; \
+		fi \
+	fi
