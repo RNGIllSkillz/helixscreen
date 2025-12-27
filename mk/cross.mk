@@ -515,7 +515,7 @@ deploy-ad5m:
 	@# Sync assets (excluding test files and macOS junk)
 	@# Use --checksum to skip files with same content (avoids re-transferring regenerated assets)
 	rsync -avz --checksum --exclude='test_gcodes' --exclude='gcode' --exclude='.DS_Store' --exclude='*.pyc' \
-		ui_xml/ assets/ config/ $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/
+		ui_xml assets config $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/
 	@# Sync pre-rendered images if they exist
 	@if [ -d build/assets/images/prerendered ]; then \
 		rsync -avz --checksum build/assets/images/prerendered/ $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/assets/images/prerendered/; \
