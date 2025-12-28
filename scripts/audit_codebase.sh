@@ -368,6 +368,88 @@ if [ "$FILE_MODE" = true ]; then
     fi
 
     #
+    # === P4: Declarative UI Compliance (per-file) ===
+    #
+    # [L007] Never use lv_obj_add_event_cb() in C++ - use XML event_cb instead
+    # This catches imperative event wiring that should be declarative
+    #
+    if [ ${#ui_cpp_files[@]} -gt 0 ]; then
+        section "P4: Declarative UI (Event Callbacks)"
+
+        for f in "${ui_cpp_files[@]}"; do
+            fname=$(basename "$f")
+
+            # Skip files that legitimately need imperative callbacks:
+            # - ui_toast.cpp: manages dynamic toast lifecycle
+            # - ui_nav.cpp: navigation system internals
+            # - ui_busy_overlay.cpp: overlay management
+            # - ui_modal.cpp: base modal class with lifecycle management
+            # - ui_wizard*.cpp: wizard framework with dynamic step navigation
+            # - test_*.cpp: unit tests
+            if [[ "$fname" == "ui_toast.cpp" ]] || \
+               [[ "$fname" == "ui_nav.cpp" ]] || \
+               [[ "$fname" == "ui_busy_overlay.cpp" ]] || \
+               [[ "$fname" == "ui_modal.cpp" ]] || \
+               [[ "$fname" == ui_wizard*.cpp ]] || \
+               [[ "$fname" == test_* ]]; then
+                continue
+            fi
+
+            set +e
+            # Find lv_obj_add_event_cb calls, excluding comments
+            event_cb_issues=$(grep -n 'lv_obj_add_event_cb' "$f" 2>/dev/null | grep -v '//' | grep -v '^\s*\*' | grep -v '@')
+            set -e
+            if [ -n "$event_cb_issues" ]; then
+                count=$(echo "$event_cb_issues" | wc -l | tr -d ' ')
+                warning "$fname: $count lv_obj_add_event_cb() call(s) - use XML event_cb instead [L007]"
+                echo "$event_cb_issues" | head -3
+            fi
+        done
+
+        if [ "$WARNINGS" -eq 0 ]; then
+            success "All event callbacks use declarative XML pattern"
+        fi
+    fi
+
+    #
+    # === P5: XML Component Names (per-file) ===
+    #
+    # [L003] Always add name='component_name' on XML component tags
+    # Missing names cause lv_obj_find_by_name() to fail silently
+    #
+    if [ ${#xml_files[@]} -gt 0 ]; then
+        section "P5: XML Component Names"
+
+        for f in "${xml_files[@]}"; do
+            fname=$(basename "$f")
+
+            # Skip globals.xml (defines styles, not components)
+            if [[ "$fname" == "globals.xml" ]]; then
+                continue
+            fi
+
+            set +e
+            # Find component tags without name= attribute
+            # Look for <lv_* tags that don't have name= on the same line
+            # Focus on container widgets that should have names for lookup
+            missing_names=$(grep -n '<lv_obj\|<lv_btn\|<lv_label\|<lv_cont' "$f" 2>/dev/null | grep -v 'name=')
+            set -e
+            if [ -n "$missing_names" ]; then
+                count=$(echo "$missing_names" | wc -l | tr -d ' ')
+                # This is informational - not all widgets need names
+                # Only warn for high counts that suggest systematic omission
+                if [ "$count" -gt 10 ]; then
+                    warning "$fname: $count widget(s) without name= attribute - consider adding for lv_obj_find_by_name() [L003]"
+                fi
+            fi
+        done
+
+        if [ "$WARNINGS" -eq 0 ]; then
+            success "XML component naming looks reasonable"
+        fi
+    fi
+
+    #
     # === Summary ===
     #
     section "Summary"
