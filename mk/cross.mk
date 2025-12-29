@@ -384,7 +384,7 @@ deploy-pi:
 	@test -f build/pi/bin/helix-splash || { echo "$(RED)Error: build/pi/bin/helix-splash not found. Run 'make pi-docker' first.$(RESET)"; exit 1; }
 	@echo "$(CYAN)Deploying HelixScreen to $(PI_SSH_TARGET):$(PI_DEPLOY_DIR)...$(RESET)"
 	@echo "  Binaries: helix-screen, helix-splash, helix-watchdog"
-	@echo "  Assets: ui_xml/, assets/, config/"
+	@echo "  Assets: ui_xml/, assets/, config/, moonraker-plugin/"
 	ssh $(PI_SSH_TARGET) "mkdir -p $(PI_DEPLOY_DIR)"
 	rsync -avz --progress \
 		build/pi/bin/helix-screen \
@@ -393,6 +393,7 @@ deploy-pi:
 		ui_xml \
 		assets \
 		config \
+		moonraker-plugin \
 		$(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/
 	@# Use --checksum for pre-rendered images (regenerated with new timestamps but same content)
 	@if [ -d build/assets/images/prerendered ]; then \
@@ -515,7 +516,7 @@ deploy-ad5m:
 	@# Sync assets (excluding test files and macOS junk)
 	@# Use --checksum to skip files with same content (avoids re-transferring regenerated assets)
 	rsync -avz --checksum --exclude='test_gcodes' --exclude='gcode' --exclude='.DS_Store' --exclude='*.pyc' \
-		ui_xml assets config $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/
+		ui_xml assets config moonraker-plugin $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/
 	@# Sync pre-rendered images if they exist
 	@if [ -d build/assets/images/prerendered ]; then \
 		rsync -avz --checksum build/assets/images/prerendered/ $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/assets/images/prerendered/; \
