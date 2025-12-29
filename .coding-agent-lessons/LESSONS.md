@@ -41,16 +41,16 @@
 - **Uses**: 6 | **Learned**: 2025-12-14 | **Last**: 2025-12-27 | **Category**: gotcha
 > After adding icon to codepoints.h: add to regen_mdi_fonts.sh, run make regen-fonts, then rebuild. Forgetting any step = missing icon
 
-### [L010] [*****|*----] No spdlog in destructors
-- **Uses**: 43 | **Velocity**: 2 | **Learned**: 2025-12-14 | **Last**: 2025-12-28 | **Category**: gotcha
+### [L010] [*****|***--] No spdlog in destructors
+- **Uses**: 45 | **Velocity**: 4 | **Learned**: 2025-12-14 | **Last**: 2025-12-28 | **Category**: gotcha
 > Never call spdlog::info/warn/error in destructors. Logger may be destroyed before your object during static destruction, causing crash on exit
 
 ### [L011] [***--|+----] No mutex in destructors
 - **Uses**: 11 | **Velocity**: 1 | **Learned**: 2025-12-14 | **Last**: 2025-12-28 | **Category**: gotcha
 > Avoid mutex locks in destructors during static destruction phase. Other objects may already be destroyed, causing deadlock or crash on exit
 
-### [L012] [****-|***--] Guard async callbacks
-- **Uses**: 27 | **Velocity**: 4 | **Learned**: 2025-12-14 | **Last**: 2025-12-28 | **Category**: gotcha
+### [L012] [****-|****+] Guard async callbacks
+- **Uses**: 28 | **Velocity**: 5 | **Learned**: 2025-12-14 | **Last**: 2025-12-28 | **Category**: gotcha
 > Async WebSocket callbacks can fire after object destruction. Use weak_ptr or flag checks to guard against stale this pointers in async handlers
 
 ### [L013] [****-/-----] Callbacks before XML creation
@@ -81,8 +81,8 @@
 - **Uses**: 5 | **Learned**: 2025-12-14 | **Last**: 2025-12-25 | **Category**: gotcha
 > In <styles> blocks use bare names (bg_color). On widgets use style_ prefix (style_bg_color). Mixing them up silently fails
 
-### [L020] [*****/**+--] ObserverGuard for cleanup
-- **Uses**: 15 | **Learned**: 2025-12-14 | **Last**: 2025-12-26 | **Category**: gotcha
+### [L020] [****-|+----] ObserverGuard for cleanup
+- **Uses**: 16 | **Velocity**: 1 | **Learned**: 2025-12-14 | **Last**: 2025-12-28 | **Category**: gotcha
 > Use ObserverGuard RAII wrapper for lv_subject observers. Manual observer cleanup is error-prone and causes use-after-free on panel destruction
 
 ### [L021] [***+-/-----] Centidegrees for temps
@@ -130,11 +130,32 @@
 
 
 ### [L032] [***--|****+] Re-stage after pre-commit format
-- **Uses**: 9 | **Velocity**: 7 | **Learned**: 2025-12-27 | **Last**: 2025-12-28 | **Category**: correction
+- **Uses**: 12 | **Velocity**: 10 | **Learned**: 2025-12-27 | **Last**: 2025-12-28 | **Category**: correction
 > When pre-commit hook auto-formats files, they are NOT automatically re-staged. Always check git status after a commit and amend if the hook formatted files. Look for 'Auto-formatted: <file>' messages and run 'git add -u && git commit --amend --no-edit'.
 
 
 ### [L033] [*----|+----] No detached threads on ARM/glibc
 - **Uses**: 2 | **Velocity**: 1 | **Learned**: 2025-12-28 | **Last**: 2025-12-28 | **Category**: gotcha
 > std::thread::detach() causes SIGABRT on ARM Linux with static glibc due to TLS cleanup issues during thread exit. Affects anything using TLS (spdlog, std::function, STL). Use synchronous execution or persistent worker threads instead.
+
+
+### [L034] [***--|****+] macOS audio feedback
+- **Uses**: 8 | **Velocity**: 7 | **Learned**: 2025-12-28 | **Last**: 2025-12-28 | **Category**: preference
+> When using macOS say command for audio feedback, use the Fred voice: say -v Fred
+
+
+### [L035] [**---|**---] Push It celebration
+- **Uses**: 4 | **Velocity**: 3 | **Learned**: 2025-12-28 | **Last**: 2025-12-28 | **Category**: preference
+> After successful git push, play Salt-N-Pepa's Push It: open 'https://www.youtube.com/watch?v=vCadcBR95oU&t=45s'
+
+
+### [L036] [*----|+----] Header file documentation
+- **Uses**: 2 | **Velocity**: 1 | **Learned**: 2025-12-28 | **Last**: 2025-12-28 | **Category**: pattern
+> Important files have documentation in their header files (include/*.h). Check the header file first when trying to understand a class or module - it often contains usage examples, design rationale, and API documentation.
+
+
+
+### [L038] [**---|*----] bind_flag_if_not_eq NOT ne
+- **Uses**: 3 | **Velocity**: 2 | **Learned**: 2025-12-29 | **Last**: 2025-12-29 | **Category**: correction
+> LVGL XML uses bind_flag_if_not_eq (NOT bind_flag_if_ne). This typo has caused layout corruption multiple times. The 'ne' abbreviation does NOT exist - always use the full 'not_eq' suffix.
 

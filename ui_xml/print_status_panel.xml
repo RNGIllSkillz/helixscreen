@@ -73,7 +73,7 @@
                   style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="center"
                   style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_sm"
                   scrollable="false">
-            <lv_obj-bind_flag_if_ne subject="print_state_enum" flag="hidden" ref_value="3"/>
+            <lv_obj-bind_flag_if_not_eq subject="print_state_enum" flag="hidden" ref_value="3"/>
             <lv_obj-bind_flag_if_eq subject="preparing_visible" flag="hidden" ref_value="1"/>
             <!-- Green success badge with checkmark (animated on appearance) -->
             <lv_obj name="success_badge"
