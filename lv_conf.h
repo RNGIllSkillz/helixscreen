@@ -576,6 +576,7 @@
 #define LV_SYMBOL_LEFT      "\xF3\xB0\x85\x81"  /* MDI chevron-left (F0141) */
 #define LV_SYMBOL_RIGHT     "\xF3\xB0\x85\x82"  /* MDI chevron-right (F0142) */
 #define LV_SYMBOL_OK        "\xF3\xB0\x84\xAC"  /* MDI check (F012C) */
+#define LV_SYMBOL_SETTINGS  "\xF3\xB0\x92\x93"  /* MDI cog (F0493) */
 
 /*=================
  *  TEXT SETTINGS

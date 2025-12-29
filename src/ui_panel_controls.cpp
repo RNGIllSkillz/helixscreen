@@ -5,6 +5,7 @@
 
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
+#include "ui_fonts.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_notification.h"
@@ -168,6 +169,8 @@ void ControlsPanel::init_subjects() {
     // Card click handlers (navigation to full overlay panels)
     lv_xml_register_event_cb(nullptr, "on_controls_quick_actions", on_quick_actions_clicked);
     lv_xml_register_event_cb(nullptr, "on_controls_temperatures", on_temperatures_clicked);
+    lv_xml_register_event_cb(nullptr, "on_nozzle_temp_clicked", on_nozzle_temp_clicked);
+    lv_xml_register_event_cb(nullptr, "on_bed_temp_clicked", on_bed_temp_clicked);
     lv_xml_register_event_cb(nullptr, "on_controls_cooling", on_cooling_clicked);
     lv_xml_register_event_cb(nullptr, "on_controls_calibration", on_calibration_clicked);
 
@@ -188,7 +191,7 @@ void ControlsPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     if (Config* config = Config::get_instance()) {
         MacroConfig macro1 = config->get_macro("macro_1", {"Clean Nozzle", "HELIX_CLEAN_NOZZLE"});
         MacroConfig macro2 =
-            config->get_macro("macro_2", {"Bed Level", "HELIX_BED_LEVEL_IF_NEEDED"});
+            config->get_macro("macro_2", {"Level Bed", "HELIX_BED_LEVEL_IF_NEEDED"});
 
         macro_1_gcode_ = macro1.gcode;
         macro_2_gcode_ = macro2.gcode;
@@ -424,15 +427,16 @@ void ControlsPanel::populate_secondary_fans() {
         lv_obj_set_style_text_color(speed_label, ui_theme_get_color("text_secondary"), 0);
         lv_obj_set_style_text_font(speed_label, UI_FONT_SMALL, 0);
 
-        // Indicator icon: ⚙ for auto-controlled, ▸ for controllable
+        // Indicator icon: ⚙ for auto-controlled, › for controllable
+        // Uses MDI icon font for proper glyph rendering
         lv_obj_t* indicator = lv_label_create(right_container);
         if (fan.is_controllable) {
-            lv_label_set_text(indicator, LV_SYMBOL_RIGHT); // ▸ means user can control
+            lv_label_set_text(indicator, LV_SYMBOL_RIGHT);
         } else {
-            lv_label_set_text(indicator, LV_SYMBOL_SETTINGS); // ⚙ means auto/firmware
+            lv_label_set_text(indicator, LV_SYMBOL_SETTINGS);
         }
         lv_obj_set_style_text_color(indicator, ui_theme_get_color("text_secondary"), 0);
-        lv_obj_set_style_text_font(indicator, UI_FONT_SMALL, 0);
+        lv_obj_set_style_text_font(indicator, &mdi_icons_16, 0);
 
         secondary_count++;
 
@@ -537,6 +541,54 @@ void ControlsPanel::handle_temperatures_clicked() {
 
     if (nozzle_temp_panel_) {
         ui_nav_push_overlay(nozzle_temp_panel_);
+    }
+}
+
+void ControlsPanel::handle_nozzle_temp_clicked() {
+    spdlog::debug("[{}] Nozzle temp clicked - opening nozzle temp panel", get_name());
+
+    if (!temp_control_panel_) {
+        NOTIFY_ERROR("Temperature panel not available");
+        return;
+    }
+
+    if (!nozzle_temp_panel_ && parent_screen_) {
+        nozzle_temp_panel_ =
+            static_cast<lv_obj_t*>(lv_xml_create(parent_screen_, "nozzle_temp_panel", nullptr));
+        if (nozzle_temp_panel_) {
+            temp_control_panel_->setup_nozzle_panel(nozzle_temp_panel_, parent_screen_);
+        } else {
+            NOTIFY_ERROR("Failed to load nozzle temperature panel");
+            return;
+        }
+    }
+
+    if (nozzle_temp_panel_) {
+        ui_nav_push_overlay(nozzle_temp_panel_);
+    }
+}
+
+void ControlsPanel::handle_bed_temp_clicked() {
+    spdlog::debug("[{}] Bed temp clicked - opening bed temp panel", get_name());
+
+    if (!temp_control_panel_) {
+        NOTIFY_ERROR("Temperature panel not available");
+        return;
+    }
+
+    if (!bed_temp_panel_ && parent_screen_) {
+        bed_temp_panel_ =
+            static_cast<lv_obj_t*>(lv_xml_create(parent_screen_, "bed_temp_panel", nullptr));
+        if (bed_temp_panel_) {
+            temp_control_panel_->setup_bed_panel(bed_temp_panel_, parent_screen_);
+        } else {
+            NOTIFY_ERROR("Failed to load bed temperature panel");
+            return;
+        }
+    }
+
+    if (bed_temp_panel_) {
+        ui_nav_push_overlay(bed_temp_panel_);
     }
 }
 
@@ -823,6 +875,20 @@ void ControlsPanel::on_temperatures_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ControlsPanel] on_temperatures_clicked");
     (void)e;
     get_global_controls_panel().handle_temperatures_clicked();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void ControlsPanel::on_nozzle_temp_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[ControlsPanel] on_nozzle_temp_clicked");
+    (void)e;
+    get_global_controls_panel().handle_nozzle_temp_clicked();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void ControlsPanel::on_bed_temp_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[ControlsPanel] on_bed_temp_clicked");
+    (void)e;
+    get_global_controls_panel().handle_bed_temp_clicked();
     LVGL_SAFE_EVENT_CB_END();
 }
 

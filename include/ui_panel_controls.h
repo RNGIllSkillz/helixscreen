@@ -201,6 +201,8 @@ class ControlsPanel : public PanelBase {
 
     void handle_quick_actions_clicked();
     void handle_temperatures_clicked();
+    void handle_nozzle_temp_clicked();
+    void handle_bed_temp_clicked();
     void handle_cooling_clicked();
     void handle_calibration_clicked();
 
@@ -239,6 +241,8 @@ class ControlsPanel : public PanelBase {
 
     static void on_quick_actions_clicked(lv_event_t* e);
     static void on_temperatures_clicked(lv_event_t* e);
+    static void on_nozzle_temp_clicked(lv_event_t* e);
+    static void on_bed_temp_clicked(lv_event_t* e);
     static void on_cooling_clicked(lv_event_t* e);
     static void on_calibration_clicked(lv_event_t* e);
     static void on_motors_confirm(lv_event_t* e);
