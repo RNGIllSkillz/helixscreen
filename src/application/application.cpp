@@ -80,6 +80,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "splash_screen.h"
+#include "standard_macros.h"
 #include "tips_manager.h"
 #include "xml_registration.h"
 
@@ -904,6 +905,10 @@ bool Application::connect_moonraker() {
                     fsm.discover_sensors(ctx->first.get_filament_sensor_names());
                     fsm.load_config();
                 }
+
+                // Initialize standard macros with discovered capabilities
+                StandardMacros::instance().init(ctx->first);
+
                 delete ctx;
             },
             new std::pair<PrinterCapabilities, std::pair<MoonrakerAPI*, MoonrakerClient*>>(
