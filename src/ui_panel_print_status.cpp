@@ -209,6 +209,10 @@ void PrintStatusPanel::init_subjects() {
     UI_SUBJECT_INIT_AND_REGISTER_STRING(timelapse_label_subject_, timelapse_label_buf_, "Off",
                                         "timelapse_button_label");
 
+    // Light button icon (F0336=lightbulb-outline OFF, F06E8=lightbulb-on ON)
+    UI_SUBJECT_INIT_AND_REGISTER_STRING(light_button_subject_, light_button_buf_,
+                                        "\xF3\xB0\x8C\xB6", "light_button_icon");
+
     // Preparing state subjects
     UI_SUBJECT_INIT_AND_REGISTER_INT(preparing_visible_subject_, 0, "preparing_visible");
     UI_SUBJECT_INIT_AND_REGISTER_STRING(preparing_operation_subject_, preparing_operation_buf_,
@@ -1411,6 +1415,15 @@ void PrintStatusPanel::on_gcode_z_offset_changed(int microns) {
 
 void PrintStatusPanel::on_led_state_changed(int state) {
     led_on_ = (state != 0);
+
+    // Update light button icon: lightbulb_on (F06E8) or lightbulb_outline (F0336)
+    if (led_on_) {
+        std::snprintf(light_button_buf_, sizeof(light_button_buf_), "\xF3\xB0\x9B\xA8");
+    } else {
+        std::snprintf(light_button_buf_, sizeof(light_button_buf_), "\xF3\xB0\x8C\xB6");
+    }
+    lv_subject_copy_string(&light_button_subject_, light_button_buf_);
+
     spdlog::debug("[{}] LED state changed: {} (from PrinterState)", get_name(),
                   led_on_ ? "ON" : "OFF");
 }

@@ -10,9 +10,8 @@
     <!-- Header Bar with E-stop action button -->
     <header_bar name="overlay_header"
                 title="Print Status" hide_action_button="false" action_button_icon="alert_octagon"
-                action_button_bg_color="#error_color" action_button_radius="9999"
-                action_button_width="44" action_button_height="44" action_button_pad="0"
-                hide_action_button_text="true"
+                action_button_bg_color="#error_color" action_button_radius="9999" action_button_width="44"
+                action_button_height="44" action_button_pad="0" hide_action_button_text="true"
                 action_button_callback="emergency_stop_clicked"/>
     <!-- Content Area (two columns: viewer left, controls right) -->
     <lv_obj name="overlay_content"
@@ -184,16 +183,16 @@
                   flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                   style_pad_gap="#space_sm">
             <lv_button name="btn_light"
-                       height="#button_height_small" flex_grow="1" style_border_width="0"
-                       flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
+                       height="#button_height_small" flex_grow="1" style_border_width="0" flex_flow="row"
+                       style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
               <event_cb trigger="clicked" callback="on_print_status_light"/>
-              <icon name="light_icon" src="light" size="sm"/>
+              <lv_label name="light_icon" bind_text="light_button_icon" style_text_font="mdi_icons_24" align="center"/>
               <text_small text="Light"/>
             </lv_button>
             <!-- Timelapse button: only visible when Moonraker-Timelapse plugin installed -->
             <lv_button name="btn_timelapse"
-                       height="#button_height_small" flex_grow="1" style_border_width="0"
-                       flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
+                       height="#button_height_small" flex_grow="1" style_border_width="0" flex_flow="row"
+                       style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
               <event_cb trigger="clicked" callback="on_print_status_timelapse"/>
               <lv_obj-bind_flag_if_eq subject="printer_has_timelapse" flag="hidden" ref_value="0"/>
               <lv_label name="timelapse_icon"
@@ -201,8 +200,8 @@
               <text_small name="timelapse_label" bind_text="timelapse_button_label"/>
             </lv_button>
             <lv_button name="btn_pause"
-                       height="#button_height_small" flex_grow="1" style_border_width="0"
-                       flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
+                       height="#button_height_small" flex_grow="1" style_border_width="0" flex_flow="row"
+                       style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
               <event_cb trigger="clicked" callback="on_print_status_pause"/>
               <lv_label name="pause_icon" bind_text="pause_button_icon" style_text_font="mdi_icons_24" align="center"/>
               <text_small name="pause_label" bind_text="pause_button_label"/>
@@ -214,15 +213,16 @@
                   flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                   style_pad_gap="#space_sm">
             <lv_button name="btn_tune"
-                       height="#button_height_small" flex_grow="1" style_border_width="0"
-                       flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
+                       height="#button_height_small" flex_grow="1" style_border_width="0" flex_flow="row"
+                       style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
               <event_cb trigger="clicked" callback="on_print_status_tune"/>
               <icon src="tune" size="sm"/>
               <text_small text="Tune"/>
             </lv_button>
             <lv_button name="btn_cancel"
                        height="#button_height_small" flex_grow="1" style_border_width="0" style_bg_color="#error_color"
-                       flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs">
+                       flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                       style_pad_gap="#space_xs">
               <event_cb trigger="clicked" callback="on_print_status_cancel"/>
               <icon src="stop" size="sm" color="#text_primary"/>
               <text_small text="Cancel" style_text_color="#text_primary"/>

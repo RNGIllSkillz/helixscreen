@@ -454,6 +454,7 @@ class PrintStatusPanel : public PanelBase {
     lv_subject_t pause_label_subject_;      ///< Pause button label ("Pause"/"Resume")
     lv_subject_t timelapse_button_subject_; ///< Timelapse icon (video/video-off)
     lv_subject_t timelapse_label_subject_;  ///< Timelapse button label ("On"/"Off")
+    lv_subject_t light_button_subject_;     ///< Light icon (lightbulb_outline/lightbulb_on)
 
     // Preparing state subjects
     lv_subject_t preparing_visible_subject_;   // int: 1 if preparing, 0 otherwise
@@ -477,6 +478,7 @@ class PrintStatusPanel : public PanelBase {
     char pause_label_buf_[16] = "Pause";             ///< Pause button label
     char timelapse_button_buf_[8] = "";              ///< MDI icon codepoint for timelapse state
     char timelapse_label_buf_[16] = "Off";           ///< Timelapse button label
+    char light_button_buf_[8] = "\xF3\xB0\x8C\xB6";  ///< MDI lightbulb_outline (off state)
 
     //
     // === Instance State ===
