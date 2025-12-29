@@ -21,6 +21,7 @@
 #include "filament_sensor_manager.h"
 #include "moonraker_api.h"
 #include "printer_state.h"
+#include "standard_macros.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -227,24 +228,7 @@ void FilamentPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         return;
     }
 
-    // Load configurable filament macros from config
-    if (Config* config = Config::get_instance()) {
-        MacroConfig load_cfg = config->get_macro("load_filament", {"Load", "LOAD_FILAMENT"});
-        MacroConfig unload_cfg =
-            config->get_macro("unload_filament", {"Unload", "UNLOAD_FILAMENT"});
-
-        load_filament_gcode_ = load_cfg.gcode;
-        unload_filament_gcode_ = unload_cfg.gcode;
-
-        spdlog::debug("[{}] Filament macros configured: load='{}', unload='{}'", get_name(),
-                      load_filament_gcode_, unload_filament_gcode_);
-    } else {
-        // Fallback if config not available
-        load_filament_gcode_ = "LOAD_FILAMENT";
-        unload_filament_gcode_ = "UNLOAD_FILAMENT";
-        spdlog::warn("[{}] Config not available, using default filament macros", get_name());
-    }
-
+    // Filament macros now resolved via StandardMacros singleton (auto-detected or user-configured)
     spdlog::debug("[{}] Setting up (events handled declaratively via XML)", get_name());
 
     // Find preset buttons (for visual state updates)
@@ -654,23 +638,27 @@ void FilamentPanel::handle_purge_button() {
     set_operation_in_progress(true);
     spdlog::info("[{}] Purging {}mm", get_name(), purge_amount_);
 
-    if (api_) {
-        // TODO: Check for PURGE macro and use if available
-        // For now, use direct gcode: M83 = relative extrusion, G1 E{amount} F300
-        std::string gcode = fmt::format("M83\nG1 E{} F300", purge_amount_);
+    if (!api_) {
+        set_operation_in_progress(false);
+        return;
+    }
 
-        NOTIFY_INFO("Purging {}mm...", purge_amount_);
+    // Try StandardMacros Purge slot first
+    const auto& info = StandardMacros::instance().get(StandardMacroSlot::Purge);
+    if (!info.is_empty()) {
+        spdlog::info("[{}] Using StandardMacros purge: {}", get_name(), info.get_macro());
+        NOTIFY_INFO("Purging...");
 
-        api_->execute_gcode(
-            gcode,
-            [this, amount = purge_amount_]() {
+        StandardMacros::instance().execute(
+            StandardMacroSlot::Purge, api_,
+            [this]() {
                 ui_async_call(
                     [](void* ud) {
                         auto* self = static_cast<FilamentPanel*>(ud);
                         self->set_operation_in_progress(false);
                     },
                     this);
-                NOTIFY_SUCCESS("Purge complete ({}mm)", amount);
+                NOTIFY_SUCCESS("Purge complete");
             },
             [this](const MoonrakerError& error) {
                 ui_async_call(
@@ -681,9 +669,34 @@ void FilamentPanel::handle_purge_button() {
                     this);
                 NOTIFY_ERROR("Purge failed: {}", error.user_message());
             });
-    } else {
-        set_operation_in_progress(false);
+        return;
     }
+
+    // Fallback: inline G-code (M83 = relative extrusion, G1 E{amount} F300)
+    spdlog::info("[{}] No purge macro configured, using inline G-code", get_name());
+    std::string gcode = fmt::format("M83\nG1 E{} F300", purge_amount_);
+    NOTIFY_INFO("Purging {}mm...", purge_amount_);
+
+    api_->execute_gcode(
+        gcode,
+        [this, amount = purge_amount_]() {
+            ui_async_call(
+                [](void* ud) {
+                    auto* self = static_cast<FilamentPanel*>(ud);
+                    self->set_operation_in_progress(false);
+                },
+                this);
+            NOTIFY_SUCCESS("Purge complete ({}mm)", amount);
+        },
+        [this](const MoonrakerError& error) {
+            ui_async_call(
+                [](void* ud) {
+                    auto* self = static_cast<FilamentPanel*>(ud);
+                    self->set_operation_in_progress(false);
+                },
+                this);
+            NOTIFY_ERROR("Purge failed: {}", error.user_message());
+        });
 }
 
 // ============================================================================
@@ -883,26 +896,29 @@ void FilamentPanel::set_limits(int min_temp, int max_temp, int min_extrude_temp)
 // ============================================================================
 
 void FilamentPanel::execute_load() {
-    spdlog::info("[{}] Loading filament, executing: {}", get_name(), load_filament_gcode_);
+    const auto& info = StandardMacros::instance().get(StandardMacroSlot::LoadFilament);
+    spdlog::info("[{}] Loading filament via StandardMacros: {}", get_name(), info.get_macro());
 
-    if (api_ && !load_filament_gcode_.empty()) {
-        api_->execute_gcode(
-            load_filament_gcode_, []() { NOTIFY_SUCCESS("Filament load started"); },
+    if (!StandardMacros::instance().execute(
+            StandardMacroSlot::LoadFilament, api_, []() { NOTIFY_SUCCESS("Loading filament..."); },
             [](const MoonrakerError& error) {
                 NOTIFY_ERROR("Filament load failed: {}", error.user_message());
-            });
+            })) {
+        NOTIFY_WARNING("Load filament macro not configured");
     }
 }
 
 void FilamentPanel::execute_unload() {
-    spdlog::info("[{}] Unloading filament, executing: {}", get_name(), unload_filament_gcode_);
+    const auto& info = StandardMacros::instance().get(StandardMacroSlot::UnloadFilament);
+    spdlog::info("[{}] Unloading filament via StandardMacros: {}", get_name(), info.get_macro());
 
-    if (api_ && !unload_filament_gcode_.empty()) {
-        api_->execute_gcode(
-            unload_filament_gcode_, []() { NOTIFY_SUCCESS("Filament unload started"); },
+    if (!StandardMacros::instance().execute(
+            StandardMacroSlot::UnloadFilament, api_,
+            []() { NOTIFY_SUCCESS("Unloading filament..."); },
             [](const MoonrakerError& error) {
                 NOTIFY_ERROR("Filament unload failed: {}", error.user_message());
-            });
+            })) {
+        NOTIFY_WARNING("Unload filament macro not configured");
     }
 }
 

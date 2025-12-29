@@ -10,16 +10,16 @@
 |-------|-------------|--------|--------|
 | 1 | StandardMacros Core Class | ✅ Complete | `5888124d` |
 | 2 | Hardware Discovery Integration | ✅ Complete | `5888124d` |
-| 3 | Settings Overlay UI | ✅ Complete | `26dfae60` |
-| 4 | Settings Panel Handlers | ✅ Complete | `26dfae60` |
-| 5 | Controls Panel Integration | ✅ Complete | `26dfae60` |
-| 6 | Filament Panel Integration | 🔲 Next | — |
-| 7 | Print Status Panel Integration | 🔲 Pending | — |
+| 3 | Settings Overlay UI | ✅ Complete | `96cc536b` |
+| 4 | Settings Panel Handlers | ✅ Complete | `96cc536b` |
+| 5 | Controls Panel Integration | ✅ Complete | `96cc536b` |
+| 6 | Filament Panel Integration | ✅ Complete | (pending) |
+| 7 | Print Status Panel Integration | 🔲 Next | — |
 | 8 | Testing & Polish | 🔲 Pending | — |
 
 ---
 
-## What Was Built (Stages 1-5)
+## What Was Built (Stages 1-6)
 
 ### Files Created
 - `include/standard_macros.h` - Header with `StandardMacros` singleton, `StandardMacroSlot` enum, `StandardMacroInfo` struct
@@ -77,12 +77,19 @@ enum class StandardMacroSlot {
 - `refresh_macro_buttons()` updates labels and hides empty slots
 - `on_activate()` refreshes buttons after StandardMacros initialization
 
+### Stage 6 Implementation Details
+- Replaced old `Config::get_macro()` system with `StandardMacros::instance().execute()`
+- `execute_load()` uses `StandardMacroSlot::LoadFilament` - shows warning if slot empty
+- `execute_unload()` uses `StandardMacroSlot::UnloadFilament` - shows warning if slot empty
+- `handle_purge_button()` uses `StandardMacroSlot::Purge` with fallback to inline G-code (`M83\nG1 E{amount} F300`)
+- Removed unused `load_filament_gcode_` and `unload_filament_gcode_` member variables
+
 ---
 
-## Handoff Prompt for Stage 6
+## Handoff Prompt for Stage 7
 
 ```
-I'm continuing the "Standard Macros" system for HelixScreen. Stages 1-5 are complete.
+I'm continuing the "Standard Macros" system for HelixScreen. Stages 1-6 are complete.
 
 ## Quick Context
 
@@ -99,49 +106,50 @@ HelixScreen is a C++/LVGL touchscreen UI for 3D printers. The StandardMacros sys
 - `src/xml_registration.cpp` - Overlay component registered
 - `src/ui_panel_settings.cpp` - Settings overlay handlers wired up with dropdown population
 - `src/ui_panel_controls.cpp` - Quick buttons integrated with StandardMacros
+- `src/ui_panel_filament.cpp` - Load/Unload/Purge integrated with StandardMacros
 
 ## Read First
 
 1. Read the spec: docs/STANDARD_MACROS_SPEC.md (especially Panel Integration section)
-2. Read current filament panel: src/ui_panel_filament.cpp
-3. Look for existing LOAD_FILAMENT/UNLOAD_FILAMENT handling
+2. Read current print status panel: src/ui_panel_print_status.cpp
+3. Look for existing PAUSE/RESUME/CANCEL handling
 
-## Current Stage: 6 - Filament Panel Integration
+## Current Stage: 7 - Print Status Panel Integration
 
-Task: Integrate Filament Panel with StandardMacros
+Task: Integrate Print Status Panel with StandardMacros
 
 Implementation:
-1. Find existing filament load/unload calls in filament panel
+1. Find existing pause/resume/cancel calls in print status panel
 2. Replace hardcoded calls with `StandardMacros::instance().execute()`
-3. Handle empty slots by showing warning toast
+3. Disable (grey out) buttons if slot is empty - don't hide
 
 Example pattern from spec:
 ```cpp
-void FilamentPanel::execute_load() {
+void PrintStatusPanel::handle_pause() {
     if (!StandardMacros::instance().execute(
-            StandardMacroSlot::LoadFilament, api_,
-            []() { NOTIFY_SUCCESS("Loading filament..."); },
-            [](auto& err) { NOTIFY_ERROR("Load failed: {}", err.user_message()); })) {
-        NOTIFY_WARNING("Load filament macro not configured");
+            StandardMacroSlot::Pause, api_,
+            []() { NOTIFY_SUCCESS("Pausing print..."); },
+            [](auto& err) { NOTIFY_ERROR("Pause failed: {}", err.user_message()); })) {
+        NOTIFY_WARNING("Pause macro not configured");
     }
 }
 ```
 
 ## Workflow
 
-1. Read filament panel to understand current load/unload handling
+1. Read print status panel to understand current pause/resume/cancel handling
 2. Add StandardMacros integration
 3. Run `make -j` to verify
-4. Test with `./build/bin/helix-screen --test -p filament -vv`
+4. Test with `./build/bin/helix-screen --test -p print-status -vv`
 5. Update docs/STANDARD_MACROS_HANDOFF.md
 6. Commit when working
 
-Begin with Stage 6.
+Begin with Stage 7.
 ```
 
 ---
 
-## Stage Prompts (Stages 6-8)
+## Stage Prompts (Stages 7-8)
 
 ### Stage 4: Settings Panel Handlers ✅ COMPLETE
 Settings panel handlers are fully implemented:
@@ -158,20 +166,13 @@ Controls panel quick buttons now use StandardMacros:
 - Empty slots hide the button via `LV_OBJ_FLAG_HIDDEN`
 - `on_activate()` refreshes after StandardMacros initialization
 
-### Stage 6: Filament Panel Integration
-```
-Continue with Stage 6 of the Standard Macros system.
-
-Task: Integrate Filament Panel with StandardMacros
-- Replace hardcoded LOAD_FILAMENT/UNLOAD_FILAMENT calls with StandardMacros::execute()
-- Handle empty slots (show warning toast if slot not configured)
-- Example pattern from spec:
-  if (!StandardMacros::instance().execute(StandardMacroSlot::LoadFilament, api_, ...)) {
-      NOTIFY_WARNING("Load filament macro not configured");
-  }
-
-Files: src/ui_panel_filament.cpp
-```
+### Stage 6: Filament Panel Integration ✅ COMPLETE
+Filament panel now uses StandardMacros for load/unload/purge:
+- Replaced old `Config::get_macro()` system with `StandardMacros::instance().execute()`
+- `execute_load()` uses `StandardMacroSlot::LoadFilament` - shows warning if empty
+- `execute_unload()` uses `StandardMacroSlot::UnloadFilament` - shows warning if empty
+- `handle_purge_button()` uses `StandardMacroSlot::Purge` with inline G-code fallback
+- Removed unused `load_filament_gcode_` and `unload_filament_gcode_` member variables
 
 ### Stage 7: Print Status Panel Integration
 ```

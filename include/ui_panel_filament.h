@@ -207,9 +207,7 @@ class FilamentPanel : public PanelBase {
     int bed_max_temp_ = 150;
     int min_extrude_temp_ = 170; ///< Klipper's min_extrude_temp (default 170°C)
 
-    // Configurable macro commands (loaded from config)
-    std::string load_filament_gcode_;   ///< G-code for load operation
-    std::string unload_filament_gcode_; ///< G-code for unload operation
+    // Filament macros now resolved via StandardMacros singleton (load, unload, purge)
 
     // Child widgets (for imperative state management)
     lv_obj_t* btn_load_ = nullptr;
