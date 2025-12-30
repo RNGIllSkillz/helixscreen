@@ -213,9 +213,9 @@ void SubjectInitializer::init_panel_subjects() {
     m_bed_mesh_panel = &get_global_bed_mesh_panel();
     m_bed_mesh_panel->init_subjects();
 
-    // Static panel initialization
-    PIDCalibrationPanel::init_subjects();
-    ZOffsetCalibrationPanel::init_subjects();
+    // Panel initialization via global instances
+    get_global_pid_cal_panel().init_subjects();
+    get_global_zoffset_cal_panel().init_subjects();
 
     // TempControlPanel (owned by SubjectInitializer)
     m_temp_control_panel = std::make_unique<TempControlPanel>(get_printer_state(), nullptr);

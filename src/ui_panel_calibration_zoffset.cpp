@@ -5,6 +5,7 @@
 
 #include "ui_event_safety.h"
 #include "ui_nav.h"
+#include "ui_nav_manager.h"
 
 #include "app_globals.h"
 #include "moonraker_client.h"
@@ -16,29 +17,25 @@
 #include <memory>
 
 // ============================================================================
-// STATE SUBJECT (0=IDLE, 1=PROBING, 2=ADJUSTING, 3=SAVING, 4=COMPLETE, 5=ERROR)
+// STATIC STATE
 // ============================================================================
 
+// State subject (0=IDLE, 1=PROBING, 2=ADJUSTING, 3=SAVING, 4=COMPLETE, 5=ERROR)
 static lv_subject_t s_zoffset_cal_state;
-static bool s_zoffset_subjects_initialized = false;
+static bool s_callbacks_registered = false;
 
-void ZOffsetCalibrationPanel::init_subjects() {
-    if (s_zoffset_subjects_initialized) {
-        return;
-    }
+// ============================================================================
+// CONSTRUCTOR / DESTRUCTOR
+// ============================================================================
 
-    lv_subject_init_int(&s_zoffset_cal_state, 0);
-    lv_xml_register_subject(nullptr, "zoffset_cal_state", &s_zoffset_cal_state);
-
-    s_zoffset_subjects_initialized = true;
-    spdlog::debug("[ZOffsetCal] State subject registered");
+ZOffsetCalibrationPanel::ZOffsetCalibrationPanel() {
+    spdlog::debug("[ZOffsetCal] Instance created");
 }
 
-// ============================================================================
-// LIFECYCLE
-// ============================================================================
-
 ZOffsetCalibrationPanel::~ZOffsetCalibrationPanel() {
+    // Applying [L010]: No spdlog in destructors
+    // Applying [L011]: No mutex in destructors
+
     // Remove observers to prevent use-after-free if subjects outlive us
     if (manual_probe_active_observer_) {
         lv_observer_remove(manual_probe_active_observer_);
@@ -48,31 +45,102 @@ ZOffsetCalibrationPanel::~ZOffsetCalibrationPanel() {
         lv_observer_remove(manual_probe_z_observer_);
         manual_probe_z_observer_ = nullptr;
     }
-    // NOTE: No spdlog here - logger may be destroyed before us during static destruction
+
+    // Clear widget pointers (owned by LVGL)
+    overlay_root_ = nullptr;
+    parent_screen_ = nullptr;
+    z_position_display_ = nullptr;
+    final_offset_label_ = nullptr;
+    error_message_ = nullptr;
 }
 
 // ============================================================================
-// SETUP
+// SUBJECT REGISTRATION
 // ============================================================================
 
-void ZOffsetCalibrationPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen,
-                                    MoonrakerClient* client) {
-    panel_ = panel;
-    parent_screen_ = parent_screen;
-    client_ = client;
+void ZOffsetCalibrationPanel::init_subjects() {
+    if (subjects_initialized_) {
+        spdlog::debug("[ZOffsetCal] Subjects already initialized");
+        return;
+    }
 
-    if (!panel_) {
-        spdlog::error("[ZOffsetCal] NULL panel");
+    spdlog::debug("[ZOffsetCal] Initializing subjects");
+
+    // Register state subject (shared across all instances)
+    lv_subject_init_int(&s_zoffset_cal_state, 0);
+    lv_xml_register_subject(nullptr, "zoffset_cal_state", &s_zoffset_cal_state);
+
+    subjects_initialized_ = true;
+
+    // Register XML event callbacks (once globally)
+    if (!s_callbacks_registered) {
+        lv_xml_register_event_cb(nullptr, "on_zoffset_start_clicked", on_start_clicked);
+        lv_xml_register_event_cb(nullptr, "on_zoffset_abort_clicked", on_abort_clicked);
+        lv_xml_register_event_cb(nullptr, "on_zoffset_accept_clicked", on_accept_clicked);
+        lv_xml_register_event_cb(nullptr, "on_zoffset_done_clicked", on_done_clicked);
+        lv_xml_register_event_cb(nullptr, "on_zoffset_retry_clicked", on_retry_clicked);
+
+        // Z adjustment buttons
+        lv_xml_register_event_cb(nullptr, "on_zoffset_z_down_1", on_z_down_1);
+        lv_xml_register_event_cb(nullptr, "on_zoffset_z_down_01", on_z_down_01);
+        lv_xml_register_event_cb(nullptr, "on_zoffset_z_down_005", on_z_down_005);
+        lv_xml_register_event_cb(nullptr, "on_zoffset_z_down_001", on_z_down_001);
+        lv_xml_register_event_cb(nullptr, "on_zoffset_z_up_001", on_z_up_001);
+        lv_xml_register_event_cb(nullptr, "on_zoffset_z_up_005", on_z_up_005);
+        lv_xml_register_event_cb(nullptr, "on_zoffset_z_up_01", on_z_up_01);
+        lv_xml_register_event_cb(nullptr, "on_zoffset_z_up_1", on_z_up_1);
+
+        s_callbacks_registered = true;
+    }
+
+    spdlog::debug("[ZOffsetCal] Subjects and callbacks registered");
+}
+
+// ============================================================================
+// CREATE / SETUP
+// ============================================================================
+
+lv_obj_t* ZOffsetCalibrationPanel::create(lv_obj_t* parent) {
+    if (overlay_root_) {
+        spdlog::debug("[ZOffsetCal] Overlay already created");
+        return overlay_root_;
+    }
+
+    parent_screen_ = parent;
+
+    spdlog::debug("[ZOffsetCal] Creating overlay from XML");
+
+    // Create from XML
+    overlay_root_ =
+        static_cast<lv_obj_t*>(lv_xml_create(parent, "calibration_zoffset_panel", nullptr));
+    if (!overlay_root_) {
+        spdlog::error("[ZOffsetCal] Failed to create panel from XML");
+        return nullptr;
+    }
+
+    // Initially hidden (will be shown by show())
+    lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
+
+    // Setup widget references
+    setup_widgets();
+
+    spdlog::info("[ZOffsetCal] Overlay created");
+    return overlay_root_;
+}
+
+void ZOffsetCalibrationPanel::setup_widgets() {
+    if (!overlay_root_) {
+        spdlog::error("[ZOffsetCal] NULL overlay_root_");
         return;
     }
 
     // State visibility is handled via XML subject bindings
-    // Event handlers are registered via init_zoffset_event_callbacks() before XML creation
+    // Event handlers are registered via init_subjects() before XML creation
 
     // Find display elements (for programmatic updates not covered by subject bindings)
-    z_position_display_ = lv_obj_find_by_name(panel_, "z_position_display");
-    final_offset_label_ = lv_obj_find_by_name(panel_, "final_offset_label");
-    error_message_ = lv_obj_find_by_name(panel_, "error_message");
+    z_position_display_ = lv_obj_find_by_name(overlay_root_, "z_position_display");
+    final_offset_label_ = lv_obj_find_by_name(overlay_root_, "final_offset_label");
+    error_message_ = lv_obj_find_by_name(overlay_root_, "error_message");
 
     // Set initial state
     set_state(State::IDLE);
@@ -87,7 +155,90 @@ void ZOffsetCalibrationPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen,
     manual_probe_z_observer_ = lv_subject_add_observer(ps.get_manual_probe_z_position_subject(),
                                                        on_manual_probe_z_changed, this);
 
-    spdlog::info("[ZOffsetCal] Setup complete, observing manual_probe subjects");
+    spdlog::debug("[ZOffsetCal] Widget setup complete");
+}
+
+// ============================================================================
+// SHOW
+// ============================================================================
+
+void ZOffsetCalibrationPanel::show() {
+    if (!overlay_root_) {
+        spdlog::error("[ZOffsetCal] Cannot show: overlay not created");
+        return;
+    }
+
+    spdlog::debug("[ZOffsetCal] Showing overlay");
+
+    // Register with NavigationManager for lifecycle callbacks
+    NavigationManager::instance().register_overlay_instance(overlay_root_, this);
+
+    // Push onto navigation stack - on_activate() will be called by NavigationManager
+    ui_nav_push_overlay(overlay_root_);
+
+    spdlog::info("[ZOffsetCal] Overlay shown");
+}
+
+// ============================================================================
+// LIFECYCLE HOOKS
+// ============================================================================
+
+void ZOffsetCalibrationPanel::on_activate() {
+    // Call base class first
+    OverlayBase::on_activate();
+
+    spdlog::debug("[ZOffsetCal] on_activate()");
+
+    // Reset to idle state
+    set_state(State::IDLE);
+
+    // Reset Z position display
+    current_z_ = 0.0f;
+    final_offset_ = 0.0f;
+    if (z_position_display_) {
+        lv_label_set_text(z_position_display_, "Z: 0.000");
+    }
+}
+
+void ZOffsetCalibrationPanel::on_deactivate() {
+    spdlog::debug("[ZOffsetCal] on_deactivate()");
+
+    // If calibration is in progress, abort it
+    if (state_ == State::ADJUSTING || state_ == State::PROBING) {
+        spdlog::info("[ZOffsetCal] Aborting calibration on deactivate");
+        send_abort();
+    }
+
+    // Call base class
+    OverlayBase::on_deactivate();
+}
+
+void ZOffsetCalibrationPanel::cleanup() {
+    spdlog::debug("[ZOffsetCal] Cleaning up");
+
+    // Remove observers before cleanup (applying [L020])
+    if (manual_probe_active_observer_) {
+        lv_observer_remove(manual_probe_active_observer_);
+        manual_probe_active_observer_ = nullptr;
+    }
+    if (manual_probe_z_observer_) {
+        lv_observer_remove(manual_probe_z_observer_);
+        manual_probe_z_observer_ = nullptr;
+    }
+
+    // Unregister from NavigationManager before cleaning up
+    if (overlay_root_) {
+        NavigationManager::instance().unregister_overlay_instance(overlay_root_);
+    }
+
+    // Call base class to set cleanup_called_ flag
+    OverlayBase::cleanup();
+
+    // Clear references
+    parent_screen_ = nullptr;
+    z_position_display_ = nullptr;
+    final_offset_label_ = nullptr;
+    error_message_ = nullptr;
 }
 
 // ============================================================================
@@ -401,7 +552,6 @@ void ZOffsetCalibrationPanel::on_manual_probe_z_changed(lv_observer_t* observer,
 // ============================================================================
 
 static std::unique_ptr<ZOffsetCalibrationPanel> g_zoffset_cal_panel;
-static lv_obj_t* g_zoffset_cal_panel_obj = nullptr;
 
 // Forward declarations
 static void on_zoffset_row_clicked(lv_event_t* e);
@@ -414,68 +564,44 @@ ZOffsetCalibrationPanel& get_global_zoffset_cal_panel() {
     return *g_zoffset_cal_panel;
 }
 
+void destroy_zoffset_cal_panel() {
+    g_zoffset_cal_panel.reset();
+}
+
 void init_zoffset_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_zoffset_row_clicked", on_zoffset_row_clicked);
     spdlog::debug("[ZOffsetCal] Row click callback registered");
 }
 
 void init_zoffset_event_callbacks() {
-    // Register all button event callbacks used by calibration_zoffset_panel.xml
-    lv_xml_register_event_cb(nullptr, "on_zoffset_start_clicked",
-                             ZOffsetCalibrationPanel::on_start_clicked);
-    lv_xml_register_event_cb(nullptr, "on_zoffset_abort_clicked",
-                             ZOffsetCalibrationPanel::on_abort_clicked);
-    lv_xml_register_event_cb(nullptr, "on_zoffset_accept_clicked",
-                             ZOffsetCalibrationPanel::on_accept_clicked);
-    lv_xml_register_event_cb(nullptr, "on_zoffset_done_clicked",
-                             ZOffsetCalibrationPanel::on_done_clicked);
-    lv_xml_register_event_cb(nullptr, "on_zoffset_retry_clicked",
-                             ZOffsetCalibrationPanel::on_retry_clicked);
-
-    // Z adjustment buttons
-    lv_xml_register_event_cb(nullptr, "on_zoffset_z_down_1", ZOffsetCalibrationPanel::on_z_down_1);
-    lv_xml_register_event_cb(nullptr, "on_zoffset_z_down_01",
-                             ZOffsetCalibrationPanel::on_z_down_01);
-    lv_xml_register_event_cb(nullptr, "on_zoffset_z_down_005",
-                             ZOffsetCalibrationPanel::on_z_down_005);
-    lv_xml_register_event_cb(nullptr, "on_zoffset_z_down_001",
-                             ZOffsetCalibrationPanel::on_z_down_001);
-    lv_xml_register_event_cb(nullptr, "on_zoffset_z_up_001", ZOffsetCalibrationPanel::on_z_up_001);
-    lv_xml_register_event_cb(nullptr, "on_zoffset_z_up_005", ZOffsetCalibrationPanel::on_z_up_005);
-    lv_xml_register_event_cb(nullptr, "on_zoffset_z_up_01", ZOffsetCalibrationPanel::on_z_up_01);
-    lv_xml_register_event_cb(nullptr, "on_zoffset_z_up_1", ZOffsetCalibrationPanel::on_z_up_1);
-
-    spdlog::debug("[ZOffsetCal] Event callbacks registered");
+    // NOTE: Event callbacks are now registered by init_subjects() in the global instance.
+    // This function is kept for backward compatibility but is effectively a no-op
+    // if init_subjects() has already been called.
+    auto& overlay = get_global_zoffset_cal_panel();
+    if (!overlay.are_subjects_initialized()) {
+        overlay.init_subjects();
+    }
+    spdlog::debug("[ZOffsetCal] Event callbacks registration verified");
 }
 
 /**
  * @brief Row click handler for opening Z-Offset calibration from Advanced panel
  *
  * Registered via init_zoffset_row_handler().
- * Lazy-creates the calibration panel on first click.
+ * Uses OverlayBase pattern with lazy creation.
  */
 static void on_zoffset_row_clicked(lv_event_t* e) {
     (void)e;
     spdlog::debug("[ZOffsetCal] Z-Offset row clicked");
 
-    // Lazy-create the Z-Offset calibration panel
-    if (!g_zoffset_cal_panel_obj) {
-        spdlog::debug("[ZOffsetCal] Creating calibration panel...");
-        g_zoffset_cal_panel_obj = static_cast<lv_obj_t*>(lv_xml_create(
-            lv_display_get_screen_active(NULL), "calibration_zoffset_panel", nullptr));
+    auto& overlay = get_global_zoffset_cal_panel();
 
-        if (g_zoffset_cal_panel_obj) {
-            MoonrakerClient* client = get_moonraker_client();
-            get_global_zoffset_cal_panel().setup(g_zoffset_cal_panel_obj,
-                                                 lv_display_get_screen_active(NULL), client);
-            lv_obj_add_flag(g_zoffset_cal_panel_obj, LV_OBJ_FLAG_HIDDEN);
-            spdlog::info("[ZOffsetCal] Panel created and setup complete");
-        } else {
-            spdlog::error("[ZOffsetCal] Failed to create calibration_zoffset_panel");
-            return;
-        }
+    // Lazy-create the Z-Offset calibration panel
+    if (!overlay.get_root()) {
+        overlay.init_subjects();
+        overlay.set_client(get_moonraker_client());
+        overlay.create(lv_display_get_screen_active(NULL));
     }
 
-    // Show the overlay
-    ui_nav_push_overlay(g_zoffset_cal_panel_obj);
+    overlay.show();
 }

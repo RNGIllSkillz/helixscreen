@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "overlay_base.h"
+
 #include <lvgl.h>
 #include <memory>
 #include <string>
@@ -29,7 +31,7 @@ class MoonrakerClient;
  * - Extruder: 3-5 minutes
  * - Heated Bed: 5-10 minutes (larger thermal mass)
  */
-class PIDCalibrationPanel {
+class PIDCalibrationPanel : public OverlayBase {
   public:
     /**
      * @brief Calibration state machine states
@@ -47,25 +49,76 @@ class PIDCalibrationPanel {
      */
     enum class Heater { EXTRUDER, BED };
 
-    PIDCalibrationPanel() = default;
-    ~PIDCalibrationPanel() = default;
+    PIDCalibrationPanel();
+    ~PIDCalibrationPanel() override;
+
+    //
+    // === OverlayBase Interface ===
+    //
 
     /**
-     * @brief Initialize subjects and XML event callbacks
+     * @brief Initialize LVGL subjects for XML data binding
      *
      * Call once at startup before any panel instances are created.
      * Registers the pid_cal_state subject and all XML event callbacks.
      */
-    static void init_subjects();
+    void init_subjects() override;
 
     /**
-     * @brief Setup the panel with event handlers
+     * @brief Create overlay UI from XML
      *
-     * @param panel Root panel object from lv_xml_create()
-     * @param parent_screen Parent screen for overlay management
-     * @param client MoonrakerClient for sending G-code commands
+     * @param parent Parent screen widget to attach overlay to
+     * @return Root object of overlay, or nullptr on failure
      */
-    void setup(lv_obj_t* panel, lv_obj_t* parent_screen, MoonrakerClient* client);
+    lv_obj_t* create(lv_obj_t* parent) override;
+
+    /**
+     * @brief Get human-readable overlay name
+     * @return "PID Calibration"
+     */
+    const char* get_name() const override {
+        return "PID Calibration";
+    }
+
+    /**
+     * @brief Called when overlay becomes visible
+     *
+     * Resets state to IDLE, refreshes UI to defaults.
+     */
+    void on_activate() override;
+
+    /**
+     * @brief Called when overlay is being hidden
+     *
+     * Cancels pending timers, aborts calibration if in progress.
+     */
+    void on_deactivate() override;
+
+    /**
+     * @brief Clean up resources for async-safe destruction
+     */
+    void cleanup() override;
+
+    //
+    // === Public API ===
+    //
+
+    /**
+     * @brief Show overlay panel
+     *
+     * Pushes overlay onto navigation stack and registers with NavigationManager.
+     * on_activate() will be called automatically after animation completes.
+     */
+    void show();
+
+    /**
+     * @brief Set the Moonraker client for G-code commands
+     *
+     * @param client MoonrakerClient for sending commands
+     */
+    void set_client(MoonrakerClient* client) {
+        client_ = client;
+    }
 
     /**
      * @brief Get current state
@@ -97,10 +150,14 @@ class PIDCalibrationPanel {
                                const std::string& error_message = "");
 
   private:
-    // Panel and client references
-    lv_obj_t* panel_ = nullptr;
+    // Client reference
+    // Note: overlay_root_ inherited from OverlayBase
     lv_obj_t* parent_screen_ = nullptr;
     MoonrakerClient* client_ = nullptr;
+
+    // Timer management (CRITICAL: must be cancelled on deactivate to prevent use-after-free)
+    lv_timer_t* calibrate_timer_ = nullptr;
+    lv_timer_t* save_timer_ = nullptr;
 
     // State
     State state_ = State::IDLE;
@@ -152,6 +209,12 @@ class PIDCalibrationPanel {
     // State management
     void set_state(State new_state);
 
+    // Timer management
+    void cancel_pending_timers();
+
+    // UI setup (called by create())
+    void setup_widgets();
+
     // UI updates
     void update_heater_selection();
     void update_temp_display();
@@ -184,3 +247,6 @@ class PIDCalibrationPanel {
 
 // Global instance accessor
 PIDCalibrationPanel& get_global_pid_cal_panel();
+
+// Destroy the global instance (call during shutdown)
+void destroy_pid_cal_panel();

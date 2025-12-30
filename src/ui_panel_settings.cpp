@@ -1140,61 +1140,29 @@ void SettingsPanel::handle_bed_mesh_clicked() {
 void SettingsPanel::handle_z_offset_clicked() {
     spdlog::debug("[{}] Z-Offset clicked - opening calibration panel", get_name());
 
-    // Create Z-Offset calibration panel on first access (lazy initialization)
-    if (!zoffset_cal_panel_ && parent_screen_) {
-        spdlog::debug("[{}] Creating Z-Offset calibration panel...", get_name());
+    auto& overlay = get_global_zoffset_cal_panel();
 
-        // Create from XML
-        zoffset_cal_panel_ = static_cast<lv_obj_t*>(
-            lv_xml_create(parent_screen_, "calibration_zoffset_panel", nullptr));
-        if (zoffset_cal_panel_) {
-            // Setup event handlers (class-based API)
-            MoonrakerClient* client = get_moonraker_client();
-            get_global_zoffset_cal_panel().setup(zoffset_cal_panel_, parent_screen_, client);
-
-            // Initially hidden
-            lv_obj_add_flag(zoffset_cal_panel_, LV_OBJ_FLAG_HIDDEN);
-            spdlog::info("[{}] Z-Offset calibration panel created", get_name());
-        } else {
-            spdlog::error("[{}] Failed to create Z-Offset panel from XML", get_name());
-            return;
-        }
+    if (!overlay.get_root()) {
+        overlay.init_subjects();
+        overlay.set_client(get_moonraker_client());
+        overlay.create(parent_screen_);
     }
 
-    // Push Z-Offset panel onto navigation history and show it
-    if (zoffset_cal_panel_) {
-        ui_nav_push_overlay(zoffset_cal_panel_);
-    }
+    overlay.show();
 }
 
 void SettingsPanel::handle_pid_tuning_clicked() {
     spdlog::debug("[{}] PID Tuning clicked - opening calibration panel", get_name());
 
-    // Create PID calibration panel on first access (lazy initialization)
-    if (!pid_cal_panel_ && parent_screen_) {
-        spdlog::debug("[{}] Creating PID calibration panel...", get_name());
+    auto& overlay = get_global_pid_cal_panel();
 
-        // Create from XML
-        pid_cal_panel_ =
-            static_cast<lv_obj_t*>(lv_xml_create(parent_screen_, "calibration_pid_panel", nullptr));
-        if (pid_cal_panel_) {
-            // Setup event handlers (class-based API)
-            MoonrakerClient* client = get_moonraker_client();
-            get_global_pid_cal_panel().setup(pid_cal_panel_, parent_screen_, client);
-
-            // Initially hidden
-            lv_obj_add_flag(pid_cal_panel_, LV_OBJ_FLAG_HIDDEN);
-            spdlog::info("[{}] PID calibration panel created", get_name());
-        } else {
-            spdlog::error("[{}] Failed to create PID panel from XML", get_name());
-            return;
-        }
+    if (!overlay.get_root()) {
+        overlay.init_subjects();
+        overlay.set_client(get_moonraker_client());
+        overlay.create(parent_screen_);
     }
 
-    // Push PID panel onto navigation history and show it
-    if (pid_cal_panel_) {
-        ui_nav_push_overlay(pid_cal_panel_);
-    }
+    overlay.show();
 }
 
 void SettingsPanel::handle_network_clicked() {

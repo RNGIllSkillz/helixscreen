@@ -4,10 +4,11 @@
 #pragma once
 
 #include "calibration_types.h" // For InputShaperResult
-#include "lvgl/lvgl.h"
+#include "overlay_base.h"
 
 #include <array>
 #include <atomic>
+#include <lvgl.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -38,11 +39,12 @@ class MoonrakerAPI;
  * ## Usage:
  * ```cpp
  * InputShaperPanel& panel = get_global_input_shaper_panel();
- * panel.setup(lv_obj, parent_screen, moonraker_client, moonraker_api);
- * ui_nav_push_overlay(lv_obj);
+ * panel.init_subjects();  // Once at startup
+ * panel.create(screen);   // Lazy create
+ * panel.show();           // Opens overlay
  * ```
  */
-class InputShaperPanel {
+class InputShaperPanel : public OverlayBase {
   public:
     /**
      * @brief Panel state machine states
@@ -66,18 +68,77 @@ class InputShaperPanel {
     };
 
     InputShaperPanel() = default;
-    ~InputShaperPanel();
+    ~InputShaperPanel() override;
+
+    //
+    // === OverlayBase Interface ===
+    //
 
     /**
-     * @brief Setup the panel with event handlers
+     * @brief Initialize subjects for reactive XML bindings
      *
-     * @param panel Root panel object from lv_xml_create()
-     * @param parent_screen Parent screen (for navigation)
-     * @param client Moonraker client (kept for potential future use)
-     * @param api Moonraker API for G-code execution
+     * Must be called BEFORE XML creation (from register_callbacks).
+     * Subject bindings are resolved at XML parse time.
      */
-    void setup(lv_obj_t* panel, lv_obj_t* parent_screen, MoonrakerClient* client,
-               MoonrakerAPI* api);
+    void init_subjects() override;
+
+    /**
+     * @brief Create overlay UI from XML
+     *
+     * @param parent Parent screen widget to attach overlay to
+     * @return Root object of overlay, or nullptr on failure
+     */
+    lv_obj_t* create(lv_obj_t* parent) override;
+
+    /**
+     * @brief Get human-readable overlay name
+     * @return "Input Shaper"
+     */
+    const char* get_name() const override {
+        return "Input Shaper";
+    }
+
+    /**
+     * @brief Called when overlay becomes visible
+     *
+     * Resets state to IDLE, clears previous results.
+     */
+    void on_activate() override;
+
+    /**
+     * @brief Called when overlay is being hidden
+     *
+     * Cancels calibration if in progress.
+     */
+    void on_deactivate() override;
+
+    /**
+     * @brief Clean up resources for async-safe destruction
+     */
+    void cleanup() override;
+
+    //
+    // === Public API ===
+    //
+
+    /**
+     * @brief Show overlay panel
+     *
+     * Pushes overlay onto navigation stack and registers with NavigationManager.
+     * on_activate() will be called automatically after animation completes.
+     */
+    void show();
+
+    /**
+     * @brief Set Moonraker client and API for G-code commands
+     *
+     * @param client MoonrakerClient (kept for potential future use)
+     * @param api MoonrakerAPI for G-code execution
+     */
+    void set_api(MoonrakerClient* client, MoonrakerAPI* api) {
+        client_ = client;
+        api_ = api;
+    }
 
     /**
      * @brief Get current panel state
@@ -101,17 +162,7 @@ class InputShaperPanel {
     void handle_save_config_clicked();
     void handle_help_clicked();
 
-    /**
-     * @brief Initialize subjects for reactive XML bindings
-     *
-     * Must be called BEFORE XML creation (from register_callbacks).
-     * Subject bindings are resolved at XML parse time.
-     */
-    void init_subjects();
-
   private:
-    bool subjects_initialized_ = false;
-
     // State management
     State state_ = State::IDLE;
     void set_state(State new_state);
@@ -133,11 +184,13 @@ class InputShaperPanel {
     void update_status_label(const std::string& text);
     void process_pending_responses(); // Unused - for interface compatibility
 
-    // Widget references
-    lv_obj_t* panel_ = nullptr;
+    // Widget/client references (overlay_root_ inherited from OverlayBase)
     lv_obj_t* parent_screen_ = nullptr;
     MoonrakerClient* client_ = nullptr;
     MoonrakerAPI* api_ = nullptr;
+
+    // Private setup helper (called by create())
+    void setup_widgets();
 
     // Display elements
     lv_obj_t* status_label_ = nullptr;

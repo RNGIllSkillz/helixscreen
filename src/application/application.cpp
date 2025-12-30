@@ -764,32 +764,37 @@ void Application::create_overlays() {
     }
 
     if (m_args.overlays.zoffset) {
-        if (auto* p = create_overlay_panel(m_screen, "calibration_zoffset_panel", "Z-offset")) {
-            get_global_zoffset_cal_panel().setup(p, m_screen, m_moonraker->client());
-            ui_nav_push_overlay(p);
+        auto& overlay = get_global_zoffset_cal_panel();
+        // init_subjects already called by SubjectInitializer
+        overlay.set_client(m_moonraker->client());
+        if (overlay.create(m_screen)) {
+            overlay.show();
         }
     }
 
     if (m_args.overlays.pid) {
-        if (auto* p = create_overlay_panel(m_screen, "calibration_pid_panel", "PID tuning")) {
-            get_global_pid_cal_panel().setup(p, m_screen, m_moonraker->client());
-            ui_nav_push_overlay(p);
+        auto& overlay = get_global_pid_cal_panel();
+        // init_subjects already called by SubjectInitializer
+        overlay.set_client(m_moonraker->client());
+        if (overlay.create(m_screen)) {
+            overlay.show();
         }
     }
 
     if (m_args.overlays.screws_tilt) {
-        if (auto* p = create_overlay_panel(m_screen, "screws_tilt_panel", "screws tilt")) {
-            get_global_screws_tilt_panel().setup(p, m_screen, m_moonraker->client(),
-                                                 m_moonraker->api());
-            ui_nav_push_overlay(p);
+        auto& overlay = get_global_screws_tilt_panel();
+        // init_subjects already called by SubjectInitializer
+        overlay.set_client(m_moonraker->client(), m_moonraker->api());
+        if (overlay.create(m_screen)) {
+            overlay.show();
         }
     }
 
     if (m_args.overlays.input_shaper) {
-        if (auto* p = create_overlay_panel(m_screen, "input_shaper_panel", "input shaper")) {
-            get_global_input_shaper_panel().setup(p, m_screen, m_moonraker->client(),
-                                                  m_moonraker->api());
-            ui_nav_push_overlay(p);
+        auto& panel = get_global_input_shaper_panel();
+        panel.set_api(m_moonraker->client(), m_moonraker->api());
+        if (panel.create(m_screen)) {
+            panel.show();
         }
     }
 

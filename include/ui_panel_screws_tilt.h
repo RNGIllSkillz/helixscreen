@@ -4,9 +4,11 @@
 #pragma once
 
 #include "calibration_types.h" // For ScrewTiltResult
-#include "lvgl/lvgl.h"
+#include "overlay_base.h"
 
 #include <array>
+#include <atomic>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -35,7 +37,7 @@ class MoonrakerAPI;
  * ui_nav_push_overlay(lv_obj);
  * ```
  */
-class ScrewsTiltPanel {
+class ScrewsTiltPanel : public OverlayBase {
   public:
     /**
      * @brief Panel state machine states
@@ -49,18 +51,77 @@ class ScrewsTiltPanel {
     };
 
     ScrewsTiltPanel() = default;
-    ~ScrewsTiltPanel() = default;
+    ~ScrewsTiltPanel() override;
+
+    //
+    // === OverlayBase Interface ===
+    //
 
     /**
-     * @brief Setup the panel with event handlers
+     * @brief Initialize subjects for reactive XML bindings
      *
-     * @param panel Root panel object from lv_xml_create()
-     * @param parent_screen Parent screen (for navigation)
+     * Must be called BEFORE XML creation (from register_callbacks).
+     * Subject bindings are resolved at XML parse time.
+     */
+    void init_subjects() override;
+
+    /**
+     * @brief Create overlay UI from XML
+     *
+     * @param parent Parent screen widget to attach overlay to
+     * @return Root object of overlay, or nullptr on failure
+     */
+    lv_obj_t* create(lv_obj_t* parent) override;
+
+    /**
+     * @brief Get human-readable overlay name
+     * @return "Screws Tilt Adjust"
+     */
+    const char* get_name() const override {
+        return "Screws Tilt Adjust";
+    }
+
+    /**
+     * @brief Called when overlay becomes visible
+     *
+     * Resets probe count and state to IDLE.
+     */
+    void on_activate() override;
+
+    /**
+     * @brief Called when overlay is being hidden
+     *
+     * Aborts probing if in progress, clears results.
+     */
+    void on_deactivate() override;
+
+    /**
+     * @brief Clean up resources for async-safe destruction
+     */
+    void cleanup() override;
+
+    //
+    // === Public API ===
+    //
+
+    /**
+     * @brief Show overlay panel
+     *
+     * Pushes overlay onto navigation stack and registers with NavigationManager.
+     * on_activate() will be called automatically after animation completes.
+     */
+    void show();
+
+    /**
+     * @brief Set Moonraker client and API references
+     *
      * @param client Moonraker client for sending commands
      * @param api Moonraker API for calculate_screws_tilt()
      */
-    void setup(lv_obj_t* panel, lv_obj_t* parent_screen, MoonrakerClient* client,
-               MoonrakerAPI* api);
+    void set_client(MoonrakerClient* client, MoonrakerAPI* api) {
+        client_ = client;
+        api_ = api;
+    }
 
     /**
      * @brief Get current panel state
@@ -92,24 +153,20 @@ class ScrewsTiltPanel {
     void handle_done_clicked();
     void handle_retry_clicked();
 
-    /**
-     * @brief Initialize subjects for reactive XML bindings
-     *
-     * Must be called BEFORE XML creation (from register_callbacks).
-     * Subject bindings are resolved at XML parse time.
-     */
-    void init_subjects();
-
   private:
-    bool subjects_initialized_ = false;
-
     // State management
     State state_ = State::IDLE;
     void set_state(State new_state);
 
+    // Async safety flag - survives after panel destruction [L012]
+    std::shared_ptr<std::atomic<bool>> alive_ = std::make_shared<std::atomic<bool>>(true);
+
     // Command helpers
     void start_probing();
     void cancel_probing();
+
+    // UI setup (called by create())
+    void setup_widgets();
 
     // UI update helpers
     void populate_results(const std::vector<ScrewTiltResult>& results);
@@ -128,7 +185,7 @@ class ScrewsTiltPanel {
     [[nodiscard]] bool check_all_level(int tolerance_minutes = 5) const;
 
     // Widget references
-    lv_obj_t* panel_ = nullptr;
+    // Note: overlay_root_ inherited from OverlayBase
     lv_obj_t* parent_screen_ = nullptr;
     MoonrakerClient* client_ = nullptr;
     MoonrakerAPI* api_ = nullptr;
@@ -173,6 +230,9 @@ class ScrewsTiltPanel {
 
 // Global instance accessor
 ScrewsTiltPanel& get_global_screws_tilt_panel();
+
+// Destroy the global instance (call during shutdown)
+void destroy_screws_tilt_panel();
 
 /**
  * @brief Register XML event callbacks for screws tilt panel

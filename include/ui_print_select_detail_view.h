@@ -5,10 +5,13 @@
 
 #include "ui_print_preparation_manager.h"
 
+#include "overlay_base.h"
 #include "print_file_data.h" // For FileHistoryStatus
 
+#include <atomic>
 #include <functional>
 #include <lvgl.h>
+#include <memory>
 #include <string>
 
 // Forward declarations
@@ -50,11 +53,15 @@ using DeleteConfirmedCallback = std::function<void()>;
 
 /**
  * @brief Detail view overlay manager
+ *
+ * Inherits from OverlayBase for lifecycle management (on_activate/on_deactivate).
+ * The NavigationManager calls these hooks automatically when the overlay is
+ * pushed/popped from the stack.
  */
-class PrintSelectDetailView {
+class PrintSelectDetailView : public OverlayBase {
   public:
     PrintSelectDetailView() = default;
-    ~PrintSelectDetailView();
+    ~PrintSelectDetailView() override;
 
     // Non-copyable, non-movable (owns LVGL widgets with external references)
     PrintSelectDetailView(const PrintSelectDetailView&) = delete;
@@ -62,7 +69,7 @@ class PrintSelectDetailView {
     PrintSelectDetailView(PrintSelectDetailView&&) = delete;
     PrintSelectDetailView& operator=(PrintSelectDetailView&&) = delete;
 
-    // === Setup ===
+    // === OverlayBase Interface ===
 
     /**
      * @brief Initialize subjects for pre-print option switches
@@ -73,7 +80,7 @@ class PrintSelectDetailView {
      *
      * MUST be called BEFORE create() so bindings can find subjects.
      */
-    void init_subjects();
+    void init_subjects() override;
 
     /**
      * @brief Create the detail view widget
@@ -82,9 +89,41 @@ class PrintSelectDetailView {
      * Must be called before show().
      *
      * @param parent_screen Screen to create detail view on
-     * @return true if created successfully
+     * @return Root object of overlay, or nullptr on failure
      */
-    bool create(lv_obj_t* parent_screen);
+    lv_obj_t* create(lv_obj_t* parent_screen) override;
+
+    /**
+     * @brief Get human-readable overlay name
+     * @return "Print File Details"
+     */
+    const char* get_name() const override {
+        return "Print File Details";
+    }
+
+    /**
+     * @brief Called when overlay becomes visible
+     *
+     * Resets pre-print subjects to defaults and starts async file scanning.
+     */
+    void on_activate() override;
+
+    /**
+     * @brief Called when overlay is being hidden
+     *
+     * Closes any open modals. Async scans will check alive_ flag.
+     */
+    void on_deactivate() override;
+
+    /**
+     * @brief Clean up resources for async-safe destruction
+     *
+     * Sets alive_ flag to false so async callbacks bail out.
+     * Unregisters from NavigationManager and deinitializes subjects.
+     */
+    void cleanup() override;
+
+    // === Setup ===
 
     /**
      * @brief Set dependencies for print preparation
@@ -134,10 +173,7 @@ class PrintSelectDetailView {
      */
     void hide();
 
-    /**
-     * @brief Check if detail view is currently visible
-     */
-    [[nodiscard]] bool is_visible() const;
+    // Note: is_visible() inherited from OverlayBase
 
     // === Delete Confirmation ===
 
@@ -157,9 +193,10 @@ class PrintSelectDetailView {
 
     /**
      * @brief Get the detail view widget
+     * @note Returns overlay_root_ from OverlayBase
      */
     [[nodiscard]] lv_obj_t* get_widget() const {
-        return detail_view_widget_;
+        return overlay_root_;
     }
 
     /**
@@ -218,8 +255,8 @@ class PrintSelectDetailView {
     lv_subject_t* visible_subject_ = nullptr;
 
     // === Widget References ===
+    // Note: overlay_root_ inherited from OverlayBase holds the main widget
     lv_obj_t* parent_screen_ = nullptr;
-    lv_obj_t* detail_view_widget_ = nullptr;
     lv_obj_t* confirmation_dialog_widget_ = nullptr;
     lv_obj_t* print_button_ = nullptr;
 
@@ -246,10 +283,21 @@ class PrintSelectDetailView {
     lv_subject_t preprint_z_tilt_{};
     lv_subject_t preprint_nozzle_clean_{};
     lv_subject_t preprint_timelapse_{};
-    bool subjects_initialized_ = false;
+    // Note: subjects_initialized_ inherited from OverlayBase
 
     // Print preparation manager (owns it)
     std::unique_ptr<PrintPreparationManager> prep_manager_;
+
+    // === Cached show() parameters (used by on_activate) ===
+    std::string current_filename_;
+    std::string current_path_;
+    std::string current_filament_type_;
+    std::vector<std::string> current_filament_colors_;
+    size_t current_file_size_bytes_ = 0;
+
+    // === Async Safety [L012] ===
+    // Shared pointer to track if this object is still alive when async callbacks execute.
+    std::shared_ptr<std::atomic<bool>> alive_ = std::make_shared<std::atomic<bool>>(true);
 
     // === Callbacks ===
     DeleteConfirmedCallback on_delete_confirmed_;

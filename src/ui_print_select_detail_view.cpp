@@ -7,6 +7,7 @@
 #include "ui_icon.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
+#include "ui_nav_manager.h"
 #include "ui_print_preparation_manager.h"
 #include "ui_theme.h"
 #include "ui_utils.h"
@@ -20,10 +21,19 @@ namespace helix::ui {
 // ============================================================================
 
 PrintSelectDetailView::~PrintSelectDetailView() {
+    // Signal async callbacks to bail out [L012]
+    alive_->store(false);
+
     // CRITICAL: During static destruction (app exit), LVGL may already be gone.
     // We check if LVGL is still initialized before calling any LVGL functions.
+    // Applying [L010]: No spdlog in destructors
     if (!lv_is_initialized()) {
         return;
+    }
+
+    // Unregister from NavigationManager (fallback if cleanup() wasn't called)
+    if (overlay_root_) {
+        NavigationManager::instance().unregister_overlay_instance(overlay_root_);
     }
 
     // Deinitialize subjects to disconnect observers before widgets are deleted
@@ -44,9 +54,9 @@ PrintSelectDetailView::~PrintSelectDetailView() {
     }
 
     // Clean up main widget if created
-    if (detail_view_widget_) {
-        lv_obj_delete(detail_view_widget_);
-        detail_view_widget_ = nullptr;
+    if (overlay_root_) {
+        lv_obj_delete(overlay_root_);
+        overlay_root_ = nullptr;
     }
 }
 
@@ -81,64 +91,64 @@ void PrintSelectDetailView::init_subjects() {
     spdlog::debug("[DetailView] Initialized pre-print option subjects");
 }
 
-bool PrintSelectDetailView::create(lv_obj_t* parent_screen) {
+lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
     if (!parent_screen) {
         spdlog::error("[DetailView] Cannot create: parent_screen is null");
-        return false;
+        return nullptr;
     }
 
-    if (detail_view_widget_) {
+    if (overlay_root_) {
         spdlog::warn("[DetailView] Detail view already exists");
-        return true;
+        return overlay_root_;
     }
 
     parent_screen_ = parent_screen;
 
-    detail_view_widget_ =
+    overlay_root_ =
         static_cast<lv_obj_t*>(lv_xml_create(parent_screen_, "print_file_detail", nullptr));
 
-    if (!detail_view_widget_) {
+    if (!overlay_root_) {
         LOG_ERROR_INTERNAL("[DetailView] Failed to create detail view from XML");
         NOTIFY_ERROR("Failed to load file details");
-        return false;
+        return nullptr;
     }
 
     // Set width to fill space after nav bar
-    ui_set_overlay_width(detail_view_widget_, parent_screen_);
+    ui_set_overlay_width(overlay_root_, parent_screen_);
 
     // Set responsive padding for content area
-    lv_obj_t* content_container = lv_obj_find_by_name(detail_view_widget_, "content_container");
+    lv_obj_t* content_container = lv_obj_find_by_name(overlay_root_, "content_container");
     if (content_container) {
         lv_coord_t padding = ui_get_header_content_padding(lv_obj_get_height(parent_screen_));
         lv_obj_set_style_pad_all(content_container, padding, 0);
     }
 
-    lv_obj_add_flag(detail_view_widget_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
 
     // Store reference to print button for enable/disable state management
-    print_button_ = lv_obj_find_by_name(detail_view_widget_, "print_button");
+    print_button_ = lv_obj_find_by_name(overlay_root_, "print_button");
 
     // Look up pre-print option checkboxes
-    bed_leveling_checkbox_ = lv_obj_find_by_name(detail_view_widget_, "bed_leveling_checkbox");
-    qgl_checkbox_ = lv_obj_find_by_name(detail_view_widget_, "qgl_checkbox");
-    z_tilt_checkbox_ = lv_obj_find_by_name(detail_view_widget_, "z_tilt_checkbox");
-    nozzle_clean_checkbox_ = lv_obj_find_by_name(detail_view_widget_, "nozzle_clean_checkbox");
-    timelapse_checkbox_ = lv_obj_find_by_name(detail_view_widget_, "timelapse_checkbox");
+    bed_leveling_checkbox_ = lv_obj_find_by_name(overlay_root_, "bed_leveling_checkbox");
+    qgl_checkbox_ = lv_obj_find_by_name(overlay_root_, "qgl_checkbox");
+    z_tilt_checkbox_ = lv_obj_find_by_name(overlay_root_, "z_tilt_checkbox");
+    nozzle_clean_checkbox_ = lv_obj_find_by_name(overlay_root_, "nozzle_clean_checkbox");
+    timelapse_checkbox_ = lv_obj_find_by_name(overlay_root_, "timelapse_checkbox");
 
     // Look up color requirements display
-    color_requirements_card_ = lv_obj_find_by_name(detail_view_widget_, "color_requirements_card");
-    color_swatches_row_ = lv_obj_find_by_name(detail_view_widget_, "color_swatches_row");
+    color_requirements_card_ = lv_obj_find_by_name(overlay_root_, "color_requirements_card");
+    color_swatches_row_ = lv_obj_find_by_name(overlay_root_, "color_swatches_row");
 
     // Look up history status display
-    history_status_row_ = lv_obj_find_by_name(detail_view_widget_, "history_status_row");
-    history_status_icon_ = lv_obj_find_by_name(detail_view_widget_, "history_status_icon");
-    history_status_label_ = lv_obj_find_by_name(detail_view_widget_, "history_status_label");
+    history_status_row_ = lv_obj_find_by_name(overlay_root_, "history_status_row");
+    history_status_icon_ = lv_obj_find_by_name(overlay_root_, "history_status_icon");
+    history_status_label_ = lv_obj_find_by_name(overlay_root_, "history_status_label");
 
     // Initialize print preparation manager
     prep_manager_ = std::make_unique<PrintPreparationManager>();
 
     spdlog::debug("[DetailView] Detail view created");
-    return true;
+    return overlay_root_;
 }
 
 void PrintSelectDetailView::set_dependencies(MoonrakerAPI* api, PrinterState* printer_state) {
@@ -160,13 +170,59 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
                                  const std::string& filament_type,
                                  const std::vector<std::string>& filament_colors,
                                  size_t file_size_bytes) {
-    // TODO: Use filament_type to set default in filament dropdown
-    (void)filament_type;
-
-    if (!detail_view_widget_) {
+    if (!overlay_root_) {
         spdlog::warn("[DetailView] Cannot show: widget not created");
         return;
     }
+
+    // Cache parameters for on_activate() to use
+    current_filename_ = filename;
+    current_path_ = current_path;
+    current_filament_type_ = filament_type;
+    current_filament_colors_ = filament_colors;
+    current_file_size_bytes_ = file_size_bytes;
+
+    // Update color requirements display (immediate, not deferred)
+    update_color_swatches(filament_colors);
+
+    // Register with NavigationManager for lifecycle callbacks
+    NavigationManager::instance().register_overlay_instance(overlay_root_, this);
+
+    // Push onto navigation stack - on_activate() will be called by NavigationManager
+    ui_nav_push_overlay(overlay_root_);
+
+    if (visible_subject_) {
+        lv_subject_set_int(visible_subject_, 1);
+    }
+
+    spdlog::debug("[DetailView] Showing detail view for: {} ({} colors)", filename,
+                  filament_colors.size());
+}
+
+void PrintSelectDetailView::hide() {
+    if (!overlay_root_) {
+        return;
+    }
+
+    // Pop from navigation stack - on_deactivate() will be called by NavigationManager
+    ui_nav_go_back();
+
+    if (visible_subject_) {
+        lv_subject_set_int(visible_subject_, 0);
+    }
+
+    spdlog::debug("[DetailView] Detail view hidden");
+}
+
+// ============================================================================
+// Lifecycle Hooks (called by NavigationManager)
+// ============================================================================
+
+void PrintSelectDetailView::on_activate() {
+    // Call base class first
+    OverlayBase::on_activate();
+
+    spdlog::debug("[DetailView] on_activate() for file: {}", current_filename_);
 
     // Reset pre-print option subjects to defaults for new file
     // Skip switches default ON (don't skip = preserve file's original behavior)
@@ -178,49 +234,55 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
     lv_subject_set_int(&preprint_timelapse_, 0);
 
     // Cache file size for safety checks (before modification attempts)
-    if (prep_manager_ && file_size_bytes > 0) {
-        prep_manager_->set_cached_file_size(file_size_bytes);
+    if (prep_manager_ && current_file_size_bytes_ > 0) {
+        prep_manager_->set_cached_file_size(current_file_size_bytes_);
     }
 
     // Trigger async scan for embedded G-code operations (for conflict detection)
-    if (!filename.empty() && prep_manager_) {
-        prep_manager_->scan_file_for_operations(filename, current_path);
+    // The scan happens NOW after registration, so if user navigates away,
+    // on_deactivate() will be called and we can check cleanup_called()
+    if (!current_filename_.empty() && prep_manager_) {
+        prep_manager_->scan_file_for_operations(current_filename_, current_path_);
     }
-
-    // Update color requirements display
-    update_color_swatches(filament_colors);
-
-    // Use nav system for consistent backdrop and z-order management
-    ui_nav_push_overlay(detail_view_widget_);
-
-    if (visible_subject_) {
-        lv_subject_set_int(visible_subject_, 1);
-    }
-
-    spdlog::debug("[DetailView] Showing detail view for: {} ({} colors)", filename,
-                  filament_colors.size());
 }
 
-void PrintSelectDetailView::hide() {
-    if (!detail_view_widget_) {
-        return;
-    }
+void PrintSelectDetailView::on_deactivate() {
+    spdlog::debug("[DetailView] on_deactivate()");
 
-    // Use nav system to properly hide and manage backdrop
-    ui_nav_go_back();
+    // Hide any open delete confirmation modal
+    hide_delete_confirmation();
 
-    if (visible_subject_) {
-        lv_subject_set_int(visible_subject_, 0);
-    }
+    // Note: We don't cancel scans here because PrintPreparationManager
+    // has its own alive_guard_ pattern. Async callbacks in prep_manager_
+    // will check cleanup_called() if needed.
 
-    spdlog::debug("[DetailView] Detail view hidden");
+    // Call base class
+    OverlayBase::on_deactivate();
 }
 
-bool PrintSelectDetailView::is_visible() const {
-    if (visible_subject_) {
-        return lv_subject_get_int(visible_subject_) != 0;
+void PrintSelectDetailView::cleanup() {
+    spdlog::debug("[DetailView] cleanup()");
+
+    // Signal async callbacks to bail out [L012]
+    alive_->store(false);
+
+    // Unregister from NavigationManager before cleaning up
+    if (overlay_root_) {
+        NavigationManager::instance().unregister_overlay_instance(overlay_root_);
     }
-    return detail_view_widget_ && !lv_obj_has_flag(detail_view_widget_, LV_OBJ_FLAG_HIDDEN);
+
+    // Deinitialize subjects to disconnect observers
+    if (subjects_initialized_) {
+        lv_subject_deinit(&preprint_bed_leveling_);
+        lv_subject_deinit(&preprint_qgl_);
+        lv_subject_deinit(&preprint_z_tilt_);
+        lv_subject_deinit(&preprint_nozzle_clean_);
+        lv_subject_deinit(&preprint_timelapse_);
+        subjects_initialized_ = false;
+    }
+
+    // Call base class to set cleanup_called_ flag
+    OverlayBase::cleanup();
 }
 
 // ============================================================================
@@ -258,11 +320,11 @@ void PrintSelectDetailView::hide_delete_confirmation() {
 // ============================================================================
 
 void PrintSelectDetailView::handle_resize(lv_obj_t* parent_screen) {
-    if (!detail_view_widget_ || !parent_screen) {
+    if (!overlay_root_ || !parent_screen) {
         return;
     }
 
-    lv_obj_t* content_container = lv_obj_find_by_name(detail_view_widget_, "content_container");
+    lv_obj_t* content_container = lv_obj_find_by_name(overlay_root_, "content_container");
     if (content_container) {
         lv_coord_t padding = ui_get_header_content_padding(lv_obj_get_height(parent_screen));
         lv_obj_set_style_pad_all(content_container, padding, 0);

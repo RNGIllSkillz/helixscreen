@@ -212,6 +212,9 @@ PrintSelectPanel::~PrintSelectPanel() {
     if (list_view_) {
         list_view_->cleanup();
     }
+    if (detail_view_) {
+        detail_view_->cleanup();
+    }
 
     // Reset widget references - the LVGL widget tree handles widget cleanup.
     card_view_container_ = nullptr;
@@ -1694,6 +1697,7 @@ void PrintSelectPanel::create_detail_view() {
     // Initialize subjects BEFORE create() so XML bindings can find them [L004]
     detail_view_->init_subjects();
 
+    // create() now returns lv_obj_t* per OverlayBase interface
     if (!detail_view_->create(parent_screen_)) {
         spdlog::error("[{}] Failed to create detail view", get_name());
         detail_view_.reset();
