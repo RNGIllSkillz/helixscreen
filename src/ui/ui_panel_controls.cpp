@@ -661,20 +661,25 @@ void ControlsPanel::handle_bed_temp_clicked() {
 void ControlsPanel::handle_cooling_clicked() {
     spdlog::debug("[{}] Cooling card clicked - opening Fan panel", get_name());
 
+    // Create fan panel on first access (lazy initialization)
     if (!fan_panel_ && parent_screen_) {
-        auto& fan_panel_instance = get_global_fan_panel();
-        if (!fan_panel_instance.are_subjects_initialized()) {
-            fan_panel_instance.init_subjects();
-        }
+        auto& fan = get_global_fan_panel();
 
-        fan_panel_ = static_cast<lv_obj_t*>(lv_xml_create(parent_screen_, "fan_panel", nullptr));
-        if (fan_panel_) {
-            fan_panel_instance.setup(fan_panel_, parent_screen_);
-            // Panel starts hidden via XML hidden="true" attribute
-        } else {
+        // Initialize subjects and callbacks if not already done
+        if (!fan.are_subjects_initialized()) {
+            fan.init_subjects();
+        }
+        fan.register_callbacks();
+
+        // Create overlay UI
+        fan_panel_ = fan.create(parent_screen_);
+        if (!fan_panel_) {
             NOTIFY_ERROR("Failed to load fan panel");
             return;
         }
+
+        // Register with NavigationManager for lifecycle callbacks
+        NavigationManager::instance().register_overlay_instance(fan_panel_, &fan);
     }
 
     if (fan_panel_) {

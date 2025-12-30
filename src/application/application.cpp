@@ -752,14 +752,19 @@ void Application::create_overlays() {
     }
 
     if (m_args.overlays.fan) {
-        auto& fan_panel = get_global_fan_panel();
-        if (!fan_panel.are_subjects_initialized()) {
-            fan_panel.init_subjects();
+        auto& fan = get_global_fan_panel();
+
+        // Initialize subjects and callbacks if not already done
+        if (!fan.are_subjects_initialized()) {
+            fan.init_subjects();
         }
-        lv_obj_t* fan_obj = static_cast<lv_obj_t*>(lv_xml_create(m_screen, "fan_panel", nullptr));
-        if (fan_obj) {
-            fan_panel.setup(fan_obj, m_screen);
-            ui_nav_push_overlay(fan_obj);
+        fan.register_callbacks();
+
+        // Create overlay UI
+        auto* p = fan.create(m_screen);
+        if (p) {
+            NavigationManager::instance().register_overlay_instance(p, &fan);
+            ui_nav_push_overlay(p);
         }
     }
 

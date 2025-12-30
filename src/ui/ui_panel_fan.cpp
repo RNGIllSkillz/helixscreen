@@ -23,17 +23,42 @@
 
 constexpr int FanPanel::PRESET_VALUES[4];
 
-FanPanel::FanPanel(PrinterState& printer_state, MoonrakerAPI* api) : PanelBase(printer_state, api) {
+// ============================================================================
+// Global Instance
+// ============================================================================
+
+static std::unique_ptr<FanPanel> g_fan_panel;
+
+FanPanel& get_global_fan_panel() {
+    if (!g_fan_panel) {
+        g_fan_panel = std::make_unique<FanPanel>();
+    }
+    return *g_fan_panel;
+}
+
+// ============================================================================
+// Constructor
+// ============================================================================
+
+FanPanel::FanPanel() {
     // Initialize buffer contents
     std::snprintf(part_speed_buf_, sizeof(part_speed_buf_), "0%%");
     std::snprintf(hotend_speed_buf_, sizeof(hotend_speed_buf_), "0%%");
+
+    spdlog::debug("[FanPanel] Instance created");
 }
+
+// ============================================================================
+// Subject Initialization
+// ============================================================================
 
 void FanPanel::init_subjects() {
     if (subjects_initialized_) {
-        spdlog::warn("[{}] init_subjects() called twice - ignoring", get_name());
+        spdlog::debug("[{}] Subjects already initialized", get_name());
         return;
     }
+
+    spdlog::debug("[{}] Initializing subjects", get_name());
 
     // Initialize subjects with default values
     UI_SUBJECT_INIT_AND_REGISTER_STRING(part_speed_display_subject_, part_speed_buf_,
@@ -41,42 +66,103 @@ void FanPanel::init_subjects() {
     UI_SUBJECT_INIT_AND_REGISTER_STRING(hotend_speed_display_subject_, hotend_speed_buf_,
                                         hotend_speed_buf_, "fan_hotend_speed_display");
 
-    // Register XML event callbacks
-    lv_xml_register_event_cb(nullptr, "on_fan_speed_slider_changed", on_slider_value_changed);
+    // Register PrinterState observers (RAII - auto-removed on destruction)
+    register_fan_observer();
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized: fan_part_speed_display, fan_hotend_speed_display",
                   get_name());
 }
 
-void FanPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
-    // Call base class to store panel_ and parent_screen_
-    PanelBase::setup(panel, parent_screen);
+// ============================================================================
+// Callback Registration
+// ============================================================================
 
-    if (!panel_) {
-        spdlog::error("[{}] NULL panel", get_name());
+void FanPanel::register_callbacks() {
+    if (callbacks_registered_) {
+        spdlog::debug("[{}] Callbacks already registered", get_name());
         return;
     }
 
-    spdlog::info("[{}] Setting up event handlers...", get_name());
+    spdlog::debug("[{}] Registering event callbacks", get_name());
+
+    // Register XML event callbacks
+    lv_xml_register_event_cb(nullptr, "on_fan_speed_slider_changed", on_slider_value_changed);
+
+    callbacks_registered_ = true;
+    spdlog::debug("[{}] Event callbacks registered", get_name());
+}
+
+// ============================================================================
+// Create
+// ============================================================================
+
+lv_obj_t* FanPanel::create(lv_obj_t* parent) {
+    if (!parent) {
+        spdlog::error("[{}] Cannot create: null parent", get_name());
+        return nullptr;
+    }
+
+    spdlog::debug("[{}] Creating overlay from XML", get_name());
+
+    parent_screen_ = parent;
+
+    // Reset cleanup flag when (re)creating
+    cleanup_called_ = false;
+
+    // Create overlay from XML
+    overlay_root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "fan_panel", nullptr));
+
+    if (!overlay_root_) {
+        spdlog::error("[{}] Failed to create from XML", get_name());
+        return nullptr;
+    }
 
     // Use standard overlay panel setup (wires header, back button, handles responsive padding)
-    ui_overlay_panel_setup_standard(panel_, parent_screen_, "overlay_header", "overlay_content");
+    ui_overlay_panel_setup_standard(overlay_root_, parent_screen_, "overlay_header",
+                                    "overlay_content");
 
     // Setup all controls
     setup_slider();
     setup_preset_buttons();
-    register_fan_observer();
 
     // Initialize visual state
     update_speed_display();
     update_slider_value_label();
 
-    spdlog::info("[{}] Setup complete!", get_name());
+    // Initially hidden
+    lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
+
+    spdlog::info("[{}] Overlay created successfully", get_name());
+    return overlay_root_;
 }
 
+// ============================================================================
+// Lifecycle Hooks
+// ============================================================================
+
+void FanPanel::on_activate() {
+    // Call base class first
+    OverlayBase::on_activate();
+
+    spdlog::debug("[{}] on_activate()", get_name());
+
+    // Nothing special needed for fan panel on activation
+}
+
+void FanPanel::on_deactivate() {
+    spdlog::debug("[{}] on_deactivate()", get_name());
+
+    // Call base class
+    OverlayBase::on_deactivate();
+}
+
+// ============================================================================
+// Setup Helpers
+// ============================================================================
+
 void FanPanel::setup_slider() {
-    lv_obj_t* overlay_content = lv_obj_find_by_name(panel_, "overlay_content");
+    lv_obj_t* overlay_content = lv_obj_find_by_name(overlay_root_, "overlay_content");
     if (!overlay_content) {
         spdlog::error("[{}] overlay_content not found!", get_name());
         return;
@@ -98,7 +184,7 @@ void FanPanel::setup_slider() {
 }
 
 void FanPanel::setup_preset_buttons() {
-    lv_obj_t* overlay_content = lv_obj_find_by_name(panel_, "overlay_content");
+    lv_obj_t* overlay_content = lv_obj_find_by_name(overlay_root_, "overlay_content");
     if (!overlay_content) {
         return;
     }
@@ -121,7 +207,7 @@ void FanPanel::setup_preset_buttons() {
 
 void FanPanel::register_fan_observer() {
     // Get fan speed subject from PrinterState
-    lv_subject_t* fan_speed = printer_state_.get_fan_speed_subject();
+    lv_subject_t* fan_speed = get_printer_state().get_fan_speed_subject();
 
     if (fan_speed) {
         // Use ObserverGuard for RAII cleanup
@@ -132,6 +218,10 @@ void FanPanel::register_fan_observer() {
                      get_name());
     }
 }
+
+// ============================================================================
+// State Update Helpers
+// ============================================================================
 
 void FanPanel::update_speed_display() {
     std::snprintf(part_speed_buf_, sizeof(part_speed_buf_), "%d%%", part_fan_speed_);
@@ -150,7 +240,8 @@ void FanPanel::update_slider_value_label() {
 }
 
 void FanPanel::send_fan_speed(int speed) {
-    if (!api_) {
+    MoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
         spdlog::warn("[{}] No MoonrakerAPI available - fan command not sent", get_name());
         return;
     }
@@ -161,7 +252,7 @@ void FanPanel::send_fan_speed(int speed) {
     spdlog::info("[{}] Setting part cooling fan to {}%", get_name(), speed);
 
     // Use "fan" for the main part cooling fan (uses M106 internally)
-    api_->set_fan_speed(
+    api->set_fan_speed(
         "fan", static_cast<double>(speed),
         [this, speed]() {
             spdlog::debug("[{}] Fan speed set successfully to {}%", get_name(), speed);
@@ -176,6 +267,10 @@ void FanPanel::send_fan_speed(int speed) {
             }
         });
 }
+
+// ============================================================================
+// Event Handlers
+// ============================================================================
 
 void FanPanel::handle_preset_button(int preset_index) {
     if (preset_index < 0 || preset_index >= 4) {
@@ -203,6 +298,10 @@ void FanPanel::handle_slider_changed(int value) {
 
     spdlog::debug("[{}] Slider changed to {}%", get_name(), value);
 }
+
+// ============================================================================
+// Static Callbacks
+// ============================================================================
 
 void FanPanel::on_preset_button_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[FanPanel] on_preset_button_clicked");
@@ -246,18 +345,12 @@ void FanPanel::on_fan_speed_changed(lv_observer_t* observer, lv_subject_t* subje
     }
 }
 
+// ============================================================================
+// Public API
+// ============================================================================
+
 void FanPanel::set_fan_speeds(int part_speed, int hotend_speed) {
     part_fan_speed_ = part_speed;
     hotend_fan_speed_ = hotend_speed;
     update_speed_display();
-}
-
-// Global instance accessor
-static std::unique_ptr<FanPanel> g_fan_panel;
-
-FanPanel& get_global_fan_panel() {
-    if (!g_fan_panel) {
-        g_fan_panel = std::make_unique<FanPanel>(get_printer_state(), nullptr);
-    }
-    return *g_fan_panel;
 }

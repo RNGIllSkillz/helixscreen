@@ -4,7 +4,8 @@
 #pragma once
 
 #include "ui_observer_guard.h"
-#include "ui_panel_base.h"
+
+#include "overlay_base.h"
 
 /**
  * @file ui_panel_fan.h
@@ -12,19 +13,28 @@
  *
  * Provides slider for part cooling fan (0-100%), preset buttons (Off/50%/75%/100%),
  * and read-only display for firmware-controlled hotend fan.
+ * Uses OverlayBase pattern with lifecycle hooks.
  */
-class FanPanel : public PanelBase {
+class FanPanel : public OverlayBase {
   public:
-    FanPanel(PrinterState& printer_state, MoonrakerAPI* api);
+    FanPanel();
     ~FanPanel() override = default;
 
+    // === OverlayBase interface ===
     void init_subjects() override;
-    void setup(lv_obj_t* panel, lv_obj_t* parent_screen) override;
+    void register_callbacks() override;
+    lv_obj_t* create(lv_obj_t* parent) override;
     const char* get_name() const override {
         return "Fan Control Panel";
     }
-    const char* get_xml_component_name() const override {
-        return "fan_panel";
+
+    // === Lifecycle hooks ===
+    void on_activate() override;
+    void on_deactivate() override;
+
+    // === Public API ===
+    lv_obj_t* get_panel() const {
+        return overlay_root_;
     }
 
     /**
@@ -61,6 +71,10 @@ class FanPanel : public PanelBase {
     lv_obj_t* fan_speed_value_label_ = nullptr;
     lv_obj_t* status_message_ = nullptr;
     lv_obj_t* preset_buttons_[4] = {nullptr};
+
+    // Parent screen reference
+    lv_obj_t* parent_screen_ = nullptr;
+    bool callbacks_registered_ = false;
 
     // Observers with RAII cleanup
     ObserverGuard fan_speed_observer_;
