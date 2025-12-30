@@ -490,12 +490,24 @@ void PrinterState::update_from_status(const json& state) {
             lv_subject_copy_string(&print_state_, state_str.c_str());
             // Update enum subject (for type-safe logic)
             PrintJobState new_state = parse_print_job_state(state_str.c_str());
-            int current_state = lv_subject_get_int(&print_state_enum_);
-            if (static_cast<int>(new_state) != current_state) {
-                spdlog::info("[PrinterState] print_stats.state: '{}' -> enum {} (was {})",
-                             state_str, static_cast<int>(new_state), current_state);
+            auto current_state = static_cast<PrintJobState>(lv_subject_get_int(&print_state_enum_));
+
+            // Guard: Preserve COMPLETE state when transitioning to STANDBY
+            // Moonraker sends "standby" shortly after print completes (cooldown).
+            // We want to keep showing "Print Complete!" until a NEW print starts.
+            // Only a transition to PRINTING should clear the complete state.
+            if (current_state == PrintJobState::COMPLETE && new_state == PrintJobState::STANDBY) {
+                spdlog::debug("[PrinterState] Ignoring COMPLETE -> STANDBY transition "
+                              "(preserving complete state for UI)");
+                // Still update print_active to 0 below, but keep print_state_enum at COMPLETE
+            } else {
+                if (new_state != current_state) {
+                    spdlog::info("[PrinterState] print_stats.state: '{}' -> enum {} (was {})",
+                                 state_str, static_cast<int>(new_state),
+                                 static_cast<int>(current_state));
+                }
+                lv_subject_set_int(&print_state_enum_, static_cast<int>(new_state));
             }
-            lv_subject_set_int(&print_state_enum_, static_cast<int>(new_state));
 
             // Update print_active (1 when PRINTING/PAUSED, 0 otherwise)
             // This derived subject simplifies XML bindings for card visibility

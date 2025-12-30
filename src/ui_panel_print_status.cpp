@@ -438,7 +438,10 @@ void PrintStatusPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 }
 
 void PrintStatusPanel::on_activate() {
-    spdlog::debug("[{}] on_activate()", get_name());
+    is_active_ = true;
+
+    int state_enum = lv_subject_get_int(printer_state_.get_print_state_enum_subject());
+    spdlog::debug("[{}] on_activate() print_state_enum={}", get_name(), state_enum);
 
     // Load deferred G-code if pending (lazy loading optimization)
     // This avoids downloading large files unless user navigates here
@@ -448,13 +451,15 @@ void PrintStatusPanel::on_activate() {
         pending_gcode_filename_.clear();
     }
 
-    // Resume G-code viewer rendering if viewer mode is active (not thumbnail)
-    if (gcode_viewer_ && lv_subject_get_int(&gcode_viewer_mode_subject_) == 1) {
+    // Resume G-code viewer rendering if viewer mode is active (3D=1 or 2D=2, not thumbnail=0)
+    int mode = lv_subject_get_int(&gcode_viewer_mode_subject_);
+    if (gcode_viewer_ && (mode == 1 || mode == 2)) {
         ui_gcode_viewer_set_paused(gcode_viewer_, false);
     }
 }
 
 void PrintStatusPanel::on_deactivate() {
+    is_active_ = false;
     spdlog::debug("[{}] on_deactivate()", get_name());
 
     // Pause G-code viewer rendering when panel is hidden (CPU optimization)
@@ -2238,9 +2243,19 @@ void PrintStatusPanel::set_filename(const char* filename) {
     if (!effective_filename.empty() && effective_filename != loaded_thumbnail_filename_) {
         spdlog::debug("[{}] Loading thumbnail for: {}", get_name(), effective_filename);
         load_thumbnail_for_file(effective_filename);
-        // G-code loading is deferred until panel is actually visible (on_activate)
-        // This avoids downloading large files if user never navigates to print status
-        pending_gcode_filename_ = effective_filename;
+
+        // G-code loading: load immediately if panel is active, otherwise defer
+        // This handles the case where user is already viewing print status when print starts
+        if (is_active_) {
+            spdlog::info("[{}] Panel active - loading G-code immediately: {}", get_name(),
+                         effective_filename);
+            load_gcode_for_viewing(effective_filename);
+            pending_gcode_filename_.clear();
+        } else {
+            // Deferred until panel is actually visible (on_activate)
+            // This avoids downloading large files if user never navigates to print status
+            pending_gcode_filename_ = effective_filename;
+        }
         loaded_thumbnail_filename_ = effective_filename;
     }
 }

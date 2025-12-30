@@ -531,6 +531,10 @@ class PrintStatusPanel : public PanelBase {
     // When false (memory check failed), don't switch to viewer mode on state changes
     bool gcode_loaded_ = false;
 
+    // Track whether panel is currently active (visible and receiving updates)
+    // Used to load gcode immediately if already active when print starts
+    bool is_active_ = false;
+
     // Path to temp G-code file downloaded for viewing (cleaned up on print end)
     std::string temp_gcode_path_;
 
