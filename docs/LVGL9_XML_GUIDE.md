@@ -932,6 +932,34 @@ lv_obj_t* w = lv_obj_get_child(parent, 3);
 <controls_panel name="controls_panel"/>
 ```
 
+### Widget Naming Strategy
+
+Widgets **must have names** when:
+1. **C++ lookup** - Referenced via `lv_obj_find_by_name()`
+2. **Interactive types** - `lv_button`, `lv_slider`, `lv_dropdown`, `lv_spinner`, `lv_textarea`
+3. **Subject binding** - Has `bind_text=`, `bind_value=` attributes
+
+Widgets **can safely omit names**:
+- **Layout containers** - Pure flexbox structure: `<lv_obj flex_flow="row" style_pad_gap="...">`
+- **Spacers/dividers** - One-pixel separators: `<lv_obj width="100%" height="1">`
+- **Static labels** - No binding, not looked up: `<lv_label text="Section Title"/>`
+- **Decorative buttons** - `clickable="false"` placeholders
+
+```xml
+<!-- These DON'T need names (decorative) -->
+<lv_obj flex_flow="row" style_pad_gap="#space_md">
+  <lv_obj width="1" height="100%" style_bg_color="#text_secondary"/>
+  <lv_label text="Settings"/>
+</lv_obj>
+
+<!-- These DO need names (interactive/bound) -->
+<lv_button name="save_btn">
+<lv_label name="status_display" bind_text="status_subject"/>
+```
+
+> **Note:** The audit script (`scripts/audit_codebase.sh`, P5 section) uses smart detection
+> to only warn on truly interactive unnamed widgets. Decorative containers are ignored.
+
 ### Banned Patterns
 
 | Pattern | Why Banned | Alternative |

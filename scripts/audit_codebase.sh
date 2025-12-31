@@ -417,6 +417,13 @@ if [ "$FILE_MODE" = true ]; then
     # [L003] Always add name='component_name' on XML component tags
     # Missing names cause lv_obj_find_by_name() to fail silently
     #
+    # Smart detection: Only warn on "actionable" widgets that likely need names:
+    # - Interactive types: lv_button, lv_slider, lv_dropdown, lv_spinner, lv_roller, lv_textarea
+    # - Widgets with bindings: bind_text, bind_value, bind_flag
+    # - Widgets with events: event_cb
+    #
+    # Decorative widgets (layout containers, spacers, static labels) can safely omit names.
+    #
     if [ ${#xml_files[@]} -gt 0 ]; then
         section "P5: XML Component Names"
 
@@ -429,23 +436,58 @@ if [ "$FILE_MODE" = true ]; then
             fi
 
             set +e
-            # Find component tags without name= attribute
-            # Look for <lv_* tags that don't have name= on the same line
-            # Focus on container widgets that should have names for lookup
-            missing_names=$(grep -n '<lv_obj\|<lv_btn\|<lv_label\|<lv_cont' "$f" 2>/dev/null | grep -v 'name=')
+            # Find interactive widget types without name= attribute
+            # These should almost always have names for C++ lookup
+            # Note: Exclude binding child elements like <lv_obj-bind_flag_if_eq>
+            # Note: Exclude buttons with clickable="false" (decorative placeholders)
+            # Note: lv_spinner excluded - they're loading indicators, not interactive controls
+            # Use -A3 to catch clickable="false" on following lines (multi-line XML attributes)
+            interactive_unnamed=$(grep -n '<lv_button\|<lv_slider\|<lv_dropdown\|<lv_roller\|<lv_textarea' "$f" 2>/dev/null | grep -v 'name=' | grep -v '<lv_obj-' | grep -v 'clickable="false"')
+            # Filter out buttons where clickable="false" appears within 3 lines
+            if [ -n "$interactive_unnamed" ]; then
+                filtered=""
+                while IFS= read -r line; do
+                    lineno=$(echo "$line" | cut -d: -f1)
+                    # Check if clickable="false" appears in this line or next 3 lines
+                    if ! sed -n "${lineno},$((lineno+3))p" "$f" 2>/dev/null | grep -q 'clickable="false"'; then
+                        filtered="${filtered}${line}"$'\n'
+                    fi
+                done <<< "$interactive_unnamed"
+                interactive_unnamed="${filtered%$'\n'}"
+            fi
+
+            # Find widgets with inline bindings or events but no name
+            # These are "actionable" and need names for proper subject/callback management
+            # Note: Look for bind_* as ATTRIBUTES on widget tags, not child binding elements
+            # Child elements like <lv_obj-bind_flag_if_eq> are not widgets and don't need names
+            bound_unnamed=$(grep -n '<lv_obj\|<lv_label\|<lv_image' "$f" 2>/dev/null | grep -E 'bind_text=|bind_value=' | grep -v 'name=')
             set -e
-            if [ -n "$missing_names" ]; then
-                count=$(echo "$missing_names" | wc -l | tr -d ' ')
-                # This is informational - not all widgets need names
-                # Only warn for high counts that suggest systematic omission
-                if [ "$count" -gt 10 ]; then
-                    warning "$fname: $count widget(s) without name= attribute - consider adding for lv_obj_find_by_name() [L003]"
+
+            # Combine and dedupe
+            actionable=""
+            if [ -n "$interactive_unnamed" ]; then
+                actionable="$interactive_unnamed"
+            fi
+            if [ -n "$bound_unnamed" ]; then
+                if [ -n "$actionable" ]; then
+                    actionable=$(echo -e "$actionable\n$bound_unnamed" | sort -u)
+                else
+                    actionable="$bound_unnamed"
+                fi
+            fi
+
+            if [ -n "$actionable" ]; then
+                count=$(echo "$actionable" | wc -l | tr -d ' ')
+                # Stricter threshold for actionable widgets - these really should have names
+                if [ "$count" -gt 0 ]; then
+                    warning "$fname: $count interactive/bound widget(s) without name= attribute [L003]"
+                    echo "$actionable" | head -3
                 fi
             fi
         done
 
         if [ "$WARNINGS" -eq 0 ]; then
-            success "XML component naming looks reasonable"
+            success "XML component naming looks good (interactive widgets are named)"
         fi
     fi
 
