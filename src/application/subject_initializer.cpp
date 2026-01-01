@@ -275,11 +275,9 @@ void SubjectInitializer::init_panel_subjects() {
 
     get_global_zoffset_cal_panel().init_subjects();
 
-    // TempControlPanel (owned by SubjectInitializer)
+    // TempControlPanel (owned by SubjectInitializer - destructor handles deinit_subjects)
     m_temp_control_panel = std::make_unique<TempControlPanel>(get_printer_state(), nullptr);
     m_temp_control_panel->init_subjects();
-    StaticSubjectRegistry::instance().register_deinit(
-        "TempControlPanelSubjects", [this]() { m_temp_control_panel->deinit_subjects(); });
 
     // Inject TempControlPanel into dependent panels
     get_global_controls_panel().set_temp_control_panel(m_temp_control_panel.get());
