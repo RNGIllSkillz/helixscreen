@@ -154,6 +154,7 @@ class FanControlOverlay : public OverlayBase {
         std::string object_name;
         lv_obj_t* card = nullptr;
         lv_obj_t* speed_label = nullptr;
+        lv_obj_t* arc = nullptr; ///< Arc widget for live speed updates
     };
     std::vector<AutoFanCard> auto_fan_cards_;
 

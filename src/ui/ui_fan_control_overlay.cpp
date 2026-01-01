@@ -177,23 +177,33 @@ void FanControlOverlay::populate_fans() {
                           fan.speed_percent);
         } else {
             // Create fan_status_card for auto-controlled fans
-            char speed_str[16];
-            std::snprintf(speed_str, sizeof(speed_str), "%d%%", fan.speed_percent);
+            // Pass numeric value for arc, then format label with % suffix
+            char speed_num_str[16];
+            std::snprintf(speed_num_str, sizeof(speed_num_str), "%d", fan.speed_percent);
 
-            const char* attrs[] = {"fan_name", fan.display_name.c_str(), "speed_percent", speed_str,
-                                   nullptr};
+            const char* attrs[] = {"fan_name", fan.display_name.c_str(), "speed_percent",
+                                   speed_num_str, nullptr};
 
             lv_obj_t* card =
                 static_cast<lv_obj_t*>(lv_xml_create(auto_row_, "fan_status_card", attrs));
 
             if (card) {
-                // Find speed label for updates
+                // Find speed label and format with % suffix
                 lv_obj_t* speed_label = lv_obj_find_by_name(card, "speed_label");
+                if (speed_label) {
+                    char speed_str[16];
+                    std::snprintf(speed_str, sizeof(speed_str), "%d%%", fan.speed_percent);
+                    lv_label_set_text(speed_label, speed_str);
+                }
+
+                // Find arc for live updates
+                lv_obj_t* arc = lv_obj_find_by_name(card, "dial_arc");
 
                 AutoFanCard card_info;
                 card_info.object_name = fan.object_name;
                 card_info.card = card;
                 card_info.speed_label = speed_label;
+                card_info.arc = arc;
                 auto_fan_cards_.push_back(card_info);
 
                 spdlog::debug("[{}] Created fan_status_card for '{}' ({}%)", get_name(),
@@ -222,13 +232,20 @@ void FanControlOverlay::update_fan_speeds() {
         }
     }
 
-    // Update auto fan card labels
+    // Update auto fan card labels and arcs
     for (auto& card_info : auto_fan_cards_) {
         for (const auto& fan : fans) {
-            if (fan.object_name == card_info.object_name && card_info.speed_label) {
-                char speed_str[16];
-                std::snprintf(speed_str, sizeof(speed_str), "%d%%", fan.speed_percent);
-                lv_label_set_text(card_info.speed_label, speed_str);
+            if (fan.object_name == card_info.object_name) {
+                // Update speed label
+                if (card_info.speed_label) {
+                    char speed_str[16];
+                    std::snprintf(speed_str, sizeof(speed_str), "%d%%", fan.speed_percent);
+                    lv_label_set_text(card_info.speed_label, speed_str);
+                }
+                // Update arc indicator
+                if (card_info.arc) {
+                    lv_arc_set_value(card_info.arc, fan.speed_percent);
+                }
                 break;
             }
         }
