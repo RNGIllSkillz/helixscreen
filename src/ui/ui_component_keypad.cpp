@@ -65,6 +65,15 @@ void ui_keypad_init_subjects() {
     spdlog::debug("[Keypad] Subjects initialized");
 }
 
+void ui_keypad_deinit_subjects() {
+    if (!subjects_initialized) {
+        return;
+    }
+    lv_subject_deinit(&keypad_display_subject);
+    subjects_initialized = false;
+    spdlog::debug("[Keypad] Subjects deinitialized");
+}
+
 // ============================================================================
 // Widget Initialization (call AFTER XML creation)
 // ============================================================================

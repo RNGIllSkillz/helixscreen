@@ -99,6 +99,13 @@ lv_subject_t& get_notification_subject();
 void app_globals_init_subjects();
 
 /**
+ * @brief Deinitialize global subjects
+ *
+ * Disconnects observers before shutdown. Called by StaticPanelRegistry.
+ */
+void app_globals_deinit_subjects();
+
+/**
  * @brief Store original command-line arguments for restart capability
  *
  * Must be called early in main() before any argument processing.

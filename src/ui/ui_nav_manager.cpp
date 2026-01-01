@@ -1018,6 +1018,15 @@ void NavigationManager::shutdown() {
     spdlog::debug("[NavigationManager] Shutdown complete");
 }
 
+void NavigationManager::deinit_subjects() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    lv_subject_deinit(&active_panel_subject_);
+    subjects_initialized_ = false;
+    spdlog::debug("[NavigationManager] Subjects deinitialized");
+}
+
 // ============================================================================
 // LEGACY API (forwards to NavigationManager)
 // ============================================================================

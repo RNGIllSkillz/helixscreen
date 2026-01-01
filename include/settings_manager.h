@@ -71,6 +71,14 @@ class SettingsManager {
     void init_subjects();
 
     /**
+     * @brief Deinitialize LVGL subjects
+     *
+     * Must be called before lv_deinit() to properly disconnect observers.
+     * Called by StaticSubjectRegistry during application shutdown.
+     */
+    void deinit_subjects();
+
+    /**
      * @brief Set Moonraker client reference for remote commands
      *
      * Required for LED control and other printer-dependent settings.

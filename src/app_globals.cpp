@@ -93,6 +93,9 @@ lv_subject_t& get_notification_subject() {
     return g_notification_subject;
 }
 
+// Track if subjects are initialized
+static bool g_subjects_initialized = false;
+
 void app_globals_init_subjects() {
     // Initialize notification subject (stores NotificationData pointer)
     lv_subject_init_pointer(&g_notification_subject, nullptr);
@@ -100,7 +103,18 @@ void app_globals_init_subjects() {
     // Initialize modal dialog subjects (for modal_dialog.xml binding)
     ui_modal_init_subjects();
 
+    g_subjects_initialized = true;
     spdlog::debug("[App Globals] Global subjects initialized");
+}
+
+void app_globals_deinit_subjects() {
+    if (!g_subjects_initialized) {
+        return;
+    }
+    lv_subject_deinit(&g_notification_subject);
+    ui_modal_deinit_subjects(); // Clean up modal subjects
+    g_subjects_initialized = false;
+    spdlog::debug("[App Globals] Global subjects deinitialized");
 }
 
 void app_store_argv(int argc, char** argv) {

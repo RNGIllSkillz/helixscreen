@@ -426,3 +426,25 @@ void ui_status_bar_update_notification(NotificationStatus status) {
 void ui_status_bar_update_notification_count(size_t count) {
     StatusBarManager::instance().update_notification_count(count);
 }
+
+void ui_status_bar_deinit_subjects() {
+    StatusBarManager::instance().deinit_subjects();
+}
+
+// ============================================================================
+// SHUTDOWN
+// ============================================================================
+
+void StatusBarManager::deinit_subjects() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    lv_subject_deinit(&printer_icon_state_subject_);
+    lv_subject_deinit(&network_icon_state_subject_);
+    lv_subject_deinit(&notification_count_subject_);
+    lv_subject_deinit(&notification_count_text_subject_);
+    lv_subject_deinit(&notification_severity_subject_);
+    lv_subject_deinit(&overlay_backdrop_visible_subject_);
+    subjects_initialized_ = false;
+    spdlog::debug("[StatusBarManager] Subjects deinitialized");
+}

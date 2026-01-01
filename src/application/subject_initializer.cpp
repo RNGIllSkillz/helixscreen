@@ -42,7 +42,9 @@
 #include "print_completion.h"
 #include "print_start_navigation.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "static_panel_registry.h"
+#include "static_subject_registry.h"
 #include "usb_backend_mock.h"
 #include "usb_manager.h"
 #include "xml_registration.h"
@@ -138,6 +140,11 @@ void SubjectInitializer::init_printer_state_subjects() {
     // (e.g., HomePanel observes led_state_, extruder_temp_, connection_state_)
     get_printer_state().init_subjects();
 
+    // Register PrinterState cleanup - MUST happen before lv_deinit() to disconnect observers
+    // Uses reset_for_testing() which calls lv_subject_deinit() on all 60+ subjects
+    StaticSubjectRegistry::instance().register_deinit(
+        "PrinterState", []() { get_printer_state().reset_for_testing(); });
+
     // ActivePrintMediaManager observes print_filename_ and updates print_display_filename_
     // and print_thumbnail_path_. Must be initialized after PrinterState, before panels.
     helix::init_active_print_media_manager();
@@ -149,8 +156,17 @@ void SubjectInitializer::init_ams_subjects() {
     // Note: In mock mode, init_subjects() also creates the mock backend internally
     AmsState::instance().init_subjects(true);
 
+    // Register AmsState cleanup (StaticSubjectRegistry - core state singleton)
+    StaticSubjectRegistry::instance().register_deinit(
+        "AmsState", []() { AmsState::instance().deinit_subjects(); });
+
     // Initialize FilamentSensorManager subjects BEFORE panels so XML bindings can work
     helix::FilamentSensorManager::instance().init_subjects();
+
+    // Register FilamentSensorManager cleanup (StaticSubjectRegistry - core state singleton)
+    StaticSubjectRegistry::instance().register_deinit("FilamentSensorManager", []() {
+        helix::FilamentSensorManager::instance().deinit_subjects();
+    });
 }
 
 void SubjectInitializer::init_panel_subjects() {
@@ -161,6 +177,11 @@ void SubjectInitializer::init_panel_subjects() {
     get_global_controls_panel().init_subjects();
     get_global_filament_panel().init_subjects();
     get_global_settings_panel().init_subjects();
+
+    // SettingsManager subjects are initialized by settings_panel.init_subjects() above
+    // Register cleanup here (StaticSubjectRegistry - core state singleton)
+    StaticSubjectRegistry::instance().register_deinit(
+        "SettingsManager", []() { SettingsManager::instance().deinit_subjects(); });
 
     // Advanced panel family
     init_global_advanced_panel(get_printer_state(), nullptr);
@@ -198,10 +219,11 @@ void SubjectInitializer::init_panel_subjects() {
     ui_keypad_init_subjects();
     StaticPanelRegistry::instance().register_destroy("KeypadSubjects", ui_keypad_deinit_subjects);
 
-    // Global subjects cleanup
-    StaticPanelRegistry::instance().register_destroy("AppGlobalsSubjects",
-                                                     app_globals_deinit_subjects);
-    StaticPanelRegistry::instance().register_destroy("XmlSubjects", helix::deinit_xml_subjects);
+    // Core state subjects cleanup (StaticSubjectRegistry - not panels)
+    StaticSubjectRegistry::instance().register_deinit("AppGlobals", app_globals_deinit_subjects);
+    StaticSubjectRegistry::instance().register_deinit("XmlSubjects", helix::deinit_xml_subjects);
+
+    // UI component subjects cleanup (StaticPanelRegistry - UI components)
     StaticPanelRegistry::instance().register_destroy("StatusBarSubjects",
                                                      ui_status_bar_deinit_subjects);
 
@@ -240,9 +262,9 @@ void SubjectInitializer::init_panel_subjects() {
     StaticPanelRegistry::instance().register_destroy(
         "EmergencyStopSubjects", []() { EmergencyStopOverlay::instance().deinit_subjects(); });
 
-    // Navigation manager (must be deinitialized after panels that may use it during cleanup)
-    StaticPanelRegistry::instance().register_destroy(
-        "NavigationManagerSubjects", []() { NavigationManager::instance().deinit_subjects(); });
+    // Navigation manager subjects (StaticSubjectRegistry - state manager, not a visual panel)
+    StaticSubjectRegistry::instance().register_deinit(
+        "NavigationManager", []() { NavigationManager::instance().deinit_subjects(); });
 }
 
 void SubjectInitializer::init_observers() {

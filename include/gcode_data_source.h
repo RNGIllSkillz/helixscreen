@@ -189,6 +189,14 @@ class MoonrakerDataSource : public GCodeDataSource {
      */
     std::string get_download_url() const;
 
+    /**
+     * @brief Get temp file path (if downloaded)
+     * @return Path to local temp file, or empty if not downloaded
+     */
+    const std::string& temp_file_path() const {
+        return temp_file_path_;
+    }
+
   private:
     /**
      * @brief Test if server supports Range requests

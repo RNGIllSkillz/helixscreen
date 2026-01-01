@@ -579,6 +579,73 @@ MyPanel::~MyPanel() {
 
 **See also:** `include/ui_timer_guard.h` for full API documentation
 
+### ⚠️ Shutdown Order: StaticPanelRegistry & StaticSubjectRegistry
+
+**Problem:** The "Static Destruction Order Fiasco" - C++ doesn't guarantee destruction order of static/global objects across translation units. When `lv_deinit()` runs, it deletes widgets which try to remove their observers from subjects. If singleton subjects (PrinterState, AmsState, SettingsManager) haven't been deinitialized first, this causes crashes in `lv_observer_remove` due to linked list corruption.
+
+**Solution:** Two self-registration pattern registries ensure proper cleanup order:
+
+| Registry | Purpose | What it cleans up |
+|----------|---------|-------------------|
+| **StaticPanelRegistry** | UI panels/overlays with widgets | EmergencyStopOverlay, StatusBar, Keypad, Wizard subjects |
+| **StaticSubjectRegistry** | Core state singletons with subjects | PrinterState, AmsState, SettingsManager, FilamentSensorManager |
+
+**Shutdown Order (in Application::shutdown()):**
+
+```
+1. StaticPanelRegistry::destroy_all()     ← Panels destroy their own subjects
+2. StaticSubjectRegistry::deinit_all()    ← Core singleton subjects deinitialized
+3. lv_deinit()                            ← Now safe - all observers disconnected
+```
+
+**Registration Pattern:**
+
+```cpp
+// In SubjectInitializer::init_*_subjects():
+
+// 1. Initialize subjects
+get_printer_state().init_subjects();
+
+// 2. Register cleanup with appropriate registry
+StaticSubjectRegistry::instance().register_deinit(
+    "PrinterState", []() { get_printer_state().reset_for_testing(); });
+
+// For panels:
+StaticPanelRegistry::instance().register_destroy(
+    "EmergencyStopSubjects", []() { EmergencyStopOverlay::instance().deinit_subjects(); });
+```
+
+**deinit_subjects() Pattern:**
+
+Each singleton with LVGL subjects must implement `deinit_subjects()`:
+
+```cpp
+void AmsState::deinit_subjects() {
+    if (!initialized_) return;
+
+    spdlog::debug("[AMS State] Deinitializing subjects");
+
+    // Call lv_subject_deinit() on every subject
+    lv_subject_deinit(&ams_type_);
+    lv_subject_deinit(&ams_action_);
+    // ... all other subjects ...
+
+    initialized_ = false;
+}
+```
+
+**Key Points:**
+- **Reverse order:** Both registries deinitialize in reverse registration order (LIFO)
+- **Idempotent:** Guard with `initialized_` flag to prevent double-cleanup
+- **Panels before singletons:** Panels have observers on singleton subjects, so panels must be destroyed first
+- **Debug logging:** Always log cleanup for debugging shutdown issues
+
+**Reference Implementations:**
+- `src/application/static_subject_registry.cpp` - Core singleton registry
+- `src/application/static_panel_registry.cpp` - Panel/overlay registry
+- `src/application/subject_initializer.cpp` - Registration during init
+- `src/application/application.cpp:shutdown()` - Correct call order
+
 ## Thread Safety
 
 ### ⚠️ CRITICAL: LVGL Main Thread Requirement

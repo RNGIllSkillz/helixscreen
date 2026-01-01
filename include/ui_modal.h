@@ -344,6 +344,8 @@ inline void ui_modal_init_subjects() {
     modal_init_subjects();
 }
 
+void ui_modal_deinit_subjects();
+
 inline void ui_modal_configure(ModalSeverity severity, bool show_cancel, const char* primary_text,
                                const char* cancel_text) {
     modal_configure(severity, show_cancel, primary_text, cancel_text);

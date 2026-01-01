@@ -49,6 +49,13 @@ struct ui_keypad_config_t {
 void ui_keypad_init_subjects();
 
 /**
+ * @brief Deinitialize keypad subjects
+ *
+ * Disconnects observers before shutdown. Called by StaticPanelRegistry.
+ */
+void ui_keypad_deinit_subjects();
+
+/**
  * @brief Initialize keypad widget
  *
  * Creates the keypad from XML and wires button events.

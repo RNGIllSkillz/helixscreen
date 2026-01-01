@@ -23,6 +23,7 @@
 #include "print_history_manager.h"
 #include "screenshot.h"
 #include "static_panel_registry.h"
+#include "static_subject_registry.h"
 #include "streaming_policy.h"
 #include "subject_initializer.h"
 
@@ -1195,6 +1196,11 @@ void Application::shutdown() {
     // This runs BEFORE spdlog's registry is destroyed during static destruction,
     // ensuring panel destructors can safely log.
     StaticPanelRegistry::instance().destroy_all();
+
+    // Deinitialize core singleton subjects (PrinterState, AmsState, SettingsManager, etc.)
+    // This MUST happen AFTER panels are destroyed (panels have observers on these subjects)
+    // but BEFORE lv_deinit() which will delete any remaining widgets
+    StaticSubjectRegistry::instance().deinit_all();
 
     // Restore display backlight
     m_display->restore_display_on_shutdown();

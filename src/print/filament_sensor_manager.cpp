@@ -76,6 +76,26 @@ void FilamentSensorManager::init_subjects() {
     spdlog::info("[FilamentSensorManager] Subjects initialized");
 }
 
+void FilamentSensorManager::deinit_subjects() {
+    if (!subjects_initialized_) {
+        return;
+    }
+
+    spdlog::debug("[FilamentSensorManager] Deinitializing subjects");
+
+    // Deinitialize all subjects to disconnect observers before lv_deinit()
+    lv_subject_deinit(&runout_detected_);
+    lv_subject_deinit(&toolhead_detected_);
+    lv_subject_deinit(&entry_detected_);
+    lv_subject_deinit(&any_runout_);
+    lv_subject_deinit(&motion_active_);
+    lv_subject_deinit(&master_enabled_subject_);
+    lv_subject_deinit(&sensor_count_);
+
+    subjects_initialized_ = false;
+    spdlog::debug("[FilamentSensorManager] Subjects deinitialized");
+}
+
 void FilamentSensorManager::discover_sensors(const std::vector<std::string>& klipper_sensor_names) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
 

@@ -141,6 +141,9 @@ static const char* get_step_subtitle_from_xml(int step) {
     return subtitle ? subtitle : "";
 }
 
+// Track if subjects have been initialized (to avoid double-deinit)
+static bool wizard_subjects_initialized = false;
+
 void ui_wizard_init_subjects() {
     spdlog::debug("[Wizard] Initializing subjects");
 
@@ -163,7 +166,23 @@ void ui_wizard_init_subjects() {
     // Step 2 (connection) will set it to 0 until test passes
     UI_SUBJECT_INIT_AND_REGISTER_INT(connection_test_passed, 1, "connection_test_passed");
 
+    wizard_subjects_initialized = true;
     spdlog::debug("[Wizard] Subjects initialized");
+}
+
+void ui_wizard_deinit_subjects() {
+    if (!wizard_subjects_initialized) {
+        return;
+    }
+    lv_subject_deinit(&current_step);
+    lv_subject_deinit(&total_steps);
+    lv_subject_deinit(&wizard_title);
+    lv_subject_deinit(&wizard_progress);
+    lv_subject_deinit(&wizard_next_button_text);
+    lv_subject_deinit(&wizard_subtitle);
+    lv_subject_deinit(&connection_test_passed);
+    wizard_subjects_initialized = false;
+    spdlog::debug("[Wizard] Subjects deinitialized");
 }
 
 // Helper type for constant name/value pairs

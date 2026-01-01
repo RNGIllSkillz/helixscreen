@@ -239,6 +239,13 @@ class NavigationManager {
      */
     void shutdown();
 
+    /**
+     * @brief Deinitialize subjects for clean shutdown
+     *
+     * Must be called before lv_deinit() to prevent observer corruption.
+     */
+    void deinit_subjects();
+
   private:
     // Private constructor/destructor for singleton
     NavigationManager() = default;

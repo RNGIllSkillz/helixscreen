@@ -595,10 +595,7 @@ bool GCodeStreamingController::build_index() {
     // For other sources (Moonraker with temp file fallback), check if we have a temp file
     auto* moonraker_source = dynamic_cast<MoonrakerDataSource*>(data_source_.get());
     if (moonraker_source && moonraker_source->is_using_temp_file()) {
-        // Moonraker downloaded to temp file, build index from there
-        // Note: We'd need to expose the temp file path - for now, read all and create memory source
-        spdlog::warn("[StreamingController] Moonraker temp file indexing not yet implemented");
-        return false;
+        return index_.build_from_file(moonraker_source->temp_file_path());
     }
 
     // For memory sources or sources without file path, we need to read all bytes

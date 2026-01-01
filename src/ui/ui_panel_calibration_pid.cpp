@@ -52,6 +52,7 @@ PIDCalibrationPanel::~PIDCalibrationPanel() {
 
     // Deinitialize subjects to disconnect observers
     if (subjects_initialized_) {
+        lv_subject_deinit(&s_pid_cal_state); // File-static state machine subject
         lv_subject_deinit(&subj_temp_display_);
         lv_subject_deinit(&subj_temp_hint_);
         lv_subject_deinit(&subj_current_temp_display_);

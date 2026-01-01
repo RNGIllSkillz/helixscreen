@@ -20,4 +20,12 @@ namespace helix {
  */
 void register_xml_components();
 
+/**
+ * @brief Deinitialize XML-related subjects
+ *
+ * Must be called during shutdown before lv_deinit().
+ * Called by StaticPanelRegistry.
+ */
+void deinit_xml_subjects();
+
 } // namespace helix

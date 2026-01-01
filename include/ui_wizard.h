@@ -34,6 +34,14 @@
 void ui_wizard_init_subjects();
 
 /**
+ * Deinitialize wizard subjects
+ *
+ * Disconnects observers from all wizard subjects before shutdown.
+ * Called by StaticPanelRegistry during Application::shutdown().
+ */
+void ui_wizard_deinit_subjects();
+
+/**
  * Register responsive constants to wizard_container scope and propagate to children
  *
  * Detects screen size and registers wizard-specific constants to wizard_container scope,

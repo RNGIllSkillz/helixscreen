@@ -28,17 +28,20 @@ Files are prioritized for documentation based on:
 
 ---
 
-## Completed Files (24)
+## Completed Files (27)
 
 ### Tier 1: Critical Infrastructure
 | File | Status | Notes |
 |------|--------|-------|
-| `src/application/application.cpp` | ✅ Done | Shutdown sequence, [L010] |
+| `src/application/application.cpp` | ✅ Done | Shutdown sequence |
 | `include/ui_update_queue.h` | ✅ Had header | Already documented |
 | `src/moonraker_client.cpp` | ✅ Done | WebSocket, [L012] |
 | `src/printer_state.cpp` | ✅ Done | Reactive state, [L004][L005][L021] |
 | `src/application/display_manager.cpp` | ✅ Done | LVGL lifecycle |
 | `src/application/moonraker_manager.cpp` | ✅ Done | WebSocket lifecycle |
+| `include/static_subject_registry.h` | ✅ Done | Singleton subject cleanup registry |
+| `src/application/static_subject_registry.cpp` | ✅ Done | LIFO cleanup order |
+| `include/static_panel_registry.h` | ✅ Had header | Panel/overlay cleanup registry |
 
 ### Tier 2: Threading & Async
 | File | Status | Notes |

@@ -145,6 +145,34 @@ void SettingsManager::init_subjects() {
                  animations);
 }
 
+void SettingsManager::deinit_subjects() {
+    if (!subjects_initialized_) {
+        return;
+    }
+
+    spdlog::debug("[SettingsManager] Deinitializing subjects");
+
+    // Deinitialize all subjects to disconnect observers before lv_deinit()
+    lv_subject_deinit(&dark_mode_subject_);
+    lv_subject_deinit(&display_sleep_subject_);
+    lv_subject_deinit(&brightness_subject_);
+    lv_subject_deinit(&has_backlight_subject_);
+    lv_subject_deinit(&animations_enabled_subject_);
+    lv_subject_deinit(&gcode_3d_enabled_subject_);
+    lv_subject_deinit(&bed_mesh_render_mode_subject_);
+    lv_subject_deinit(&gcode_render_mode_subject_);
+    lv_subject_deinit(&time_format_subject_);
+    lv_subject_deinit(&led_enabled_subject_);
+    lv_subject_deinit(&sounds_enabled_subject_);
+    lv_subject_deinit(&completion_alert_subject_);
+    lv_subject_deinit(&estop_require_confirmation_subject_);
+    lv_subject_deinit(&scroll_throw_subject_);
+    lv_subject_deinit(&scroll_limit_subject_);
+
+    subjects_initialized_ = false;
+    spdlog::debug("[SettingsManager] Subjects deinitialized");
+}
+
 void SettingsManager::set_moonraker_client(MoonrakerClient* client) {
     moonraker_client_ = client;
     spdlog::debug("[SettingsManager] Moonraker client set: {}", client ? "connected" : "nullptr");

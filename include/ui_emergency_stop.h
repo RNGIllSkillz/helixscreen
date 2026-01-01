@@ -59,6 +59,13 @@ class EmergencyStopOverlay {
     void init_subjects();
 
     /**
+     * @brief Deinitialize subjects for clean shutdown
+     *
+     * Must be called before lv_deinit() to prevent observer corruption.
+     */
+    void deinit_subjects();
+
+    /**
      * @brief Initialize visibility coordination
      *
      * Sets up observers to update the estop_visible subject based on print

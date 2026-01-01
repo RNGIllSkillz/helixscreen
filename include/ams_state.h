@@ -83,6 +83,14 @@ class AmsState {
     void reset_for_testing();
 
     /**
+     * @brief Deinitialize subjects for clean shutdown
+     *
+     * Must be called before lv_deinit() to prevent observer corruption.
+     * Disconnects all observers from subjects.
+     */
+    void deinit_subjects();
+
+    /**
      * @brief Initialize AMS backend from detected printer capabilities
      *
      * Called after Moonraker discovery completes. If the printer has an MMU system

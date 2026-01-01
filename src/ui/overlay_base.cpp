@@ -14,7 +14,11 @@ OverlayBase::~OverlayBase() {
         NavigationManager::instance().unregister_overlay_instance(overlay_root_);
     }
 
-    spdlog::debug("[OverlayBase] Destroyed");
+    // Guard against Static Destruction Order Fiasco: spdlog may already be
+    // destroyed if this overlay wasn't registered with StaticPanelRegistry.
+    if (!NavigationManager::is_destroyed()) {
+        spdlog::debug("[OverlayBase] Destroyed");
+    }
 }
 
 void OverlayBase::on_activate() {

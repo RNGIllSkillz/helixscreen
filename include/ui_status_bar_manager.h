@@ -111,6 +111,13 @@ class StatusBarManager {
      */
     void update_notification_count(size_t count);
 
+    /**
+     * @brief Deinitialize subjects for clean shutdown
+     *
+     * Must be called before lv_deinit() to prevent observer corruption.
+     */
+    void deinit_subjects();
+
   private:
     /**
      * @brief Animate notification badge with attention pulse
@@ -119,6 +126,7 @@ class StatusBarManager {
      * triggers scale pulse animation to draw attention.
      */
     void animate_notification_badge();
+
     // Private constructor for singleton
     StatusBarManager() = default;
     ~StatusBarManager() = default;
@@ -188,6 +196,11 @@ void ui_status_bar_register_callbacks();
  * @deprecated Use StatusBarManager::instance().init_subjects() instead
  */
 void ui_status_bar_init_subjects();
+
+/**
+ * @brief Deinitialize status bar subjects for clean shutdown
+ */
+void ui_status_bar_deinit_subjects();
 
 /**
  * @brief Initialize the status bar system

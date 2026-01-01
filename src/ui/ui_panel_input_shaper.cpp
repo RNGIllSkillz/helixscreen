@@ -10,6 +10,7 @@
 
 #include "moonraker_api.h"
 #include "moonraker_client.h"
+#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -19,7 +20,7 @@
 // GLOBAL INSTANCE AND ROW CLICK HANDLER
 // ============================================================================
 
-static InputShaperPanel s_input_shaper_panel;
+static std::unique_ptr<InputShaperPanel> g_input_shaper_panel;
 
 // State subject (0=IDLE, 1=MEASURING, 2=RESULTS, 3=ERROR)
 static lv_subject_t s_input_shaper_state;
@@ -30,7 +31,12 @@ MoonrakerClient* get_moonraker_client();
 MoonrakerAPI* get_moonraker_api();
 
 InputShaperPanel& get_global_input_shaper_panel() {
-    return s_input_shaper_panel;
+    if (!g_input_shaper_panel) {
+        g_input_shaper_panel = std::make_unique<InputShaperPanel>();
+        StaticPanelRegistry::instance().register_destroy("InputShaperPanel",
+                                                         []() { g_input_shaper_panel.reset(); });
+    }
+    return *g_input_shaper_panel;
 }
 
 InputShaperPanel::~InputShaperPanel() {
@@ -38,12 +44,27 @@ InputShaperPanel::~InputShaperPanel() {
     // Signal to async callbacks that this panel is being destroyed [L012]
     alive_->store(false);
 
+    // Deinitialize subjects to disconnect observers before we're destroyed
+    // This prevents use-after-free when lv_deinit() later deletes widgets
+    if (subjects_initialized_) {
+        lv_subject_deinit(&s_input_shaper_state);
+        for (size_t i = 0; i < MAX_SHAPERS; i++) {
+            lv_subject_deinit(&shaper_visible_subjects_[i]);
+            lv_subject_deinit(&shaper_type_subjects_[i]);
+            lv_subject_deinit(&shaper_freq_subjects_[i]);
+            lv_subject_deinit(&shaper_vib_subjects_[i]);
+        }
+        subjects_initialized_ = false;
+    }
+
     // Clear widget pointers (owned by LVGL)
     overlay_root_ = nullptr;
     parent_screen_ = nullptr;
     status_label_ = nullptr;
     error_message_ = nullptr;
     recommendation_label_ = nullptr;
+
+    spdlog::debug("[InputShaper] Destroyed");
 }
 
 void init_input_shaper_row_handler() {

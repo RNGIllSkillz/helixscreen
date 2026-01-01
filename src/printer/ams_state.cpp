@@ -232,6 +232,68 @@ void AmsState::reset_for_testing() {
     backend_.reset();
 }
 
+void AmsState::deinit_subjects() {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+    if (!initialized_) {
+        return;
+    }
+
+    spdlog::debug("[AMS State] Deinitializing subjects");
+
+    // System-level subjects
+    lv_subject_deinit(&ams_type_);
+    lv_subject_deinit(&ams_action_);
+    lv_subject_deinit(&current_slot_);
+    lv_subject_deinit(&current_tool_);
+    lv_subject_deinit(&filament_loaded_);
+    lv_subject_deinit(&bypass_active_);
+    lv_subject_deinit(&supports_bypass_);
+    lv_subject_deinit(&slot_count_);
+    lv_subject_deinit(&slots_version_);
+
+    // String subjects
+    lv_subject_deinit(&ams_action_detail_);
+    lv_subject_deinit(&ams_system_name_);
+    lv_subject_deinit(&current_tool_text_);
+
+    // Filament path visualization subjects
+    lv_subject_deinit(&path_topology_);
+    lv_subject_deinit(&path_active_slot_);
+    lv_subject_deinit(&path_filament_segment_);
+    lv_subject_deinit(&path_error_segment_);
+    lv_subject_deinit(&path_anim_progress_);
+
+    // Dryer subjects
+    lv_subject_deinit(&dryer_supported_);
+    lv_subject_deinit(&dryer_active_);
+    lv_subject_deinit(&dryer_current_temp_);
+    lv_subject_deinit(&dryer_target_temp_);
+    lv_subject_deinit(&dryer_remaining_min_);
+    lv_subject_deinit(&dryer_progress_pct_);
+    lv_subject_deinit(&dryer_current_temp_text_);
+    lv_subject_deinit(&dryer_target_temp_text_);
+    lv_subject_deinit(&dryer_time_text_);
+    lv_subject_deinit(&dryer_modal_temp_text_);
+    lv_subject_deinit(&dryer_modal_duration_text_);
+
+    // Currently Loaded display subjects
+    lv_subject_deinit(&current_material_text_);
+    lv_subject_deinit(&current_slot_text_);
+    lv_subject_deinit(&current_weight_text_);
+    lv_subject_deinit(&current_has_weight_);
+    lv_subject_deinit(&current_color_);
+
+    // Per-slot subjects
+    for (int i = 0; i < MAX_SLOTS; ++i) {
+        lv_subject_deinit(&slot_colors_[i]);
+        lv_subject_deinit(&slot_statuses_[i]);
+    }
+
+    initialized_ = false;
+    spdlog::debug("[AMS State] Subjects deinitialized");
+}
+
 void AmsState::init_backend_from_capabilities(const PrinterCapabilities& caps, MoonrakerAPI* api,
                                               MoonrakerClient* client) {
     // Skip if no MMU or tool changer detected

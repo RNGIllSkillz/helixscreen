@@ -778,6 +778,18 @@ void modal_init_subjects() {
     spdlog::debug("[Modal] Modal dialog subjects registered");
 }
 
+void ui_modal_deinit_subjects() {
+    if (!g_subjects_initialized) {
+        return;
+    }
+    lv_subject_deinit(&g_dialog_severity);
+    lv_subject_deinit(&g_dialog_show_cancel);
+    lv_subject_deinit(&g_dialog_primary_text);
+    lv_subject_deinit(&g_dialog_cancel_text);
+    g_subjects_initialized = false;
+    spdlog::debug("[Modal] Modal dialog subjects deinitialized");
+}
+
 void modal_configure(ModalSeverity severity, bool show_cancel, const char* primary_text,
                      const char* cancel_text) {
     if (!g_subjects_initialized) {

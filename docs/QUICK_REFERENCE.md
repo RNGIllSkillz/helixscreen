@@ -71,6 +71,35 @@ private:
 };
 ```
 
+### Singleton Subject Cleanup Pattern
+
+**Canonical example:** `src/printer/ams_state.cpp`, `src/system/settings_manager.cpp`
+
+Singletons with LVGL subjects must register cleanup to avoid Static Destruction Order Fiasco:
+
+```cpp
+// In init_subjects():
+void MySingleton::init_subjects() {
+    if (initialized_) return;
+    lv_subject_init_int(&my_subject_, 0);
+    initialized_ = true;
+}
+
+// deinit_subjects() - required for LVGL subject cleanup
+void MySingleton::deinit_subjects() {
+    if (!initialized_) return;
+    spdlog::debug("[MySingleton] Deinitializing subjects");
+    lv_subject_deinit(&my_subject_);  // Disconnects all observers
+    initialized_ = false;
+}
+
+// Registration (in SubjectInitializer):
+StaticSubjectRegistry::instance().register_deinit(
+    "MySingleton", []() { MySingleton::instance().deinit_subjects(); });
+```
+
+**See [ARCHITECTURE.md § Shutdown Order](ARCHITECTURE.md#shutdown-order-staticpanelregistry--staticsubjectregistry) for full pattern.**
+
 ---
 
 ## Component Names (CRITICAL)

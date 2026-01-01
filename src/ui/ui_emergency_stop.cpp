@@ -58,6 +58,15 @@ void EmergencyStopOverlay::init_subjects() {
     spdlog::debug("[EmergencyStop] Subjects initialized");
 }
 
+void EmergencyStopOverlay::deinit_subjects() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    lv_subject_deinit(&estop_visible_);
+    subjects_initialized_ = false;
+    spdlog::debug("[EmergencyStop] Subjects deinitialized");
+}
+
 void EmergencyStopOverlay::create() {
     if (!printer_state_ || !api_) {
         spdlog::error("[EmergencyStop] Cannot create: dependencies not initialized");

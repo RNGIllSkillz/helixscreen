@@ -75,6 +75,14 @@ class FilamentSensorManager {
     void init_subjects();
 
     /**
+     * @brief Deinitialize LVGL subjects
+     *
+     * Must be called before lv_deinit() to properly disconnect observers.
+     * Called by StaticSubjectRegistry during application shutdown.
+     */
+    void deinit_subjects();
+
+    /**
      * @brief Discover sensors from PrinterCapabilities
      *
      * Populates internal sensor list from Klipper objects.

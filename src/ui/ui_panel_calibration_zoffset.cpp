@@ -36,6 +36,12 @@ ZOffsetCalibrationPanel::ZOffsetCalibrationPanel() {
 ZOffsetCalibrationPanel::~ZOffsetCalibrationPanel() {
     // Applying [L011]: No mutex in destructors
 
+    // Deinitialize subjects to disconnect observers before we're destroyed
+    if (subjects_initialized_) {
+        lv_subject_deinit(&s_zoffset_cal_state);
+        subjects_initialized_ = false;
+    }
+
     // Remove observers to prevent use-after-free if subjects outlive us
     if (manual_probe_active_observer_) {
         lv_observer_remove(manual_probe_active_observer_);
