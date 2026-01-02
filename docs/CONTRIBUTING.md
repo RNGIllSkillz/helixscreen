@@ -17,6 +17,17 @@ This document covers code standards, workflow practices, and submission guidelin
 3. Test thoroughly before submitting
 4. Submit pull request to `ui-redesign` branch
 
+### First-Time Setup
+
+After cloning, run:
+```bash
+make setup
+```
+
+This configures:
+- **Pre-commit hook** - Auto-formats code and runs quality checks
+- **Commit template** - Guides conventional commit format (`type(scope): subject`)
+
 ### Daily Development Cycle
 
 1. **Edit code** in `src/` or `include/`

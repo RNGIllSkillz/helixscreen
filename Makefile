@@ -535,7 +535,15 @@ MOCK_OBJS := $(patsubst $(TEST_MOCK_DIR)/%.cpp,$(OBJ_DIR)/tests/mocks/%.o,$(MOCK
 # Default target
 .DEFAULT_GOAL := all
 
-.PHONY: all build clean run test tests test-integration test-cards test-print-select test-size-content demo compile_commands libhv-build apply-patches generate-fonts validate-fonts regen-fonts update-mdi-cache verify-mdi-codepoints help check-deps install-deps venv-setup icon format format-staged screenshots tools moonraker-inspector strict quality
+.PHONY: all build clean run test tests test-integration test-cards test-print-select test-size-content demo compile_commands libhv-build apply-patches generate-fonts validate-fonts regen-fonts update-mdi-cache verify-mdi-codepoints help check-deps install-deps venv-setup icon format format-staged screenshots tools moonraker-inspector strict quality setup
+
+# Developer setup - configure git hooks and commit template
+setup:
+	@git config core.hooksPath .githooks
+	@git config commit.template .githooks/commit-template
+	@echo "✓ Git configured:"
+	@echo "  - Pre-commit hook enabled (.githooks/)"
+	@echo "  - Commit template enabled (.githooks/commit-template)"
 
 # Help target - shows common commands, references topic-specific help
 help:
@@ -547,6 +555,7 @@ help:
 	echo "$${B}HelixScreen Build System$${X}"; \
 	echo ""; \
 	echo "$${C}Quick Start:$${X}"; \
+	echo "  $${G}make setup$${X}        - Configure git hooks and commit template"; \
 	echo "  $${G}make -j$${X}           - Build (parallel, auto-detects cores)"; \
 	echo "  $${G}make run$${X}          - Build and run the UI"; \
 	echo "  $${G}make test$${X}         - Run unit tests"; \
