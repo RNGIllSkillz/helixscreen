@@ -18,6 +18,52 @@ namespace fs = std::experimental::filesystem;
 
 Config* Config::instance{NULL};
 
+namespace {
+
+/// Default macro configuration - shared between init() and reset_to_defaults()
+json get_default_macros() {
+    return {{"load_filament", {{"label", "Load"}, {"gcode", "LOAD_FILAMENT"}}},
+            {"unload_filament", {{"label", "Unload"}, {"gcode", "UNLOAD_FILAMENT"}}},
+            {"macro_1", {{"label", "Clean Nozzle"}, {"gcode", "HELIX_CLEAN_NOZZLE"}}},
+            {"macro_2", {{"label", "Bed Level"}, {"gcode", "HELIX_BED_LEVEL_IF_NEEDED"}}},
+            {"cooldown", "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0\nSET_HEATER_TEMPERATURE "
+                         "HEATER=heater_bed TARGET=0"}};
+}
+
+/// Default printer configuration - shared between init() and reset_to_defaults()
+/// @param moonraker_host Host address (empty string for reset, "127.0.0.1" for new config)
+json get_default_printer_config(const std::string& moonraker_host) {
+    return {{"moonraker_api_key", false}, {"moonraker_host", moonraker_host},
+            {"moonraker_port", 7125},     {"monitored_sensors", json::array()},
+            {"fans", json::array()},      {"default_macros", get_default_macros()}};
+}
+
+/// Default root-level config - shared between init() and reset_to_defaults()
+/// @param moonraker_host Host address for default printer
+/// @param include_user_prefs Include user preference fields (brightness, sounds, etc.)
+json get_default_config(const std::string& moonraker_host, bool include_user_prefs) {
+    json config = {{"log_path", "/tmp/helixscreen.log"},
+                   {"log_level", "warn"},
+                   {"display_sleep_sec", 600},
+                   {"display_rotate", 0},
+                   {"dark_mode", true},
+                   {"default_printer", "default_printer"},
+                   {"gcode_viewer", {{"shading_model", "phong"}, {"tube_sides", 4}}},
+                   {"input", {{"scroll_throw", 25}, {"scroll_limit", 5}}},
+                   {"printers", {{"default_printer", get_default_printer_config(moonraker_host)}}}};
+
+    if (include_user_prefs) {
+        config["brightness"] = 50;
+        config["sounds_enabled"] = true;
+        config["completion_alert"] = true;
+        config["wizard_completed"] = false;
+    }
+
+    return config;
+}
+
+} // namespace
+
 Config::Config() {}
 
 Config* Config::get_instance() {
@@ -67,26 +113,6 @@ void Config::init(const std::string& config_path) {
         }
     }
 
-    // Default sensor configuration for auto-discovery fallback
-    json sensors_conf = {{{"id", "extruder"},
-                          {"display_name", "Extruder"},
-                          {"controllable", true},
-                          {"color", "red"}},
-                         {{"id", "heater_bed"},
-                          {"display_name", "Bed"},
-                          {"controllable", true},
-                          {"color", "purple"}}};
-
-    // Default macro configuration
-    // Supports both string format (backward compat) and object format {label, gcode}
-    json default_macros_conf = {
-        {"load_filament", {{"label", "Load"}, {"gcode", "LOAD_FILAMENT"}}},
-        {"unload_filament", {{"label", "Unload"}, {"gcode", "UNLOAD_FILAMENT"}}},
-        {"macro_1", {{"label", "Clean Nozzle"}, {"gcode", "HELIX_CLEAN_NOZZLE"}}},
-        {"macro_2", {{"label", "Bed Level"}, {"gcode", "HELIX_BED_LEVEL_IF_NEEDED"}}},
-        {"cooldown", "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0\nSET_HEATER_TEMPERATURE "
-                     "HEATER=heater_bed TARGET=0"}};
-
     if (stat(config_path.c_str(), &buffer) == 0) {
         // Load existing config
         spdlog::info("[Config] Loading config from {}", config_path);
@@ -94,23 +120,7 @@ void Config::init(const std::string& config_path) {
     } else {
         // Create default config
         spdlog::info("[Config] Creating default config at {}", config_path);
-        data = {{"log_path", "/tmp/helixscreen.log"},
-                {"display_sleep_sec", 600},
-                {"display_rotate", 0},
-                {"dark_mode", true}, // Theme preference: true=dark, false=light
-                {"default_printer", "default_printer"},
-                {"gcode_viewer",
-                 {{"shading_model", "phong"}, {"tube_sides", 4}}},      // G-code viewer settings
-                {"input", {{"scroll_throw", 25}, {"scroll_limit", 5}}}, // Scroll momentum settings
-                {"printers",
-                 {{"default_printer",
-                   {{"moonraker_api_key", false},
-                    {"moonraker_host", "127.0.0.1"},
-                    {"moonraker_port", 7125},
-                    {"log_level", "debug"},
-                    {"monitored_sensors", json::array()}, // Empty - will be auto-populated
-                    {"fans", json::array()},              // Empty - will be auto-populated
-                    {"default_macros", default_macros_conf}}}}}};
+        data = get_default_config("127.0.0.1", false);
     }
 
     // Store config path in data for reference
@@ -136,14 +146,14 @@ void Config::init(const std::string& config_path) {
         // Ensure default_macros exists
         auto& default_macros = data[json::json_pointer(df() + "default_macros")];
         if (default_macros.is_null()) {
-            data[json::json_pointer(df() + "default_macros")] = default_macros_conf;
+            data[json::json_pointer(df() + "default_macros")] = get_default_macros();
         }
+    }
 
-        // Ensure log_level exists
-        auto& ll = data[json::json_pointer(df() + "log_level")];
-        if (ll.is_null()) {
-            data[json::json_pointer(df() + "log_level")] = "debug";
-        }
+    // Ensure log_level exists at root level
+    auto& ll = data["/log_level"_json_pointer];
+    if (ll.is_null()) {
+        data["/log_level"_json_pointer] = "warn";
     }
 
     // Ensure display_rotate exists
@@ -232,41 +242,10 @@ bool Config::is_wizard_required() {
 void Config::reset_to_defaults() {
     spdlog::info("[Config] Resetting configuration to factory defaults");
 
-    // Default macro configuration (same as init())
-    // Supports both string format (backward compat) and object format {label, gcode}
-    json default_macros_conf = {
-        {"load_filament", {{"label", "Load"}, {"gcode", "LOAD_FILAMENT"}}},
-        {"unload_filament", {{"label", "Unload"}, {"gcode", "UNLOAD_FILAMENT"}}},
-        {"macro_1", {{"label", "Clean Nozzle"}, {"gcode", "HELIX_CLEAN_NOZZLE"}}},
-        {"macro_2", {{"label", "Bed Level"}, {"gcode", "HELIX_BED_LEVEL_IF_NEEDED"}}},
-        {"cooldown", "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0\nSET_HEATER_TEMPERATURE "
-                     "HEATER=heater_bed TARGET=0"}};
-
-    // Reset to default configuration structure
-    // Keep the config_path and log_path, reset everything else
-    std::string config_path_backup = path;
-
-    data = {{"log_path", "/tmp/helixscreen.log"},
-            {"config_path", config_path_backup},
-            {"display_sleep_sec", 600},
-            {"display_rotate", 0},
-            {"brightness", 50},
-            {"dark_mode", true},
-            {"sounds_enabled", true},
-            {"completion_alert", true},
-            {"wizard_completed", false}, // Force wizard to run again
-            {"default_printer", "default_printer"},
-            {"gcode_viewer", {{"shading_model", "phong"}, {"tube_sides", 4}}},
-            {"input", {{"scroll_throw", 25}, {"scroll_limit", 5}}},
-            {"printers",
-             {{"default_printer",
-               {{"moonraker_api_key", false},
-                {"moonraker_host", ""}, // Cleared - requires reconfiguration
-                {"moonraker_port", 7125},
-                {"log_level", "debug"},
-                {"monitored_sensors", json::array()},
-                {"fans", json::array()},
-                {"default_macros", default_macros_conf}}}}}};
+    // Reset to default configuration with empty moonraker_host (requires reconfiguration)
+    // and include user preferences (brightness, sounds, etc.) with wizard_completed=false
+    data = get_default_config("", true);
+    data["config_path"] = path;
 
     // Update default printer path prefix
     default_printer = "/printers/default_printer/";

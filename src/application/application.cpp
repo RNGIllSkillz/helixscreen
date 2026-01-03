@@ -75,6 +75,7 @@
 #include "app_globals.h"
 #include "filament_sensor_manager.h"
 #include "gcode_file_modifier.h"
+#include "hv/hlog.h" // libhv logging - sync level with spdlog
 #include "logging_init.h"
 #include "lvgl/src/xml/lv_xml.h"
 #include "memory_monitor.h"
@@ -419,19 +420,32 @@ bool Application::init_config() {
 bool Application::init_logging() {
     helix::logging::LogConfig log_config;
 
-    switch (m_args.verbosity) {
-    case 0:
-        log_config.level = spdlog::level::warn;
-        break;
-    case 1:
-        log_config.level = spdlog::level::info;
-        break;
-    case 2:
-        log_config.level = spdlog::level::debug;
-        break;
-    default:
-        log_config.level = spdlog::level::trace;
-        break;
+    // Determine log level: CLI verbosity takes precedence, then config file
+    if (m_args.verbosity > 0) {
+        // CLI -v flags override config
+        switch (m_args.verbosity) {
+        case 1:
+            log_config.level = spdlog::level::info;
+            break;
+        case 2:
+            log_config.level = spdlog::level::debug;
+            break;
+        default:
+            log_config.level = spdlog::level::trace;
+            break;
+        }
+    } else {
+        // No CLI verbosity - check config file
+        std::string level_str = m_config->get<std::string>("/log_level", "warn");
+        if (level_str == "trace") {
+            log_config.level = spdlog::level::trace;
+        } else if (level_str == "debug") {
+            log_config.level = spdlog::level::debug;
+        } else if (level_str == "info") {
+            log_config.level = spdlog::level::info;
+        } else {
+            log_config.level = spdlog::level::warn; // default
+        }
     }
 
     std::string log_dest_str = g_log_dest_cli;
@@ -446,6 +460,18 @@ bool Application::init_logging() {
     }
 
     helix::logging::init(log_config);
+
+    // Set libhv log level from config file ONLY (CLI -v flags don't affect libhv)
+    // libhv levels: VERBOSE(0) < DEBUG < INFO < WARN < ERROR < FATAL < SILENT
+    std::string hv_level_str = m_config->get<std::string>("/log_level", "warn");
+    int hv_level = LOG_LEVEL_WARN;
+    if (hv_level_str == "trace" || hv_level_str == "debug") {
+        hv_level = LOG_LEVEL_DEBUG; // Cap at DEBUG; libhv VERBOSE is too noisy
+    } else if (hv_level_str == "info") {
+        hv_level = LOG_LEVEL_INFO;
+    }
+    hlog_set_level(hv_level);
+
     return true;
 }
 

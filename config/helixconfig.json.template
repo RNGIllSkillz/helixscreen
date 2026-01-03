@@ -16,6 +16,8 @@
   "_log_dest_comment": "Log destination: 'auto' (detect best), 'journal' (systemd), 'syslog', 'file', 'console' (disable system log)",
   "log_path": "",
   "_log_path_comment": "Log file path when using file destination. Empty = auto (/var/log or ~/.local/share)",
+  "log_level": "warn",
+  "_log_level_comment": "Log verbosity: warn (quiet), info, debug, trace. CLI -v flags override this.",
   "printers": {
     "default_printer": {
       "default_macros": {
@@ -26,7 +28,6 @@
         "macro_2": { "label": "Bed Level", "gcode": "HELIX_BED_LEVEL_IF_NEEDED" }
       },
       "fans": [],
-      "log_level": "debug",
       "monitored_sensors": [],
       "moonraker_api_key": false,
       "moonraker_connection_timeout_ms": 10000,
