@@ -703,6 +703,17 @@ The test mode system allows development without hardware or network infrastructu
 - Simulated connection delays and failures (5% auth failure rate)
 - Visual banner showing what's mocked vs real
 
+**Test Mode Keyboard Shortcuts:**
+
+| Key | Action | Description |
+|-----|--------|-------------|
+| **S** | Screenshot | Save timestamped PNG to `/tmp/` |
+| **P** | Test Prompt | Show a sample `action:prompt` modal with all button types |
+| **N** | Test Notification | Show a sample `action:notify` toast |
+| **Q** / **Esc** | Quit | Exit the application |
+
+The test prompt (**P**) demonstrates all 5 button colors (primary, secondary, info, warning, error), button groups, and footer buttons - useful for testing the Klipper `action:prompt` protocol UI without a real printer.
+
 **Production Safety:**
 - **NEVER** uses mocks without explicit `--test` flag
 - Production mode fails gracefully if hardware unavailable

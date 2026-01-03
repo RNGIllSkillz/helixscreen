@@ -72,7 +72,10 @@
 #include "ui_wizard_wifi.h"
 
 // Backend headers
+#include "action_prompt_manager.h"
+#include "action_prompt_modal.h"
 #include "app_globals.h"
+#include "async_helpers.h"
 #include "filament_sensor_manager.h"
 #include "gcode_file_modifier.h"
 #include "hv/hlog.h" // libhv logging - sync level with spdlog
@@ -1149,6 +1152,9 @@ bool Application::connect_moonraker() {
     // Initialize print start collector (monitors PRINT_START macro progress)
     m_moonraker->init_print_start_collector();
 
+    // Initialize action prompt system (Klipper action:prompt protocol)
+    init_action_prompt();
+
     return true;
 }
 
@@ -1161,6 +1167,92 @@ lv_obj_t* Application::create_overlay_panel(lv_obj_t* screen, const char* compon
                       component_name);
     }
     return panel;
+}
+
+void Application::init_action_prompt() {
+    MoonrakerClient* client = m_moonraker->client();
+    MoonrakerAPI* api = m_moonraker->api();
+
+    if (!client) {
+        spdlog::warn("[Application] Cannot init action prompt - no client");
+        return;
+    }
+
+    // Create ActionPromptManager
+    m_action_prompt_manager = std::make_unique<helix::ActionPromptManager>();
+
+    // Create ActionPromptModal
+    m_action_prompt_modal = std::make_unique<helix::ui::ActionPromptModal>();
+
+    // Set up gcode callback to send button commands via API
+    if (api) {
+        m_action_prompt_modal->set_gcode_callback([api](const std::string& gcode) {
+            spdlog::info("[ActionPrompt] Sending gcode: {}", gcode);
+            api->execute_gcode(
+                gcode, []() { spdlog::debug("[ActionPrompt] Gcode executed successfully"); },
+                [gcode](const MoonrakerError& err) {
+                    spdlog::error("[ActionPrompt] Gcode execution failed: {}", err.message);
+                });
+        });
+    }
+
+    // Wire on_show callback to display modal (uses ui_async_call for thread safety)
+    m_action_prompt_manager->set_on_show([this](const helix::PromptData& data) {
+        spdlog::info("[ActionPrompt] Showing prompt: {}", data.title);
+        // WebSocket callbacks run on background thread - must use helix::async::invoke
+        helix::async::invoke([this, data]() {
+            if (m_action_prompt_modal && m_screen) {
+                m_action_prompt_modal->show_prompt(m_screen, data);
+            }
+        });
+    });
+
+    // Wire on_close callback to hide modal
+    m_action_prompt_manager->set_on_close([this]() {
+        spdlog::info("[ActionPrompt] Closing prompt");
+        helix::async::invoke([this]() {
+            if (m_action_prompt_modal) {
+                m_action_prompt_modal->hide();
+            }
+        });
+    });
+
+    // Wire on_notify callback for standalone notifications (action:notify)
+    m_action_prompt_manager->set_on_notify([](const std::string& message) {
+        spdlog::info("[ActionPrompt] Notification: {}", message);
+        helix::async::invoke([message]() {
+            ToastManager::instance().show(ToastSeverity::INFO, message.c_str(), 5000);
+        });
+    });
+
+    // Register for notify_gcode_response messages from Moonraker
+    // All lines from G-code console output come through this notification
+    client->register_method_callback(
+        "notify_gcode_response", "action_prompt_manager", [this](const nlohmann::json& msg) {
+            // notify_gcode_response has params: [["line1", "line2", ...]]
+            if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty()) {
+                return;
+            }
+
+            const auto& params = msg["params"];
+            // params can be an array of strings, or an array containing an array of strings
+            // Handle both formats
+            if (params[0].is_array()) {
+                for (const auto& line : params[0]) {
+                    if (line.is_string()) {
+                        m_action_prompt_manager->process_line(line.get<std::string>());
+                    }
+                }
+            } else if (params[0].is_string()) {
+                for (const auto& line : params) {
+                    if (line.is_string()) {
+                        m_action_prompt_manager->process_line(line.get<std::string>());
+                    }
+                }
+            }
+        });
+
+    spdlog::info("[Application] Action prompt system initialized");
 }
 
 int Application::main_loop() {
@@ -1273,6 +1365,28 @@ void Application::handle_keyboard_shortcuts() {
         }
     }
     f_key_was_pressed = f_key_pressed;
+
+    // P key to trigger test action prompt (test mode only, with debounce)
+    static bool p_key_was_pressed = false;
+    bool p_key_pressed = keyboard_state[SDL_SCANCODE_P] != 0;
+    if (p_key_pressed && !p_key_was_pressed) {
+        if (get_runtime_config()->is_test_mode() && m_action_prompt_manager) {
+            spdlog::info("[Application] P key - triggering test action prompt");
+            m_action_prompt_manager->trigger_test_prompt();
+        }
+    }
+    p_key_was_pressed = p_key_pressed;
+
+    // N key to trigger test action notification (test mode only, with debounce)
+    static bool n_key_was_pressed = false;
+    bool n_key_pressed = keyboard_state[SDL_SCANCODE_N] != 0;
+    if (n_key_pressed && !n_key_was_pressed) {
+        if (get_runtime_config()->is_test_mode() && m_action_prompt_manager) {
+            spdlog::info("[Application] N key - triggering test action notification");
+            m_action_prompt_manager->trigger_test_notify();
+        }
+    }
+    n_key_was_pressed = n_key_pressed;
 #endif
 }
 
@@ -1325,6 +1439,15 @@ void Application::shutdown() {
     // History manager MUST be reset before moonraker (uses client for unregistration)
     m_history_manager.reset();
     m_temp_history_manager.reset();
+
+    // Unregister action prompt callback before moonraker is destroyed
+    if (m_moonraker && m_moonraker->client() && m_action_prompt_manager) {
+        m_moonraker->client()->unregister_method_callback("notify_gcode_response",
+                                                          "action_prompt_manager");
+    }
+    m_action_prompt_modal.reset();
+    m_action_prompt_manager.reset();
+
     m_moonraker.reset();
     m_panels.reset();
     m_subjects.reset();

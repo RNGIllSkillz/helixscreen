@@ -15,6 +15,12 @@ class Config;
 namespace helix::plugin {
 class PluginManager;
 }
+namespace helix {
+class ActionPromptManager;
+}
+namespace helix::ui {
+class ActionPromptModal;
+}
 class DisplayManager;
 class SubjectInitializer;
 class MoonrakerManager;
@@ -91,6 +97,7 @@ class Application {
     void signal_splash_exit();
     lv_obj_t* create_overlay_panel(lv_obj_t* screen, const char* component_name,
                                    const char* display_name);
+    void init_action_prompt();
 
     // Owned managers (in initialization order)
     std::unique_ptr<DisplayManager> m_display;
@@ -100,6 +107,10 @@ class Application {
     std::unique_ptr<TemperatureHistoryManager> m_temp_history_manager;
     std::unique_ptr<PanelFactory> m_panels;
     std::unique_ptr<helix::plugin::PluginManager> m_plugin_manager;
+
+    // Action prompt system (Klipper action:prompt protocol)
+    std::unique_ptr<helix::ActionPromptManager> m_action_prompt_manager;
+    std::unique_ptr<helix::ui::ActionPromptModal> m_action_prompt_modal;
 
     // Configuration
     Config* m_config = nullptr; // Singleton, not owned
