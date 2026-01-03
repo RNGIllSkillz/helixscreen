@@ -1242,6 +1242,9 @@ class PrinterState {
     // Initialization guard to prevent multiple subject initializations
     bool subjects_initialized_ = false;
 
+    // Cached display pointer to detect LVGL reinitialization (for test isolation)
+    lv_display_t* cached_display_ = nullptr;
+
     // Track if we've ever successfully connected (for UI display)
     bool was_ever_connected_ = false;
 

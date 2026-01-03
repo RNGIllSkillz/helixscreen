@@ -194,10 +194,23 @@ void PrinterState::reset_for_testing() {
 }
 
 void PrinterState::init_subjects(bool register_xml) {
+    // Detect LVGL reinitialization - display pointer changes when lv_init() called again
+    // This happens in test suites where each test reinitializes LVGL but the PrinterState
+    // singleton persists. Without this check, subjects would point to freed memory.
+    lv_display_t* current_display = lv_display_get_default();
+
     if (subjects_initialized_) {
-        spdlog::debug("[PrinterState] Subjects already initialized, skipping");
-        return;
+        if (current_display != cached_display_) {
+            // LVGL was reinitialized - our subjects are now invalid
+            spdlog::warn("[PrinterState] LVGL reinitialized (display changed), resetting subjects");
+            reset_for_testing();
+        } else {
+            spdlog::debug("[PrinterState] Subjects already initialized, skipping");
+            return;
+        }
     }
+
+    cached_display_ = current_display;
 
     spdlog::debug("[PrinterState] Initializing subjects (register_xml={})", register_xml);
 
