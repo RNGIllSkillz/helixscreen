@@ -29,23 +29,27 @@
     "moonraker_reconnect_min_delay_ms": 200,
     "moonraker_request_timeout_ms": 30000,
     "moonraker_timeout_check_interval_ms": 2000,
-    "heater": {
+    "heaters": {
       "bed": "heater_bed",
       "hotend": "extruder"
     },
-    "sensor": {
+    "temp_sensors": {
       "bed": "temperature_sensor bed",
       "hotend": "temperature_sensor extruder"
     },
-    "fan": {
+    "fans": {
       "hotend": "heater_fan hotend_fan",
       "part": "fan"
     },
-    "led": {
+    "leds": {
       "strip": "None"
     },
-    "fans": [],
-    "monitored_sensors": [],
+    "extra_sensors": {},
+    "hardware": {
+      "optional": [],
+      "expected": [],
+      "last_snapshot": {}
+    },
     "default_macros": {
       "cooldown": "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0\nSET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=0",
       "load_filament": { "label": "Load", "gcode": "LOAD_FILAMENT" },

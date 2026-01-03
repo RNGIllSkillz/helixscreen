@@ -20,23 +20,27 @@
     "moonraker_host": "127.0.0.1",
     "moonraker_port": 7125,
     "moonraker_api_key": false,
-    "heater": {
+    "heaters": {
       "bed": "heater_bed",
       "hotend": "extruder"
     },
-    "sensor": {
+    "temp_sensors": {
       "bed": "heater_bed",
       "hotend": "extruder"
     },
-    "fan": {
+    "fans": {
       "hotend": "heater_fan hotend_fan",
       "part": "fan"
     },
-    "led": {
+    "leds": {
       "strip": "led chamber_led"
     },
-    "fans": [],
-    "monitored_sensors": [],
+    "extra_sensors": {},
+    "hardware": {
+      "optional": [],
+      "expected": [],
+      "last_snapshot": {}
+    },
     "filament_sensors": {
       "sensors": null
     },
