@@ -16,6 +16,7 @@
 #include "lvgl/lvgl.h"
 #include "moonraker_client.h"
 #include "static_panel_registry.h"
+#include "wizard_config_paths.h"
 #include "wizard_validation.h"
 
 #include <spdlog/spdlog.h>
@@ -138,8 +139,8 @@ void WizardConnectionStep::init_subjects() {
     std::string default_port = "7125"; // Default Moonraker port
 
     try {
-        default_ip = config->get<std::string>(config->df() + "moonraker_host", "");
-        int port_num = config->get<int>(config->df() + "moonraker_port", 7125);
+        default_ip = config->get<std::string>(helix::wizard::MOONRAKER_HOST, "");
+        int port_num = config->get<int>(helix::wizard::MOONRAKER_PORT, 7125);
         default_port = std::to_string(port_num);
 
         spdlog::debug("[{}] Loaded from config: {}:{}", get_name(), default_ip, default_port);
@@ -346,8 +347,8 @@ void WizardConnectionStep::on_connection_success() {
             // NOW safe to access config (on main thread)
             Config* config = Config::get_instance();
             try {
-                config->set(config->df() + "moonraker_host", ip);
-                config->set(config->df() + "moonraker_port", std::stoi(port));
+                config->set(helix::wizard::MOONRAKER_HOST, ip);
+                config->set(helix::wizard::MOONRAKER_PORT, std::stoi(port));
                 if (config->save()) {
                     spdlog::debug("[Wizard Connection] Saved configuration: {}:{}", ip, port);
                 } else {
@@ -625,8 +626,8 @@ void WizardConnectionStep::on_auto_probe_success() {
             // NOW safe to access config (on main thread)
             Config* config = Config::get_instance();
             try {
-                config->set(config->df() + "moonraker_host", ip);
-                config->set(config->df() + "moonraker_port", std::stoi(port));
+                config->set(helix::wizard::MOONRAKER_HOST, ip);
+                config->set(helix::wizard::MOONRAKER_PORT, std::stoi(port));
                 if (config->save()) {
                     spdlog::debug("[Wizard Connection] Auto-probe: Saved configuration");
                 }
