@@ -3,11 +3,12 @@
 
 #include "ui_wizard_ams_identify.h"
 
+#include "ui_subject_registry.h"
+
 #include "ams_state.h"
 #include "ams_types.h"
 #include "lvgl/lvgl.h"
 #include "static_panel_registry.h"
-#include "ui_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -63,8 +64,7 @@ WizardAmsIdentifyStep::~WizardAmsIdentifyStep() {
 // ============================================================================
 
 WizardAmsIdentifyStep::WizardAmsIdentifyStep(WizardAmsIdentifyStep&& other) noexcept
-    : screen_root_(other.screen_root_),
-      wizard_ams_type_(other.wizard_ams_type_),
+    : screen_root_(other.screen_root_), wizard_ams_type_(other.wizard_ams_type_),
       wizard_ams_details_(other.wizard_ams_details_),
       subjects_initialized_(other.subjects_initialized_) {
     other.screen_root_ = nullptr;
