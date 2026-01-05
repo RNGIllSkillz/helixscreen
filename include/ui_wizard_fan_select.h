@@ -111,6 +111,13 @@ class WizardFanSelectStep {
         return exhaust_fan_items_;
     }
 
+    /**
+     * @brief Get the screen root widget (for status text updates)
+     */
+    lv_obj_t* get_screen_root() const {
+        return screen_root_;
+    }
+
   private:
     // Screen instance
     lv_obj_t* screen_root_ = nullptr;

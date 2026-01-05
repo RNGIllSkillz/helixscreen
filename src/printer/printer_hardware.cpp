@@ -232,7 +232,8 @@ std::string PrinterHardware::guess_chamber_fan() const {
     // "nevermore" - popular Klipper recirculating filter
     match = find_containing(fans_, "nevermore");
     if (!match.empty()) {
-        spdlog::debug("[PrinterHardware] guess_chamber_fan() -> '{}' (contains 'nevermore')", match);
+        spdlog::debug("[PrinterHardware] guess_chamber_fan() -> '{}' (contains 'nevermore')",
+                      match);
         return match;
     }
 

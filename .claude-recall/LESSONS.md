@@ -45,7 +45,7 @@
 
 
 ### [L009] [***--|-----] Icon font sync workflow
-- **Uses**: 10 | **Velocity**: 0.02 | **Learned**: 2025-12-14 | **Last**: 2026-01-01 | **Category**: gotcha
+- **Uses**: 10 | **Velocity**: 0.01 | **Learned**: 2025-12-14 | **Last**: 2026-01-01 | **Category**: gotcha
 > After adding icon to codepoints.h: add to regen_mdi_fonts.sh, run make regen-fonts, then rebuild. Forgetting any step = missing icon
 
 
@@ -120,7 +120,7 @@
 
 
 ### [L027] [***--|-----] Worktree initialization
-- **Uses**: 7 | **Velocity**: 0.02 | **Learned**: 2025-12-24 | **Last**: 2026-01-01 | **Category**: pattern
+- **Uses**: 7 | **Velocity**: 0.01 | **Learned**: 2025-12-24 | **Last**: 2026-01-01 | **Category**: pattern
 > When creating a git worktree, ALWAYS run ./scripts/init-worktree.sh BEFORE any commits. Worktrees don't auto-initialize submodules - uninitialized submodules appear as deletions and will be silently removed from git's tree on your next commit.
 
 
@@ -144,8 +144,8 @@
 > XML layout changes (ui_xml/*.xml) don't require recompilation - just restart the app. Only C++ changes need make.
 
 
-### [L032] [*****|-----] Re-stage after pre-commit format
-- **Uses**: 49 | **Velocity**: 0.27 | **Learned**: 2025-12-27 | **Last**: 2026-01-02 | **Category**: correction
+### [L032] [*****|+----] Re-stage after pre-commit format
+- **Uses**: 50 | **Velocity**: 0.64 | **Learned**: 2025-12-27 | **Last**: 2026-01-04 | **Category**: correction
 > When pre-commit hook auto-formats files, they are NOT automatically re-staged. Always check git status after a commit and amend if the hook formatted files. Look for 'Auto-formatted: <file>' messages and run 'git add -u && git commit --amend --no-edit'.
 
 
@@ -199,6 +199,6 @@
 > Use Sonnet (not Haiku) for architectural-level code reviews, structural changes, or final comprehensive reviews. Haiku is fine for quick single-file spot-checks with clear pass/fail criteria.
 
 
-### [L044] [*----|-----] Targeted tests during development
-- **Uses**: 1 | **Velocity**: 0.0 | **Learned**: 2026-01-04 | **Last**: 2026-01-04 | **Category**: preference
+### [L044] [**---|+----] Targeted tests during development
+- **Uses**: 3 | **Velocity**: 1.0 | **Learned**: 2026-01-04 | **Last**: 2026-01-04 | **Category**: preference
 > Run targeted tests with specific tags during implementation (e.g., ./build/bin/helix-tests "[tag]"). Only run full test suite (make test-run) at the end of a feature or phase. Full suite is SLOW - save it for final verification.

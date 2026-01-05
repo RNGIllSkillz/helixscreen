@@ -428,13 +428,15 @@ TEST_CASE("PrinterHardware::guess_chamber_fan", "[slow][printer][guessing]") {
     std::vector<std::string> leds;
 
     SECTION("Exact match: 'chamber_fan' (highest priority)") {
-        std::vector<std::string> fans = {"fan", "heater_fan hotend_fan", "chamber_fan", "nevermore"};
+        std::vector<std::string> fans = {"fan", "heater_fan hotend_fan", "chamber_fan",
+                                         "nevermore"};
         PrinterHardware hw(heaters, sensors, fans, leds);
         REQUIRE(hw.guess_chamber_fan() == "chamber_fan");
     }
 
     SECTION("Substring match: 'chamber' in name") {
-        std::vector<std::string> fans = {"fan", "heater_fan hotend_fan", "fan_generic chamber_circ"};
+        std::vector<std::string> fans = {"fan", "heater_fan hotend_fan",
+                                         "fan_generic chamber_circ"};
         PrinterHardware hw(heaters, sensors, fans, leds);
         REQUIRE(hw.guess_chamber_fan() == "fan_generic chamber_circ");
     }

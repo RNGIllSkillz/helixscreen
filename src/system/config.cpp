@@ -33,19 +33,21 @@ json get_default_macros() {
 /// Default printer configuration - shared between init() and reset_to_defaults()
 /// @param moonraker_host Host address (empty string for reset, "127.0.0.1" for new config)
 json get_default_printer_config(const std::string& moonraker_host) {
-    return {{"moonraker_api_key", false},
-            {"moonraker_host", moonraker_host},
-            {"moonraker_port", 7125},
-            {"heaters", {{"bed", "heater_bed"}, {"hotend", "extruder"}}},
-            {"temp_sensors", {{"bed", "heater_bed"}, {"hotend", "extruder"}}},
-            {"fans", {{"part", "fan"}, {"hotend", "heater_fan hotend_fan"}, {"chamber", ""}, {"exhaust", ""}}},
-            {"leds", {{"strip", ""}}}, // Empty default - wizard will auto-detect
-            {"extra_sensors", json::object()},
-            {"hardware",
-             {{"optional", json::array()},
-              {"expected", json::array()},
-              {"last_snapshot", json::object()}}},
-            {"default_macros", get_default_macros()}};
+    return {
+        {"moonraker_api_key", false},
+        {"moonraker_host", moonraker_host},
+        {"moonraker_port", 7125},
+        {"heaters", {{"bed", "heater_bed"}, {"hotend", "extruder"}}},
+        {"temp_sensors", {{"bed", "heater_bed"}, {"hotend", "extruder"}}},
+        {"fans",
+         {{"part", "fan"}, {"hotend", "heater_fan hotend_fan"}, {"chamber", ""}, {"exhaust", ""}}},
+        {"leds", {{"strip", ""}}}, // Empty default - wizard will auto-detect
+        {"extra_sensors", json::object()},
+        {"hardware",
+         {{"optional", json::array()},
+          {"expected", json::array()},
+          {"last_snapshot", json::object()}}},
+        {"default_macros", get_default_macros()}};
 }
 
 /// Default root-level config - shared between init() and reset_to_defaults()

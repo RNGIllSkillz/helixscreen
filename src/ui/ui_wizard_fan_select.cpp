@@ -26,6 +26,9 @@
 #include <string>
 #include <vector>
 
+// Global wizard subject for Next button state (defined in ui_wizard.cpp)
+extern lv_subject_t connection_test_passed;
+
 // ============================================================================
 // Global Instance
 // ============================================================================
@@ -114,6 +117,33 @@ void WizardFanSelectStep::init_subjects() {
 // Static Callbacks (XML event_cb pattern)
 // ============================================================================
 
+/// Updates the Next button state and error message based on current validation (no duplicates)
+static void update_next_button_state() {
+    auto* step = get_wizard_fan_select_step();
+    if (!step)
+        return;
+
+    bool valid = step->is_validated();
+    lv_subject_set_int(&connection_test_passed, valid ? 1 : 0);
+
+    // Update status text visibility and content
+    lv_obj_t* screen = step->get_screen_root();
+    if (screen) {
+        lv_obj_t* status_text = lv_obj_find_by_name(screen, "fan_status_text");
+        if (status_text) {
+            if (valid) {
+                lv_obj_add_flag(status_text, LV_OBJ_FLAG_HIDDEN);
+            } else {
+                lv_label_set_text(status_text, "Each fan can only be selected once");
+                lv_obj_remove_flag(status_text, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
+    }
+
+    spdlog::debug("[WizardFanSelectStep] Validation state: {} -> Next button {}",
+                  valid ? "valid" : "invalid", valid ? "enabled" : "disabled");
+}
+
 static void on_hotend_fan_dropdown_changed(lv_event_t* e) {
     auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     int index = static_cast<int>(lv_dropdown_get_selected(dropdown));
@@ -121,6 +151,7 @@ static void on_hotend_fan_dropdown_changed(lv_event_t* e) {
     if (step) {
         lv_subject_set_int(step->get_hotend_fan_subject(), index);
         spdlog::debug("[WizardFanSelectStep] Hotend fan selection changed to index {}", index);
+        update_next_button_state();
     }
 }
 
@@ -131,6 +162,7 @@ static void on_part_fan_dropdown_changed(lv_event_t* e) {
     if (step) {
         lv_subject_set_int(step->get_part_fan_subject(), index);
         spdlog::debug("[WizardFanSelectStep] Part fan selection changed to index {}", index);
+        update_next_button_state();
     }
 }
 
@@ -141,6 +173,7 @@ static void on_chamber_fan_dropdown_changed(lv_event_t* e) {
     if (step) {
         lv_subject_set_int(step->get_chamber_fan_subject(), index);
         spdlog::debug("[WizardFanSelectStep] Chamber fan selection changed to index {}", index);
+        update_next_button_state();
     }
 }
 
@@ -151,6 +184,7 @@ static void on_exhaust_fan_dropdown_changed(lv_event_t* e) {
     if (step) {
         lv_subject_set_int(step->get_exhaust_fan_subject(), index);
         spdlog::debug("[WizardFanSelectStep] Exhaust fan selection changed to index {}", index);
+        update_next_button_state();
     }
 }
 
@@ -327,6 +361,10 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
         spdlog::debug("[{}] {} fans discovered, showing optional fan row", get_name(), fan_count);
     }
 
+    // Update Next button state based on initial validation
+    // (may be invalid if auto-detection caused duplicate selections)
+    update_next_button_state();
+
     spdlog::debug("[{}] Screen created successfully", get_name());
     return screen_root_;
 }
@@ -363,6 +401,9 @@ void WizardFanSelectStep::cleanup() {
             NOTIFY_ERROR("Failed to save fan configuration");
         }
     }
+
+    // Reset Next button state to enabled for other wizard steps
+    lv_subject_set_int(&connection_test_passed, 1);
 
     // Reset UI references
     // Note: Do NOT call lv_obj_del() here - the wizard framework handles
