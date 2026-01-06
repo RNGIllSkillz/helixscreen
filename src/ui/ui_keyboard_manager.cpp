@@ -19,6 +19,10 @@
 // Macro for keyboard button control flags
 #define LV_KB_BTN(width) static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_POPOVER | (width))
 
+// Animation timing constants
+static constexpr int32_t KEYBOARD_SLIDE_DURATION_MS = 200;
+static constexpr int32_t KEYBOARD_EXIT_DURATION_MS = 150;
+
 // ============================================================================
 // STATIC DATA
 // ============================================================================
@@ -814,6 +818,9 @@ void KeyboardManager::show(lv_obj_t* textarea) {
 
     spdlog::info("[KeyboardManager] Showing keyboard for textarea: {}", (void*)textarea);
 
+    // Cancel any in-progress hide animation
+    lv_anim_delete(keyboard_, nullptr);
+
     KeyboardHint hint = ui_text_input_get_keyboard_hint(textarea);
 
     if (hint == KeyboardHint::NUMERIC) {
@@ -828,6 +835,25 @@ void KeyboardManager::show(lv_obj_t* textarea) {
     lv_obj_remove_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_foreground(keyboard_);
     lv_obj_update_layout(screen);
+
+    // Animate keyboard sliding up from bottom
+    if (SettingsManager::instance().get_animations_enabled()) {
+        int32_t keyboard_height = lv_obj_get_height(keyboard_);
+        lv_obj_set_style_translate_y(keyboard_, keyboard_height, LV_PART_MAIN);
+
+        lv_anim_t slide_anim;
+        lv_anim_init(&slide_anim);
+        lv_anim_set_var(&slide_anim, keyboard_);
+        lv_anim_set_values(&slide_anim, keyboard_height, 0);
+        lv_anim_set_time(&slide_anim, KEYBOARD_SLIDE_DURATION_MS);
+        lv_anim_set_path_cb(&slide_anim, lv_anim_path_ease_out);
+        lv_anim_set_exec_cb(&slide_anim, [](void* obj, int32_t value) {
+            lv_obj_set_style_translate_y(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
+        });
+        lv_anim_start(&slide_anim);
+    } else {
+        lv_obj_set_style_translate_y(keyboard_, 0, LV_PART_MAIN);
+    }
 
     if (!textarea) {
         return;
@@ -895,11 +921,36 @@ void KeyboardManager::hide() {
 
     spdlog::debug("[KeyboardManager] Hiding keyboard");
 
+    // Cancel any in-progress show animation
+    lv_anim_delete(keyboard_, nullptr);
+
     overlay_cleanup();
     longpress_state_ = LP_IDLE;
 
     lv_keyboard_set_textarea(keyboard_, NULL);
-    lv_obj_add_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
+
+    // Animate keyboard sliding down (or hide instantly if animations disabled)
+    if (SettingsManager::instance().get_animations_enabled()) {
+        int32_t keyboard_height = lv_obj_get_height(keyboard_);
+
+        lv_anim_t slide_anim;
+        lv_anim_init(&slide_anim);
+        lv_anim_set_var(&slide_anim, keyboard_);
+        lv_anim_set_values(&slide_anim, 0, keyboard_height);
+        lv_anim_set_time(&slide_anim, KEYBOARD_EXIT_DURATION_MS);
+        lv_anim_set_path_cb(&slide_anim, lv_anim_path_ease_in);
+        lv_anim_set_exec_cb(&slide_anim, [](void* obj, int32_t value) {
+            lv_obj_set_style_translate_y(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
+        });
+        lv_anim_set_completed_cb(&slide_anim, [](lv_anim_t* anim) {
+            lv_obj_t* kb = static_cast<lv_obj_t*>(anim->var);
+            lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_translate_y(kb, 0, LV_PART_MAIN);
+        });
+        lv_anim_start(&slide_anim);
+    } else {
+        lv_obj_add_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
+    }
 
     uint32_t child_count = lv_obj_get_child_count(screen);
     bool animations_enabled = SettingsManager::instance().get_animations_enabled();
