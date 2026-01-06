@@ -7,6 +7,7 @@
 #include "ui_update_queue.h"
 
 #include "app_constants.h"
+#include "app_globals.h"
 #include "config.h"
 #include "spdlog/spdlog.h"
 
@@ -516,8 +517,9 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 notif.old_state = old_state;
                 notif.new_state = state;
                 notif.role = sensor.role;
-                // Suppress toasts during startup grace period (initial state isn't a "change")
-                notif.should_toast = !within_grace_period && master_enabled_ && sensor.enabled &&
+                // Suppress toasts during startup grace period and wizard setup
+                notif.should_toast = !within_grace_period && !is_wizard_active() &&
+                                     master_enabled_ && sensor.enabled &&
                                      sensor.role != FilamentSensorRole::NONE;
                 if (within_grace_period && master_enabled_ && sensor.enabled &&
                     sensor.role != FilamentSensorRole::NONE) {
