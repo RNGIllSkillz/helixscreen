@@ -10,8 +10,8 @@ HelixScreen uses a multi-signal detection system with the following priority:
 
 | Priority | Signal | How It Works |
 |----------|--------|--------------|
-| 1 | **Macro Variables** | Watches `gcode_macro _HELIX_STATE.active` or `gcode_macro _START_PRINT.print_started` |
-| 2 | **G-code Console** | Parses console output for `HELIX:READY`, `LAYER: 1`, or `SET_PRINT_STATS_INFO CURRENT_LAYER=` |
+| 1 | **Macro Variables** | Watches `gcode_macro _HELIX_STATE.print_started` or `gcode_macro _START_PRINT.print_started` |
+| 2 | **G-code Console** | Parses console output for `HELIX:READY`, `LAYER: 1`, `;LAYER:1`, `First layer`, or `SET_PRINT_STATS_INFO CURRENT_LAYER=` |
 | 3 | **Layer Count** | Monitors `print_stats.info.current_layer` becoming ≥1 |
 | 4 | **Progress + Temps** | Print progress ≥2% AND temps within 5°C of target |
 | 5 | **Timeout** | 45 seconds in PRINTING state with temps ≥90% of target |
@@ -128,12 +128,12 @@ When `helix_macros.cfg` is installed, these macros are available:
 | Macro | Phase Displayed |
 |-------|-----------------|
 | `HELIX_PHASE_HOMING` | "Homing..." |
-| `HELIX_PHASE_HEATING_BED` | "Heating bed..." |
-| `HELIX_PHASE_HEATING_NOZZLE` | "Heating nozzle..." |
-| `HELIX_PHASE_BED_MESH` | "Bed leveling..." |
-| `HELIX_PHASE_QGL` | "Quad gantry level..." |
-| `HELIX_PHASE_Z_TILT` | "Z-tilt adjust..." |
-| `HELIX_PHASE_CLEANING` | "Cleaning nozzle..." |
+| `HELIX_PHASE_HEATING_BED` | "Heating Bed..." |
+| `HELIX_PHASE_HEATING_NOZZLE` | "Heating Nozzle..." |
+| `HELIX_PHASE_BED_MESH` | "Loading Bed Mesh..." |
+| `HELIX_PHASE_QGL` | "Leveling Gantry..." |
+| `HELIX_PHASE_Z_TILT` | "Z Tilt Adjust..." |
+| `HELIX_PHASE_CLEANING` | "Cleaning Nozzle..." |
 | `HELIX_PHASE_PURGING` | "Purging..." |
 
 ### Pre-Print Helpers
@@ -236,7 +236,7 @@ Available parameters:
 If the home panel stays on "Preparing Print" indefinitely:
 
 1. **Check console output**: Run your print and look at the Klipper console. Do you see any layer markers?
-2. **Verify macro variables**: Query `gcode_macro _HELIX_STATE` via Moonraker to see if `active` is being set
+2. **Verify macro variables**: Query `gcode_macro _HELIX_STATE` via Moonraker to see if `print_started` is being set
 3. **Enable fallbacks**: The timeout fallback should trigger after 45 seconds if temps are near target
 
 ### Quick Detection Not Working
@@ -254,7 +254,7 @@ If detection takes the full 45-second timeout:
 **Macro Variables (Priority 1)**
 
 HelixScreen subscribes to these Moonraker objects:
-- `gcode_macro _HELIX_STATE` → watches `active` variable
+- `gcode_macro _HELIX_STATE` → watches `print_started` variable
 - `gcode_macro _START_PRINT` → watches `print_started` variable
 - `gcode_macro START_PRINT` → watches `preparation_done` variable
 
@@ -291,4 +291,4 @@ Last resort after 45 seconds in PRINTING state:
 | `src/print/print_start_collector.cpp` | Detection logic and fallback implementation |
 | `config/helix_macros.cfg` | Klipper macros for detection and phase tracking |
 | `src/printer/macro_manager.cpp` | Macro installation management |
-| `src/moonraker_client.cpp` | Object subscription setup |
+| `src/api/moonraker_client.cpp` | Object subscription setup |

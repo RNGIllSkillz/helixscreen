@@ -1,7 +1,7 @@
 # Pre-Print Toggle Control: Refactor Plan
 
 > **Last Updated**: 2026-01-09
-> **Status**: Core functionality complete, enum consolidation complete
+> **Status**: ✅ COMPLETE - All refactors finished, archived 2026-01-09
 
 ## Overview
 
@@ -92,7 +92,7 @@ The core functionality works correctly after recent fixes. The system uses a pri
 | **Enum Consolidation** | ✅ Complete | Single `OperationCategory` source of truth |
 | **CapabilityMatrix** | ✅ Complete | Unified capability source management (MT2) |
 | **Retry Logic** | ✅ Complete | Exponential backoff for macro analysis (MT3) |
-| **Technical Debt** | 🟡 Reduced | Checkbox ambiguity addressed by LT2, LT3 remains |
+| **Technical Debt** | ✅ Complete | All debt addressed by MT1-MT3, LT1-LT3 |
 
 ---
 
@@ -124,7 +124,7 @@ The core functionality works correctly after recent fixes. The system uses a pri
 
 ---
 
-## 🟡 Remaining Issues
+## ✅ Completed Issues
 
 | Priority | Issue | Location | Effort |
 |----------|-------|----------|--------|
@@ -133,15 +133,15 @@ The core functionality works correctly after recent fixes. The system uses a pri
 | ~~Medium~~ | ~~No retry for macro analysis on network failure~~ | ~~`analyze_print_start_macro()`~~ | ✅ DONE |
 | ~~Low~~ | ~~Silent macro analysis failure (no user notification)~~ | ~~`analyze_print_start_macro()`~~ | ✅ DONE |
 | ~~Medium~~ | ~~No priming checkbox in UI~~ | ~~`print_detail_panel.xml`~~ | ✅ DONE |
-| Low | Redundant detection in both analyzers | `GCodeOpsDetector` + `PrintStartAnalyzer` | 4h |
+| ~~Low~~ | ~~Redundant detection in both analyzers~~ | ~~`GCodeOpsDetector` + `PrintStartAnalyzer`~~ | ✅ DONE (LT3) |
 | ~~Low~~ | ~~PrinterState vs PrinterDetector capability divergence~~ | ~~Two independent capability sources~~ | ✅ DONE (LT1) |
 | ~~Low~~ | ~~Checkbox semantic ambiguity~~ | ~~`PrePrintOptions` struct~~ | ✅ DONE (LT2) |
 
 ---
 
-## 🟡 Medium-Term Refactors (2-4 hours each)
+## ✅ Medium-Term Refactors (2-4 hours each)
 
-> **Status**: MT1, MT2, MT3 complete
+> **Status**: All complete (MT1, MT2, MT3)
 
 ### ✅ MT1: Consolidate Operation Enums (COMPLETED 2026-01-09)
 
@@ -225,9 +225,9 @@ lv_timer_create([](lv_timer_t* timer) {
 
 ---
 
-## 🟠 Long-Term Refactors (6+ hours)
+## ✅ Long-Term Refactors (6+ hours)
 
-> **Status**: LT1 complete, LT2 complete, LT3 complete
+> **Status**: All complete (LT1, LT2, LT3)
 
 ### ✅ LT1: Move Capabilities to PrinterState (COMPLETED 2026-01-09)
 
