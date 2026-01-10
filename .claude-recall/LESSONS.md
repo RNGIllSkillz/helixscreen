@@ -159,6 +159,6 @@
 > When using lv_timer_create with object pointer as user_data, wrap in struct that captures alive_guard. Check alive_guard BEFORE dereferencing object pointer to prevent use-after-free if object destroyed during timer delay.
 
 
-### [L052] [**---|*----] Tag hv::EventLoop tests as slow
-- **Uses**: 3 | **Velocity**: 2.0 | **Learned**: 2026-01-09 | **Last**: 2026-01-09 | **Category**: gotcha | **Type**: constraint
+### [L052] [**---|**---] Tag hv::EventLoop tests as slow
+- **Uses**: 4 | **Velocity**: 3.0 | **Learned**: 2026-01-09 | **Last**: 2026-01-09 | **Category**: gotcha | **Type**: constraint
 > Tests using hv::EventLoop (libhv network operations) MUST be tagged [slow] or they cause parallel test shards to hang indefinitely. This includes fixtures like MoonrakerRobustnessFixture, MoonrakerClientSecurityFixture, NewFeaturesTestFixture, EventTestFixture. The [slow] tag excludes them from default `make test-run` which uses filter `~[.] ~[slow]`.
