@@ -140,8 +140,8 @@ test-build:
 
 # Build tests only (does not run)
 # Use 'make test-run' to actually execute the tests
-test: $(TEST_BIN)
-	$(ECHO) "$(GREEN)✓ Test binary ready: $(TEST_BIN)$(RESET)"
+# Delegates to test-build for parallel compilation, then shows usage hint
+test: test-build
 	$(ECHO) "$(CYAN)Run tests with: make test-run$(RESET)"
 
 # Run unit tests in PARALLEL (excludes hidden and slow tests for fast iteration)
