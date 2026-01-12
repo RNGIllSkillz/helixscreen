@@ -126,6 +126,9 @@ void PrinterState::reset_for_testing() {
     // Reset print state component
     print_domain_.reset_for_testing();
 
+    // Reset capabilities state component
+    capabilities_state_.reset_for_testing();
+
     // Use SubjectManager for automatic subject cleanup
     subjects_.deinit_all();
 
@@ -172,6 +175,9 @@ void PrinterState::init_subjects(bool register_xml) {
     // Initialize print state component (progress, state, timing, layers, print start)
     print_domain_.init_subjects(register_xml);
 
+    // Initialize capabilities state component (hardware capabilities, feature availability)
+    capabilities_state_.init_subjects(register_xml);
+
     // Note: Print subjects are now initialized by print_domain_.init_subjects() above
 
     // Note: Motion subjects (position_x_, position_y_, position_z_, homed_axes_,
@@ -180,6 +186,9 @@ void PrinterState::init_subjects(bool register_xml) {
 
     // Note: Fan subjects (fan_speed_, fans_version_) are now initialized by
     // fan_state_.init_subjects() above
+
+    // Note: Capability subjects (printer_has_qgl_, printer_has_z_tilt_, etc.)
+    // are now initialized by capabilities_state_.init_subjects() above
 
     // Printer connection state subjects (Moonraker WebSocket)
     lv_subject_init_int(&printer_connection_state_, 0); // 0 = disconnected
@@ -203,23 +212,9 @@ void PrinterState::init_subjects(bool register_xml) {
     // Excluded objects version subject (incremented when excluded_objects_ changes)
     lv_subject_init_int(&excluded_objects_version_, 0);
 
-    // Printer capability subjects (all default to 0=not available)
-    lv_subject_init_int(&printer_has_qgl_, 0);
-    lv_subject_init_int(&printer_has_z_tilt_, 0);
-    lv_subject_init_int(&printer_has_bed_mesh_, 0);
-    lv_subject_init_int(&printer_has_nozzle_clean_, 0);
-    lv_subject_init_int(&printer_has_probe_, 0);
-    lv_subject_init_int(&printer_has_heater_bed_, 0);
-    lv_subject_init_int(&printer_has_led_, 0);
-    lv_subject_init_int(&printer_has_accelerometer_, 0);
-    lv_subject_init_int(&printer_has_spoolman_, 0);
-    lv_subject_init_int(&printer_has_speaker_, 0);
-    lv_subject_init_int(&printer_has_timelapse_, 0);
-    lv_subject_init_int(&printer_has_purge_line_, 0);
+    // Plugin status subjects (not hardware capabilities, kept in PrinterState)
     lv_subject_init_int(&helix_plugin_installed_, -1); // -1=unknown, 0=not installed, 1=installed
     lv_subject_init_int(&phase_tracking_enabled_, -1); // -1=unknown, 0=disabled, 1=enabled
-    lv_subject_init_int(&printer_has_firmware_retraction_, 0);
-    lv_subject_init_int(&printer_bed_moves_, 0); // 0=gantry moves, 1=bed moves (cartesian)
 
     // Composite subjects for G-code modification option visibility
     // These are derived from helix_plugin_installed AND printer_has_* subjects
@@ -269,6 +264,7 @@ void PrinterState::init_subjects(bool register_xml) {
     // Note: Print subjects are managed by print_domain_ component
     // Note: Motion subjects are registered by motion_state_ component
     // Note: Fan subjects are registered by fan_state_ component
+    // Note: Capability subjects are managed by capabilities_state_ component
     // Printer connection subjects
     subjects_.register_subject(&printer_connection_state_);
     subjects_.register_subject(&printer_connection_message_);
@@ -278,23 +274,9 @@ void PrinterState::init_subjects(bool register_xml) {
     // Note: LED subjects are registered by led_state_component_.init_subjects()
     // Excluded objects
     subjects_.register_subject(&excluded_objects_version_);
-    // Printer capability subjects
-    subjects_.register_subject(&printer_has_qgl_);
-    subjects_.register_subject(&printer_has_z_tilt_);
-    subjects_.register_subject(&printer_has_bed_mesh_);
-    subjects_.register_subject(&printer_has_nozzle_clean_);
-    subjects_.register_subject(&printer_has_probe_);
-    subjects_.register_subject(&printer_has_heater_bed_);
-    subjects_.register_subject(&printer_has_led_);
-    subjects_.register_subject(&printer_has_accelerometer_);
-    subjects_.register_subject(&printer_has_spoolman_);
-    subjects_.register_subject(&printer_has_speaker_);
-    subjects_.register_subject(&printer_has_timelapse_);
-    subjects_.register_subject(&printer_has_purge_line_);
+    // Plugin status subjects (not hardware capabilities, kept in PrinterState)
     subjects_.register_subject(&helix_plugin_installed_);
     subjects_.register_subject(&phase_tracking_enabled_);
-    subjects_.register_subject(&printer_has_firmware_retraction_);
-    subjects_.register_subject(&printer_bed_moves_);
     // Composite subjects for G-code modification visibility
     subjects_.register_subject(&can_show_bed_mesh_);
     subjects_.register_subject(&can_show_qgl_);
@@ -334,6 +316,7 @@ void PrinterState::init_subjects(bool register_xml) {
     // Note: Print subjects are registered by print_domain_ component
     // Note: Motion subjects are registered by motion_state_ component
     // Note: Fan subjects are registered by fan_state_ component
+    // Note: Capability subjects are registered by capabilities_state_ component
     if (register_xml) {
         spdlog::debug("[PrinterState] Registering subjects with XML system");
         lv_xml_register_subject(NULL, "printer_connection_state", &printer_connection_state_);
@@ -343,22 +326,10 @@ void PrinterState::init_subjects(bool register_xml) {
         lv_xml_register_subject(NULL, "nav_buttons_enabled", &nav_buttons_enabled_);
         // Note: LED subjects are registered by led_state_component_.init_subjects()
         lv_xml_register_subject(NULL, "excluded_objects_version", &excluded_objects_version_);
-        lv_xml_register_subject(NULL, "printer_has_qgl", &printer_has_qgl_);
-        lv_xml_register_subject(NULL, "printer_has_z_tilt", &printer_has_z_tilt_);
-        lv_xml_register_subject(NULL, "printer_has_bed_mesh", &printer_has_bed_mesh_);
-        lv_xml_register_subject(NULL, "printer_has_nozzle_clean", &printer_has_nozzle_clean_);
-        lv_xml_register_subject(NULL, "printer_has_probe", &printer_has_probe_);
-        lv_xml_register_subject(NULL, "printer_has_heater_bed", &printer_has_heater_bed_);
-        lv_xml_register_subject(NULL, "printer_has_led", &printer_has_led_);
-        lv_xml_register_subject(NULL, "printer_has_accelerometer", &printer_has_accelerometer_);
-        lv_xml_register_subject(NULL, "printer_has_spoolman", &printer_has_spoolman_);
-        lv_xml_register_subject(NULL, "printer_has_speaker", &printer_has_speaker_);
-        lv_xml_register_subject(NULL, "printer_has_timelapse", &printer_has_timelapse_);
+        // Plugin status subjects (not hardware capabilities, kept in PrinterState)
         lv_xml_register_subject(NULL, "helix_plugin_installed", &helix_plugin_installed_);
         lv_xml_register_subject(NULL, "phase_tracking_enabled", &phase_tracking_enabled_);
-        lv_xml_register_subject(NULL, "printer_has_firmware_retraction",
-                                &printer_has_firmware_retraction_);
-        lv_xml_register_subject(NULL, "printer_bed_moves", &printer_bed_moves_);
+        // Composite subjects for G-code modification visibility
         lv_xml_register_subject(NULL, "can_show_bed_mesh", &can_show_bed_mesh_);
         lv_xml_register_subject(NULL, "can_show_qgl", &can_show_qgl_);
         lv_xml_register_subject(NULL, "can_show_z_tilt", &can_show_z_tilt_);
@@ -675,41 +646,8 @@ void PrinterState::set_hardware_internal(const helix::PrinterHardwareDiscovery& 
     // Pass auto-detected hardware to the override layer
     capability_overrides_.set_hardware(hardware);
 
-    // Update subjects using effective values (auto-detect + user overrides)
-    // This allows users to force-enable features that weren't detected
-    // (e.g., heat soak macro without chamber heater) or force-disable
-    // features they don't want to see in the UI.
-    lv_subject_set_int(&printer_has_qgl_, capability_overrides_.has_qgl() ? 1 : 0);
-    lv_subject_set_int(&printer_has_z_tilt_, capability_overrides_.has_z_tilt() ? 1 : 0);
-    lv_subject_set_int(&printer_has_bed_mesh_, capability_overrides_.has_bed_mesh() ? 1 : 0);
-    lv_subject_set_int(&printer_has_nozzle_clean_,
-                       capability_overrides_.has_nozzle_clean() ? 1 : 0);
-
-    // Hardware capabilities (no user override support yet - set directly from detection)
-    lv_subject_set_int(&printer_has_probe_, hardware.has_probe() ? 1 : 0);
-    lv_subject_set_int(&printer_has_heater_bed_, hardware.has_heater_bed() ? 1 : 0);
-    lv_subject_set_int(&printer_has_led_, hardware.has_led() ? 1 : 0);
-    lv_subject_set_int(&printer_has_accelerometer_, hardware.has_accelerometer() ? 1 : 0);
-
-    // Speaker capability (for M300 audio feedback)
-    lv_subject_set_int(&printer_has_speaker_, hardware.has_speaker() ? 1 : 0);
-
-    // Timelapse capability (Moonraker-Timelapse plugin)
-    lv_subject_set_int(&printer_has_timelapse_, hardware.has_timelapse() ? 1 : 0);
-
-    // Firmware retraction capability (for G10/G11 retraction settings)
-    lv_subject_set_int(&printer_has_firmware_retraction_,
-                       hardware.has_firmware_retraction() ? 1 : 0);
-
-    // Spoolman requires async check - default to 0, updated separately
-
-    spdlog::info("[PrinterState] Hardware set: probe={}, heater_bed={}, LED={}, "
-                 "accelerometer={}, speaker={}, timelapse={}, fw_retraction={}",
-                 hardware.has_probe(), hardware.has_heater_bed(), hardware.has_led(),
-                 hardware.has_accelerometer(), hardware.has_speaker(), hardware.has_timelapse(),
-                 hardware.has_firmware_retraction());
-    spdlog::info("[PrinterState] Hardware set (with overrides): {}",
-                 capability_overrides_.summary());
+    // Delegate capability subject updates to capabilities_state_ component
+    capabilities_state_.set_hardware(hardware, capability_overrides_);
 
     // Update composite subjects for G-code modification options
     // (visibility depends on both plugin status and capability)
@@ -737,11 +675,8 @@ void PrinterState::set_moonraker_version_internal(const std::string& version) {
 }
 
 void PrinterState::set_spoolman_available(bool available) {
-    // Thread-safe: Use helix::async::invoke to update LVGL subject from any thread
-    helix::async::invoke([this, available]() {
-        lv_subject_set_int(&printer_has_spoolman_, available ? 1 : 0);
-        spdlog::info("[PrinterState] Spoolman availability set: {}", available);
-    });
+    // Delegate to capabilities_state_ component (handles thread-safety)
+    capabilities_state_.set_spoolman_available(available);
 }
 
 void PrinterState::set_helix_plugin_installed(bool installed) {
@@ -787,15 +722,28 @@ void PrinterState::update_gcode_modification_visibility() {
         }
     };
 
-    update_if_changed(&can_show_bed_mesh_,
-                      (plugin && lv_subject_get_int(&printer_has_bed_mesh_)) ? 1 : 0);
-    update_if_changed(&can_show_qgl_, (plugin && lv_subject_get_int(&printer_has_qgl_)) ? 1 : 0);
-    update_if_changed(&can_show_z_tilt_,
-                      (plugin && lv_subject_get_int(&printer_has_z_tilt_)) ? 1 : 0);
-    update_if_changed(&can_show_nozzle_clean_,
-                      (plugin && lv_subject_get_int(&printer_has_nozzle_clean_)) ? 1 : 0);
-    update_if_changed(&can_show_purge_line_,
-                      (plugin && lv_subject_get_int(&printer_has_purge_line_)) ? 1 : 0);
+    // Read capability values from capabilities_state_ component
+    update_if_changed(
+        &can_show_bed_mesh_,
+        (plugin && lv_subject_get_int(capabilities_state_.get_printer_has_bed_mesh_subject())) ? 1
+                                                                                               : 0);
+    update_if_changed(
+        &can_show_qgl_,
+        (plugin && lv_subject_get_int(capabilities_state_.get_printer_has_qgl_subject())) ? 1 : 0);
+    update_if_changed(
+        &can_show_z_tilt_,
+        (plugin && lv_subject_get_int(capabilities_state_.get_printer_has_z_tilt_subject())) ? 1
+                                                                                             : 0);
+    update_if_changed(
+        &can_show_nozzle_clean_,
+        (plugin && lv_subject_get_int(capabilities_state_.get_printer_has_nozzle_clean_subject()))
+            ? 1
+            : 0);
+    update_if_changed(
+        &can_show_purge_line_,
+        (plugin && lv_subject_get_int(capabilities_state_.get_printer_has_purge_line_subject()))
+            ? 1
+            : 0);
 
     spdlog::debug("[PrinterState] G-code modification visibility updated: bed_mesh={}, qgl={}, "
                   "z_tilt={}, nozzle_clean={}, purge_line={} (plugin={})",
@@ -838,13 +786,9 @@ void PrinterState::set_kinematics(const std::string& kinematics) {
     // Note: This is a heuristic. Some CoreXY printers (Voron Trident) have gantry-Z.
     // For perfect accuracy, we'd need to parse stepper_z configuration.
     bool bed_moves_z = (kinematics.find("cartesian") != std::string::npos);
-    int new_value = bed_moves_z ? 1 : 0;
 
-    // Only log when value actually changes (this gets called frequently from status updates)
-    if (lv_subject_get_int(&printer_bed_moves_) != new_value) {
-        lv_subject_set_int(&printer_bed_moves_, new_value);
-        spdlog::info("[PrinterState] Kinematics: {} -> bed_moves_z={}", kinematics, bed_moves_z);
-    }
+    // Delegate to capabilities_state_ component
+    capabilities_state_.set_bed_moves(bed_moves_z);
 }
 
 // Note: Pending Z-offset delta methods are now delegated to motion_state_
@@ -1003,7 +947,7 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
     // Update printer_has_purge_line_ based on capabilities database
     // "priming" is the capability key for purge/prime line in the database
     bool has_priming = print_start_capabilities_.get_capability("priming") != nullptr;
-    lv_subject_set_int(&printer_has_purge_line_, has_priming ? 1 : 0);
+    capabilities_state_.set_purge_line(has_priming);
 
     // Recalculate composite visibility subjects
     update_gcode_modification_visibility();

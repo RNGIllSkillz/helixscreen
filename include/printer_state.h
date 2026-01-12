@@ -6,6 +6,7 @@
 #include "capability_overrides.h"
 #include "hardware_validator.h"
 #include "lvgl/lvgl.h"
+#include "printer_capabilities_state.h"
 #include "printer_detector.h"
 #include "printer_fan_state.h"
 #include "printer_hardware_discovery.h"
@@ -969,7 +970,7 @@ class PrinterState {
      * Note: Unlike other can_show_* subjects, timelapse doesn't require helix_print plugin.
      */
     lv_subject_t* get_printer_has_timelapse_subject() {
-        return &printer_has_timelapse_;
+        return capabilities_state_.get_printer_has_timelapse_subject();
     }
 
     /**
@@ -978,7 +979,7 @@ class PrinterState {
      * Returns 1 when printer has purge/priming capability, 0 otherwise.
      */
     lv_subject_t* get_printer_has_purge_line_subject() {
-        return &printer_has_purge_line_;
+        return capabilities_state_.get_printer_has_purge_line_subject();
     }
 
     /**
@@ -1010,7 +1011,7 @@ class PrinterState {
      * Used for Z-offset UI to show appropriate directional icons.
      */
     lv_subject_t* get_printer_bed_moves_subject() {
-        return &printer_bed_moves_;
+        return capabilities_state_.get_printer_bed_moves_subject();
     }
 
     /**
@@ -1055,7 +1056,7 @@ class PrinterState {
      * @return true if [probe] or [bltouch] section exists in Klipper config
      */
     bool has_probe() {
-        return lv_subject_get_int(&printer_has_probe_) != 0;
+        return capabilities_state_.has_probe();
     }
 
     // ========================================================================
@@ -1213,6 +1214,9 @@ class PrinterState {
     /// Print state component (progress, state, timing, layers, print start)
     helix::PrinterPrintState print_domain_;
 
+    /// Capabilities state component (hardware capabilities, feature availability)
+    helix::PrinterCapabilitiesState capabilities_state_;
+
     // Note: Print subjects are now managed by print_domain_ component
     // (print_progress_, print_filename_, print_state_, print_state_enum_,
     //  print_outcome_, print_active_, print_show_progress_, print_display_filename_,
@@ -1248,23 +1252,16 @@ class PrinterState {
     lv_subject_t excluded_objects_version_;            // Integer: incremented on change
     std::unordered_set<std::string> excluded_objects_; // Set of excluded object names
 
-    // Printer capability subjects (for pre-print options visibility)
-    lv_subject_t printer_has_qgl_;           // Integer: 0=no, 1=yes
-    lv_subject_t printer_has_z_tilt_;        // Integer: 0=no, 1=yes
-    lv_subject_t printer_has_bed_mesh_;      // Integer: 0=no, 1=yes
-    lv_subject_t printer_has_nozzle_clean_;  // Integer: 0=no, 1=yes
-    lv_subject_t printer_has_probe_;         // Integer: 0=no, 1=yes (for Z-offset calibration)
-    lv_subject_t printer_has_heater_bed_;    // Integer: 0=no, 1=yes (for PID bed tuning)
-    lv_subject_t printer_has_led_;           // Integer: 0=no, 1=yes (for LED light control)
-    lv_subject_t printer_has_accelerometer_; // Integer: 0=no, 1=yes (for input shaping)
-    lv_subject_t printer_has_spoolman_;      // Integer: 0=no, 1=yes (for filament tracking)
-    lv_subject_t printer_has_speaker_;       // Integer: 0=no, 1=yes (for M300 audio feedback)
-    lv_subject_t printer_has_timelapse_;  // Integer: 0=no, 1=yes (for Moonraker-Timelapse plugin)
-    lv_subject_t printer_has_purge_line_; // Integer: 0=no, 1=yes (for purge/priming capability)
+    // Note: Printer capability subjects (printer_has_qgl_, printer_has_z_tilt_,
+    // printer_has_bed_mesh_, printer_has_nozzle_clean_, printer_has_probe_,
+    // printer_has_heater_bed_, printer_has_led_, printer_has_accelerometer_,
+    // printer_has_spoolman_, printer_has_speaker_, printer_has_timelapse_,
+    // printer_has_purge_line_, printer_has_firmware_retraction_, printer_bed_moves_)
+    // are now managed by capabilities_state_ component
+
+    // Plugin status subjects (not hardware capabilities, kept in PrinterState)
     lv_subject_t helix_plugin_installed_; // Tri-state: -1=unknown, 0=not installed, 1=installed
     lv_subject_t phase_tracking_enabled_; // Tri-state: -1=unknown, 0=disabled, 1=enabled
-    lv_subject_t printer_has_firmware_retraction_; // Integer: 0=no, 1=yes (for G10/G11 retraction)
-    lv_subject_t printer_bed_moves_; // Integer: 0=no (gantry moves), 1=yes (bed moves on Z)
 
     // Composite subjects for G-code modification option visibility
     // These combine helix_plugin_installed with individual printer capabilities.
