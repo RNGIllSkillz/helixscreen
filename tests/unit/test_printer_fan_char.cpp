@@ -34,6 +34,7 @@
 #include "../catch_amalgamated.hpp"
 
 using json = nlohmann::json;
+using helix::FanType;
 
 // ============================================================================
 // Subject Accessor Tests - Verify get_*_subject() returns valid pointers

@@ -17,10 +17,10 @@
  * Centidegrees format: value * 10 for 0.1C resolution (divide by 10 for display)
  */
 
-#include "app_globals.h"
 #include "ui_update_queue.h"
 
 #include "../ui_test_utils.h"
+#include "app_globals.h"
 #include "printer_state.h"
 
 #include "../catch_amalgamated.hpp"
