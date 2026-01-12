@@ -2,7 +2,7 @@
 
 **Created**: 2026-01-11
 **Last Updated**: 2026-01-12
-**Status**: IN PROGRESS - 4 domains extracted, Print State characterization tests DONE
+**Status**: IN PROGRESS - 5 domains extracted (Temperature, Motion, LED, Fan, Print)
 
 ## Quick Resume
 
@@ -19,8 +19,11 @@ make -j && make test-build
 # 4. Run characterization tests (should all pass - 117 tests, 904 assertions)
 ./build/bin/helix-tests "[characterization]"
 
-# 5. Continue with next step: Extract PrinterPrintState class
+# 5. Continue with next domain extraction (see Remaining Domains section)
 ```
+
+### Recommended Next Domain: **Capabilities** (12 subjects)
+Simple boolean flags like `printer_has_qgl_`, `printer_has_z_tilt_`, etc. Clean extraction.
 
 ---
 
@@ -46,16 +49,16 @@ Decompose the 2808-line `PrinterState` god class (86 subjects across 11+ domains
 | Motion | `PrinterMotionState` | 8 | 21 | 165 | dfa92d60 |
 | LED | `PrinterLedState` | 6 | 18 | 146 | ee5ac704 |
 | Fan | `PrinterFanState` | 2 static + dynamic | 26 | 118 | ee5ac704 |
-| Print (tests only) | — | 17 | 26 | 330 | Pending |
-| **Total** | | **37+** | **117** | **904** | |
+| Print | `PrinterPrintState` | 17 | 26 | 330 | 7dfd653d |
+| **Total** | | **37+17** | **117** | **904** | |
 
 ### Next Steps
 
 | Step | Description | Status |
 |------|-------------|--------|
 | 1 | Write Print State characterization tests | ✅ DONE |
-| 2 | Extract PrinterPrintState class | ⏳ NEXT |
-| 3 | Continue with remaining domains... | Pending |
+| 2 | Extract PrinterPrintState class | ✅ DONE |
+| 3 | Continue with remaining domains... | ⏳ NEXT |
 
 ---
 
@@ -106,43 +109,49 @@ Decompose the 2808-line `PrinterState` god class (86 subjects across 11+ domains
 
 **Also includes**: `FanType` enum, `FanInfo` struct, `init_fans()`, `update_fan_speed()`, `classify_fan_type()`, `is_fan_controllable()`
 
+### 5. PrinterPrintState (17 subjects)
+**File**: `include/printer_print_state.h`, `src/printer/printer_print_state.cpp`
+
+| Subject | Type | Storage |
+|---------|------|---------|
+| `print_progress_` | int | 0-100% |
+| `print_filename_` | string | Raw Klipper filename (full path) |
+| `print_display_filename_` | string | Clean filename for UI |
+| `print_thumbnail_path_` | string | LVGL-compatible thumbnail path |
+| `print_state_` | string | "standby", "printing", "paused", etc |
+| `print_state_enum_` | int | PrintJobState enum |
+| `print_active_` | int | Derived: 1 when PRINTING/PAUSED |
+| `print_outcome_` | int | PrintOutcome - persists terminal state |
+| `print_show_progress_` | int | Derived visibility flag |
+| `print_layer_current_` | int | Current layer (0-based) |
+| `print_layer_total_` | int | Total layer count |
+| `print_duration_` | int | Elapsed time (seconds) |
+| `print_time_left_` | int | Remaining time (seconds) |
+| `print_start_phase_` | int | PrintStartPhase enum |
+| `print_start_message_` | string | Phase message for UI |
+| `print_start_progress_` | int | 0-100% during PRINT_START |
+| `print_in_progress_` | int | Workflow flag (double-tap prevention) |
+
+**Key behaviors**: Progress guard for terminal states, outcome persistence, derived subjects update automatically.
+
 ---
 
 ## Remaining Domains
 
-### PRINT STATE DOMAIN (17 subjects) - **NEXT**
-
-The largest and most complex domain. Includes:
-
-| Subject | Type | Purpose |
-|---------|------|---------|
-| `print_progress_` | int | 0-100% |
-| `print_filename_` | string | Current file |
-| `print_state_` | string | "standby", "printing", etc |
-| `print_state_enum_` | int | PrintJobState enum |
-| `print_active_` | int | 0/1 boolean |
-| `print_outcome_` | int | PrintOutcome enum |
-| `print_show_progress_` | int | Visibility flag |
-| `print_thumbnail_path_` | string | Thumbnail file path |
-| Layer tracking | int × 2 | current_layer_, total_layers_ |
-| Time tracking | int × 3 | print_duration_, time_remaining_, eta_ |
-| Print start phases | int × 2 | print_start_phase_, preheat_complete_ |
-| Workflow flags | int × 2 | print_can_pause_, print_can_cancel_ |
-
-### Other Remaining Domains
-
-- **Capabilities** (12 subjects): `printer_has_qgl_`, `printer_has_z_tilt_`, etc.
-- **Network/Connection** (6 subjects): `printer_connection_state_`, `klippy_state_`, etc.
-- **Hardware Validation** (11 subjects): `hardware_has_issues_`, etc.
-- **Calibration/Config** (8 subjects)
-- **Plugin Status** (3 subjects)
-- **Composite Visibility** (5 subjects)
-- **Firmware Retraction** (4 subjects)
-- **Manual Probe** (2 subjects)
-- **Excluded Objects** (2 subjects)
-- **Versions** (2 subjects)
-- **Kinematics** (1 subject)
-- **Motors** (1 subject)
+| Domain | Subjects | Complexity | Notes |
+|--------|----------|------------|-------|
+| **Capabilities** | 12 | Low | Boolean flags: `printer_has_qgl_`, `printer_has_z_tilt_`, etc. **Recommended next** |
+| **Network/Connection** | 6 | Medium | State machine: `printer_connection_state_`, `klippy_state_`, etc. |
+| **Hardware Validation** | 11 | Medium | Validation logic: `hardware_has_issues_`, etc. |
+| **Calibration/Config** | 8 | Low | Simple values |
+| **Plugin Status** | 3 | Low | |
+| **Composite Visibility** | 5 | Low | Derived visibility flags |
+| **Firmware Retraction** | 4 | Low | |
+| **Manual Probe** | 2 | Low | |
+| **Excluded Objects** | 2 | Low | |
+| **Versions** | 2 | Low | |
+| **Kinematics** | 1 | Low | |
+| **Motors** | 1 | Low | |
 
 ---
 
@@ -210,14 +219,11 @@ private:
 
 ### Extracted Components
 ```
-include/printer_temperature_state.h
-include/printer_motion_state.h
-include/printer_led_state.h
-include/printer_fan_state.h
-src/printer/printer_temperature_state.cpp
-src/printer/printer_motion_state.cpp
-src/printer/printer_led_state.cpp
-src/printer/printer_fan_state.cpp
+include/printer_temperature_state.h    src/printer/printer_temperature_state.cpp
+include/printer_motion_state.h         src/printer/printer_motion_state.cpp
+include/printer_led_state.h            src/printer/printer_led_state.cpp
+include/printer_fan_state.h            src/printer/printer_fan_state.cpp
+include/printer_print_state.h          src/printer/printer_print_state.cpp
 ```
 
 ### Test Files
@@ -269,11 +275,49 @@ When resuming this work:
 - [ ] `cd /Users/pbrown/Code/Printing/helixscreen-printer-state-decomp`
 - [ ] `git fetch origin && git status`
 - [ ] `make -j` (verify builds)
-- [ ] `./build/bin/helix-tests "[characterization]"` (91 tests, 574 assertions)
-- [ ] Continue with Print State characterization tests
-- [ ] Follow test-first: write characterization tests BEFORE extraction
-- [ ] Use `/delegate` for implementation work
-- [ ] Use `/review` before committing
+- [ ] `./build/bin/helix-tests "[characterization]"` (117 tests, 904 assertions)
+- [ ] Pick next domain from Remaining Domains table
+- [ ] Follow test-first methodology below
+
+---
+
+## Methodology (PROVEN WORKFLOW)
+
+### 1. Test-First (MANDATORY)
+Write characterization tests BEFORE extraction:
+```bash
+# Create test file
+tests/unit/test_printer_<domain>_char.cpp
+
+# Tags: [characterization][<domain>]
+# Test CURRENT behavior, not desired behavior
+```
+
+### 2. Delegate to Agents
+- **Explore agent**: Codebase searches, understanding existing code
+- **general-purpose agent**: Implementation work
+- **feature-dev:code-reviewer agent**: Review BEFORE commit
+
+### 3. Review Catches These Bugs
+Code review before commit has caught:
+- Missing XML subject registrations (CRITICAL - causes runtime failures)
+- Thread-safety issues (read outside async lambda)
+- Missing delegation in PrinterState
+
+### 4. Key Lessons
+- `[L048]` Async tests need queue drain after async setters
+- `[S002]` Stage files explicitly when committing (don't stage unrelated changes)
+- `[S001]` Use conventional commits: `refactor(printer): extract Printer<Domain>State`
+
+### 5. Commit Pattern
+```bash
+# Stage only relevant files
+git add include/printer_<domain>_state.h src/printer/printer_<domain>_state.cpp \
+        include/printer_state.h src/printer/printer_state.cpp
+
+# Conventional commit
+git commit -m "refactor(printer): extract Printer<Domain>State from PrinterState"
+```
 
 ---
 
@@ -309,11 +353,24 @@ When resuming this work:
 3. All 117 characterization tests passing (904 assertions)
 4. **PAUSED** - Next: Extract PrinterPrintState class
 
+### 2026-01-12 Session 4
+1. Extracted PrinterPrintState class (17 subjects)
+   - Created `include/printer_print_state.h` and `src/printer/printer_print_state.cpp`
+   - Updated PrinterState to delegate via `print_domain_` member
+2. Code review identified and fixed 3 bugs:
+   - Missing XML registration for `print_thumbnail_path` subject
+   - Missing XML registration for `print_in_progress` subject
+   - Thread-safety race condition in `set_print_start_state` (moved `old_phase` read inside lambda)
+3. All 117 characterization tests still passing (904 assertions)
+4. **DONE** - 5 domains now extracted
+
 ---
 
 ## Commits on Branch
 
 ```
+7dfd653d refactor(printer): extract PrinterPrintState from PrinterState
+99da8b67 test(char): add print domain characterization tests (17 subjects)
 ee5ac704 refactor(printer): extract PrinterLedState and PrinterFanState
 dfa92d60 refactor(printer): extract PrinterMotionState from PrinterState
 36dec0bb refactor(printer): extract PrinterTemperatureState from PrinterState
@@ -322,4 +379,4 @@ cf74706d test(char): add temperature domain characterization tests
 
 ---
 
-HANDOFF: PrinterState God Class Decomposition - 4 domains extracted, Print State characterization tests DONE
+HANDOFF: PrinterState God Class Decomposition - 5 domains extracted (Temperature, Motion, LED, Fan, Print)
