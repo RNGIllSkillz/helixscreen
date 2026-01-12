@@ -213,7 +213,7 @@ void MacrosPanel::populate_macro_list() {
         return;
     }
 
-    const auto& macros = client->capabilities().macros();
+    const auto& macros = client->hardware().macros();
 
     // Sort macros alphabetically for consistent display
     std::vector<std::string> sorted_macros(macros.begin(), macros.end());

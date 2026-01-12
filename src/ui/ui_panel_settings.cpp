@@ -996,8 +996,8 @@ void SettingsPanel::populate_macro_dropdowns() {
     std::vector<std::string> printer_macros;
     MoonrakerClient* client = get_moonraker_client();
     if (client) {
-        const auto& caps = client->capabilities();
-        for (const auto& macro : caps.macros()) {
+        const auto& macros = client->hardware().macros();
+        for (const auto& macro : macros) {
             printer_macros.push_back(macro);
         }
         std::sort(printer_macros.begin(), printer_macros.end());

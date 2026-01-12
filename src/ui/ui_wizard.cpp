@@ -26,7 +26,6 @@
 #include "lvgl/src/xml/lv_xml.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
-#include "printer_capabilities.h"
 #include "runtime_config.h"
 #include "subject_managed_panel.h"
 #include "wizard_config_paths.h"
@@ -804,13 +803,9 @@ static void on_next_clicked(lv_event_t* e) {
         auto& fsm = helix::FilamentSensorManager::instance();
         if (fsm.get_sensors().empty()) {
             MoonrakerClient* client = get_moonraker_client();
-            if (client) {
-                PrinterCapabilities caps;
-                caps = client->capabilities();
-                if (caps.has_filament_sensors()) {
-                    fsm.discover_sensors(caps.get_filament_sensor_names());
-                    spdlog::debug("[Wizard] Populated FilamentSensorManager before skip check");
-                }
+            if (client && client->hardware().has_filament_sensors()) {
+                fsm.discover_sensors(client->hardware().filament_sensor_names());
+                spdlog::debug("[Wizard] Populated FilamentSensorManager before skip check");
             }
         }
     }
