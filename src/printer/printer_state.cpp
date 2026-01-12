@@ -120,17 +120,14 @@ void PrinterState::reset_for_testing() {
     // Reset motion state component
     motion_state_.reset_for_testing();
 
+    // Reset LED state component
+    led_state_component_.reset_for_testing();
+
+    // Reset fan state component
+    fan_state_.reset_for_testing();
+
     // Use SubjectManager for automatic subject cleanup
     subjects_.deinit_all();
-
-    // Deinit per-fan speed subjects (unique_ptr handles memory, we just need to deinit)
-    // These are dynamically created so not tracked by SubjectManager
-    for (auto& [name, subject_ptr] : fan_speed_subjects_) {
-        if (subject_ptr) {
-            lv_subject_deinit(subject_ptr.get());
-        }
-    }
-    fan_speed_subjects_.clear();
 
     // Reset printer type and capabilities to initial empty state
     printer_type_.clear();
@@ -165,6 +162,12 @@ void PrinterState::init_subjects(bool register_xml) {
 
     // Initialize motion state component (position, speed/flow, z-offset)
     motion_state_.init_subjects(register_xml);
+
+    // Initialize LED state component (RGBW channels, brightness, on/off state)
+    led_state_component_.init_subjects(register_xml);
+
+    // Initialize fan state component (fan speed, multi-fan tracking)
+    fan_state_.init_subjects(register_xml);
 
     // Print progress subjects
     lv_subject_init_int(&print_progress_, 0);
@@ -202,9 +205,8 @@ void PrinterState::init_subjects(bool register_xml) {
     // speed_factor_, flow_factor_, gcode_z_offset_, pending_z_offset_delta_)
     // are now initialized by motion_state_.init_subjects() above
 
-    // Fan subjects (not part of motion state)
-    lv_subject_init_int(&fan_speed_, 0);
-    lv_subject_init_int(&fans_version_, 0); // Multi-fan version for UI updates
+    // Note: Fan subjects (fan_speed_, fans_version_) are now initialized by
+    // fan_state_.init_subjects() above
 
     // Printer connection state subjects (Moonraker WebSocket)
     lv_subject_init_int(&printer_connection_state_, 0); // 0 = disconnected
@@ -223,15 +225,7 @@ void PrinterState::init_subjects(bool register_xml) {
     // Starts disabled (0) - will be updated when connection/klippy state changes
     lv_subject_init_int(&nav_buttons_enabled_, 0);
 
-    // LED state subject (0=off, 1=on, derived from LED color data)
-    lv_subject_init_int(&led_state_, 0);
-
-    // LED RGBW channel subjects (0-255 range)
-    lv_subject_init_int(&led_r_, 0);
-    lv_subject_init_int(&led_g_, 0);
-    lv_subject_init_int(&led_b_, 0);
-    lv_subject_init_int(&led_w_, 0);
-    lv_subject_init_int(&led_brightness_, 0);
+    // Note: LED subjects are initialized by led_state_component_.init_subjects() above
 
     // Excluded objects version subject (incremented when excluded_objects_ changes)
     lv_subject_init_int(&excluded_objects_version_, 0);
@@ -321,22 +315,14 @@ void PrinterState::init_subjects(bool register_xml) {
     subjects_.register_subject(&print_start_progress_);
     subjects_.register_subject(&print_in_progress_);
     // Note: Motion subjects are registered by motion_state_ component
-    // Fan subjects (not part of motion state)
-    subjects_.register_subject(&fan_speed_);
-    subjects_.register_subject(&fans_version_);
+    // Note: Fan subjects are registered by fan_state_ component
     // Printer connection subjects
     subjects_.register_subject(&printer_connection_state_);
     subjects_.register_subject(&printer_connection_message_);
     subjects_.register_subject(&network_status_);
     subjects_.register_subject(&klippy_state_);
     subjects_.register_subject(&nav_buttons_enabled_);
-    // LED subjects
-    subjects_.register_subject(&led_state_);
-    subjects_.register_subject(&led_r_);
-    subjects_.register_subject(&led_g_);
-    subjects_.register_subject(&led_b_);
-    subjects_.register_subject(&led_w_);
-    subjects_.register_subject(&led_brightness_);
+    // Note: LED subjects are registered by led_state_component_.init_subjects()
     // Excluded objects
     subjects_.register_subject(&excluded_objects_version_);
     // Printer capability subjects
@@ -410,20 +396,13 @@ void PrinterState::init_subjects(bool register_xml) {
         lv_xml_register_subject(NULL, "print_start_message", &print_start_message_);
         lv_xml_register_subject(NULL, "print_start_progress", &print_start_progress_);
         // Note: Motion subjects are registered by motion_state_ component
-        // Fan subjects (not part of motion state)
-        lv_xml_register_subject(NULL, "fan_speed", &fan_speed_);
-        lv_xml_register_subject(NULL, "fans_version", &fans_version_);
+        // Note: Fan subjects are registered by fan_state_ component
         lv_xml_register_subject(NULL, "printer_connection_state", &printer_connection_state_);
         lv_xml_register_subject(NULL, "printer_connection_message", &printer_connection_message_);
         lv_xml_register_subject(NULL, "network_status", &network_status_);
         lv_xml_register_subject(NULL, "klippy_state", &klippy_state_);
         lv_xml_register_subject(NULL, "nav_buttons_enabled", &nav_buttons_enabled_);
-        lv_xml_register_subject(NULL, "led_state", &led_state_);
-        lv_xml_register_subject(NULL, "led_r", &led_r_);
-        lv_xml_register_subject(NULL, "led_g", &led_g_);
-        lv_xml_register_subject(NULL, "led_b", &led_b_);
-        lv_xml_register_subject(NULL, "led_w", &led_w_);
-        lv_xml_register_subject(NULL, "led_brightness", &led_brightness_);
+        // Note: LED subjects are registered by led_state_component_.init_subjects()
         lv_xml_register_subject(NULL, "excluded_objects_version", &excluded_objects_version_);
         lv_xml_register_subject(NULL, "printer_has_qgl", &printer_has_qgl_);
         lv_xml_register_subject(NULL, "printer_has_z_tilt", &printer_has_z_tilt_);
@@ -663,84 +642,11 @@ void PrinterState::update_from_status(const json& state) {
         }
     }
 
-    // Update fan speed
-    if (state.contains("fan")) {
-        const auto& fan = state["fan"];
+    // Delegate fan state updates to fan component
+    fan_state_.update_from_status(state);
 
-        if (fan.contains("speed") && fan["speed"].is_number()) {
-            int speed_pct = helix::units::json_to_percent(fan, "speed");
-            lv_subject_set_int(&fan_speed_, speed_pct);
-
-            // Also update multi-fan tracking
-            double speed = fan["speed"].get<double>();
-            update_fan_speed("fan", speed);
-        }
-    }
-
-    // Check for other fan types in the status update
-    // Moonraker sends fan objects as top-level keys: "heater_fan hotend_fan", "fan_generic xyz"
-    for (const auto& [key, value] : state.items()) {
-        // Skip non-fan objects
-        if (key.rfind("heater_fan ", 0) == 0 || key.rfind("fan_generic ", 0) == 0 ||
-            key.rfind("controller_fan ", 0) == 0) {
-            if (value.is_object() && value.contains("speed") && value["speed"].is_number()) {
-                double speed = value["speed"].get<double>();
-                update_fan_speed(key, speed);
-            }
-        }
-    }
-
-    // Update LED state if we're tracking an LED
-    // LED object names in Moonraker are like "neopixel chamber_light" or "led status_led"
-    if (!tracked_led_name_.empty() && state.contains(tracked_led_name_)) {
-        const auto& led = state[tracked_led_name_];
-
-        if (led.contains("color_data") && led["color_data"].is_array() &&
-            !led["color_data"].empty()) {
-            // color_data is array of [R, G, B, W] arrays (one per LED in strip)
-            // For on/off, we check if any color component of the first LED is > 0
-            const auto& first_led = led["color_data"][0];
-            if (first_led.is_array() && first_led.size() >= 3 && first_led[0].is_number() &&
-                first_led[1].is_number() && first_led[2].is_number()) {
-                double r = first_led[0].get<double>();
-                double g = first_led[1].get<double>();
-                double b = first_led[2].get<double>();
-                double w = (first_led.size() >= 4 && first_led[3].is_number())
-                               ? first_led[3].get<double>()
-                               : 0.0;
-
-                // Convert 0.0-1.0 range to 0-255 integer range (clamp for safety)
-                int r_int = std::clamp(static_cast<int>(r * 255.0 + 0.5), 0, 255);
-                int g_int = std::clamp(static_cast<int>(g * 255.0 + 0.5), 0, 255);
-                int b_int = std::clamp(static_cast<int>(b * 255.0 + 0.5), 0, 255);
-                int w_int = std::clamp(static_cast<int>(w * 255.0 + 0.5), 0, 255);
-
-                // Compute brightness as max of RGBW channels (0-100%)
-                int max_channel = std::max({r_int, g_int, b_int, w_int});
-                int brightness = (max_channel * 100) / 255;
-
-                // Update RGBW subjects
-                lv_subject_set_int(&led_r_, r_int);
-                lv_subject_set_int(&led_g_, g_int);
-                lv_subject_set_int(&led_b_, b_int);
-                lv_subject_set_int(&led_w_, w_int);
-                lv_subject_set_int(&led_brightness_, brightness);
-
-                // LED is "on" if any channel is non-zero
-                bool is_on = (max_channel > 0);
-                int new_state = is_on ? 1 : 0;
-
-                int old_state = lv_subject_get_int(&led_state_);
-                if (new_state != old_state) {
-                    lv_subject_set_int(&led_state_, new_state);
-                    spdlog::debug(
-                        "[PrinterState] LED {} state: {} (R={} G={} B={} W={} brightness={}%)",
-                        tracked_led_name_, is_on ? "ON" : "OFF", r_int, g_int, b_int, w_int,
-                        brightness);
-                }
-            }
-        }
-    }
+    // Delegate LED state updates to LED component
+    led_state_component_.update_from_status(state);
 
     // Update exclude_object state (for mid-print object exclusion)
     if (state.contains("exclude_object")) {
@@ -885,108 +791,8 @@ void PrinterState::reset_for_new_print() {
     spdlog::debug("[PrinterState] Reset print progress for new print");
 }
 
-// ============================================================================
-// MULTI-FAN TRACKING
-// ============================================================================
-
-namespace {
-/**
- * @brief Determine fan type from Moonraker object name
- */
-FanType classify_fan_type(const std::string& object_name) {
-    if (object_name == "fan") {
-        return FanType::PART_COOLING;
-    } else if (object_name.rfind("heater_fan ", 0) == 0) {
-        return FanType::HEATER_FAN;
-    } else if (object_name.rfind("controller_fan ", 0) == 0) {
-        return FanType::CONTROLLER_FAN;
-    } else {
-        return FanType::GENERIC_FAN;
-    }
-}
-
-/**
- * @brief Determine if fan is user-controllable
- *
- * Part cooling fans and generic fans can be controlled via SET_FAN_SPEED.
- * Heater fans and controller fans are auto-controlled by firmware.
- */
-bool is_fan_controllable(FanType type) {
-    return type == FanType::PART_COOLING || type == FanType::GENERIC_FAN;
-}
-} // namespace
-
-void PrinterState::init_fans(const std::vector<std::string>& fan_objects) {
-    // Deinit existing per-fan subjects before clearing (unique_ptr handles memory)
-    for (auto& [name, subject_ptr] : fan_speed_subjects_) {
-        if (subject_ptr) {
-            lv_subject_deinit(subject_ptr.get());
-        }
-    }
-    fan_speed_subjects_.clear();
-
-    fans_.clear();
-    fans_.reserve(fan_objects.size());
-
-    // Reserve map capacity to prevent rehashing during insertion
-    // (unique_ptr makes this less critical, but still good practice)
-    fan_speed_subjects_.reserve(fan_objects.size());
-
-    for (const auto& obj_name : fan_objects) {
-        FanInfo info;
-        info.object_name = obj_name;
-        info.display_name = helix::get_display_name(obj_name, helix::DeviceType::FAN);
-        info.type = classify_fan_type(obj_name);
-        info.is_controllable = is_fan_controllable(info.type);
-        info.speed_percent = 0;
-
-        spdlog::debug("[PrinterState] Registered fan: {} -> \"{}\" (type={}, controllable={})",
-                      obj_name, info.display_name, static_cast<int>(info.type),
-                      info.is_controllable);
-        fans_.push_back(std::move(info));
-
-        // Create per-fan speed subject for reactive UI updates (heap-allocated to survive rehash)
-        auto subject_ptr = std::make_unique<lv_subject_t>();
-        lv_subject_init_int(subject_ptr.get(), 0);
-        fan_speed_subjects_.emplace(obj_name, std::move(subject_ptr));
-        spdlog::debug("[PrinterState] Created speed subject for fan: {}", obj_name);
-    }
-
-    // Initialize and bump version to notify UI
-    lv_subject_set_int(&fans_version_, lv_subject_get_int(&fans_version_) + 1);
-    spdlog::info("[PrinterState] Initialized {} fans with {} speed subjects (version {})",
-                 fans_.size(), fan_speed_subjects_.size(), lv_subject_get_int(&fans_version_));
-}
-
-void PrinterState::update_fan_speed(const std::string& object_name, double speed) {
-    int speed_pct = helix::units::to_percent(speed);
-
-    for (auto& fan : fans_) {
-        if (fan.object_name == object_name) {
-            if (fan.speed_percent != speed_pct) {
-                fan.speed_percent = speed_pct;
-
-                // Fire per-fan subject for reactive UI updates
-                auto it = fan_speed_subjects_.find(object_name);
-                if (it != fan_speed_subjects_.end() && it->second) {
-                    lv_subject_set_int(it->second.get(), speed_pct);
-                    spdlog::trace("[PrinterState] Fan {} speed updated to {}%", object_name,
-                                  speed_pct);
-                }
-            }
-            return;
-        }
-    }
-    // Fan not in list - this is normal during initial status before discovery
-}
-
-lv_subject_t* PrinterState::get_fan_speed_subject(const std::string& object_name) {
-    auto it = fan_speed_subjects_.find(object_name);
-    if (it != fan_speed_subjects_.end() && it->second) {
-        return it->second.get();
-    }
-    return nullptr;
-}
+// Note: Multi-fan tracking (init_fans, update_fan_speed, get_fan_speed_subject) is now
+// delegated to fan_state_ component. See printer_fan_state.cpp.
 
 void PrinterState::set_printer_connection_state(int state, const char* message) {
     // Thread-safe wrapper: defer LVGL subject updates to main thread
@@ -1068,14 +874,7 @@ void PrinterState::set_print_in_progress_internal(bool in_progress) {
     }
 }
 
-void PrinterState::set_tracked_led(const std::string& led_name) {
-    tracked_led_name_ = led_name;
-    if (!led_name.empty()) {
-        spdlog::info("[PrinterState] Tracking LED: {}", led_name);
-    } else {
-        spdlog::debug("[PrinterState] LED tracking disabled");
-    }
-}
+// Note: set_tracked_led() is now delegated to led_state_component_ in the header
 
 void PrinterState::set_hardware(const helix::PrinterHardwareDiscovery& hardware) {
     // Thread-safe wrapper: defer LVGL subject updates to main thread

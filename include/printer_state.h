@@ -7,7 +7,9 @@
 #include "hardware_validator.h"
 #include "lvgl/lvgl.h"
 #include "printer_detector.h"
+#include "printer_fan_state.h"
 #include "printer_hardware_discovery.h"
+#include "printer_led_state.h"
 #include "printer_motion_state.h"
 #include "printer_temperature_state.h"
 #include "spdlog/spdlog.h"
@@ -135,34 +137,6 @@ enum class PrintStartPhase {
  * @return Display string (e.g., "Printing", "Paused")
  */
 const char* print_job_state_to_string(PrintJobState state);
-
-// ============================================================================
-// MULTI-FAN TRACKING
-// ============================================================================
-
-/**
- * @brief Fan type classification for display and control
- */
-enum class FanType {
-    PART_COOLING,   ///< Main part cooling fan ("fan")
-    HEATER_FAN,     ///< Hotend cooling fan (auto-controlled, not user-adjustable)
-    CONTROLLER_FAN, ///< Electronics cooling (auto-controlled)
-    GENERIC_FAN     ///< User-controllable generic fan (fan_generic)
-};
-
-/**
- * @brief Fan information for multi-fan display
- *
- * Holds display name, current speed, and controllability for each fan
- * discovered from Moonraker.
- */
-struct FanInfo {
-    std::string object_name;  ///< Full Moonraker object name (e.g., "heater_fan hotend_fan")
-    std::string display_name; ///< Human-readable name (e.g., "Hotend Fan")
-    FanType type = FanType::GENERIC_FAN;
-    int speed_percent = 0;        ///< Current speed 0-100%
-    bool is_controllable = false; ///< true for fan_generic, false for heater_fan/controller_fan
-};
 
 /**
  * @brief Printer state manager with LVGL 9 reactive subjects
@@ -558,19 +532,19 @@ class PrinterState {
         return motion_state_.get_flow_factor_subject();
     }
     lv_subject_t* get_fan_speed_subject() {
-        return &fan_speed_;
+        return fan_state_.get_fan_speed_subject();
     }
 
     // ========================================================================
-    // MULTI-FAN API
+    // MULTI-FAN API - Delegated to PrinterFanState component
     // ========================================================================
 
     /**
      * @brief Get all tracked fans
      * @return Const reference to fan info vector
      */
-    const std::vector<FanInfo>& get_fans() const {
-        return fans_;
+    const std::vector<helix::FanInfo>& get_fans() const {
+        return fan_state_.get_fans();
     }
 
     /**
@@ -580,7 +554,7 @@ class PrinterState {
      * UI should observe this to rebuild dynamic fan list.
      */
     lv_subject_t* get_fans_version_subject() {
-        return &fans_version_;
+        return fan_state_.get_fans_version_subject();
     }
 
     /**
@@ -592,20 +566,17 @@ class PrinterState {
      * @param object_name Moonraker object name (e.g., "fan", "heater_fan hotend_fan")
      * @return Pointer to subject, or nullptr if fan not found
      */
-    lv_subject_t* get_fan_speed_subject(const std::string& object_name);
+    lv_subject_t* get_fan_speed_subject(const std::string& object_name) {
+        return fan_state_.get_fan_speed_subject(object_name);
+    }
 
     /**
      * @brief Initialize fan list from discovered fan objects
      * @param fan_objects List of Moonraker fan object names
      */
-    void init_fans(const std::vector<std::string>& fan_objects);
-
-    /**
-     * @brief Update speed for a specific fan
-     * @param object_name Moonraker object name (e.g., "heater_fan hotend_fan")
-     * @param speed Speed as 0.0-1.0 (Moonraker format)
-     */
-    void update_fan_speed(const std::string& object_name, double speed);
+    void init_fans(const std::vector<std::string>& fan_objects) {
+        fan_state_.init_fans(fan_objects);
+    }
 
     /**
      * @brief Get G-code Z offset subject for tune panel
@@ -686,26 +657,26 @@ class PrinterState {
         return &nav_buttons_enabled_;
     } // 1=enabled (connected AND klippy ready), 0=disabled
 
-    // LED state subject (for home panel light control)
+    // LED state subjects - delegated to PrinterLedState component
     lv_subject_t* get_led_state_subject() {
-        return &led_state_;
+        return led_state_component_.get_led_state_subject();
     } // 0=off, 1=on (derived from LED color data)
 
     // LED RGBW channel subjects (0-255 integer range)
     lv_subject_t* get_led_r_subject() {
-        return &led_r_;
+        return led_state_component_.get_led_r_subject();
     }
     lv_subject_t* get_led_g_subject() {
-        return &led_g_;
+        return led_state_component_.get_led_g_subject();
     }
     lv_subject_t* get_led_b_subject() {
-        return &led_b_;
+        return led_state_component_.get_led_b_subject();
     }
     lv_subject_t* get_led_w_subject() {
-        return &led_w_;
+        return led_state_component_.get_led_w_subject();
     }
     lv_subject_t* get_led_brightness_subject() {
-        return &led_brightness_;
+        return led_state_component_.get_led_brightness_subject();
     } // 0-100 (max of RGBW channels)
 
     /**
@@ -752,15 +723,17 @@ class PrinterState {
      *
      * @param led_name Full LED name including type prefix, or empty to disable
      */
-    void set_tracked_led(const std::string& led_name);
+    void set_tracked_led(const std::string& led_name) {
+        led_state_component_.set_tracked_led(led_name);
+    }
 
     /**
      * @brief Get the currently tracked LED name
      *
      * @return LED name being tracked, or empty string if none
      */
-    const std::string& get_tracked_led() const {
-        return tracked_led_name_;
+    std::string get_tracked_led() const {
+        return led_state_component_.get_tracked_led();
     }
 
     /**
@@ -769,7 +742,7 @@ class PrinterState {
      * @return true if a LED name has been set
      */
     bool has_tracked_led() const {
-        return !tracked_led_name_.empty();
+        return led_state_component_.has_tracked_led();
     }
 
     /**
@@ -1229,6 +1202,12 @@ class PrinterState {
     /// Motion state component (position, speed/flow, z-offset)
     helix::PrinterMotionState motion_state_;
 
+    /// LED state component (RGBW channels, brightness, on/off state)
+    helix::PrinterLedState led_state_component_;
+
+    /// Fan state component (fan speed, multi-fan tracking)
+    helix::PrinterFanState fan_state_;
+
     // Print progress subjects
     lv_subject_t print_progress_;         // Integer 0-100
     lv_subject_t print_filename_;         // String buffer
@@ -1261,14 +1240,8 @@ class PrinterState {
     // speed_factor_, flow_factor_, gcode_z_offset_, pending_z_offset_delta_)
     // are now managed by motion_state_ component
 
-    // Fan subject (not part of motion state)
-    lv_subject_t fan_speed_;
-
-    // Multi-fan tracking
-    std::vector<FanInfo> fans_;   ///< All tracked fans (from discovery)
-    lv_subject_t fans_version_{}; ///< Incremented on fan list/speed changes
-    /// Per-fan speed subjects (unique_ptr prevents invalidation on map rehash)
-    std::unordered_map<std::string, std::unique_ptr<lv_subject_t>> fan_speed_subjects_;
+    // Note: Fan subjects (fan_speed_, fans_, fans_version_, fan_speed_subjects_)
+    // are now managed by fan_state_ component
 
     // Printer connection state subjects (Moonraker WebSocket)
     lv_subject_t printer_connection_state_;   // Integer: uses PrinterStatus enum values
@@ -1284,15 +1257,8 @@ class PrinterState {
     // 1 = enabled (connected AND klippy ready), 0 = disabled
     lv_subject_t nav_buttons_enabled_;
 
-    // LED state subject
-    lv_subject_t led_state_; // Integer: 0=off, 1=on
-
-    // LED RGBW channel subjects (for color picker / brightness slider)
-    lv_subject_t led_r_;          // LED red channel 0-255
-    lv_subject_t led_g_;          // LED green channel 0-255
-    lv_subject_t led_b_;          // LED blue channel 0-255
-    lv_subject_t led_w_;          // LED white channel 0-255
-    lv_subject_t led_brightness_; // LED brightness 0-100 (max of RGBW channels)
+    // Note: LED subjects (led_state_, led_r_, led_g_, led_b_, led_w_, led_brightness_)
+    // are now managed by led_state_component_
 
     // Exclude object subjects
     lv_subject_t excluded_objects_version_;            // Integer: incremented on change
@@ -1357,8 +1323,7 @@ class PrinterState {
     lv_subject_t hardware_issues_label_;       // String: "1 Hardware Issue" or "5 Hardware Issues"
     HardwareValidationResult hardware_validation_result_; // Stored result for UI access
 
-    // Tracked LED name (e.g., "neopixel chamber_light")
-    std::string tracked_led_name_;
+    // Note: tracked_led_name_ is now managed by led_state_component_
 
     // String buffers for subject storage
     // Note: homed_axes_buf_ is now in motion_state_ component
