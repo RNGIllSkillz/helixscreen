@@ -48,24 +48,26 @@ PrinterState (facade)
 
 ---
 
-### 1.2 PrintStatusPanel (🔴 CRITICAL)
+### 1.2 PrintStatusPanel (✅ RESOLVED - 2026-01-12)
 
-**File:** `src/ui/ui_panel_print_status.cpp` (2983 lines - largest in codebase)
+**File:** `src/ui/ui_panel_print_status.cpp` (reduced from 2983 to ~1700 lines)
 
-**Problem:**
-- 200+ methods, 121+ private methods
-- Mixes: UI rendering, print control logic, G-code handling, thermal monitoring
-- Direct calls to 5+ external managers
-- Embedded business logic for print phases, G-code modification
+**Resolution:**
+Decomposed into focused, testable components with 83 characterization tests (304 assertions):
 
-**Suggested Decomposition:**
 ```
-PrintStatusPanel (UI only)
-├── PrintJobController     - pause/resume/cancel/exclude logic
-├── PrintDisplayModel      - computed display values (layers, ETA, progress)
-├── GCodePrintHandler      - G-code processing for print
-└── ThermalMonitor         - thermal runaway detection
+PrintStatusPanel (UI orchestration only)
+├── PrintCancelModal              - Cancel print confirmation
+├── SaveZOffsetModal              - Z-offset save warning
+├── ExcludeObjectModal            - Object exclusion confirmation
+├── RunoutGuidanceModal           - 6-action filament runout response
+├── PrintTuneOverlay              - Speed/flow/Z-offset tuning (~280 lines)
+├── PrintLightTimelapseControls   - LED/timelapse toggles (~90 lines)
+├── PrintExcludeObjectManager     - Long-press → modal → undo → API (~200 lines)
+└── FilamentRunoutHandler         - Runout detection → modal → macros (~160 lines)
 ```
+
+**Commits:** 1070db09, 5175942d, 6b9466cb, 5266aed6
 
 ---
 
@@ -246,7 +248,7 @@ MotionPanel& get_global_motion_panel() {
 
 | File | Lines | Notes |
 |------|-------|-------|
-| ui_panel_print_status.cpp | 2983 | Largest - needs decomposition |
+| ui_panel_print_status.cpp | ~1700 | ✅ Decomposed (was 2983) |
 | ui_panel_settings.cpp | 1654 | |
 | ui_panel_controls.cpp | 1653 | |
 | moonraker_client.cpp | 1595 | Mixed concerns |
