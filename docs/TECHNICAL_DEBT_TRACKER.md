@@ -1,9 +1,9 @@
 # HelixScreen Technical Debt Tracker
 
 **Created:** 2024-12-16
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-01-12
 **Status:** IN PROGRESS
-**Overall Progress:** ~45%
+**Overall Progress:** ~60%
 
 ---
 
@@ -25,24 +25,24 @@
 
 ## 1. Executive Summary
 
-### Current State (as of 2025-12-18)
-- **Overall Grade:** A- (90/100)
-- **Critical Issues:** 1 (RAII violations in 3 files)
+### Current State (as of 2026-01-12)
+- **Overall Grade:** A (92/100)
+- **Critical Issues:** 0 (Timer leaks and RAII violations FIXED)
 - **High Priority Issues:** ~140 event handlers, 533 inline styles
 - **Technical Debt:** 16 hardcoded spacing values, 2 files >1500 LOC
 
 ### Target State
 - **Target Grade:** A (95/100)
-- **Zero critical safety issues**
+- **Zero critical safety issues** ✅ ACHIEVED
 - **Documented exceptions for legitimate imperative code**
 - **Design tokens used consistently**
 
-### Current Metrics (2025-12-18)
+### Current Metrics (2026-01-12)
 | Category | Count | Target |
 |----------|-------|--------|
 | Timer creates | 18 | — |
-| Timer deletes | 25 | ≥ creates ✅ |
-| Manual `delete` | 8 | 0 |
+| Timer deletes | 25+ | ≥ creates ✅ |
+| Manual `delete` | 0 | 0 ✅ |
 | `lv_malloc` in src/ | 1 | 0 |
 | Hardcoded padding | 16 | 0 |
 | Event handlers | 140 | Documented |
@@ -50,15 +50,15 @@
 | Files >1500 LOC | 2 | 0 |
 
 ### Estimated Effort
-| Priority | Effort | Impact |
-|----------|--------|--------|
-| P1: Critical Safety | 2-4 hours | Prevents crashes/leaks |
-| P2: RAII Compliance | 4-6 hours | Memory safety |
-| P3: XML Tokens | 8-12 hours | Maintainability |
-| P4: Declarative UI | 16-24 hours | Architecture compliance |
-| P5: File Splitting | 16-24 hours | Maintainability |
-| P6: Documentation | 4-6 hours | Developer experience |
-| P7: Tooling | 8-12 hours | Prevent regressions |
+| Priority | Effort | Impact | Status |
+|----------|--------|--------|--------|
+| P1: Critical Safety | ~~2-4 hours~~ | Prevents crashes/leaks | ✅ COMPLETE |
+| P2: RAII Compliance | ~~4-6 hours~~ | Memory safety | ✅ COMPLETE |
+| P3: XML Tokens | 8-12 hours | Maintainability | In Progress |
+| P4: Declarative UI | 16-24 hours | Architecture compliance | Pending |
+| P5: File Splitting | 16-24 hours | Maintainability | Pending |
+| P6: Documentation | 4-6 hours | Developer experience | Pending |
+| P7: Tooling | 8-12 hours | Prevent regressions | Pending |
 
 ---
 
@@ -96,11 +96,11 @@ All search patterns are designed to work even if the codebase has changed. **Alw
 
 ## 3. Priority 1: Critical Safety Fixes
 
-**Status:** [~] 75% Complete
-**Estimated Time:** 1-2 hours remaining
-**Risk if Skipped:** Crashes, memory corruption, use-after-free
+**Status:** [x] 100% Complete ✅
+**Estimated Time:** 0 hours remaining
+**Risk if Skipped:** ~~Crashes, memory corruption, use-after-free~~ MITIGATED
 
-> **2025-12-18 Status:** Timer leak in HomePanel fixed with manual `lv_timer_delete()`. `LvglTimerGuard` RAII wrapper created but not yet adopted. Remaining work: migrate HomePanel and other panels to use `LvglTimerGuard` for automatic cleanup.
+> **2026-01-12 Status:** ALL TIMER LEAKS FIXED. Added proper destructors with `lv_is_initialized()` guards to: MemoryStatsOverlay, ToastManager, WiFiBackendMacOS, MemoryProfiler. All panels now have proper timer cleanup. XML component registrations verified as intentionally lazy-loaded (not missing).
 
 ### 3.1 Timer Leak Audit
 
@@ -165,24 +165,18 @@ MyClass::~MyClass() {
 
 #### 3.1.3 Known Files to Check
 
-Based on audit (verify these still apply):
+Based on audit (2026-01-12: ALL VERIFIED SAFE):
 
-- [ ] `src/ui/ui_panel_home.cpp`
-  - Timer members: `signal_poll_timer_`, `tip_rotation_timer_`
-  - Issue: Destructor sets to nullptr without deleting
-  - Fix: Add `lv_timer_delete()` calls
-
-- [ ] `src/ui/ui_panel_print_status.cpp` - Check timer cleanup
-
-- [ ] `src/ui/ui_panel_controls.cpp` - Check timer cleanup
-
-- [ ] `src/ui/ui_panel_calibration_pid.cpp` - May use one-shot timers (OK if self-deleting)
-
-- [ ] `src/ui/ui_panel_calibration_zoffset.cpp` - Check timer cleanup
-
-- [ ] `src/ui/ui_wizard_*.cpp` - Check all wizard files
-
-- [ ] Any other files from discovery: _______________
+- [x] `src/ui/ui_panel_home.cpp` - ✅ Already had proper cleanup
+- [x] `src/ui/ui_panel_print_status.cpp` - ✅ Already had proper cleanup
+- [x] `src/ui/ui_panel_controls.cpp` - ✅ Already had proper cleanup
+- [x] `src/ui/ui_panel_calibration_pid.cpp` - ✅ Uses one-shot self-deleting timers
+- [x] `src/ui/ui_panel_calibration_zoffset.cpp` - ✅ Verified safe
+- [x] `src/ui/ui_wizard_*.cpp` - ✅ All wizard files verified safe
+- [x] `src/ui/ui_panel_memory_stats.cpp` - ✅ FIXED 2026-01-12: Added destructor
+- [x] `src/ui/ui_toast_manager.cpp` - ✅ FIXED 2026-01-12: Added destructor
+- [x] `src/wifi_backend_macos.mm` - ✅ FIXED 2026-01-12: Added cleanup
+- [x] `src/system/memory_profiling.cpp` - ✅ FIXED 2026-01-12: Added shutdown()
 
 #### 3.1.4 Classify Timer Patterns
 
@@ -325,34 +319,31 @@ kill $PID 2>/dev/null
 ### 3.4 Missing XML Component Registrations
 
 **Found:** 2026-01-02 during dead code audit
+**Resolved:** 2026-01-12 - VERIFIED AS INTENTIONAL (not missing)
 
-**Issue:** These XML components are used in C++ code but never registered with `lv_xml_register_component_from_file()`. This could cause runtime errors when trying to create these modals.
+**Original Issue:** These XML components appeared unregistered in `xml_registration.cpp`.
 
-| File | Used In | Issue |
-|------|---------|-------|
-| `ui_xml/exclude_object_modal.xml` | `src/ui/ui_modal.cpp`, `src/ui/ui_panel_print_status.cpp` | Not registered |
-| `ui_xml/settings_plugins_overlay.xml` | `src/ui/ui_settings_plugins.cpp` | Not registered |
+**Resolution:** Investigation revealed these components are **intentionally lazy-loaded** on-demand by their manager classes for performance optimization:
 
-**Fix:** Add registrations in `src/xml_registration.cpp`:
+| File | Registered By | Pattern |
+|------|---------------|---------|
+| `ui_xml/exclude_object_modal.xml` | `PrintExcludeObjectManager` | On-demand when G-code viewer opens |
+| `ui_xml/settings_plugins_overlay.xml` | `SettingsPluginsOverlay` | On-demand when plugins settings accessed |
+| `ui_xml/plugin_card.xml` | `SettingsPluginsOverlay` | Dynamic card creation |
 
-```cpp
-lv_xml_register_component_from_file("A:ui_xml/exclude_object_modal.xml");
-lv_xml_register_component_from_file("A:ui_xml/settings_plugins_overlay.xml");
-```
-
-- [ ] Add missing registrations
-- [ ] Test exclude object modal opens correctly
-- [ ] Test plugins overlay opens correctly
+- [x] ~~Add missing registrations~~ NOT NEEDED - intentionally lazy-loaded
+- [x] Test exclude object modal opens correctly ✅
+- [x] Test plugins overlay opens correctly ✅
 
 ---
 
 ## 4. Priority 2: RAII Compliance
 
-**Status:** [~] 15% Complete
-**Estimated Time:** 3-4 hours remaining
-**Risk if Skipped:** Memory leaks, exception-unsafe code
+**Status:** [x] 100% Complete ✅
+**Estimated Time:** 0 hours remaining
+**Risk if Skipped:** ~~Memory leaks, exception-unsafe code~~ MITIGATED
 
-> **2025-12-18 Status:** `ui_hsv_picker.cpp` migrated to RAII pattern. Remaining: manual `delete` statements in 2 files (`ui_bed_mesh.cpp`, `ui_wizard_wifi.cpp`).
+> **2026-01-12 Status:** ALL ASYNC CALLBACK PATTERNS MIGRATED TO RAII. Converted 10+ files from manual `new/delete` to `ui_queue_update<T>(std::unique_ptr)`. Also converted `gcode_geometry_builder.cpp` void* caches to `std::unique_ptr`. Zero manual `delete` statements remain in production code (only in test fixtures, which is acceptable).
 
 ### 4.1 Discovery - Find All RAII Violations
 
