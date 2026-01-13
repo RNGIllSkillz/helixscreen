@@ -115,7 +115,7 @@
 
 
 ### [L048] [**---|-----] Async tests need queue drain
-- **Uses**: 5 | **Velocity**: 0.09 | **Learned**: 2026-01-08 | **Last**: 2026-01-12 | **Category**: pattern | **Type**: constraint
+- **Uses**: 5 | **Velocity**: 0.02 | **Learned**: 2026-01-08 | **Last**: 2026-01-12 | **Category**: pattern | **Type**: constraint
 > Tests calling async setters (functions using helix::async::invoke or ui_queue_update) must call helix::ui::UpdateQueue::instance().drain_queue_for_testing() before assertions. Without draining, the update is still pending and subjects won't have the new value. See test_printer_state.cpp for examples.
 
 

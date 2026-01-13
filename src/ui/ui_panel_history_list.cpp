@@ -325,7 +325,8 @@ void HistoryListPanel::on_deactivate() {
     }
 
     // Cancel any pending search timer
-    if (search_timer_) {
+    // Guard against LVGL shutdown - timer may already be destroyed
+    if (search_timer_ && lv_is_initialized()) {
         lv_timer_delete(search_timer_);
         search_timer_ = nullptr;
     }
@@ -853,7 +854,8 @@ void HistoryListPanel::apply_sort(std::vector<PrintHistoryJob>& jobs) {
 
 void HistoryListPanel::on_search_changed() {
     // Cancel existing timer if any
-    if (search_timer_) {
+    // Guard against LVGL shutdown - timer may already be destroyed
+    if (search_timer_ && lv_is_initialized()) {
         lv_timer_delete(search_timer_);
         search_timer_ = nullptr;
     }

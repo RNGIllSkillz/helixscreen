@@ -971,7 +971,8 @@ void WizardConnectionStep::cleanup() {
     }
 
     // Cancel any pending auto-probe timer
-    if (auto_probe_timer_) {
+    // Guard against LVGL shutdown - timer may already be destroyed
+    if (auto_probe_timer_ && lv_is_initialized()) {
         lv_timer_delete(auto_probe_timer_);
         auto_probe_timer_ = nullptr;
     }

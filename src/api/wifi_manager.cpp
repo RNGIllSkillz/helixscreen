@@ -156,7 +156,7 @@ void WiFiManager::start_scan(
 }
 
 void WiFiManager::stop_scan() {
-    if (scan_timer_) {
+    if (scan_timer_ && lv_is_initialized()) {
         lv_timer_delete(scan_timer_);
         scan_timer_ = nullptr;
         spdlog::info("[WiFiManager] Stopped network scanning");

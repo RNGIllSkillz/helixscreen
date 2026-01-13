@@ -85,8 +85,9 @@ class GCodeViewerState {
         // RAII cleanup: signal cancellation and wait for thread
         cancel_build();
 
-        // Clean up LVGL timer if pending (safe even during destruction)
-        if (long_press_timer_) {
+        // Clean up LVGL timer if pending
+        // Guard against LVGL shutdown - timer may already be destroyed
+        if (long_press_timer_ && lv_is_initialized()) {
             lv_timer_delete(long_press_timer_);
             long_press_timer_ = nullptr;
         }

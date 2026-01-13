@@ -269,12 +269,13 @@ void PIDCalibrationPanel::cleanup() {
 // ============================================================================
 
 void PIDCalibrationPanel::cancel_pending_timers() {
-    if (calibrate_timer_) {
+    // Guard against LVGL shutdown - timers may already be destroyed
+    if (calibrate_timer_ && lv_is_initialized()) {
         lv_timer_delete(calibrate_timer_);
         calibrate_timer_ = nullptr;
         spdlog::debug("[PIDCal] Cancelled calibrate timer");
     }
-    if (save_timer_) {
+    if (save_timer_ && lv_is_initialized()) {
         lv_timer_delete(save_timer_);
         save_timer_ = nullptr;
         spdlog::debug("[PIDCal] Cancelled save timer");
