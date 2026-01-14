@@ -318,8 +318,11 @@ class MoonrakerClient : public hv::WebSocketClient {
      * Virtual to allow mock override for testing without real printer connection.
      *
      * @param on_complete Callback invoked when discovery completes successfully
+     * @param on_error Optional callback invoked if discovery fails (e.g., Klippy not connected)
      */
-    virtual void discover_printer(std::function<void()> on_complete);
+    virtual void
+    discover_printer(std::function<void()> on_complete,
+                     std::function<void(const std::string& reason)> on_error = nullptr);
 
     /**
      * @brief Parse object list from printer.objects.list response
@@ -659,8 +662,10 @@ class MoonrakerClient : public hv::WebSocketClient {
      * the actual printer discovery sequence (objects.list, server.info, etc).
      *
      * @param on_complete Callback to invoke when discovery is fully complete
+     * @param on_error Optional callback to invoke if discovery fails
      */
-    void continue_discovery(std::function<void()> on_complete);
+    void continue_discovery(std::function<void()> on_complete,
+                            std::function<void(const std::string& reason)> on_error = nullptr);
 
     /**
      * @brief Complete discovery by subscribing to printer objects

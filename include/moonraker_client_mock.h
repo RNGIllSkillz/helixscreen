@@ -153,6 +153,14 @@ class MoonrakerClientMock : public MoonrakerClient {
     }
 
     /**
+     * @brief Set Klipper service state (for testing)
+     * @param state New state to set
+     */
+    void set_klippy_state(KlippyState state) {
+        klippy_state_.store(state);
+    }
+
+    /**
      * @brief Check if motors are currently enabled
      * @return true if motors enabled (Ready/Printing), false if disabled (Idle via M84)
      */
@@ -224,10 +232,14 @@ class MoonrakerClientMock : public MoonrakerClient {
      *
      * Overrides base class method to immediately populate hardware lists
      * based on configured printer type and invoke completion callback.
+     * If Klippy state is not READY, invokes error callback instead.
      *
      * @param on_complete Callback invoked after discovery completes
+     * @param on_error Optional callback invoked if discovery fails
      */
-    void discover_printer(std::function<void()> on_complete) override;
+    void
+    discover_printer(std::function<void()> on_complete,
+                     std::function<void(const std::string& reason)> on_error = nullptr) override;
 
     /**
      * @brief Simulate WebSocket disconnection (no real network I/O)

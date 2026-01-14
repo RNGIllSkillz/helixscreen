@@ -314,8 +314,25 @@ void MoonrakerClientMock::rebuild_hardware() {
     hardware_.parse_objects(objects);
 }
 
-void MoonrakerClientMock::discover_printer(std::function<void()> on_complete) {
+void MoonrakerClientMock::discover_printer(
+    std::function<void()> on_complete, std::function<void(const std::string& reason)> on_error) {
     spdlog::info("[MoonrakerClientMock] Simulating hardware discovery");
+
+    // Check Klippy state - discovery fails if Klippy not connected
+    KlippyState state = klippy_state_.load();
+    if (state == KlippyState::STARTUP || state == KlippyState::ERROR) {
+        std::string reason = "Klippy Host not connected";
+        spdlog::warn("[MoonrakerClientMock] Discovery failed: {}", reason);
+
+        // Emit discovery failed event (matches real client behavior)
+        emit_event(MoonrakerEventType::DISCOVERY_FAILED, reason, true);
+
+        // Invoke error callback if provided
+        if (on_error) {
+            on_error(reason);
+        }
+        return;
+    }
 
     // Populate hardware based on printer type (may have already been done in constructor)
     populate_hardware();

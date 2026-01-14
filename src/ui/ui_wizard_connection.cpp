@@ -396,56 +396,101 @@ void WizardConnectionStep::on_connection_success() {
                 // Capture generation for discovery callback
                 uint64_t discover_gen = self->connection_generation_.load();
 
-                client->discover_printer([self, discover_gen]() {
-                    // Check if still valid before queueing UI update
-                    if (self->is_stale() || !self->is_current_generation(discover_gen)) {
-                        spdlog::debug("[Wizard Connection] Ignoring stale discovery callback");
-                        return;
-                    }
+                client->discover_printer(
+                    // Success callback
+                    [self, discover_gen]() {
+                        // Check if still valid before queueing UI update
+                        if (self->is_stale() || !self->is_current_generation(discover_gen)) {
+                            spdlog::debug("[Wizard Connection] Ignoring stale discovery callback");
+                            return;
+                        }
 
-                    spdlog::info("[Wizard Connection] Hardware discovery complete!");
+                        spdlog::info("[Wizard Connection] Hardware discovery complete!");
 
-                    // Defer discovery UI update to main thread
-                    ui_async_call(
-                        [](void* ctx2) {
-                            auto* self2 = static_cast<WizardConnectionStep*>(ctx2);
+                        // Defer discovery UI update to main thread
+                        ui_async_call(
+                            [](void* ctx2) {
+                                auto* self2 = static_cast<WizardConnectionStep*>(ctx2);
 
-                            if (self2->is_stale()) {
-                                spdlog::debug("[Wizard Connection] Cleanup called, skipping "
-                                              "discovery UI update");
-                                return;
-                            }
+                                if (self2->is_stale()) {
+                                    spdlog::debug("[Wizard Connection] Cleanup called, skipping "
+                                                  "discovery UI update");
+                                    return;
+                                }
 
-                            MoonrakerClient* client = get_moonraker_client();
-                            MoonrakerAPI* api = get_moonraker_api();
-                            if (client) {
-                                const auto& heaters = client->hardware().heaters();
-                                const auto& sensors = client->hardware().sensors();
-                                const auto& fans = client->hardware().fans();
-                                spdlog::info("[Wizard Connection] Discovered {} heaters, {} "
-                                             "sensors, {} fans",
-                                             heaters.size(), sensors.size(), fans.size());
-                                spdlog::info("[Wizard Connection] Hostname: '{}'",
-                                             client->hardware().hostname());
+                                MoonrakerClient* client = get_moonraker_client();
+                                MoonrakerAPI* api = get_moonraker_api();
+                                if (client) {
+                                    const auto& heaters = client->hardware().heaters();
+                                    const auto& sensors = client->hardware().sensors();
+                                    const auto& fans = client->hardware().fans();
+                                    spdlog::info("[Wizard Connection] Discovered {} heaters, {} "
+                                                 "sensors, {} fans",
+                                                 heaters.size(), sensors.size(), fans.size());
+                                    spdlog::info("[Wizard Connection] Hostname: '{}'",
+                                                 client->hardware().hostname());
 
-                                // Initialize subsystems (AMS, filament sensors, macros)
-                                // so they're available for later wizard steps
-                                helix::init_subsystems_from_hardware(client->hardware(), api,
-                                                                     client);
-                            }
+                                    // Initialize subsystems (AMS, filament sensors, macros)
+                                    // so they're available for later wizard steps
+                                    helix::init_subsystems_from_hardware(client->hardware(), api,
+                                                                         client);
+                                }
 
-                            // NOW enable Next button - discovery is complete
-                            lv_subject_set_int(&self2->connection_discovering_, 0);
-                            const char* check_icon = lv_xml_get_const(nullptr, "icon_check_circle");
-                            lv_subject_copy_string(&self2->connection_status_icon_,
-                                                   check_icon ? check_icon : "");
-                            lv_subject_copy_string(&self2->connection_status_text_,
-                                                   "Connection successful!");
-                            self2->connection_validated_ = true;
-                            lv_subject_set_int(&connection_test_passed, 1);
-                        },
-                        self);
-                });
+                                // NOW enable Next button - discovery is complete
+                                lv_subject_set_int(&self2->connection_discovering_, 0);
+                                const char* check_icon =
+                                    lv_xml_get_const(nullptr, "icon_check_circle");
+                                lv_subject_copy_string(&self2->connection_status_icon_,
+                                                       check_icon ? check_icon : "");
+                                lv_subject_copy_string(&self2->connection_status_text_,
+                                                       "Connection successful!");
+                                self2->connection_validated_ = true;
+                                lv_subject_set_int(&connection_test_passed, 1);
+                            },
+                            self);
+                    },
+                    // Error callback - discovery failed (e.g., Klippy not connected)
+                    [self, discover_gen](const std::string& reason) {
+                        // Check if still valid before queueing UI update
+                        if (self->is_stale() || !self->is_current_generation(discover_gen)) {
+                            spdlog::debug(
+                                "[Wizard Connection] Ignoring stale discovery error callback");
+                            return;
+                        }
+
+                        spdlog::warn("[Wizard Connection] Discovery failed: {}", reason);
+
+                        // Defer error UI update to main thread
+                        ui_async_call(
+                            [](void* ctx2) {
+                                auto* self2 = static_cast<WizardConnectionStep*>(ctx2);
+
+                                if (self2->is_stale()) {
+                                    spdlog::debug("[Wizard Connection] Cleanup called, skipping "
+                                                  "discovery error UI update");
+                                    return;
+                                }
+
+                                // Reset discovering state and show error
+                                lv_subject_set_int(&self2->connection_discovering_, 0);
+                                const char* warn_icon =
+                                    lv_xml_get_const(nullptr, "icon_triangle_exclamation");
+                                lv_subject_copy_string(&self2->connection_status_icon_,
+                                                       warn_icon ? warn_icon : "");
+
+                                // Show user-friendly message
+                                lv_subject_copy_string(
+                                    &self2->connection_status_text_,
+                                    "Moonraker reachable, but Klipper not ready. "
+                                    "Check printer and retry.");
+
+                                // Keep test button enabled for retry
+                                lv_subject_set_int(&self2->connection_testing_, 0);
+                                self2->connection_validated_ = false;
+                                lv_subject_set_int(&connection_test_passed, 0);
+                            },
+                            self);
+                    });
             } else {
                 // No client available - still show success but warn
                 lv_subject_set_int(&self->connection_discovering_, 0);
@@ -701,49 +746,95 @@ void WizardConnectionStep::on_auto_probe_success() {
                 // Capture generation for discovery callback
                 uint64_t discover_gen = self->connection_generation_.load();
 
-                client->discover_printer([self, discover_gen]() {
-                    // Check if still valid before queueing UI update
-                    if (self->is_stale() || !self->is_current_generation(discover_gen)) {
-                        spdlog::debug("[Wizard Connection] Ignoring stale discovery callback");
-                        return;
-                    }
+                client->discover_printer(
+                    // Success callback
+                    [self, discover_gen]() {
+                        // Check if still valid before queueing UI update
+                        if (self->is_stale() || !self->is_current_generation(discover_gen)) {
+                            spdlog::debug("[Wizard Connection] Ignoring stale discovery callback");
+                            return;
+                        }
 
-                    spdlog::info("[Wizard Connection] Auto-probe: Hardware discovery complete");
+                        spdlog::info("[Wizard Connection] Auto-probe: Hardware discovery complete");
 
-                    // Defer discovery completion UI update to main thread
-                    ui_async_call(
-                        [](void* ctx2) {
-                            auto* self2 = static_cast<WizardConnectionStep*>(ctx2);
+                        // Defer discovery completion UI update to main thread
+                        ui_async_call(
+                            [](void* ctx2) {
+                                auto* self2 = static_cast<WizardConnectionStep*>(ctx2);
 
-                            if (self2->is_stale()) {
-                                spdlog::debug("[Wizard Connection] Cleanup called, skipping "
-                                              "discovery UI update");
-                                return;
-                            }
+                                if (self2->is_stale()) {
+                                    spdlog::debug("[Wizard Connection] Cleanup called, skipping "
+                                                  "discovery UI update");
+                                    return;
+                                }
 
-                            MoonrakerClient* client = get_moonraker_client();
-                            MoonrakerAPI* api = get_moonraker_api();
-                            if (client) {
-                                spdlog::info("[Wizard Connection] Hostname: '{}'",
-                                             client->hardware().hostname());
+                                MoonrakerClient* client = get_moonraker_client();
+                                MoonrakerAPI* api = get_moonraker_api();
+                                if (client) {
+                                    spdlog::info("[Wizard Connection] Hostname: '{}'",
+                                                 client->hardware().hostname());
 
-                                // Initialize subsystems (AMS, filament sensors, macros)
-                                helix::init_subsystems_from_hardware(client->hardware(), api,
-                                                                     client);
-                            }
+                                    // Initialize subsystems (AMS, filament sensors, macros)
+                                    helix::init_subsystems_from_hardware(client->hardware(), api,
+                                                                         client);
+                                }
 
-                            // NOW enable Next button - discovery is complete
-                            lv_subject_set_int(&self2->connection_discovering_, 0);
-                            const char* check_icon = lv_xml_get_const(nullptr, "icon_check_circle");
-                            lv_subject_copy_string(&self2->connection_status_icon_,
-                                                   check_icon ? check_icon : "");
-                            lv_subject_copy_string(&self2->connection_status_text_,
-                                                   "Connection successful!");
-                            self2->connection_validated_ = true;
-                            lv_subject_set_int(&connection_test_passed, 1);
-                        },
-                        self);
-                });
+                                // NOW enable Next button - discovery is complete
+                                lv_subject_set_int(&self2->connection_discovering_, 0);
+                                const char* check_icon =
+                                    lv_xml_get_const(nullptr, "icon_check_circle");
+                                lv_subject_copy_string(&self2->connection_status_icon_,
+                                                       check_icon ? check_icon : "");
+                                lv_subject_copy_string(&self2->connection_status_text_,
+                                                       "Connection successful!");
+                                self2->connection_validated_ = true;
+                                lv_subject_set_int(&connection_test_passed, 1);
+                            },
+                            self);
+                    },
+                    // Error callback - discovery failed (e.g., Klippy not connected)
+                    [self, discover_gen](const std::string& reason) {
+                        // Check if still valid before queueing UI update
+                        if (self->is_stale() || !self->is_current_generation(discover_gen)) {
+                            spdlog::debug(
+                                "[Wizard Connection] Ignoring stale discovery error callback");
+                            return;
+                        }
+
+                        spdlog::warn("[Wizard Connection] Auto-probe: Discovery failed: {}",
+                                     reason);
+
+                        // Defer error UI update to main thread
+                        ui_async_call(
+                            [](void* ctx2) {
+                                auto* self2 = static_cast<WizardConnectionStep*>(ctx2);
+
+                                if (self2->is_stale()) {
+                                    spdlog::debug("[Wizard Connection] Cleanup called, skipping "
+                                                  "discovery error UI update");
+                                    return;
+                                }
+
+                                // Reset discovering state and show error
+                                lv_subject_set_int(&self2->connection_discovering_, 0);
+                                const char* warn_icon =
+                                    lv_xml_get_const(nullptr, "icon_triangle_exclamation");
+                                lv_subject_copy_string(&self2->connection_status_icon_,
+                                                       warn_icon ? warn_icon : "");
+
+                                // Show user-friendly message
+                                lv_subject_copy_string(
+                                    &self2->connection_status_text_,
+                                    "Moonraker reachable, but Klipper not ready. "
+                                    "Check printer and retry.");
+
+                                // Keep test button enabled for retry
+                                lv_subject_set_int(&self2->connection_testing_, 0);
+                                self2->connection_validated_ = false;
+                                lv_subject_set_int(&connection_test_passed, 0);
+                            },
+                            self);
+                    });
             } else {
                 // No client - still show success
                 lv_subject_set_int(&self->connection_discovering_, 0);

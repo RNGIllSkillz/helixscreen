@@ -960,7 +960,8 @@ void MoonrakerClient::get_gcode_store(
         on_error);
 }
 
-void MoonrakerClient::discover_printer(std::function<void()> on_complete) {
+void MoonrakerClient::discover_printer(std::function<void()> on_complete,
+                                       std::function<void(const std::string& reason)> on_error) {
     spdlog::debug("[Moonraker Client] Starting printer auto-discovery");
 
     // Store callback for force_reconnect()
@@ -973,7 +974,7 @@ void MoonrakerClient::discover_printer(std::function<void()> on_complete) {
     // Skip if we've already identified on this connection (e.g., wizard tested, then completed)
     if (identified_.load()) {
         spdlog::debug("[Moonraker Client] Already identified, skipping identify step");
-        continue_discovery(on_complete);
+        continue_discovery(on_complete, on_error);
         return;
     }
 
@@ -984,7 +985,7 @@ void MoonrakerClient::discover_printer(std::function<void()> on_complete) {
 
     send_jsonrpc(
         "server.connection.identify", identify_params,
-        [this, on_complete](json identify_response) {
+        [this, on_complete, on_error](json identify_response) {
             if (identify_response.contains("result")) {
                 auto conn_id = identify_response["result"].value("connection_id", 0);
                 spdlog::info("[Moonraker Client] Identified to Moonraker (connection_id: {})",
@@ -997,31 +998,44 @@ void MoonrakerClient::discover_printer(std::function<void()> on_complete) {
             }
 
             // Continue with discovery regardless of identify result
-            continue_discovery(on_complete);
+            continue_discovery(on_complete, on_error);
         },
-        [this, on_complete](const MoonrakerError& err) {
+        [this, on_complete, on_error](const MoonrakerError& err) {
             // Log but continue - identify is not strictly required
             spdlog::warn("[Moonraker Client] Identify request failed: {}", err.message);
-            continue_discovery(on_complete);
+            continue_discovery(on_complete, on_error);
         });
 }
 
-void MoonrakerClient::continue_discovery(std::function<void()> on_complete) {
+void MoonrakerClient::continue_discovery(std::function<void()> on_complete,
+                                         std::function<void(const std::string& reason)> on_error) {
     // Step 1: Query available printer objects (no params required)
-    send_jsonrpc("printer.objects.list", json(), [this, on_complete](json response) {
+    send_jsonrpc("printer.objects.list", json(), [this, on_complete, on_error](json response) {
         // Debug: Log raw response
         spdlog::debug("[Moonraker Client] printer.objects.list response: {}", response.dump());
 
         // Validate response
         if (!response.contains("result") || !response["result"].contains("objects")) {
-            spdlog::error("[Moonraker Client] printer.objects.list failed: invalid response");
-            if (response.contains("error")) {
-                spdlog::error("[Moonraker Client]   Error details: {}", response["error"].dump());
+            // Extract error message from response if available
+            std::string error_reason = "Failed to query printer objects from Moonraker";
+            if (response.contains("error") && response["error"].contains("message")) {
+                error_reason = response["error"]["message"].get<std::string>();
+                spdlog::error("[Moonraker Client] printer.objects.list failed: {}", error_reason);
+            } else {
+                spdlog::error("[Moonraker Client] printer.objects.list failed: invalid response");
+                if (response.contains("error")) {
+                    spdlog::error("[Moonraker Client]   Error details: {}",
+                                  response["error"].dump());
+                }
             }
 
             // Emit discovery failed event
-            emit_event(MoonrakerEventType::DISCOVERY_FAILED,
-                       "Failed to query printer objects from Moonraker", true);
+            emit_event(MoonrakerEventType::DISCOVERY_FAILED, error_reason, true);
+
+            // Invoke error callback if provided
+            if (on_error) {
+                on_error(error_reason);
+            }
             return;
         }
 
