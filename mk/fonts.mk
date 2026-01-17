@@ -8,8 +8,9 @@
 # Triggered when regen_mdi_fonts.sh changes (single source of truth for icon codepoints)
 .fonts.stamp: scripts/regen_mdi_fonts.sh
 	$(ECHO) "$(CYAN)Checking font generation...$(RESET)"
-	$(Q)if ! command -v npm >/dev/null 2>&1; then \
-		echo "$(YELLOW)⚠ npm not found - skipping font generation$(RESET)"; \
+	$(Q)if ! command -v lv_font_conv >/dev/null 2>&1; then \
+		echo "$(YELLOW)⚠ lv_font_conv not found - skipping font generation$(RESET)"; \
+		echo "$(YELLOW)  Run 'npm install' to enable font regeneration$(RESET)"; \
 		touch $@; \
 	else \
 		echo "$(YELLOW)→ Regenerating MDI icon fonts from regen_mdi_fonts.sh...$(RESET)"; \
