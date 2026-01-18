@@ -6,6 +6,7 @@
 
 #include "../mocks/mock_websocket_server.h"
 #include "../ui_test_utils.h"
+#include "app_globals.h"
 #include "capability_matrix.h"
 #include "gcode_ops_detector.h"
 #include "hv/EventLoopThread.h"
@@ -751,7 +752,8 @@ TEST_CASE("PrintPreparationManager: capabilities come from PrinterState",
     lv_init_safe();
 
     // Create PrinterState and initialize subjects (without XML registration for tests)
-    PrinterState printer_state;
+    PrinterState& printer_state = get_printer_state();
+    printer_state.reset_for_testing();
     printer_state.init_subjects(false);
 
     // Create manager and set dependencies
@@ -807,7 +809,8 @@ TEST_CASE("PrintPreparationManager: capabilities update when PrinterState type c
     lv_init_safe();
 
     // Create PrinterState and initialize subjects
-    PrinterState printer_state;
+    PrinterState& printer_state = get_printer_state();
+    printer_state.reset_for_testing();
     printer_state.init_subjects(false);
 
     // Create manager and set dependencies
@@ -1966,7 +1969,8 @@ TEST_CASE("PrintPreparationManager: build_capability_matrix", "[print_preparatio
 
     SECTION("Includes database capabilities when printer detected") {
         // Set up manager with PrinterState that has a known printer type
-        PrinterState printer_state;
+        PrinterState& printer_state = get_printer_state();
+        printer_state.reset_for_testing();
         printer_state.init_subjects(false); // No XML registration for tests
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
 
@@ -2052,7 +2056,8 @@ TEST_CASE("PrintPreparationManager: capability priority ordering", "[print_prepa
 
     SECTION("Database takes priority over macro analysis") {
         // Set up PrinterState with AD5M Pro (has database bed_mesh capability)
-        PrinterState printer_state;
+        PrinterState& printer_state = get_printer_state();
+        printer_state.reset_for_testing();
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2150,7 +2155,8 @@ TEST_CASE("PrintPreparationManager: collect_macro_skip_params with matrix",
 
     SECTION("Returns skip params from best source") {
         // Set up PrinterState with AD5M Pro (database source)
-        PrinterState printer_state;
+        PrinterState& printer_state = get_printer_state();
+        printer_state.reset_for_testing();
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2290,7 +2296,8 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability", "[print_prepar
 
     SECTION("Returns skip param when operation disabled (visible + unchecked)") {
         // Set up PrinterState with AD5M Pro (has database capability for BED_MESH)
-        PrinterState printer_state;
+        PrinterState& printer_state = get_printer_state();
+        printer_state.reset_for_testing();
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2313,7 +2320,8 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability", "[print_prepar
 
     SECTION("Returns nullopt when operation hidden (visibility = 0)") {
         // Set up PrinterState with known printer
-        PrinterState printer_state;
+        PrinterState& printer_state = get_printer_state();
+        printer_state.reset_for_testing();
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2331,7 +2339,8 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability", "[print_prepar
 
     SECTION("Returns nullopt when operation enabled (visible + checked)") {
         // Set up PrinterState with known printer
-        PrinterState printer_state;
+        PrinterState& printer_state = get_printer_state();
+        printer_state.reset_for_testing();
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2396,7 +2405,8 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability", "[print_prepar
 
     SECTION("Uses best source based on priority (database over macro)") {
         // Set up PrinterState with AD5M Pro (database source)
-        PrinterState printer_state;
+        PrinterState& printer_state = get_printer_state();
+        printer_state.reset_for_testing();
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2468,7 +2478,8 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability edge cases",
         // Manager has no subjects to check
 
         // Set up a capability source
-        PrinterState printer_state;
+        PrinterState& printer_state = get_printer_state();
+        printer_state.reset_for_testing();
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2582,7 +2593,8 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability with visibility-
 
     SECTION("Returns nullopt when checkbox subjects not set") {
         // Set up capability source
-        PrinterState printer_state;
+        PrinterState& printer_state = get_printer_state();
+        printer_state.reset_for_testing();
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
