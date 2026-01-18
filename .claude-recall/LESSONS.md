@@ -24,8 +24,8 @@
 > No hardcoded colors or spacing. Use #card_bg, #space_md, text_body etc. Check globals.xml for available tokens
 
 
-### [L009] [***--|-----] Icon font sync workflow
-- **Uses**: 11 | **Velocity**: 0.01 | **Learned**: 2025-12-14 | **Last**: 2026-01-07 | **Category**: gotcha | **Type**: constraint
+### [L009] [****-|-----] Icon font sync workflow
+- **Uses**: 13 | **Velocity**: 0.01 | **Learned**: 2025-12-14 | **Last**: 2026-01-17 | **Category**: gotcha | **Type**: constraint
 > After adding icon to codepoints.h: add to regen_mdi_fonts.sh, run make regen-fonts, then rebuild. Forgetting any step = missing icon
 
 
@@ -35,7 +35,7 @@
 
 
 ### [L014] [****-|-----] Register all XML components
-- **Uses**: 16 | **Velocity**: 0.01 | **Learned**: 2025-12-14 | **Last**: 2026-01-06 | **Category**: gotcha | **Type**: constraint
+- **Uses**: 18 | **Velocity**: 0.01 | **Learned**: 2025-12-14 | **Last**: 2026-01-17 | **Category**: gotcha | **Type**: constraint
 > When adding new XML components, must add lv_xml_component_register_from_file() call in main.cpp. Forgetting causes silent failures
 
 
@@ -115,7 +115,7 @@
 
 
 ### [L048] [**---|-----] Async tests need queue drain
-- **Uses**: 5 | **Velocity**: 0.02 | **Learned**: 2026-01-08 | **Last**: 2026-01-12 | **Category**: pattern | **Type**: constraint
+- **Uses**: 5 | **Velocity**: 0.01 | **Learned**: 2026-01-08 | **Last**: 2026-01-12 | **Category**: pattern | **Type**: constraint
 > Tests calling async setters (functions using helix::async::invoke or ui_queue_update) must call helix::ui::UpdateQueue::instance().drain_queue_for_testing() before assertions. Without draining, the update is still pending and subjects won't have the new value. See test_printer_state.cpp for examples.
 
 

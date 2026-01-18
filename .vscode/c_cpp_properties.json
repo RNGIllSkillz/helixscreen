@@ -6,6 +6,7 @@
                 "${workspaceFolder}",
                 "${workspaceFolder}/include",
                 "${workspaceFolder}/tests",
+                "${workspaceFolder}/tests/unit",
                 "${workspaceFolder}/lib",
                 "${workspaceFolder}/lib/glm",
                 "${workspaceFolder}/lib/lvgl",
