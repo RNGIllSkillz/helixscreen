@@ -84,8 +84,9 @@
             <lv_label name="connection_status_icon" bind_text="connection_status_icon" style_text_font="mdi_icons_16">
               <lv_obj-bind_flag_if_eq subject="connection_discovering" flag="hidden" ref_value="1"/>
             </lv_label>
-            <!-- Status Text -->
-            <text_body name="connection_status_text" bind_text="connection_status_text"/>
+            <!-- Status Text (wrapping enabled to prevent overflow) -->
+            <text_body name="connection_status_text" bind_text="connection_status_text"
+                       width="0" flex_grow="1" long_mode="wrap"/>
           </lv_obj>
         </lv_obj>
         <!-- Help text: connection must be tested (hidden on successful auto-probe) -->

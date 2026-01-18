@@ -478,11 +478,12 @@ void WizardConnectionStep::on_connection_success() {
                                 lv_subject_copy_string(&self2->connection_status_icon_,
                                                        warn_icon ? warn_icon : "");
 
-                                // Show user-friendly message
+                                // Show user-friendly message (most common cause is Klippy not
+                                // connected)
                                 lv_subject_copy_string(
                                     &self2->connection_status_text_,
-                                    "Moonraker reachable, but Klipper not ready. "
-                                    "Check printer and retry.");
+                                    "Moonraker connected, but Klipper is not running. "
+                                    "Start Klipper and retry.");
 
                                 // Keep test button enabled for retry
                                 lv_subject_set_int(&self2->connection_testing_, 0);
@@ -822,11 +823,12 @@ void WizardConnectionStep::on_auto_probe_success() {
                                 lv_subject_copy_string(&self2->connection_status_icon_,
                                                        warn_icon ? warn_icon : "");
 
-                                // Show user-friendly message
+                                // Show user-friendly message (most common cause is Klippy not
+                                // connected)
                                 lv_subject_copy_string(
                                     &self2->connection_status_text_,
-                                    "Moonraker reachable, but Klipper not ready. "
-                                    "Check printer and retry.");
+                                    "Moonraker connected, but Klipper is not running. "
+                                    "Start Klipper and retry.");
 
                                 // Keep test button enabled for retry
                                 lv_subject_set_int(&self2->connection_testing_, 0);
