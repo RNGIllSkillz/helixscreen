@@ -417,9 +417,8 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
     std::atomic<bool> error_called{false};
 
     // Should not crash when success callback is null, and file should still be found
-    REQUIRE_NOTHROW(
-        api_->download_file("gcodes", "3DBenchy.gcode", nullptr,
-                            [&](const MoonrakerError&) { error_called.store(true); }));
+    REQUIRE_NOTHROW(api_->download_file("gcodes", "3DBenchy.gcode", nullptr,
+                                        [&](const MoonrakerError&) { error_called.store(true); }));
 
     // Verify no error occurred (file exists)
     REQUIRE_FALSE(error_called.load());
@@ -657,8 +656,7 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
 
     // Verify proportional relationship:
     // length reduction should be approximately proportional to weight reduction
-    float weight_ratio =
-        (initial_weight - consumption_grams) / initial_weight;
+    float weight_ratio = (initial_weight - consumption_grams) / initial_weight;
     float expected_length = initial_length * weight_ratio;
     // Allow 10% tolerance for calculation differences
     REQUIRE(active_spool->remaining_length_m == Catch::Approx(expected_length).epsilon(0.1));

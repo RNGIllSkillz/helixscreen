@@ -1272,7 +1272,8 @@ TEST_CASE("MoonrakerClientMock send_jsonrpc methods", "[connection][slow][jsonrp
         REQUIRE(received_response["result"].contains("software_version"));
     }
 
-    SECTION("send_jsonrpc with error callback returns valid request ID and invokes success callback") {
+    SECTION(
+        "send_jsonrpc with error callback returns valid request ID and invokes success callback") {
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
         json params = {};
         bool success_invoked = false;

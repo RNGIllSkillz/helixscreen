@@ -1,11 +1,12 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../ui_test_utils.h"
+
 #include <spdlog/spdlog.h>
 
 #include "../../src/ui/ui_switch.cpp" // Include implementation for internal testing
 #include "../catch_amalgamated.hpp"
-#include "../ui_test_utils.h"
 
 /**
  * @brief Unit tests for ui_switch.cpp - Switch widget with semantic size presets
@@ -255,7 +256,6 @@ TEST_CASE("Size preset initialization - screen size awareness", "[ui_switch][siz
     }
 }
 
-
 // ============================================================================
 // Error Handling Tests
 // ============================================================================
@@ -316,4 +316,3 @@ TEST_CASE("API contracts and guarantees", "[ui_switch][api][contract]") {
         REQUIRE(parse_size_preset("xl", &preset) == false);
     }
 }
-
