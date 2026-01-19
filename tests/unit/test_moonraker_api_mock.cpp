@@ -667,8 +667,7 @@ TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
 // ============================================================================
 
 TEST_CASE_METHOD(MoonrakerAPIMockTestFixture,
-                 "MoonrakerClientMock handles server.files.get_directory",
-                 "[mock][api][files]") {
+                 "MoonrakerClientMock handles server.files.get_directory", "[mock][api][files]") {
     std::atomic<bool> success_called{false};
     json received_response;
 
