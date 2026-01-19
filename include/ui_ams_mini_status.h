@@ -93,6 +93,15 @@ void ui_ams_mini_status_refresh(lv_obj_t* obj);
  */
 bool ui_ams_mini_status_is_valid(lv_obj_t* obj);
 
+/**
+ * @brief Register ams_mini_status as an XML widget
+ *
+ * Call this once during application initialization to enable
+ * using <ams_mini_status/> in XML layouts. The XML widget
+ * automatically fills its parent and binds to AmsState.
+ */
+void ui_ams_mini_status_init(void);
+
 #ifdef __cplusplus
 }
 #endif

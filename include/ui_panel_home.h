@@ -129,9 +129,6 @@ class HomePanel : public PanelBase {
     // Lazily-created overlay panels (owned by LVGL parent, not us)
     lv_obj_t* nozzle_temp_panel_ = nullptr;
 
-    // AMS mini status indicator (owned by LVGL, in ams_indicator_container)
-    lv_obj_t* ams_indicator_ = nullptr;
-
     void update_tip_of_day();
     void start_tip_fade_transition(const PrintingTip& new_tip);
     void apply_pending_tip();         // Called when fade-out completes

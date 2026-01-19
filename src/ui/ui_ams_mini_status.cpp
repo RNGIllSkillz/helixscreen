@@ -12,6 +12,8 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "lvgl/src/xml/lv_xml.h"
+#include "lvgl/src/xml/lv_xml_parser.h"
+#include "lvgl/src/xml/parsers/lv_xml_obj_parser.h"
 #include "observer_factory.h"
 
 #include <spdlog/spdlog.h>
@@ -167,6 +169,7 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     // Calculate bar width to fit within container
     lv_obj_update_layout(data->container);
     int32_t container_width = lv_obj_get_content_width(data->container);
+    int32_t container_height = lv_obj_get_content_height(data->container);
 
     int32_t gap = ui_theme_get_spacing("space_xxs"); // Responsive 2-4px gap
 
@@ -176,8 +179,12 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     int32_t bar_width = (total_bar_space - total_gaps) / std::max(1, visible_count);
     bar_width = std::clamp(bar_width, MIN_BAR_WIDTH_PX, MAX_BAR_WIDTH_PX);
 
-    // Calculate bar height (2/3 of container, minus space for status line + gap)
-    int32_t total_slot_height = (data->height * 2) / 3;
+    // Calculate bar height - use container height if data->height is 0 (XML-based responsive)
+    int32_t effective_height = data->height > 0 ? data->height : container_height;
+    if (effective_height < 20) {
+        effective_height = 32; // Minimum fallback height
+    }
+    int32_t total_slot_height = (effective_height * 2) / 3;
     int32_t bar_height = total_slot_height - STATUS_LINE_HEIGHT_PX - STATUS_LINE_GAP_PX;
 
     // Create/update bars
@@ -535,3 +542,113 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
 }
 
 // Observer callbacks migrated to lambda observers in ui_ams_mini_status_create()
+
+// ============================================================================
+// XML Widget Registration
+// ============================================================================
+
+/**
+ * @brief XML create callback - creates widget with responsive sizing
+ */
+static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const char** /* attrs */) {
+    void* parent = lv_xml_state_get_parent(state);
+
+    // Create main container that fills parent
+    lv_obj_t* container = lv_obj_create((lv_obj_t*)parent);
+    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
+
+    // Fill parent by default (can be overridden by XML attrs)
+    lv_obj_set_size(container, LV_PCT(100), LV_PCT(100));
+
+    // Use flex layout to center children
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(container, ui_theme_get_spacing("space_xs"), LV_PART_MAIN);
+
+    // Create user data with height=0 (will be set dynamically)
+    auto data_ptr = std::make_unique<AmsMiniStatusData>();
+    data_ptr->height = 0; // Will be calculated from parent
+    data_ptr->container = container;
+
+    // Create bars container (holds the slot bars)
+    data_ptr->bars_container = lv_obj_create(container);
+    lv_obj_remove_flag(data_ptr->bars_container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(data_ptr->bars_container, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_style_bg_opa(data_ptr->bars_container, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(data_ptr->bars_container, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(data_ptr->bars_container, 0, LV_PART_MAIN);
+    lv_obj_set_flex_flow(data_ptr->bars_container, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(data_ptr->bars_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(data_ptr->bars_container, ui_theme_get_spacing("space_xxs"),
+                                LV_PART_MAIN);
+    // Fill parent height (responsive)
+    lv_obj_set_size(data_ptr->bars_container, LV_SIZE_CONTENT, LV_PCT(100));
+
+    // Create overflow label (hidden by default)
+    data_ptr->overflow_label = lv_label_create(container);
+    lv_obj_add_flag(data_ptr->overflow_label, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_label_set_text(data_ptr->overflow_label, "+0");
+    lv_obj_set_style_text_color(data_ptr->overflow_label, ui_theme_get_color("text_secondary"),
+                                LV_PART_MAIN);
+    const char* font_xs_name = lv_xml_get_const(nullptr, "font_xs");
+    const lv_font_t* font_xs =
+        font_xs_name ? lv_xml_get_font(nullptr, font_xs_name) : &noto_sans_12;
+    lv_obj_set_style_text_font(data_ptr->overflow_label, font_xs, LV_PART_MAIN);
+    lv_obj_add_flag(data_ptr->overflow_label, LV_OBJ_FLAG_HIDDEN);
+
+    // Register and set up cleanup
+    AmsMiniStatusData* data = data_ptr.release();
+    s_registry[container] = data;
+    lv_obj_add_event_cb(container, on_delete, LV_EVENT_DELETE, nullptr);
+
+    // Make clickable to open AMS panel
+    lv_obj_add_flag(container, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(container, on_click, LV_EVENT_CLICKED, nullptr);
+
+    // Initially hidden (no slots)
+    lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
+
+    // Auto-bind to AmsState
+    using helix::ui::observe_int_sync;
+
+    lv_subject_t* slot_count_subject = AmsState::instance().get_slot_count_subject();
+    if (slot_count_subject) {
+        data->slot_count_observer = observe_int_sync<AmsMiniStatusData>(
+            slot_count_subject, data,
+            [](AmsMiniStatusData* d, int /* count */) { sync_from_ams_state(d); });
+
+        int current_slot_count = lv_subject_get_int(slot_count_subject);
+        if (current_slot_count > 0) {
+            sync_from_ams_state(data);
+        }
+    }
+
+    lv_subject_t* slots_version_subject = AmsState::instance().get_slots_version_subject();
+    if (slots_version_subject) {
+        data->slots_version_observer = observe_int_sync<AmsMiniStatusData>(
+            slots_version_subject, data,
+            [](AmsMiniStatusData* d, int /* version */) { sync_from_ams_state(d); });
+    }
+
+    spdlog::debug("[AmsMiniStatus] Created via XML (responsive height)");
+    return container;
+}
+
+/**
+ * @brief XML apply callback - handles XML attributes
+ */
+static void ui_ams_mini_status_xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
+    // Apply standard object attributes (width, height, align, etc.)
+    lv_xml_obj_apply(state, attrs);
+}
+
+void ui_ams_mini_status_init(void) {
+    lv_xml_register_widget("ams_mini_status", ui_ams_mini_status_xml_create,
+                           ui_ams_mini_status_xml_apply);
+    spdlog::debug("[AmsMiniStatus] Registered ams_mini_status XML widget");
+}

@@ -174,7 +174,8 @@ class FilamentPanel : public PanelBase {
     lv_subject_t extrusion_allowed_subject_;
     lv_subject_t safety_warning_visible_subject_;
     lv_subject_t warning_temps_subject_;
-    lv_subject_t safety_warning_text_subject_; ///< "Heat to X°C to load/unload" with dynamic temp
+    lv_subject_t
+        safety_warning_text_subject_; ///< "Heat to at least X°C to load/unload" with dynamic temp
     lv_subject_t material_nozzle_temp_subject_;
     lv_subject_t material_bed_temp_subject_;
 
@@ -198,7 +199,7 @@ class FilamentPanel : public PanelBase {
     char temp_display_buf_[32];
     char status_buf_[64];
     char warning_temps_buf_[64];
-    char safety_warning_text_buf_[48]; ///< "Heat to X°C to load/unload"
+    char safety_warning_text_buf_[48]; ///< "Heat to at least X°C to load/unload"
     char material_nozzle_buf_[16];
     char material_bed_buf_[16];
     char nozzle_current_buf_[16];

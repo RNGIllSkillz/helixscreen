@@ -37,6 +37,9 @@ static const int MATERIAL_NOZZLE_TEMPS[] = {210, 240, 250, 230};
 static const int MATERIAL_BED_TEMPS[] = {60, 80, 100, 50};
 static const char* MATERIAL_NAMES[] = {"PLA", "PETG", "ABS", "TPU"};
 
+// Format string for safety warning (used in constructor and set_limits)
+static constexpr const char* SAFETY_WARNING_FMT = "Heat to at least %d°C to load/unload";
+
 using helix::ui::observe_int_async;
 using helix::ui::temperature::centi_to_degrees;
 using helix::ui::temperature::format_target_or_off;
@@ -54,8 +57,8 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, MoonrakerAPI* api)
     std::snprintf(status_buf_, sizeof(status_buf_), "%s", "Select material to begin");
     std::snprintf(warning_temps_buf_, sizeof(warning_temps_buf_), "Current: %d°C | Target: %d°C",
                   nozzle_current_, nozzle_target_);
-    std::snprintf(safety_warning_text_buf_, sizeof(safety_warning_text_buf_),
-                  "Heat to %d°C to load/unload", min_extrude_temp_);
+    std::snprintf(safety_warning_text_buf_, sizeof(safety_warning_text_buf_), SAFETY_WARNING_FMT,
+                  min_extrude_temp_);
     format_target_or_off(0, material_nozzle_buf_, sizeof(material_nozzle_buf_));
     format_target_or_off(0, material_bed_buf_, sizeof(material_bed_buf_));
     std::snprintf(nozzle_current_buf_, sizeof(nozzle_current_buf_), "%d°C", nozzle_current_);
@@ -301,6 +304,8 @@ void FilamentPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
             spdlog::warn("[{}] temp_graph_container not found in XML", get_name());
         }
     }
+
+    // AMS mini status widget is now created declaratively via XML <ams_mini_status/>
 
     spdlog::info("[{}] Setup complete!", get_name());
 }
@@ -936,7 +941,7 @@ void FilamentPanel::set_limits(int min_temp, int max_temp, int min_extrude_temp)
     if (min_extrude_temp_ != min_extrude_temp) {
         min_extrude_temp_ = min_extrude_temp;
         std::snprintf(safety_warning_text_buf_, sizeof(safety_warning_text_buf_),
-                      "Heat to %d°C to load/unload", min_extrude_temp_);
+                      SAFETY_WARNING_FMT, min_extrude_temp_);
         lv_subject_copy_string(&safety_warning_text_subject_, safety_warning_text_buf_);
         spdlog::info("[{}] Min extrusion temp updated: {}°C", get_name(), min_extrude_temp_);
     }

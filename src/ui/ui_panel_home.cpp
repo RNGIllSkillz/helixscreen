@@ -3,7 +3,6 @@
 
 #include "ui_panel_home.h"
 
-#include "ui_ams_mini_status.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_icon.h"
@@ -239,25 +238,7 @@ void HomePanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         update_light_icon(); // Initialize with current state
     }
 
-    // Create AMS mini status indicator (hidden until AMS data is available)
-    lv_obj_t* ams_container = lv_obj_find_by_name(panel_, "ams_indicator_container");
-    if (ams_container) {
-        // Get responsive height from status card
-        int32_t indicator_height = 32; // Default height
-        lv_obj_t* status_card = lv_obj_find_by_name(panel_, "status_card");
-        if (status_card) {
-            lv_obj_update_layout(status_card);
-            int32_t card_height = lv_obj_get_content_height(status_card);
-            // Use 40% of card height for indicator (leaving room for margins)
-            indicator_height = std::max(20, static_cast<int>(card_height * 0.4));
-        }
-
-        ams_indicator_ = ui_ams_mini_status_create(ams_container, indicator_height);
-        if (ams_indicator_) {
-            spdlog::debug("[{}] AMS mini status indicator created (height={})", get_name(),
-                          indicator_height);
-        }
-    }
+    // AMS mini status is now created declaratively via XML <ams_mini_status/>
 
     // Cache tip label for fade animation
     tip_label_ = lv_obj_find_by_name(panel_, "status_text_label");
@@ -1043,14 +1024,9 @@ void HomePanel::ams_slot_count_observer_cb(lv_observer_t* observer, lv_subject_t
     }
 }
 
-void HomePanel::update_ams_indicator(int slot_count) {
-    // Visibility is handled declaratively via XML bind_flag_if_eq on ams_button/ams_divider.
-    // This method only refreshes the indicator content when AMS is available.
-    if (slot_count > 0 && ams_indicator_) {
-        ui_ams_mini_status_refresh(ams_indicator_);
-        spdlog::debug("[{}] AMS indicator refreshed ({} slots)", get_name(), slot_count);
-    }
-    // AMS slot count also affects filament status visibility
+void HomePanel::update_ams_indicator(int /* slot_count */) {
+    // AMS mini status widget auto-updates via observers bound to AmsState.
+    // This method only needs to update filament status visibility.
     update_filament_status_visibility();
 }
 

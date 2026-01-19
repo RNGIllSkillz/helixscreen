@@ -30,6 +30,7 @@
 #include "temperature_history_manager.h"
 
 // UI headers
+#include "ui_ams_mini_status.h"
 #include "ui_bed_mesh.h"
 #include "ui_card.h"
 #include "ui_component_header_bar.h"
@@ -685,6 +686,7 @@ bool Application::register_widgets() {
     ui_switch_register();
     ui_card_register();
     ui_temp_display_init();
+    ui_ams_mini_status_init();
     ui_severity_card_register();
     ui_dialog_register();
     ui_bed_mesh_register();
