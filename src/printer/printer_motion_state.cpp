@@ -114,9 +114,11 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
     if (status.contains("gcode_move")) {
         const auto& gcode_move = status["gcode_move"];
 
-        // Parse commanded position from gcode_move.position
-        if (gcode_move.contains("position") && gcode_move["position"].is_array()) {
-            const auto& pos = gcode_move["position"];
+        // Parse commanded position from gcode_move.gcode_position
+        // Note: gcode_move.position is raw commanded, gcode_move.gcode_position is effective
+        // (after offset adjustments). UI should display gcode_position to match Mainsail.
+        if (gcode_move.contains("gcode_position") && gcode_move["gcode_position"].is_array()) {
+            const auto& pos = gcode_move["gcode_position"];
             if (pos.size() >= 3 && pos[0].is_number() && pos[1].is_number() && pos[2].is_number()) {
                 lv_subject_set_int(&gcode_position_x_,
                                    helix::units::to_centimm(pos[0].get<double>()));

@@ -29,12 +29,12 @@
             width="content" height="content" hidden="true" align="top_mid" style_bg_color="#info_color"
             style_bg_opa="200" style_radius="#border_radius" style_pad_all="#space_sm" style_border_width="0"
             scrollable="false" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center">
-      <bind_flag_if_eq subject="pending_z_offset_delta" flag="hidden" ref_value="0"/>
+      <bind_flag_if_eq subject="gcode_z_offset" flag="hidden" ref_value="0"/>
       <lv_obj width="content"
               height="content" style_bg_opa="0" style_border_width="0" scrollable="false" flex_flow="column"
               style_pad_gap="#space_xxs">
         <text_small text="Z-Offset Adjusted" style_text_color="#text_primary"/>
-        <text_small name="z_offset_delta_label" bind_text="z_offset_delta_display" style_text_color="#text_secondary"/>
+        <text_small name="z_offset_delta_label" bind_text="controls_z_offset" style_text_color="#text_secondary"/>
       </lv_obj>
       <lv_button name="btn_save_z_offset"
                  height="content" style_radius="#border_radius" style_bg_color="#success_color" style_border_width="0"
@@ -98,55 +98,56 @@
             </lv_obj>
           </lv_obj>
         </lv_obj>
-        <!-- Speed/Flow Overrides -->
+        <!-- Z-Offset section -->
         <lv_obj width="100%"
                 height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
                 flex_flow="column" style_pad_gap="#space_xxs" style_pad_top="#space_xs">
-          <!-- Speed Override Row -->
+          <!-- Z-Offset display -->
           <lv_obj width="100%"
                   height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
-                  flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center">
-            <text_small text="Speed" style_text_color="#text_secondary"/>
-            <lv_obj width="content"
-                    height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
-                    flex_flow="row" style_pad_gap="#space_xxs" style_flex_cross_place="center">
-              <lv_button width="40"
-                         height="40" style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
-                         style_border_width="0" style_pad_all="0">
-                <event_cb trigger="clicked" callback="on_controls_speed_down"/>
-                <text_body text="-" align="center"/>
-              </lv_button>
-              <text_body name="speed_pct" width="48" bind_text="controls_speed_pct" style_text_align="center"/>
-              <lv_button width="40"
-                         height="40" style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
-                         style_border_width="0" style_pad_all="0">
-                <event_cb trigger="clicked" callback="on_controls_speed_up"/>
-                <text_body text="+" align="center"/>
-              </lv_button>
-            </lv_obj>
+                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_sm">
+            <text_body text="Z-Offset:" style_text_color="#text_secondary"/>
+            <text_body bind_text="controls_z_offset" style_text_color="#text_primary"/>
           </lv_obj>
-          <!-- Flow Override Row -->
+          <!-- Z-Offset step selector (toggle buttons) -->
           <lv_obj width="100%"
                   height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
-                  flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center">
-            <text_small text="Flow" style_text_color="#text_secondary"/>
-            <lv_obj width="content"
-                    height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
-                    flex_flow="row" style_pad_gap="#space_xxs" style_flex_cross_place="center">
-              <lv_button width="40"
-                         height="40" style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
-                         style_border_width="0" style_pad_all="0">
-                <event_cb trigger="clicked" callback="on_controls_flow_down"/>
-                <text_body text="-" align="center"/>
-              </lv_button>
-              <text_body name="flow_pct" width="48" bind_text="controls_flow_pct" style_text_align="center"/>
-              <lv_button width="40"
-                         height="40" style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
-                         style_border_width="0" style_pad_all="0">
-                <event_cb trigger="clicked" callback="on_controls_flow_up"/>
-                <text_body text="+" align="center"/>
-              </lv_button>
-            </lv_obj>
+                  flex_flow="row" style_flex_main_place="center" style_pad_gap="#space_sm">
+            <lv_button name="btn_zoffset_step_005" style_min_width="55" style_height="36"
+                       style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
+                       style_border_width="0">
+              <event_cb trigger="clicked" callback="on_zoffset_step_005"/>
+              <text_small text="0.005" align="center"/>
+            </lv_button>
+            <lv_button name="btn_zoffset_step_01" style_min_width="50" style_height="36"
+                       style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
+                       style_border_width="0">
+              <event_cb trigger="clicked" callback="on_zoffset_step_01"/>
+              <text_small text="0.01" align="center"/>
+            </lv_button>
+            <lv_button name="btn_zoffset_step_05" style_min_width="50" style_height="36"
+                       style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
+                       style_border_width="0">
+              <event_cb trigger="clicked" callback="on_zoffset_step_05"/>
+              <text_small text="0.05" align="center"/>
+            </lv_button>
+          </lv_obj>
+          <!-- Z-Offset up/down arrows -->
+          <lv_obj width="100%"
+                  height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
+                  flex_flow="row" style_flex_main_place="center" style_pad_gap="#space_md">
+            <lv_button name="btn_zoffset_up" style_min_width="60" style_height="48"
+                       style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
+                       style_border_width="0">
+              <event_cb trigger="clicked" callback="on_zoffset_up"/>
+              <lv_label name="icon_zoffset_up" text="\xF3\xB0\x81\x9D" style_text_font="icon24" align="center"/>
+            </lv_button>
+            <lv_button name="btn_zoffset_down" style_min_width="60" style_height="48"
+                       style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
+                       style_border_width="0">
+              <event_cb trigger="clicked" callback="on_zoffset_down"/>
+              <lv_label name="icon_zoffset_down" text="\xF3\xB0\x81\x85" style_text_font="icon24" align="center"/>
+            </lv_button>
           </lv_obj>
         </lv_obj>
         <!-- Motion panel navigation button -->
@@ -278,6 +279,57 @@
           <icon src="wrench" size="sm" variant="accent"/>
           <text_small text="Calibration &amp; Tools" style_text_color="#text_primary" style_translate_y="2"/>
         </lv_obj>
+        <!-- Speed/Flow Overrides -->
+        <lv_obj width="100%"
+                height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
+                flex_flow="column" style_pad_gap="#space_xxs">
+          <!-- Speed Override Row -->
+          <lv_obj width="100%"
+                  height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
+                  flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center">
+            <text_small text="Speed" style_text_color="#text_secondary"/>
+            <lv_obj width="content"
+                    height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
+                    flex_flow="row" style_pad_gap="#space_xxs" style_flex_cross_place="center">
+              <lv_button width="40"
+                         height="40" style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
+                         style_border_width="0" style_pad_all="0">
+                <event_cb trigger="clicked" callback="on_controls_speed_down"/>
+                <text_body text="-" align="center"/>
+              </lv_button>
+              <text_body name="speed_pct" width="48" bind_text="controls_speed_pct" style_text_align="center"/>
+              <lv_button width="40"
+                         height="40" style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
+                         style_border_width="0" style_pad_all="0">
+                <event_cb trigger="clicked" callback="on_controls_speed_up"/>
+                <text_body text="+" align="center"/>
+              </lv_button>
+            </lv_obj>
+          </lv_obj>
+          <!-- Flow Override Row -->
+          <lv_obj width="100%"
+                  height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
+                  flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center">
+            <text_small text="Flow" style_text_color="#text_secondary"/>
+            <lv_obj width="content"
+                    height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
+                    flex_flow="row" style_pad_gap="#space_xxs" style_flex_cross_place="center">
+              <lv_button width="40"
+                         height="40" style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
+                         style_border_width="0" style_pad_all="0">
+                <event_cb trigger="clicked" callback="on_controls_flow_down"/>
+                <text_body text="-" align="center"/>
+              </lv_button>
+              <text_body name="flow_pct" width="48" bind_text="controls_flow_pct" style_text_align="center"/>
+              <lv_button width="40"
+                         height="40" style_radius="#border_radius" style_bg_color="#secondary_color" style_bg_opa="60"
+                         style_border_width="0" style_pad_all="0">
+                <event_cb trigger="clicked" callback="on_controls_flow_up"/>
+                <text_body text="+" align="center"/>
+              </lv_button>
+            </lv_obj>
+          </lv_obj>
+        </lv_obj>
         <!-- 2x2 Grid Container -->
         <lv_obj width="100%"
                 flex_grow="1" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="column"
@@ -297,15 +349,16 @@
               <icon src="grid_large" size="md" variant="accent"/>
               <text_small text="Bed Mesh" style_pad_top="#space_xxs"/>
             </lv_button>
-            <!-- Z-Offset Button -->
-            <lv_button name="btn_zoffset"
+            <!-- Z Calibration Button -->
+            <lv_button name="btn_z_calibration"
                        height="100%" flex_grow="1" style_radius="#border_radius" style_border_width="0"
                        style_shadow_width="0" style_bg_color="#card_bg" flex_flow="column"
                        style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
                        style_pad_all="#space_xs">
+              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_calibration_zoffset"/>
               <icon src="z_closer" size="md" variant="accent"/>
-              <text_small text="Z-Offset" style_pad_top="#space_xxs"/>
+              <text_small text="Z Calibration" style_pad_top="#space_xxs"/>
             </lv_button>
           </lv_obj>
           <!-- Row 2: Bed Screws | Motors Off -->
@@ -319,6 +372,7 @@
                        style_shadow_width="0" style_bg_color="#card_bg" flex_flow="column"
                        style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
                        style_pad_all="#space_xs">
+              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_calibration_screws"/>
               <icon src="wrench" size="md" variant="accent"/>
               <text_small text="Bed Screws" style_pad_top="#space_xxs"/>
@@ -406,6 +460,7 @@
                        width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
                        style_bg_color="#secondary_color" style_bg_opa="40" style_border_width="0" hidden="true">
               <bind_flag_if_eq subject="printer_has_qgl" flag="hidden" ref_value="0"/>
+              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_qgl"/>
               <text_small text="Quad Gantry Level" style_text_color="#text_primary" align="center"/>
             </lv_button>
@@ -414,6 +469,7 @@
                        width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
                        style_bg_color="#secondary_color" style_bg_opa="40" style_border_width="0" hidden="true">
               <bind_flag_if_eq subject="printer_has_z_tilt" flag="hidden" ref_value="0"/>
+              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_z_tilt"/>
               <text_small text="Z-Tilt Adjust" style_text_color="#text_primary" align="center"/>
             </lv_button>
@@ -421,6 +477,7 @@
                        width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
                        style_bg_color="#secondary_color" style_bg_opa="40" style_border_width="0">
               <bind_flag_if_eq subject="macro_1_visible" flag="hidden" ref_value="0"/>
+              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_macro_1"/>
               <text_small name="macro_1_label" bind_text="macro_1_name" style_text_color="#text_primary" align="center"/>
             </lv_button>
@@ -433,6 +490,7 @@
                        width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
                        style_bg_color="#secondary_color" style_bg_opa="40" style_border_width="0">
               <bind_flag_if_eq subject="macro_2_visible" flag="hidden" ref_value="0"/>
+              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_macro_2"/>
               <text_small name="macro_2_label" bind_text="macro_2_name" style_text_color="#text_primary" align="center"/>
             </lv_button>
@@ -440,6 +498,7 @@
                        width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
                        style_bg_color="#secondary_color" style_bg_opa="40" style_border_width="0">
               <bind_flag_if_eq subject="macro_3_visible" flag="hidden" ref_value="0"/>
+              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_macro_3"/>
               <text_small name="macro_3_label" bind_text="macro_3_name" style_text_color="#text_primary" align="center"/>
             </lv_button>
@@ -447,6 +506,7 @@
                        width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
                        style_bg_color="#secondary_color" style_bg_opa="40" style_border_width="0">
               <bind_flag_if_eq subject="macro_4_visible" flag="hidden" ref_value="0"/>
+              <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_macro_4"/>
               <text_small name="macro_4_label" bind_text="macro_4_name" style_text_color="#text_primary" align="center"/>
             </lv_button>

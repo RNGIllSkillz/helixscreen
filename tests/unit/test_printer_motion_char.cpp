@@ -859,3 +859,183 @@ TEST_CASE("Motion characterization: multiple observers on same subject all fire"
     lv_observer_remove(observer2);
     lv_observer_remove(observer3);
 }
+
+// ============================================================================
+// Gcode Position Tests - Verify gcode_position_x/y/z subjects read from
+// gcode_move["gcode_position"] (commanded position), NOT gcode_move["position"]
+// ============================================================================
+
+TEST_CASE("Motion characterization: gcode_position subjects exist and are valid",
+          "[characterization][motion][gcode_position]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    state.reset_for_testing();
+    state.init_subjects(false);
+
+    SECTION("gcode_position_x_subject is not null") {
+        lv_subject_t* subject = state.get_gcode_position_x_subject();
+        REQUIRE(subject != nullptr);
+    }
+
+    SECTION("gcode_position_y_subject is not null") {
+        lv_subject_t* subject = state.get_gcode_position_y_subject();
+        REQUIRE(subject != nullptr);
+    }
+
+    SECTION("gcode_position_z_subject is not null") {
+        lv_subject_t* subject = state.get_gcode_position_z_subject();
+        REQUIRE(subject != nullptr);
+    }
+
+    SECTION("gcode_position subjects are distinct from toolhead position subjects") {
+        REQUIRE(state.get_gcode_position_x_subject() != state.get_position_x_subject());
+        REQUIRE(state.get_gcode_position_y_subject() != state.get_position_y_subject());
+        REQUIRE(state.get_gcode_position_z_subject() != state.get_position_z_subject());
+    }
+}
+
+TEST_CASE("Motion characterization: gcode_position initializes to zero",
+          "[characterization][motion][gcode_position][init]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    state.reset_for_testing();
+    state.init_subjects(false);
+
+    REQUIRE(lv_subject_get_int(state.get_gcode_position_x_subject()) == 0);
+    REQUIRE(lv_subject_get_int(state.get_gcode_position_y_subject()) == 0);
+    REQUIRE(lv_subject_get_int(state.get_gcode_position_z_subject()) == 0);
+}
+
+TEST_CASE("Motion characterization: gcode_position updates from gcode_move.gcode_position",
+          "[characterization][motion][gcode_position]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    state.reset_for_testing();
+    state.init_subjects(false);
+
+    SECTION("gcode positions store as centimillimeters from gcode_move.gcode_position") {
+        // This tests that we read from gcode_position, NOT position
+        json status = {{"gcode_move", {{"gcode_position", {150.5, 200.3, 10.7}}}}};
+        state.update_from_status(status);
+
+        // Values should be stored as centimillimeters (mm * 100)
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_x_subject()) == 15050);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_y_subject()) == 20030);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_z_subject()) == 1070);
+    }
+
+    SECTION("zero gcode positions store correctly") {
+        json status = {{"gcode_move", {{"gcode_position", {0.0, 0.0, 0.0}}}}};
+        state.update_from_status(status);
+
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_x_subject()) == 0);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_y_subject()) == 0);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_z_subject()) == 0);
+    }
+
+    SECTION("negative gcode positions store correctly") {
+        // Klipper can report negative positions in some configurations
+        json status = {{"gcode_move", {{"gcode_position", {-10.5, -5.2, -0.15}}}}};
+        state.update_from_status(status);
+
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_x_subject()) == -1050);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_y_subject()) == -520);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_z_subject()) == -15);
+    }
+
+    SECTION("large gcode positions store correctly") {
+        json status = {{"gcode_move", {{"gcode_position", {350.0, 350.0, 400.0}}}}};
+        state.update_from_status(status);
+
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_x_subject()) == 35000);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_y_subject()) == 35000);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_z_subject()) == 40000);
+    }
+}
+
+TEST_CASE("Motion characterization: gcode_position vs position are independent",
+          "[characterization][motion][gcode_position]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    state.reset_for_testing();
+    state.init_subjects(false);
+
+    // This is the critical test: gcode_move contains BOTH position and gcode_position
+    // - position: raw commanded position (before offset adjustments)
+    // - gcode_position: effective commanded position (what gcode coordinates actually mean)
+    // The UI should use gcode_position for display
+
+    SECTION("gcode_position reads from gcode_position key, not position key") {
+        // Set different values for position and gcode_position
+        // When there's a z-offset, these values will differ
+        json status = {{"gcode_move",
+                        {
+                            {"position", {100.0, 100.0, 10.0}},      // Raw commanded
+                            {"gcode_position", {150.5, 200.3, 10.7}} // Effective position
+                        }}};
+        state.update_from_status(status);
+
+        // gcode_position subjects should reflect gcode_position values
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_x_subject()) == 15050);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_y_subject()) == 20030);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_z_subject()) == 1070);
+    }
+
+    SECTION("gcode_position unchanged when only position key updates") {
+        // First set gcode_position
+        json initial = {{"gcode_move", {{"gcode_position", {50.0, 60.0, 5.0}}}}};
+        state.update_from_status(initial);
+
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_x_subject()) == 5000);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_y_subject()) == 6000);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_z_subject()) == 500);
+
+        // Update only position (not gcode_position) - should NOT change gcode_position subjects
+        json update = {{"gcode_move", {{"position", {999.0, 888.0, 777.0}}}}};
+        state.update_from_status(update);
+
+        // gcode_position subjects should be unchanged
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_x_subject()) == 5000);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_y_subject()) == 6000);
+        REQUIRE(lv_subject_get_int(state.get_gcode_position_z_subject()) == 500);
+    }
+}
+
+TEST_CASE("Motion characterization: gcode_position observer fires on update",
+          "[characterization][motion][gcode_position][observer]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    state.reset_for_testing();
+    state.init_subjects(false);
+
+    auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
+        int* count_ptr = static_cast<int*>(lv_observer_get_user_data(observer));
+        int* value_ptr = count_ptr + 1;
+
+        (*count_ptr)++;
+        *value_ptr = lv_subject_get_int(subject);
+    };
+
+    int user_data[2] = {0, -1}; // [callback_count, last_value]
+
+    lv_observer_t* observer =
+        lv_subject_add_observer(state.get_gcode_position_x_subject(), observer_cb, user_data);
+
+    // LVGL auto-notifies observers when first added
+    REQUIRE(user_data[0] == 1);
+    REQUIRE(user_data[1] == 0); // Initial value is 0
+
+    // Update gcode_position via status update
+    json status = {{"gcode_move", {{"gcode_position", {150.5, 200.0, 10.0}}}}};
+    state.update_from_status(status);
+
+    REQUIRE(user_data[0] >= 2);     // At least one more notification
+    REQUIRE(user_data[1] == 15050); // 150.5mm in centimm
+
+    lv_observer_remove(observer);
+}

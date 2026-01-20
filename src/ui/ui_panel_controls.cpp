@@ -31,6 +31,7 @@
 #include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm> // std::clamp
@@ -190,6 +191,11 @@ void ControlsPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(macro_3_name_, macro_3_name_buf_, "", "macro_3_name", subjects_);
     UI_MANAGED_SUBJECT_STRING(macro_4_name_, macro_4_name_buf_, "", "macro_4_name", subjects_);
 
+    // Z-offset display subject for live tuning
+    std::strcpy(controls_z_offset_buf_, "+0.000mm");
+    UI_MANAGED_SUBJECT_STRING(controls_z_offset_subject_, controls_z_offset_buf_, "+0.000mm",
+                              "controls_z_offset", subjects_);
+
     // Observe homed_axes from PrinterState to update homing subjects using string observer
     homed_axes_observer_ = observe_string<ControlsPanel>(
         printer_state_.get_homed_axes_subject(), this, [](ControlsPanel* self, const char* axes) {
@@ -266,6 +272,13 @@ void ControlsPanel::init_subjects() {
 
     // Z-Offset banner: Save button
     lv_xml_register_event_cb(nullptr, "on_controls_save_z_offset", on_save_z_offset);
+
+    // Z-Offset live tuning step buttons
+    lv_xml_register_event_cb(nullptr, "on_zoffset_step_005", on_zoffset_step_005);
+    lv_xml_register_event_cb(nullptr, "on_zoffset_step_01", on_zoffset_step_01);
+    lv_xml_register_event_cb(nullptr, "on_zoffset_step_05", on_zoffset_step_05);
+    lv_xml_register_event_cb(nullptr, "on_zoffset_up", on_zoffset_up);
+    lv_xml_register_event_cb(nullptr, "on_zoffset_down", on_zoffset_down);
 
     // Card click handlers (navigation to full overlay panels)
     lv_xml_register_event_cb(nullptr, "on_controls_quick_actions", on_quick_actions_clicked);
@@ -350,6 +363,15 @@ void ControlsPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
     // Populate secondary fans on initial setup (will be empty until discovery)
     populate_secondary_fans();
+
+    // Set default step button (0.01) as checked for Z-offset controls
+    lv_obj_t* btn_01 = lv_obj_find_by_name(panel_, "btn_zoffset_step_01");
+    if (btn_01) {
+        lv_obj_set_state(btn_01, LV_STATE_CHECKED, true);
+    }
+
+    // Update Z-offset icons based on printer kinematics
+    update_zoffset_icons();
 
     spdlog::info("[{}] Setup complete", get_name());
 }
@@ -458,6 +480,13 @@ void ControlsPanel::register_observers() {
     speed_factor_observer_ = observe_int_sync<ControlsPanel>(
         printer_state_.get_speed_factor_subject(), this,
         [](ControlsPanel* self, int /* value */) { self->update_speed_display(); });
+
+    // Subscribe to gcode Z-offset for live tuning display
+    gcode_z_offset_observer_ =
+        observe_int_sync<ControlsPanel>(printer_state_.get_gcode_z_offset_subject(), this,
+                                        [](ControlsPanel* self, int offset_microns) {
+                                            self->update_controls_z_offset_display(offset_microns);
+                                        });
 
     spdlog::debug("[{}] Observers registered for dashboard live data", get_name());
 }
@@ -718,6 +747,98 @@ void ControlsPanel::update_z_offset_delta_display(int delta_microns) {
 
     spdlog::debug("[{}] Z-offset delta display updated: '{}'", get_name(),
                   z_offset_delta_display_buf_);
+}
+
+void ControlsPanel::update_controls_z_offset_display(int offset_microns) {
+    double offset_mm = static_cast<double>(offset_microns) / 1000.0;
+    std::snprintf(controls_z_offset_buf_, sizeof(controls_z_offset_buf_), "%+.3fmm", offset_mm);
+    lv_subject_copy_string(&controls_z_offset_subject_, controls_z_offset_buf_);
+}
+
+void ControlsPanel::handle_zoffset_step(double step) {
+    z_offset_step_ = step;
+    spdlog::debug("[{}] Z-offset step set to {:.3f}mm", get_name(), step);
+
+    // Update button states - set checked state on selected button
+    if (panel_) {
+        lv_obj_t* btn_005 = lv_obj_find_by_name(panel_, "btn_zoffset_step_005");
+        lv_obj_t* btn_01 = lv_obj_find_by_name(panel_, "btn_zoffset_step_01");
+        lv_obj_t* btn_05 = lv_obj_find_by_name(panel_, "btn_zoffset_step_05");
+
+        if (btn_005)
+            lv_obj_set_state(btn_005, LV_STATE_CHECKED, step == 0.005);
+        if (btn_01)
+            lv_obj_set_state(btn_01, LV_STATE_CHECKED, step == 0.01);
+        if (btn_05)
+            lv_obj_set_state(btn_05, LV_STATE_CHECKED, step == 0.05);
+    }
+}
+
+void ControlsPanel::handle_zoffset_up() {
+    if (!api_) {
+        NOTIFY_ERROR("No printer connection");
+        return;
+    }
+
+    std::string cmd = fmt::format("SET_GCODE_OFFSET Z_ADJUST={:+.3f}", z_offset_step_);
+    spdlog::info("[{}] Z-offset up: {}", get_name(), cmd);
+
+    // Track for Save button (step in mm -> microns)
+    int delta_microns = static_cast<int>(z_offset_step_ * 1000.0);
+    printer_state_.add_pending_z_offset_delta(delta_microns);
+
+    api_->execute_gcode(
+        cmd, []() { /* Silent success */ },
+        [](const MoonrakerError& err) {
+            NOTIFY_ERROR("Z-offset adjust failed: {}", err.user_message());
+        });
+}
+
+void ControlsPanel::handle_zoffset_down() {
+    if (!api_) {
+        NOTIFY_ERROR("No printer connection");
+        return;
+    }
+
+    std::string cmd = fmt::format("SET_GCODE_OFFSET Z_ADJUST={:+.3f}", -z_offset_step_);
+    spdlog::info("[{}] Z-offset down: {}", get_name(), cmd);
+
+    // Track for Save button (step in mm -> microns, negative for down)
+    int delta_microns = static_cast<int>(-z_offset_step_ * 1000.0);
+    printer_state_.add_pending_z_offset_delta(delta_microns);
+
+    api_->execute_gcode(
+        cmd, []() { /* Silent success */ },
+        [](const MoonrakerError& err) {
+            NOTIFY_ERROR("Z-offset adjust failed: {}", err.user_message());
+        });
+}
+
+void ControlsPanel::update_zoffset_icons() {
+    if (!panel_)
+        return;
+
+    int kin = lv_subject_get_int(printer_state_.get_printer_bed_moves_subject());
+    bool bed_moves_z = (kin == 1);
+
+    // Select icon codepoints based on kinematics
+    // CoreXY (bed moves): expand icons show bed motion
+    // Cartesian/Delta (head moves): arrow icons show head motion
+    const char* up_icon =
+        bed_moves_z ? "\xF3\xB0\x9E\x96" : "\xF3\xB0\x81\x9D"; // expand-up or arrow-up
+    const char* down_icon =
+        bed_moves_z ? "\xF3\xB0\x9E\x93" : "\xF3\xB0\x81\x85"; // expand-down or arrow-down
+
+    lv_obj_t* icon_up = lv_obj_find_by_name(panel_, "icon_zoffset_up");
+    lv_obj_t* icon_down = lv_obj_find_by_name(panel_, "icon_zoffset_down");
+
+    if (icon_up)
+        lv_label_set_text(icon_up, up_icon);
+    if (icon_down)
+        lv_label_set_text(icon_down, down_icon);
+
+    spdlog::debug("[{}] Z-offset icons set for {} kinematics", get_name(),
+                  bed_moves_z ? "bed-moves-Z" : "head-moves-Z");
 }
 
 void ControlsPanel::handle_save_z_offset() {
@@ -1471,6 +1592,41 @@ void ControlsPanel::on_flow_down(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ControlsPanel] on_flow_down");
     (void)e;
     get_global_controls_panel().handle_flow_down();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void ControlsPanel::on_zoffset_step_005(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[ControlsPanel] on_zoffset_step_005");
+    (void)e;
+    get_global_controls_panel().handle_zoffset_step(0.005);
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void ControlsPanel::on_zoffset_step_01(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[ControlsPanel] on_zoffset_step_01");
+    (void)e;
+    get_global_controls_panel().handle_zoffset_step(0.01);
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void ControlsPanel::on_zoffset_step_05(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[ControlsPanel] on_zoffset_step_05");
+    (void)e;
+    get_global_controls_panel().handle_zoffset_step(0.05);
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void ControlsPanel::on_zoffset_up(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[ControlsPanel] on_zoffset_up");
+    (void)e;
+    get_global_controls_panel().handle_zoffset_up();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void ControlsPanel::on_zoffset_down(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[ControlsPanel] on_zoffset_down");
+    (void)e;
+    get_global_controls_panel().handle_zoffset_down();
     LVGL_SAFE_EVENT_CB_END();
 }
 
