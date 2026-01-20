@@ -265,7 +265,6 @@ class ControlsPanel : public PanelBase {
     char controls_z_offset_buf_[16] = {};
     lv_subject_t controls_z_offset_subject_{};
     ObserverGuard gcode_z_offset_observer_;
-    double z_offset_step_{0.01}; ///< Default step in mm
 
     //
     // === Speed/Flow Override Subjects ===
@@ -349,11 +348,7 @@ class ControlsPanel : public PanelBase {
     //
 
     void handle_zoffset_tune(); ///< Open Print Tune overlay for live Z-offset tuning
-    void handle_zoffset_step(double step);
-    void handle_zoffset_up();
-    void handle_zoffset_down();
     void update_controls_z_offset_display(int offset_microns);
-    void update_zoffset_icons();
 
     //
     // === Fan Slider Handler ===
@@ -420,11 +415,6 @@ class ControlsPanel : public PanelBase {
     //
 
     static void on_zoffset_tune(lv_event_t* e);
-    static void on_zoffset_step_005(lv_event_t* e);
-    static void on_zoffset_step_01(lv_event_t* e);
-    static void on_zoffset_step_05(lv_event_t* e);
-    static void on_zoffset_up(lv_event_t* e);
-    static void on_zoffset_down(lv_event_t* e);
 
     //
     // === Observer Callbacks (static - only for complex cases not using factory) ===
