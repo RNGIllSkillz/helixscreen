@@ -3,6 +3,7 @@
 
 #include "ui_panel_memory_stats.h"
 
+#include "static_panel_registry.h"
 #include "ui_theme.h"
 
 #include "lvgl/src/xml/lv_xml.h"
@@ -86,6 +87,11 @@ void MemoryStatsOverlay::init(lv_obj_t* /*parent*/, bool initially_visible) {
     }
 
     initialized_ = true;
+
+    // Register shutdown with StaticPanelRegistry to ensure timer is stopped before lv_deinit()
+    StaticPanelRegistry::instance().register_destroy("MemoryStatsOverlay",
+                                                     []() { instance().shutdown(); });
+
     spdlog::info("[MemoryStats] Overlay initialized (baseline={}KB)", baseline_rss_kb_);
 }
 
@@ -122,6 +128,29 @@ bool MemoryStatsOverlay::is_visible() const {
     if (!overlay_)
         return false;
     return !lv_obj_has_flag(overlay_, LV_OBJ_FLAG_HIDDEN);
+}
+
+void MemoryStatsOverlay::shutdown() {
+    if (!initialized_) {
+        return;
+    }
+
+    spdlog::debug("[MemoryStats] Shutting down");
+
+    // Stop the timer first to prevent callbacks during cleanup
+    if (update_timer_) {
+        lv_timer_delete(update_timer_);
+        update_timer_ = nullptr;
+    }
+
+    // Clear all LVGL object pointers (objects will be destroyed by lv_deinit)
+    overlay_ = nullptr;
+    rss_label_ = nullptr;
+    hwm_label_ = nullptr;
+    private_label_ = nullptr;
+    delta_label_ = nullptr;
+
+    initialized_ = false;
 }
 
 void MemoryStatsOverlay::update() {

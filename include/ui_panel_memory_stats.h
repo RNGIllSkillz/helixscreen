@@ -51,6 +51,12 @@ class MemoryStatsOverlay {
     bool is_visible() const;
 
     /**
+     * @brief Shutdown overlay (stops timer, clears pointers)
+     * Must be called before lv_deinit() to prevent stale pointer crashes.
+     */
+    void shutdown();
+
+    /**
      * @brief Update memory stats display (called by timer)
      */
     void update();
