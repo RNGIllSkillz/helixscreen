@@ -10,6 +10,7 @@
 
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
+#include "ui/temperature_observer_bundle.h"
 
 #include <array>
 #include <functional>
@@ -84,15 +85,7 @@ class TempControlPanel {
     static void on_bed_custom_clicked(lv_event_t* e);
 
   private:
-    //
-    // Observer callbacks (static trampolines that call instance methods)
-    //
-    static void nozzle_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
-    static void nozzle_target_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
-    static void bed_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
-    static void bed_target_observer_cb(lv_observer_t* observer, lv_subject_t* subject);
-
-    // Instance methods called by observers
+    // Instance methods called by observers (via observer factory pattern)
     void on_nozzle_temp_changed(int temp);
     void on_nozzle_target_changed(int target);
     void on_bed_temp_changed(int temp);
@@ -123,10 +116,8 @@ class TempControlPanel {
     MoonrakerAPI* api_;
 
     // Observer handles (RAII cleanup via ObserverGuard)
-    ObserverGuard nozzle_temp_observer_;
-    ObserverGuard nozzle_target_observer_;
-    ObserverGuard bed_temp_observer_;
-    ObserverGuard bed_target_observer_;
+    /// @brief Temperature observer bundle (nozzle + bed temps)
+    helix::ui::TemperatureObserverBundle<TempControlPanel> temp_observers_;
 
     // Temperature state
     int nozzle_current_ = 25;

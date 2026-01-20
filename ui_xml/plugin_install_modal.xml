@@ -79,8 +79,7 @@
       </lv_obj>
     </lv_obj>
     <!-- Horizontal divider above buttons -->
-    <lv_obj width="100%"
-            height="1" style_bg_color="#text_secondary" style_bg_opa="64" style_border_width="0" style_pad_all="0"/>
+    <divider_horizontal/>
     <!-- ============================================================ -->
     <!-- Button row (LOCAL mode: Not Now / Install) -->
     <!-- ============================================================ -->
@@ -95,8 +94,7 @@
         <text_body text="Not Now" align="center"/>
       </lv_button>
       <!-- Vertical divider -->
-      <lv_obj width="1"
-              height="100%" style_bg_color="#text_secondary" style_bg_opa="64" style_border_width="0" style_pad_all="0"/>
+      <divider_vertical/>
       <!-- Install button -->
       <lv_button name="btn_install"
                  height="100%" flex_grow="1" style_radius="0" style_border_width="0" style_shadow_width="0"
@@ -119,8 +117,7 @@
         <text_body text="Done" align="center"/>
       </lv_button>
       <!-- Vertical divider -->
-      <lv_obj width="1"
-              height="100%" style_bg_color="#text_secondary" style_bg_opa="64" style_border_width="0" style_pad_all="0"/>
+      <divider_vertical/>
       <!-- Copy Command button -->
       <lv_button name="btn_copy"
                  height="100%" flex_grow="1" style_radius="0" style_border_width="0" style_shadow_width="0"

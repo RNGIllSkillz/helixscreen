@@ -194,9 +194,7 @@
           </lv_obj>
 
           <!-- Vertical divider -->
-          <lv_obj name="status_divider"
-                  width="1" height="80%" style_bg_color="#text_secondary" style_bg_opa="128" style_border_width="0"
-                  style_pad_all="0"/>
+          <divider_vertical name="status_divider" height="80%" opacity="128"/>
 
           <!-- Network status - icon on top, label below (centered) -->
           <!-- Icons switch based on home_network_icon_state: 0=disconnected, 1-4=wifi strength, 5=ethernet -->
@@ -234,9 +232,7 @@
           </lv_button>
 
           <!-- Vertical divider (80% height for visual breathing room) -->
-          <lv_obj name="divider1"
-                  width="1" height="80%" style_bg_color="#text_secondary" style_bg_opa="50%" style_border_width="0"
-                  style_pad_all="0"/>
+          <divider_vertical name="divider1" height="80%"/>
 
           <!-- Notification (above light column) -->
           <lv_obj height="100%"
@@ -269,11 +265,9 @@
           </lv_obj>
 
           <!-- E-stop divider (ONLY visible when printing) -->
-          <lv_obj name="estop_divider"
-                  width="1" height="80%" style_bg_color="#text_secondary" style_bg_opa="128" style_border_width="0"
-                  style_pad_all="0" hidden="true">
+          <divider_vertical name="estop_divider" height="80%" opacity="128" hidden="true">
             <bind_flag_if_eq subject="estop_visible" flag="hidden" ref_value="0"/>
-          </lv_obj>
+          </divider_vertical>
 
           <!-- E-stop button container (ONLY visible when printing) -->
           <lv_obj height="100%"
@@ -291,11 +285,9 @@
           </lv_obj>
 
           <!-- Firmware restart divider (ONLY visible when klippy SHUTDOWN) -->
-          <lv_obj name="firmware_restart_divider"
-                  width="1" height="80%" style_bg_color="#text_secondary" style_bg_opa="128" style_border_width="0"
-                  style_pad_all="0" hidden="true">
+          <divider_vertical name="firmware_restart_divider" height="80%" opacity="128" hidden="true">
             <bind_flag_if_not_eq subject="klippy_state" flag="hidden" ref_value="2"/>
-          </lv_obj>
+          </divider_vertical>
 
           <!-- Firmware restart button container (ONLY visible when klippy SHUTDOWN) -->
           <lv_obj height="100%"
@@ -334,11 +326,9 @@
           </lv_button>
 
           <!-- Vertical divider (hidden if no LED capability) -->
-          <lv_obj name="divider2"
-                  width="1" height="80%" style_bg_color="#text_secondary" style_bg_opa="50%" style_border_width="0"
-                  style_pad_all="0">
+          <divider_vertical name="divider2" height="80%">
             <bind_flag_if_eq subject="printer_has_led" flag="hidden" ref_value="0"/>
-          </lv_obj>
+          </divider_vertical>
 
           <!-- Light control button - single icon with dynamic brightness/color -->
           <lv_button name="light_button"
@@ -353,11 +343,9 @@
           </lv_button>
 
           <!-- Divider before AMS - visibility bound to ams_slot_count subject -->
-          <lv_obj name="ams_divider"
-                  width="1" height="80%" style_bg_color="#text_secondary" style_bg_opa="50%" style_border_width="0"
-                  style_pad_all="0">
+          <divider_vertical name="ams_divider" height="80%">
             <bind_flag_if_eq subject="ams_slot_count" flag="hidden" ref_value="0"/>
-          </lv_obj>
+          </divider_vertical>
 
           <!-- AMS status indicator - visibility bound to ams_slot_count subject -->
           <lv_obj height="100%" flex_grow="1" style_bg_opa="0" style_border_width="0" style_pad_all="0">
@@ -367,11 +355,9 @@
           </lv_obj>
 
           <!-- Vertical divider for filament sensor (hidden if no sensors) -->
-          <lv_obj name="divider_filament"
-                  width="1" height="80%" style_bg_color="#text_secondary" style_bg_opa="50%" style_border_width="0"
-                  style_pad_all="0">
+          <divider_vertical name="divider_filament" height="80%">
             <bind_flag_if_eq subject="show_filament_status" flag="hidden" ref_value="0"/>
-          </lv_obj>
+          </divider_vertical>
 
           <!-- Filament sensor status (hidden if no sensors, or has AMS and not in bypass) -->
           <lv_obj name="filament_status_container"

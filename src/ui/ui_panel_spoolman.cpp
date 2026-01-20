@@ -3,6 +3,7 @@
 
 #include "ui_panel_spoolman.h"
 
+#include "ui_global_panel_helper.h"
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_common.h"
@@ -15,7 +16,6 @@
 #include "app_globals.h"
 #include "moonraker_api.h"
 #include "printer_state.h"
-#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -26,16 +26,7 @@
 // Global Instance
 // ============================================================================
 
-static std::unique_ptr<SpoolmanPanel> g_spoolman_panel;
-
-SpoolmanPanel& get_global_spoolman_panel() {
-    if (!g_spoolman_panel) {
-        g_spoolman_panel = std::make_unique<SpoolmanPanel>();
-        StaticPanelRegistry::instance().register_destroy("SpoolmanPanel",
-                                                         []() { g_spoolman_panel.reset(); });
-    }
-    return *g_spoolman_panel;
-}
+DEFINE_GLOBAL_PANEL(SpoolmanPanel, g_spoolman_panel, get_global_spoolman_panel)
 
 // ============================================================================
 // Constructor
@@ -57,24 +48,16 @@ SpoolmanPanel::~SpoolmanPanel() {
 // ============================================================================
 
 void SpoolmanPanel::init_subjects() {
-    if (subjects_initialized_) {
-        spdlog::debug("[{}] Subjects already initialized", get_name());
-        return;
-    }
+    init_subjects_guarded([this]() {
+        // Initialize panel state subject (starts in LOADING state)
+        UI_MANAGED_SUBJECT_INT(panel_state_subject_,
+                               static_cast<int32_t>(SpoolmanPanelState::LOADING),
+                               "spoolman_panel_state", subjects_);
 
-    spdlog::debug("[{}] Initializing subjects", get_name());
-
-    // Initialize panel state subject (starts in LOADING state)
-    UI_MANAGED_SUBJECT_INT(panel_state_subject_, static_cast<int32_t>(SpoolmanPanelState::LOADING),
-                           "spoolman_panel_state", subjects_);
-
-    // Initialize spool count subject
-    UI_MANAGED_SUBJECT_STRING(spool_count_subject_, spool_count_buf_, "", "spoolman_spool_count",
-                              subjects_);
-
-    subjects_initialized_ = true;
-    spdlog::debug("[{}] Subjects initialized: spoolman_panel_state, spoolman_spool_count",
-                  get_name());
+        // Initialize spool count subject
+        UI_MANAGED_SUBJECT_STRING(spool_count_subject_, spool_count_buf_, "",
+                                  "spoolman_spool_count", subjects_);
+    });
 }
 
 void SpoolmanPanel::deinit_subjects() {
@@ -111,29 +94,9 @@ void SpoolmanPanel::register_callbacks() {
 // ============================================================================
 
 lv_obj_t* SpoolmanPanel::create(lv_obj_t* parent) {
-    if (!parent) {
-        spdlog::error("[{}] Cannot create: null parent", get_name());
+    if (!create_overlay_from_xml(parent, "spoolman_panel")) {
         return nullptr;
     }
-
-    spdlog::debug("[{}] Creating overlay from XML", get_name());
-
-    parent_screen_ = parent;
-
-    // Reset cleanup flag when (re)creating
-    cleanup_called_ = false;
-
-    // Create overlay from XML
-    overlay_root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "spoolman_panel", nullptr));
-
-    if (!overlay_root_) {
-        spdlog::error("[{}] Failed to create from XML", get_name());
-        return nullptr;
-    }
-
-    // Standard overlay setup (handles back button and responsive layout)
-    ui_overlay_panel_setup_standard(overlay_root_, parent_screen_, "overlay_header",
-                                    "overlay_content");
 
     // Find widget references
     lv_obj_t* content = lv_obj_find_by_name(overlay_root_, "overlay_content");
@@ -145,9 +108,6 @@ lv_obj_t* SpoolmanPanel::create(lv_obj_t* parent) {
         spdlog::error("[{}] spool_list not found!", get_name());
         return nullptr;
     }
-
-    // Initially hidden
-    lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
 
     spdlog::info("[{}] Overlay created successfully", get_name());
     return overlay_root_;

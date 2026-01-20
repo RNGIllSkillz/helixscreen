@@ -16,6 +16,7 @@
 #include "app_constants.h"
 #include "app_globals.h"
 #include "moonraker_api.h"
+#include "observer_factory.h"
 #include "printer_state.h"
 #include "temperature_history_manager.h"
 
@@ -26,6 +27,7 @@
 #include <ctime>
 #include <memory>
 
+using helix::ui::observe_int_sync;
 using helix::ui::temperature::centi_to_degrees_f;
 
 TempControlPanel::TempControlPanel(PrinterState& printer_state, MoonrakerAPI* api)
@@ -61,15 +63,21 @@ TempControlPanel::TempControlPanel(PrinterState& printer_state, MoonrakerAPI* ap
     nozzle_status_buf_.fill('\0');
     bed_status_buf_.fill('\0');
 
-    // Subscribe to PrinterState temperature subjects (ObserverGuard handles cleanup)
-    nozzle_temp_observer_ =
-        ObserverGuard(printer_state_.get_extruder_temp_subject(), nozzle_temp_observer_cb, this);
-    nozzle_target_observer_ = ObserverGuard(printer_state_.get_extruder_target_subject(),
-                                            nozzle_target_observer_cb, this);
-    bed_temp_observer_ =
-        ObserverGuard(printer_state_.get_bed_temp_subject(), bed_temp_observer_cb, this);
-    bed_target_observer_ =
-        ObserverGuard(printer_state_.get_bed_target_subject(), bed_target_observer_cb, this);
+    // Subscribe to temperature subjects using bundle (replaces 4 individual observers)
+    temp_observers_.setup_sync(
+        this, printer_state_,
+        [](TempControlPanel* self, int temp) {
+            // Throttled logging: log every 40th unique major value change (~10 seconds)
+            static int last_logged = 0;
+            if (temp != last_logged && (temp / 100) != (last_logged / 100)) {
+                spdlog::trace("[TempPanel] Observer fired: nozzle temp = {} centideg", temp);
+                last_logged = temp;
+            }
+            self->on_nozzle_temp_changed(temp);
+        },
+        [](TempControlPanel* self, int target) { self->on_nozzle_target_changed(target); },
+        [](TempControlPanel* self, int temp) { self->on_bed_temp_changed(temp); },
+        [](TempControlPanel* self, int target) { self->on_bed_target_changed(target); });
 
     // Register XML event callbacks in constructor (BEFORE any lv_xml_create calls)
     // These are global registrations that must exist when XML is parsed
@@ -92,41 +100,6 @@ TempControlPanel::TempControlPanel(PrinterState& printer_state, MoonrakerAPI* ap
 
 TempControlPanel::~TempControlPanel() {
     deinit_subjects();
-}
-
-void TempControlPanel::nozzle_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
-    auto* self = static_cast<TempControlPanel*>(lv_observer_get_user_data(observer));
-    if (self) {
-        int temp_centi = lv_subject_get_int(subject);
-        static int last_logged = 0;
-        // Log every 40th unique value (~10 seconds of updates)
-        if (temp_centi != last_logged && (temp_centi / 100) != (last_logged / 100)) {
-            spdlog::trace("[TempPanel] Observer fired: nozzle temp = {} centideg", temp_centi);
-            last_logged = temp_centi;
-        }
-        self->on_nozzle_temp_changed(temp_centi);
-    }
-}
-
-void TempControlPanel::nozzle_target_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
-    auto* self = static_cast<TempControlPanel*>(lv_observer_get_user_data(observer));
-    if (self) {
-        self->on_nozzle_target_changed(lv_subject_get_int(subject));
-    }
-}
-
-void TempControlPanel::bed_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
-    auto* self = static_cast<TempControlPanel*>(lv_observer_get_user_data(observer));
-    if (self) {
-        self->on_bed_temp_changed(lv_subject_get_int(subject));
-    }
-}
-
-void TempControlPanel::bed_target_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
-    auto* self = static_cast<TempControlPanel*>(lv_observer_get_user_data(observer));
-    if (self) {
-        self->on_bed_target_changed(lv_subject_get_int(subject));
-    }
 }
 
 void TempControlPanel::on_nozzle_temp_changed(int temp_centi) {

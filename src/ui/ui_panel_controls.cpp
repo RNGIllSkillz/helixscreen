@@ -105,12 +105,8 @@ ControlsPanel::~ControlsPanel() {
         lv_obj_del(print_tune_panel_);
         print_tune_panel_ = nullptr;
     }
-    // Modal dialogs: use ui_modal_hide() - NOT lv_obj_del()!
+    // Modal dialogs: ModalGuard handles cleanup automatically via RAII
     // See docs/DEVELOPER_QUICK_REFERENCE.md "Modal Dialog Lifecycle"
-    if (motors_confirmation_dialog_) {
-        ui_modal_hide(motors_confirmation_dialog_);
-        motors_confirmation_dialog_ = nullptr;
-    }
 }
 
 // ============================================================================
@@ -407,27 +403,22 @@ void ControlsPanel::setup_card_handlers() {
 }
 
 void ControlsPanel::register_observers() {
-    // Subscribe to temperature updates using observer factory (raw caching pattern)
-    extruder_temp_observer_ = observe_int_sync<ControlsPanel>(
-        printer_state_.get_extruder_temp_subject(), this, [](ControlsPanel* self, int value) {
+    // Subscribe to temperature updates using bundle (replaces 4 individual observers)
+    temp_observers_.setup_sync(
+        this, printer_state_,
+        [](ControlsPanel* self, int value) {
             self->cached_extruder_temp_ = value;
             self->update_nozzle_temp_display();
-        });
-
-    extruder_target_observer_ = observe_int_sync<ControlsPanel>(
-        printer_state_.get_extruder_target_subject(), this, [](ControlsPanel* self, int value) {
+        },
+        [](ControlsPanel* self, int value) {
             self->cached_extruder_target_ = value;
             self->update_nozzle_temp_display();
-        });
-
-    bed_temp_observer_ = observe_int_sync<ControlsPanel>(printer_state_.get_bed_temp_subject(),
-                                                         this, [](ControlsPanel* self, int value) {
-                                                             self->cached_bed_temp_ = value;
-                                                             self->update_bed_temp_display();
-                                                         });
-
-    bed_target_observer_ = observe_int_sync<ControlsPanel>(
-        printer_state_.get_bed_target_subject(), this, [](ControlsPanel* self, int value) {
+        },
+        [](ControlsPanel* self, int value) {
+            self->cached_bed_temp_ = value;
+            self->update_bed_temp_display();
+        },
+        [](ControlsPanel* self, int value) {
             self->cached_bed_target_ = value;
             self->update_bed_temp_display();
         });
@@ -449,22 +440,19 @@ void ControlsPanel::register_observers() {
                                             self->update_z_offset_delta_display(delta_microns);
                                         });
 
-    // Subscribe to gcode position updates for Position card (commanded position in
+    // Subscribe to gcode position updates for Position card using bundle (commanded position in
     // centimillimeters)
-    position_x_observer_ = observe_int_sync<ControlsPanel>(
-        printer_state_.get_gcode_position_x_subject(), this, [](ControlsPanel* self, int centimm) {
+    pos_observers_.setup_sync(
+        this, printer_state_,
+        [](ControlsPanel* self, int centimm) {
             format_position(centimm, self->controls_pos_x_buf_, sizeof(self->controls_pos_x_buf_));
             lv_subject_copy_string(&self->controls_pos_x_subject_, self->controls_pos_x_buf_);
-        });
-
-    position_y_observer_ = observe_int_sync<ControlsPanel>(
-        printer_state_.get_gcode_position_y_subject(), this, [](ControlsPanel* self, int centimm) {
+        },
+        [](ControlsPanel* self, int centimm) {
             format_position(centimm, self->controls_pos_y_buf_, sizeof(self->controls_pos_y_buf_));
             lv_subject_copy_string(&self->controls_pos_y_subject_, self->controls_pos_y_buf_);
-        });
-
-    position_z_observer_ = observe_int_sync<ControlsPanel>(
-        printer_state_.get_gcode_position_z_subject(), this, [](ControlsPanel* self, int centimm) {
+        },
+        [](ControlsPanel* self, int centimm) {
             format_position(centimm, self->controls_pos_z_buf_, sizeof(self->controls_pos_z_buf_));
             lv_subject_copy_string(&self->controls_pos_z_subject_, self->controls_pos_z_buf_);
         });
@@ -1230,6 +1218,7 @@ void ControlsPanel::handle_fan_slider_changed(int value) {
 void ControlsPanel::handle_motors_clicked() {
     spdlog::debug("[{}] Motors Disable card clicked - showing confirmation", get_name());
 
+    // ModalGuard's operator= hides any previous dialog before assigning new one
     motors_confirmation_dialog_ = ui_modal_show_confirmation(
         "Disable Motors?", "Release all stepper motors. Position will be lost.",
         ModalSeverity::Warning, "Disable", on_motors_confirm, on_motors_cancel, this);
@@ -1246,11 +1235,8 @@ void ControlsPanel::handle_motors_clicked() {
 void ControlsPanel::handle_motors_confirm() {
     spdlog::debug("[{}] Motors disable confirmed", get_name());
 
-    // Hide dialog first
-    if (motors_confirmation_dialog_) {
-        ui_modal_hide(motors_confirmation_dialog_);
-        motors_confirmation_dialog_ = nullptr;
-    }
+    // Hide dialog first - ModalGuard handles cleanup
+    motors_confirmation_dialog_.hide();
 
     // Send M84 command to disable motors
     if (api_) {
@@ -1266,10 +1252,8 @@ void ControlsPanel::handle_motors_confirm() {
 void ControlsPanel::handle_motors_cancel() {
     spdlog::debug("[{}] Motors disable cancelled", get_name());
 
-    if (motors_confirmation_dialog_) {
-        ui_modal_hide(motors_confirmation_dialog_);
-        motors_confirmation_dialog_ = nullptr;
-    }
+    // ModalGuard handles cleanup
+    motors_confirmation_dialog_.hide();
 }
 
 void ControlsPanel::handle_calibration_bed_mesh() {

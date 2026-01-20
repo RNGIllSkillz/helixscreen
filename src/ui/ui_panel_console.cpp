@@ -5,16 +5,17 @@
 
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
+#include "ui_global_panel_helper.h"
 #include "ui_keyboard_manager.h"
 #include "ui_nav.h"
 #include "ui_panel_common.h"
 #include "ui_subject_registry.h"
 #include "ui_theme.h"
 #include "ui_update_queue.h"
+#include "ui_utils.h"
 
 #include "app_globals.h"
 #include "moonraker_client.h"
-#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -22,8 +23,13 @@
 #include <atomic>
 #include <cstdio>
 #include <cstring>
-#include <memory>
 #include <vector>
+
+// ============================================================================
+// Global Instance
+// ============================================================================
+
+DEFINE_GLOBAL_PANEL(ConsolePanel, g_console_panel, get_global_console_panel)
 
 // ============================================================================
 // HTML Span Parsing (for AFC/Happy Hare colored output)
@@ -146,21 +152,6 @@ std::vector<TextSegment> parse_html_spans(const std::string& message) {
 } // namespace
 
 // ============================================================================
-// Global Instance
-// ============================================================================
-
-static std::unique_ptr<ConsolePanel> g_console_panel;
-
-ConsolePanel& get_global_console_panel() {
-    if (!g_console_panel) {
-        g_console_panel = std::make_unique<ConsolePanel>();
-        StaticPanelRegistry::instance().register_destroy("ConsolePanel",
-                                                         []() { g_console_panel.reset(); });
-    }
-    return *g_console_panel;
-}
-
-// ============================================================================
 // Constructor
 // ============================================================================
 
@@ -178,19 +169,11 @@ ConsolePanel::~ConsolePanel() {
 // ============================================================================
 
 void ConsolePanel::init_subjects() {
-    if (subjects_initialized_) {
-        spdlog::debug("[{}] Subjects already initialized", get_name());
-        return;
-    }
-
-    spdlog::debug("[{}] Initializing subjects", get_name());
-
-    // Initialize status subject for reactive binding
-    UI_MANAGED_SUBJECT_STRING(status_subject_, status_buf_, "Loading history...", "console_status",
-                              subjects_);
-
-    subjects_initialized_ = true;
-    spdlog::debug("[{}] Subjects initialized: console_status", get_name());
+    init_subjects_guarded([this]() {
+        // Initialize status subject for reactive binding
+        UI_MANAGED_SUBJECT_STRING(status_subject_, status_buf_, "Loading history...",
+                                  "console_status", subjects_);
+    });
 }
 
 void ConsolePanel::deinit_subjects() {
@@ -233,29 +216,9 @@ void ConsolePanel::register_callbacks() {
 // ============================================================================
 
 lv_obj_t* ConsolePanel::create(lv_obj_t* parent) {
-    if (!parent) {
-        spdlog::error("[{}] Cannot create: null parent", get_name());
+    if (!create_overlay_from_xml(parent, "console_panel")) {
         return nullptr;
     }
-
-    spdlog::debug("[{}] Creating overlay from XML", get_name());
-
-    parent_screen_ = parent;
-
-    // Reset cleanup flag when (re)creating
-    cleanup_called_ = false;
-
-    // Create overlay from XML
-    overlay_root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "console_panel", nullptr));
-
-    if (!overlay_root_) {
-        spdlog::error("[{}] Failed to create from XML", get_name());
-        return nullptr;
-    }
-
-    // Standard overlay setup (handles back button and responsive layout)
-    ui_overlay_panel_setup_standard(overlay_root_, parent_screen_, "overlay_header",
-                                    "overlay_content");
 
     // Find widget references
     lv_obj_t* overlay_content = lv_obj_find_by_name(overlay_root_, "overlay_content");
@@ -284,9 +247,6 @@ lv_obj_t* ConsolePanel::create(lv_obj_t* parent) {
     if (!gcode_input_) {
         spdlog::warn("[{}] gcode_input not found - input disabled", get_name());
     }
-
-    // Initially hidden
-    lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
 
     spdlog::info("[{}] Overlay created successfully", get_name());
     return overlay_root_;
@@ -518,21 +478,7 @@ void ConsolePanel::update_visibility() {
     bool has_entries = !entries_.empty();
 
     // Toggle visibility: show console OR empty state
-    if (console_container_) {
-        if (has_entries) {
-            lv_obj_remove_flag(console_container_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(console_container_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    if (empty_state_) {
-        if (has_entries) {
-            lv_obj_add_flag(empty_state_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(empty_state_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    ui_toggle_list_empty_state(console_container_, empty_state_, has_entries);
 
     // Update status message
     if (has_entries) {
