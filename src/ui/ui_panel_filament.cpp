@@ -115,6 +115,7 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, MoonrakerAPI* api)
             self->update_material_temp_display();
             self->update_warning_text();
             self->update_status();
+            self->check_and_auto_select_preset();
             lv_subject_set_int(&self->nozzle_heating_subject_, self->nozzle_target_ > 0 ? 1 : 0);
         });
 
@@ -129,6 +130,7 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, MoonrakerAPI* api)
         [](FilamentPanel* self) {
             self->update_left_card_temps();
             self->update_material_temp_display();
+            self->check_and_auto_select_preset();
         });
 }
 
@@ -379,6 +381,32 @@ void FilamentPanel::update_preset_buttons_visual() {
                 // Unselected state - theme handles colors
                 lv_obj_remove_state(preset_buttons_[i], LV_STATE_CHECKED);
             }
+        }
+    }
+}
+
+void FilamentPanel::check_and_auto_select_preset() {
+    // Check if both nozzle and bed targets match any preset
+    int matching_preset = -1;
+    for (int i = 0; i < 4; i++) {
+        if (nozzle_target_ == MATERIAL_NOZZLE_TEMPS[i] && bed_target_ == MATERIAL_BED_TEMPS[i]) {
+            matching_preset = i;
+            break;
+        }
+    }
+
+    // Only update if selection changed
+    if (matching_preset != selected_material_) {
+        selected_material_ = matching_preset;
+        lv_subject_set_int(&material_selected_subject_, selected_material_);
+        update_preset_buttons_visual();
+
+        if (matching_preset >= 0) {
+            spdlog::debug("[{}] Auto-selected preset: {} (nozzle={}°C, bed={}°C)", get_name(),
+                          MATERIAL_NAMES[matching_preset], nozzle_target_, bed_target_);
+        } else {
+            spdlog::debug("[{}] No matching preset for nozzle={}°C, bed={}°C", get_name(),
+                          nozzle_target_, bed_target_);
         }
     }
 }

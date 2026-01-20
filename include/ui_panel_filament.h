@@ -267,6 +267,7 @@ class FilamentPanel : public PanelBase {
     void update_warning_text();
     void update_safety_state();
     void update_preset_buttons_visual();
+    void check_and_auto_select_preset(); ///< Auto-select preset if targets match
 
     //
     // === Instance Handlers ===
