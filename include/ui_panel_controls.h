@@ -250,15 +250,12 @@ class ControlsPanel : public PanelBase {
     ObserverGuard position_z_observer_;
 
     //
-    // === Speed/Flow Override Subjects ===
+    // === Z-Offset Display Subject (for Position card tune row) ===
     //
 
-    lv_subject_t speed_override_subject_{};
-    lv_subject_t flow_override_subject_{};
-    char speed_override_buf_[16] = {};
-    char flow_override_buf_[16] = {};
-    ObserverGuard speed_factor_observer_;
-    // Note: Flow factor observer uses extrude_factor from PrinterState
+    lv_subject_t controls_zoffset_subject_{};
+    char controls_zoffset_buf_[32] = {};
+    ObserverGuard zoffset_observer_;
 
     //
     // === Macro Slots 3 & 4 ===
@@ -316,15 +313,11 @@ class ControlsPanel : public PanelBase {
     void handle_macro_4();
 
     //
-    // === Speed/Flow Override Handlers ===
+    // === Z-Offset Tune Handler (Position card row) ===
     //
 
-    void handle_speed_up();
-    void handle_speed_down();
-    void handle_flow_up();
-    void handle_flow_down();
-    void update_speed_display();
-    void update_flow_display();
+    void handle_zoffset_tune();
+    void update_zoffset_display();
 
     //
     // === Fan Slider Handler ===
@@ -381,10 +374,7 @@ class ControlsPanel : public PanelBase {
     static void on_macro_4(lv_event_t* e);
     static void on_fan_slider_changed(lv_event_t* e);
     static void on_save_z_offset(lv_event_t* e);
-    static void on_speed_up(lv_event_t* e);
-    static void on_speed_down(lv_event_t* e);
-    static void on_flow_up(lv_event_t* e);
-    static void on_flow_down(lv_event_t* e);
+    static void on_zoffset_tune(lv_event_t* e);
 
     //
     // === Observer Callbacks (static - only for complex cases not using factory) ===
