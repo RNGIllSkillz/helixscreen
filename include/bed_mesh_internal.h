@@ -109,4 +109,7 @@ struct bed_mesh_renderer {
     int touched_row = 0;      // Mesh row of touched cell
     int touched_col = 0;      // Mesh column of touched cell
     float touched_z = 0.0f;   // Z value of touched cell
+
+    // Initial calibration state (prevents recalculating on subsequent frames)
+    bool initial_centering_computed = false; // True after first centering offset computation
 };

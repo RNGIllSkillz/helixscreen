@@ -37,7 +37,7 @@ namespace {
 // This ensures consistency between the renderer and any code that reads those constants
 
 // Canvas rendering
-constexpr double CANVAS_PADDING_FACTOR = 0.85; // Margin for axis labels and tick marks at edges
+constexpr double CANVAS_PADDING_FACTOR = 0.98; // Margin for axis labels and tick marks at edges
 constexpr double INITIAL_FOV_SCALE = 150.0;    // Starting point for auto-scale (gets adjusted)
 
 } // anonymous namespace
@@ -287,9 +287,12 @@ void bed_mesh_renderer_set_bounds(bed_mesh_renderer_t* renderer, double bed_x_mi
                   mesh_y_max, renderer->bed_center_x, renderer->bed_center_y,
                   renderer->coord_scale);
 
-    // Reset FOV scale to trigger auto-calibration on next render
+    // Reset FOV scale and centering to trigger auto-calibration on next render
     // This ensures the view zooms to fit the new bed bounds
     renderer->view_state.fov_scale = INITIAL_FOV_SCALE;
+    renderer->view_state.center_offset_x = 0;
+    renderer->view_state.center_offset_y = 0;
+    renderer->initial_centering_computed = false;
 
     // Bounds changes require regenerating quads with new coord_scale and centers
     if (renderer->state == RendererState::READY_TO_RENDER ||
@@ -1033,13 +1036,18 @@ static void prepare_render_frame(bed_mesh_renderer_t* renderer, int canvas_width
     }
 
     // Project vertices with current (stable) fov_scale
+    // IMPORTANT: Project with layer_offset=0 to get canvas-relative coordinates for centering
+    renderer->view_state.layer_offset_x = 0;
+    renderer->view_state.layer_offset_y = 0;
     project_and_cache_vertices(renderer, canvas_width, canvas_height);
 
-    // Center mesh once on first render (offsets start at 0 from initialization)
-    // After initial centering, offset remains stable across rotations
-    if (renderer->view_state.center_offset_x == 0 && renderer->view_state.center_offset_y == 0) {
+    // Center mesh once on first render
+    // Use dedicated flag instead of checking offset==(0,0) since (0,0) can be a valid computed
+    // offset
+    if (!renderer->initial_centering_computed) {
         compute_initial_centering(renderer, canvas_width, canvas_height, layer_offset_x,
                                   layer_offset_y);
+        renderer->initial_centering_computed = true;
     }
 
     // Apply layer offset for final rendering (updated every frame for animation support)
