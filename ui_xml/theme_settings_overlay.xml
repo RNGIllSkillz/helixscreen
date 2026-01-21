@@ -311,6 +311,63 @@
           </lv_obj>
         </lv_obj>
       </lv_obj>
+      <!-- ================================================================== -->
+      <!-- STYLE PROPERTIES -->
+      <!-- ================================================================== -->
+      <setting_section_header title="STYLE PROPERTIES" icon="tune_variant"/>
+
+      <setting_slider_row name="row_border_radius"
+                          label="Border Radius" icon="cube"
+                          description="Corner roundness (0 = sharp, 20 = very round)"
+                          min="0" max="20" value="8" callback="on_border_radius_changed"/>
+
+      <setting_slider_row name="row_border_width"
+                          label="Border Width" icon="ruler"
+                          description="Default border thickness"
+                          min="0" max="4" value="1" callback="on_border_width_changed"/>
+
+      <setting_slider_row name="row_border_opacity"
+                          label="Border Opacity" icon="layers"
+                          description="Border transparency (0 = invisible, 255 = solid)"
+                          min="0" max="255" value="128" callback="on_border_opacity_changed"/>
+
+      <setting_slider_row name="row_shadow_intensity"
+                          label="Shadow Intensity" icon="animation"
+                          description="Drop shadow strength (0 = disabled)"
+                          min="0" max="50" value="0" callback="on_shadow_changed"/>
+
+      <!-- ================================================================== -->
+      <!-- ACTION BUTTONS -->
+      <!-- ================================================================== -->
+      <lv_obj name="action_buttons" width="100%" height="content"
+              style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_lg"
+              style_pad_bottom="#space_lg" flex_flow="row" style_pad_gap="#space_md"
+              style_bg_opa="0" style_border_width="0" scrollable="false">
+
+        <lv_button name="btn_revert" flex_grow="1" height="#button_height"
+                   style_radius="#border_radius" style_bg_color="#card_bg" style_bg_opa="255"
+                   style_border_width="1" style_border_color="#text_secondary" style_border_opa="80"
+                   style_shadow_width="0">
+          <event_cb trigger="clicked" callback="on_theme_revert_clicked"/>
+          <text_body text="Revert" align="center" style_text_color="#text_primary"/>
+        </lv_button>
+
+        <lv_button name="btn_save_as" flex_grow="1" height="#button_height"
+                   style_radius="#border_radius" style_bg_color="#card_bg" style_bg_opa="255"
+                   style_border_width="1" style_border_color="#text_secondary" style_border_opa="80"
+                   style_shadow_width="0">
+          <event_cb trigger="clicked" callback="on_theme_save_as_clicked"/>
+          <text_body text="Save As New" align="center" style_text_color="#text_primary"/>
+        </lv_button>
+
+        <lv_button name="btn_save" flex_grow="1" height="#button_height"
+                   style_radius="#border_radius" style_bg_color="#accent_primary" style_bg_opa="255"
+                   style_border_width="0" style_shadow_width="0">
+          <event_cb trigger="clicked" callback="on_theme_save_clicked"/>
+          <text_body text="Save" align="center" style_text_color="#text_light"/>
+        </lv_button>
+      </lv_obj>
+
       <info_note icon="info"
                  text="Theme changes apply after restart." style_pad_left="#space_lg" style_pad_right="#space_lg"/>
     </lv_obj>
