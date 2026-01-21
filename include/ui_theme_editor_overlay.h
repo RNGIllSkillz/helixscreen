@@ -1,0 +1,134 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+/**
+ * @file ui_theme_editor_overlay.h
+ * @brief Theme editor overlay with live preview
+ */
+
+#pragma once
+
+#include "overlay_base.h"
+#include "theme_loader.h"
+
+#include <array>
+#include <functional>
+
+/**
+ * @brief Theme editor overlay with live preview
+ *
+ * Allows editing theme colors and properties with immediate preview.
+ * Tracks dirty state and prompts for save on exit.
+ */
+class ThemeEditorOverlay : public OverlayBase {
+  public:
+    ThemeEditorOverlay();
+    ~ThemeEditorOverlay() override;
+
+    //
+    // === OverlayBase Implementation ===
+    //
+
+    /**
+     * @brief Initialize subjects for XML binding
+     *
+     * No local subjects needed for initial implementation.
+     */
+    void init_subjects() override;
+
+    /**
+     * @brief Create overlay UI from XML
+     * @param parent Parent widget to attach overlay to (usually screen)
+     * @return Root object of overlay, or nullptr on failure
+     */
+    lv_obj_t* create(lv_obj_t* parent) override;
+
+    /**
+     * @brief Register XML event callbacks
+     *
+     * Registers swatch, slider, save, and close button callbacks.
+     */
+    void register_callbacks() override;
+
+    /**
+     * @brief Get human-readable overlay name
+     * @return "Theme Editor"
+     */
+    [[nodiscard]] const char* get_name() const override {
+        return "Theme Editor";
+    }
+
+    /**
+     * @brief Called when overlay becomes visible
+     */
+    void on_activate() override;
+
+    /**
+     * @brief Called when overlay is hidden
+     */
+    void on_deactivate() override;
+
+    /**
+     * @brief Clean up resources for async-safe destruction
+     */
+    void cleanup() override;
+
+    //
+    // === Theme Editor API ===
+    //
+
+    /**
+     * @brief Check if theme has unsaved changes
+     * @return true if there are unsaved modifications
+     */
+    [[nodiscard]] bool is_dirty() const {
+        return dirty_;
+    }
+
+    /**
+     * @brief Load theme for editing
+     * @param filename Theme filename (without .json extension)
+     */
+    void load_theme(const std::string& filename);
+
+  private:
+    void setup_callbacks();
+    void update_swatch_colors();
+    void update_property_sliders();
+    void mark_dirty();
+    void clear_dirty();
+
+    // Callbacks
+    static void on_swatch_clicked(lv_event_t* e);
+    static void on_slider_changed(lv_event_t* e);
+    static void on_save_clicked(lv_event_t* e);
+    static void on_save_as_clicked(lv_event_t* e);
+    static void on_revert_clicked(lv_event_t* e);
+    static void on_close_requested(lv_event_t* e);
+
+    void handle_swatch_click(int palette_index);
+    void handle_slider_change(const char* slider_name, int value);
+    void show_color_picker(int palette_index);
+    void show_save_as_dialog();
+    void show_discard_confirmation(std::function<void()> on_discard);
+
+    helix::ThemeData editing_theme_;
+    helix::ThemeData original_theme_;
+    bool dirty_ = false;
+    int editing_color_index_ = -1;
+
+    lv_obj_t* panel_ = nullptr;
+    std::array<lv_obj_t*, 16> swatch_objects_{};
+};
+
+/**
+ * @brief Get global ThemeEditorOverlay instance
+ * @return Reference to singleton instance
+ * @throws std::runtime_error if not initialized
+ */
+ThemeEditorOverlay& get_theme_editor_overlay();
+
+/**
+ * @brief Initialize global ThemeEditorOverlay instance
+ */
+void init_theme_editor_overlay();
