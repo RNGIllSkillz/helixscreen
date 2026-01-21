@@ -241,7 +241,7 @@ lv_obj_t* AmsToolMappingOverlay::create_tool_row(int tool_index, int current_slo
     lv_obj_t* swatch = lv_obj_create(row);
     lv_obj_set_size(swatch, ui_theme_get_spacing("space_lg"), ui_theme_get_spacing("space_lg"));
     lv_obj_set_style_border_width(swatch, 1, LV_PART_MAIN);
-    lv_obj_set_style_border_color(swatch, ui_theme_get_color("divider_color"), LV_PART_MAIN);
+    lv_obj_set_style_border_color(swatch, ui_theme_get_color("theme_grey"), LV_PART_MAIN);
     lv_obj_set_style_radius(swatch, ui_theme_get_spacing("space_xs"), LV_PART_MAIN);
     lv_obj_remove_flag(swatch, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(swatch, LV_OBJ_FLAG_EVENT_BUBBLE);
@@ -251,7 +251,7 @@ lv_obj_t* AmsToolMappingOverlay::create_tool_row(int tool_index, int current_slo
     // Set initial swatch color
     update_row_color_swatch(row, current_slot, backend);
 
-    // Spacer to push dropdown to the right
+    // Spacer - takes 1 part of flex space
     lv_obj_t* spacer = lv_obj_create(row);
     lv_obj_set_style_bg_opa(spacer, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(spacer, 0, LV_PART_MAIN);
@@ -259,7 +259,7 @@ lv_obj_t* AmsToolMappingOverlay::create_tool_row(int tool_index, int current_slo
     lv_obj_set_flex_grow(spacer, 1);
     lv_obj_remove_flag(spacer, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Dropdown for slot selection
+    // Dropdown for slot selection - takes 2 parts of flex space
     lv_obj_t* dropdown = lv_dropdown_create(row);
 
     // Build options string: "Slot 0\nSlot 1\nSlot 2\n..."
@@ -288,8 +288,8 @@ lv_obj_t* AmsToolMappingOverlay::create_tool_row(int tool_index, int current_slo
         lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(current_slot));
     }
 
-    // Style the dropdown
-    lv_obj_set_width(dropdown, 140);
+    // Style the dropdown - flex_grow=2 takes 2/3 of flexible space (spacer has 1)
+    lv_obj_set_flex_grow(dropdown, 2);
     lv_obj_set_style_text_font(dropdown, ui_theme_get_font("font_body"), LV_PART_MAIN);
 
     // Register change callback - use lv_obj_add_event_cb for dynamic widgets

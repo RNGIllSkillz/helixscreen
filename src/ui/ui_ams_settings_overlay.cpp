@@ -235,8 +235,8 @@ void AmsSettingsOverlay::update_status_card() {
     // (type alone could be set before full initialization completes)
     bool is_connected = (info.type != AmsType::NONE && info.total_slots > 0);
 
-    // Update version subject
-    if (!info.version.empty()) {
+    // Update version subject (hide "unknown" placeholder)
+    if (!info.version.empty() && info.version != "unknown") {
         snprintf(version_buf_, sizeof(version_buf_), "v%s", info.version.c_str());
     } else {
         snprintf(version_buf_, sizeof(version_buf_), "");

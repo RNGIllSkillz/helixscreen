@@ -4,6 +4,7 @@
 #include "xml_registration.h"
 
 #include "ui_ams_current_tool.h"
+#include "ui_ams_settings_overlay.h"
 #include "ui_fan_dial.h"
 #include "ui_fonts.h"
 #include "ui_gcode_viewer.h"
@@ -169,6 +170,16 @@ void register_xml_components() {
     lv_xml_register_component_from_file("A:ui_xml/filament_panel.xml");
 
     // NOTE: AMS panel (ams_panel.xml) is registered lazily in ui_panel_ams.cpp
+    // AMS Settings overlay components (needed for Settings panel access)
+    helix::ui::get_ams_settings_overlay().register_callbacks();
+    lv_xml_register_component_from_file("A:ui_xml/ams_settings_nav_row.xml");
+    lv_xml_register_component_from_file("A:ui_xml/ams_settings_panel.xml");
+    lv_xml_register_component_from_file("A:ui_xml/ams_settings_tool_mapping.xml");
+    lv_xml_register_component_from_file("A:ui_xml/ams_settings_endless_spool.xml");
+    lv_xml_register_component_from_file("A:ui_xml/ams_settings_maintenance.xml");
+    lv_xml_register_component_from_file("A:ui_xml/ams_settings_behavior.xml");
+    lv_xml_register_component_from_file("A:ui_xml/ams_settings_spoolman.xml");
+    lv_xml_register_component_from_file("A:ui_xml/ams_settings_device_actions.xml");
 
     // Feature parity panels
     lv_xml_register_component_from_file("A:ui_xml/macro_card.xml");

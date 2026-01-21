@@ -3,6 +3,7 @@
 
 #include "ui_panel_settings.h"
 
+#include "ui_ams_settings_overlay.h"
 #include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
 #include "ui_modal.h"
@@ -271,6 +272,11 @@ void SettingsPanel::init_subjects() {
 
     // Note: Display Settings overlay callbacks are now handled by DisplaySettingsOverlay
     // See ui_settings_display.h
+
+    lv_xml_register_event_cb(nullptr, "on_ams_settings_clicked", on_ams_settings_clicked);
+
+    // Note: AMS Settings overlay callbacks are handled by AmsSettingsOverlay
+    // See ui_ams_settings_overlay.h
 
     lv_xml_register_event_cb(nullptr, "on_macro_buttons_clicked", on_macro_buttons_clicked);
 
@@ -685,6 +691,13 @@ void SettingsPanel::handle_filament_sensors_clicked() {
     overlay.show(parent_screen_);
 }
 
+void SettingsPanel::handle_ams_settings_clicked() {
+    spdlog::debug("[{}] AMS Settings clicked - delegating to AmsSettingsOverlay", get_name());
+
+    auto& overlay = helix::ui::get_ams_settings_overlay();
+    overlay.show(parent_screen_);
+}
+
 void SettingsPanel::handle_macro_buttons_clicked() {
     spdlog::debug("[{}] Macro Buttons clicked - delegating to MacroButtonsOverlay", get_name());
 
@@ -895,6 +908,12 @@ void SettingsPanel::on_display_settings_clicked(lv_event_t* /*e*/) {
 void SettingsPanel::on_filament_sensors_clicked(lv_event_t* /*e*/) {
     LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_filament_sensors_clicked");
     get_global_settings_panel().handle_filament_sensors_clicked();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void SettingsPanel::on_ams_settings_clicked(lv_event_t* /*e*/) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_ams_settings_clicked");
+    get_global_settings_panel().handle_ams_settings_clicked();
     LVGL_SAFE_EVENT_CB_END();
 }
 

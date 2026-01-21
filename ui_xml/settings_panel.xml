@@ -36,6 +36,14 @@
                           label="Filament Sensors" icon="filament" description="Configure filament detection sensors"
                           callback="on_filament_sensors_clicked"/>
     </lv_obj>
+    <!-- AMS Settings (hidden if no AMS detected) -->
+    <lv_obj name="container_ams_settings"
+            width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false">
+      <bind_flag_if_eq subject="ams_slot_count" flag="hidden" ref_value="0"/>
+      <setting_action_row name="row_ams_settings"
+                          label="AMS Settings" icon="filament" description="Tool mapping, endless spool, maintenance"
+                          callback="on_ams_settings_clicked"/>
+    </lv_obj>
     <!-- LED Light Toggle (hidden if no LED capability) -->
     <lv_obj name="container_led_light"
             width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false">

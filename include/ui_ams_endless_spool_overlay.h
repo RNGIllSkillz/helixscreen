@@ -213,6 +213,13 @@ class AmsEndlessSpoolOverlay : public OverlayBase {
      */
     static void on_backup_changed(lv_event_t* e);
 
+    /**
+     * @brief Callback for reset mappings button
+     *
+     * Resets all backup slot mappings to None (-1).
+     */
+    static void on_reset_clicked(lv_event_t* e);
+
     //
     // === State ===
     //
