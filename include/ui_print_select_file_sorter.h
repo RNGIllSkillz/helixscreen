@@ -2,6 +2,7 @@
 #pragma once
 
 #include "print_file_data.h"
+
 #include <vector>
 
 namespace helix::ui {
@@ -16,7 +17,7 @@ enum class SortDirection { ASCENDING, DESCENDING };
  * Directories always appear before files regardless of sort column.
  */
 class PrintSelectFileSorter {
-public:
+  public:
     PrintSelectFileSorter() = default;
 
     /**
@@ -29,10 +30,14 @@ public:
      */
     void apply_sort(std::vector<PrintFileData>& files);
 
-    SortColumn current_column() const { return current_column_; }
-    SortDirection current_direction() const { return current_direction_; }
+    SortColumn current_column() const {
+        return current_column_;
+    }
+    SortDirection current_direction() const {
+        return current_direction_;
+    }
 
-private:
+  private:
     SortColumn current_column_ = SortColumn::MODIFIED;
     SortDirection current_direction_ = SortDirection::DESCENDING;
 };

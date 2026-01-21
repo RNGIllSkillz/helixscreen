@@ -9,7 +9,9 @@
 #include "ui_print_select_card_view.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_print_select_file_provider.h"
+#include "ui_print_select_file_sorter.h"
 #include "ui_print_select_list_view.h"
+#include "ui_print_select_path_navigator.h"
 #include "ui_print_select_usb_source.h"
 #include "ui_print_start_controller.h"
 
@@ -483,6 +485,12 @@ class PrintSelectPanel : public PanelBase {
 
     // Print start controller (handles print initiation workflow, warnings)
     std::unique_ptr<helix::ui::PrintStartController> print_controller_;
+
+    // File sorter (handles sorting logic for file list)
+    helix::ui::PrintSelectFileSorter file_sorter_;
+
+    // Path navigator (handles directory navigation logic)
+    helix::ui::PrintSelectPathNavigator path_navigator_;
 
     // Observers for reactive updates (ObserverGuard handles cleanup)
     ObserverGuard connection_observer_;

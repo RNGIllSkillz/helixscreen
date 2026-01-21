@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "print_file_data.h"
 #include "ui_print_select_file_sorter.h"
+
+#include "print_file_data.h"
 
 #include "../catch_amalgamated.hpp"
 

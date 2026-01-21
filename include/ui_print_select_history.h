@@ -2,23 +2,13 @@
 #pragma once
 
 #include "print_file_data.h"
-#include "print_history_data.h"
+#include "print_history_manager.h"
+
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 namespace helix::ui {
-
-/**
- * @brief Aggregated history statistics for a single filename.
- */
-struct FileHistoryStats {
-    int success_count = 0;
-    int failure_count = 0;
-    PrintJobStatus last_status = PrintJobStatus::UNKNOWN;
-    std::string uuid;
-    size_t size_bytes = 0;
-};
 
 /**
  * @brief Merges print history data into file lists.
@@ -27,7 +17,7 @@ struct FileHistoryStats {
  * print history status (COMPLETED, FAILED, CURRENTLY_PRINTING, etc.)
  */
 class PrintSelectHistoryIntegration {
-public:
+  public:
     /**
      * @brief Merge history stats into file list, updating status fields.
      * @param files File list to update (modified in place)
@@ -36,7 +26,7 @@ public:
      */
     static void merge_history_into_files(
         std::vector<PrintFileData>& files,
-        const std::unordered_map<std::string, FileHistoryStats>& stats_by_filename,
+        const std::unordered_map<std::string, PrintHistoryStats>& stats_by_filename,
         const std::string& current_print_filename);
 
     /**

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_print_select_file_sorter.h"
+
 #include <algorithm>
 
 namespace helix::ui {

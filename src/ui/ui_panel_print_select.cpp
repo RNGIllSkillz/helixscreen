@@ -19,6 +19,9 @@
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_panel_print_status.h"
+#include "ui_print_select_file_sorter.h"
+#include "ui_print_select_history.h"
+#include "ui_print_select_path_navigator.h"
 #include "ui_subject_registry.h"
 #include "ui_theme.h"
 #include "ui_update_queue.h"
@@ -728,15 +731,17 @@ void PrintSelectPanel::toggle_view() {
 }
 
 void PrintSelectPanel::sort_by(PrintSelectSortColumn column) {
-    // Toggle direction if same column, otherwise default to ascending
-    if (column == current_sort_column_) {
-        current_sort_direction_ = (current_sort_direction_ == PrintSelectSortDirection::ASCENDING)
-                                      ? PrintSelectSortDirection::DESCENDING
-                                      : PrintSelectSortDirection::ASCENDING;
-    } else {
-        current_sort_column_ = column;
-        current_sort_direction_ = PrintSelectSortDirection::ASCENDING;
-    }
+    // Convert PrintSelectSortColumn to FileSorter's SortColumn (identical enum values)
+    auto sorter_column = static_cast<helix::ui::SortColumn>(static_cast<int>(column));
+
+    // Delegate toggle logic to file_sorter_
+    file_sorter_.sort_by(sorter_column);
+
+    // Update local state from file_sorter_ (for UI code that uses these members)
+    current_sort_column_ =
+        static_cast<PrintSelectSortColumn>(static_cast<int>(file_sorter_.current_column()));
+    current_sort_direction_ =
+        static_cast<PrintSelectSortDirection>(static_cast<int>(file_sorter_.current_direction()));
 
     apply_sort();
     update_sort_indicators();
@@ -1277,33 +1282,21 @@ void PrintSelectPanel::on_activate() {
 }
 
 void PrintSelectPanel::navigate_to_directory(const std::string& dirname) {
-    // Build new path
-    if (current_path_.empty()) {
-        current_path_ = dirname;
-    } else {
-        current_path_ = current_path_ + "/" + dirname;
-    }
+    path_navigator_.navigate_to(dirname);
+    current_path_ = path_navigator_.current_path();
 
     spdlog::info("[{}] Navigating to directory: {}", get_name(), current_path_);
     refresh_files();
 }
 
 void PrintSelectPanel::navigate_up() {
-    // Don't navigate above root
-    if (current_path_.empty()) {
+    if (path_navigator_.is_at_root()) {
         spdlog::debug("[{}] Already at root, cannot navigate up", get_name());
         return;
     }
 
-    // Find last path separator and truncate
-    size_t last_slash = current_path_.rfind('/');
-    if (last_slash == std::string::npos) {
-        // No slash found - we're one level deep, go to root
-        current_path_.clear();
-    } else {
-        // Truncate at last slash
-        current_path_ = current_path_.substr(0, last_slash);
-    }
+    path_navigator_.navigate_up();
+    current_path_ = path_navigator_.current_path();
 
     spdlog::info("[{}] Navigating up to: {}", get_name(),
                  current_path_.empty() ? "/" : current_path_);
@@ -1613,42 +1606,7 @@ void PrintSelectPanel::populate_list_view(bool preserve_scroll) {
 }
 
 void PrintSelectPanel::apply_sort() {
-    auto sort_column = current_sort_column_;
-    auto sort_direction = current_sort_direction_;
-
-    std::sort(file_list_.begin(), file_list_.end(),
-              [sort_column, sort_direction](const PrintFileData& a, const PrintFileData& b) {
-                  // Directories always sort to top (users expect folders first when browsing)
-                  if (a.is_dir != b.is_dir) {
-                      return a.is_dir; // dirs always first
-                  }
-
-                  bool result = false;
-
-                  switch (sort_column) {
-                  case PrintSelectSortColumn::FILENAME:
-                      result = a.filename < b.filename;
-                      break;
-                  case PrintSelectSortColumn::SIZE:
-                      result = a.file_size_bytes < b.file_size_bytes;
-                      break;
-                  case PrintSelectSortColumn::MODIFIED:
-                      result = a.modified_timestamp < b.modified_timestamp;
-                      break;
-                  case PrintSelectSortColumn::PRINT_TIME:
-                      result = a.print_time_minutes < b.print_time_minutes;
-                      break;
-                  case PrintSelectSortColumn::FILAMENT:
-                      result = a.filament_grams < b.filament_grams;
-                      break;
-                  }
-
-                  if (sort_direction == PrintSelectSortDirection::DESCENDING) {
-                      result = !result;
-                  }
-
-                  return result;
-              });
+    file_sorter_.apply_sort(file_list_);
 }
 
 void PrintSelectPanel::merge_history_into_file_list() {
@@ -1658,106 +1616,28 @@ void PrintSelectPanel::merge_history_into_file_list() {
         return;
     }
 
+    // Trigger fetch if history not loaded yet
+    if (!history_manager->is_loaded()) {
+        spdlog::debug("[{}] History not loaded, triggering fetch", get_name());
+        history_manager->fetch();
+    }
+
     // Get currently printing filename (if any)
     std::string current_print_filename;
     auto print_state = printer_state_.get_print_job_state();
     if (print_state == PrintJobState::PRINTING || print_state == PrintJobState::PAUSED) {
-        lv_subject_t* filename_subject = printer_state_.get_print_filename_subject();
-        if (filename_subject) {
-            const char* filename = lv_subject_get_string(filename_subject);
-            if (filename && filename[0] != '\0') {
-                current_print_filename = filename;
-                // Strip path if present
-                auto slash_pos = current_print_filename.rfind('/');
-                if (slash_pos != std::string::npos) {
-                    current_print_filename = current_print_filename.substr(slash_pos + 1);
-                }
+        if (auto* filename_subject = printer_state_.get_print_filename_subject()) {
+            if (const char* filename = lv_subject_get_string(filename_subject);
+                filename && filename[0] != '\0') {
+                current_print_filename =
+                    helix::ui::PrintSelectHistoryIntegration::extract_basename(filename);
             }
         }
     }
 
-    // If history not loaded yet, trigger fetch (will call back when ready)
-    if (!history_manager->is_loaded()) {
-        spdlog::debug("[{}] History not loaded, triggering fetch", get_name());
-        history_manager->fetch();
-        // For now, files will show as NEVER_PRINTED until history loads
-    }
-
-    const auto& stats_map = history_manager->get_filename_stats();
-
-    for (auto& file : file_list_) {
-        if (file.is_dir) {
-            continue; // Directories don't have history
-        }
-
-        // Strip path from filename for lookup
-        std::string basename = file.filename;
-        auto slash_pos = basename.rfind('/');
-        if (slash_pos != std::string::npos) {
-            basename = basename.substr(slash_pos + 1);
-        }
-
-        // Check if currently printing
-        if (!current_print_filename.empty() && basename == current_print_filename) {
-            file.history_status = FileHistoryStatus::CURRENTLY_PRINTING;
-            file.success_count = 0; // Not shown when currently printing
-            continue;
-        }
-
-        // Look up history stats
-        auto it = stats_map.find(basename);
-        if (it == stats_map.end()) {
-            file.history_status = FileHistoryStatus::NEVER_PRINTED;
-            file.success_count = 0;
-            continue;
-        }
-
-        const auto& stats = it->second;
-
-        // Verify match with UUID or size (prevent false positives)
-        bool match_confirmed = false;
-
-        // Priority 1: UUID match (most reliable)
-        if (!file.uuid.empty() && !stats.uuid.empty()) {
-            match_confirmed = (file.uuid == stats.uuid);
-        }
-        // Priority 2: Size match (fallback when UUID unavailable)
-        else if (file.file_size_bytes > 0 && stats.size_bytes > 0) {
-            match_confirmed = (file.file_size_bytes == stats.size_bytes);
-        }
-        // Priority 3: Basename only (legacy fallback for old entries without metadata)
-        else {
-            match_confirmed = true;
-        }
-
-        if (!match_confirmed) {
-            // Same name but different file - treat as never printed
-            file.history_status = FileHistoryStatus::NEVER_PRINTED;
-            file.success_count = 0;
-            continue;
-        }
-
-        file.success_count = stats.success_count;
-
-        // Determine status based on most recent print
-        switch (stats.last_status) {
-        case PrintJobStatus::COMPLETED:
-            file.history_status = FileHistoryStatus::COMPLETED;
-            break;
-        case PrintJobStatus::CANCELLED:
-            file.history_status = FileHistoryStatus::CANCELLED;
-            break;
-        case PrintJobStatus::ERROR:
-            file.history_status = FileHistoryStatus::FAILED;
-            break;
-        case PrintJobStatus::IN_PROGRESS:
-            file.history_status = FileHistoryStatus::CURRENTLY_PRINTING;
-            break;
-        default:
-            file.history_status = FileHistoryStatus::NEVER_PRINTED;
-            break;
-        }
-    }
+    // Delegate to history integration module
+    helix::ui::PrintSelectHistoryIntegration::merge_history_into_files(
+        file_list_, history_manager->get_filename_stats(), current_print_filename);
 
     spdlog::debug("[{}] Merged history status for {} files", get_name(), file_list_.size());
 }

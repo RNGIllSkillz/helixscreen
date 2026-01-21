@@ -7,7 +7,7 @@
 
 #include "../catch_amalgamated.hpp"
 
-using helix::ui::FileHistoryStats;
+using ::PrintHistoryStats;
 using helix::ui::PrintSelectHistoryIntegration;
 
 // ============================================================================
@@ -45,9 +45,9 @@ static PrintFileData make_dir(const std::string& name) {
 /**
  * @brief Create history stats for testing
  */
-static FileHistoryStats make_stats(PrintJobStatus status, int success = 0, int failure = 0,
-                                   const std::string& uuid = "", size_t size = 0) {
-    FileHistoryStats stats;
+static PrintHistoryStats make_stats(PrintJobStatus status, int success = 0, int failure = 0,
+                                    const std::string& uuid = "", size_t size = 0) {
+    PrintHistoryStats stats;
     stats.last_status = status;
     stats.success_count = success;
     stats.failure_count = failure;
@@ -65,7 +65,7 @@ TEST_CASE("[HistoryIntegration] File with no history gets NEVER_PRINTED", "[Hist
         make_file("test.gcode"),
     };
 
-    std::unordered_map<std::string, FileHistoryStats> stats_map;
+    std::unordered_map<std::string, PrintHistoryStats> stats_map;
     // No entry for "test.gcode" in the map
 
     PrintSelectHistoryIntegration::merge_history_into_files(files, stats_map, "");
@@ -85,7 +85,7 @@ TEST_CASE("[HistoryIntegration] File matching current print gets CURRENTLY_PRINT
         make_file("other_file.gcode"),
     };
 
-    std::unordered_map<std::string, FileHistoryStats> stats_map;
+    std::unordered_map<std::string, PrintHistoryStats> stats_map;
     // Even if file has history, current print takes precedence
     stats_map["printing_now.gcode"] = make_stats(PrintJobStatus::COMPLETED, 5);
 
@@ -105,7 +105,7 @@ TEST_CASE("[HistoryIntegration] Completed file shows COMPLETED status and succes
         make_file("benchy.gcode"),
     };
 
-    std::unordered_map<std::string, FileHistoryStats> stats_map;
+    std::unordered_map<std::string, PrintHistoryStats> stats_map;
     stats_map["benchy.gcode"] = make_stats(PrintJobStatus::COMPLETED, 3, 1);
 
     PrintSelectHistoryIntegration::merge_history_into_files(files, stats_map, "");
@@ -123,7 +123,7 @@ TEST_CASE("[HistoryIntegration] Failed file shows FAILED status", "[HistoryInteg
         make_file("failed_print.gcode"),
     };
 
-    std::unordered_map<std::string, FileHistoryStats> stats_map;
+    std::unordered_map<std::string, PrintHistoryStats> stats_map;
     stats_map["failed_print.gcode"] = make_stats(PrintJobStatus::ERROR, 0, 2);
 
     PrintSelectHistoryIntegration::merge_history_into_files(files, stats_map, "");
@@ -140,7 +140,7 @@ TEST_CASE("[HistoryIntegration] Cancelled file shows CANCELLED status", "[Histor
         make_file("cancelled_print.gcode"),
     };
 
-    std::unordered_map<std::string, FileHistoryStats> stats_map;
+    std::unordered_map<std::string, PrintHistoryStats> stats_map;
     stats_map["cancelled_print.gcode"] = make_stats(PrintJobStatus::CANCELLED, 1, 0);
 
     PrintSelectHistoryIntegration::merge_history_into_files(files, stats_map, "");
@@ -158,7 +158,7 @@ TEST_CASE("[HistoryIntegration] UUID match confirms history", "[HistoryIntegrati
         make_file("renamed_file.gcode", 1000, uuid),
     };
 
-    std::unordered_map<std::string, FileHistoryStats> stats_map;
+    std::unordered_map<std::string, PrintHistoryStats> stats_map;
     // Stats have matching UUID
     stats_map["renamed_file.gcode"] = make_stats(PrintJobStatus::COMPLETED, 2, 0, uuid, 0);
 
@@ -178,7 +178,7 @@ TEST_CASE("[HistoryIntegration] Size match confirms history", "[HistoryIntegrati
         make_file("myprint.gcode", file_size, ""), // No UUID
     };
 
-    std::unordered_map<std::string, FileHistoryStats> stats_map;
+    std::unordered_map<std::string, PrintHistoryStats> stats_map;
     // Stats have no UUID but matching size
     stats_map["myprint.gcode"] = make_stats(PrintJobStatus::COMPLETED, 1, 0, "", file_size);
 
@@ -198,7 +198,7 @@ TEST_CASE("[HistoryIntegration] Directories are skipped", "[HistoryIntegration]"
         make_file("test.gcode"),
     };
 
-    std::unordered_map<std::string, FileHistoryStats> stats_map;
+    std::unordered_map<std::string, PrintHistoryStats> stats_map;
     // Even if there's stats for the directory name, it should be ignored
     stats_map["my_folder"] = make_stats(PrintJobStatus::COMPLETED, 5);
     stats_map["test.gcode"] = make_stats(PrintJobStatus::COMPLETED, 2);
