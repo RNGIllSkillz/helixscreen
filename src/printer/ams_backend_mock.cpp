@@ -155,6 +155,15 @@ AmsBackendMock::AmsBackendMock(int slot_count) {
         filament_segment_ = PathSegment::NOZZLE; // Filament is fully loaded to nozzle
     }
 
+    // Initialize endless spool configs for all slots (no backup by default)
+    endless_spool_configs_.reserve(slot_count);
+    for (int i = 0; i < slot_count; ++i) {
+        helix::printer::EndlessSpoolConfig config;
+        config.slot_index = i;
+        config.backup_slot = -1; // No backup
+        endless_spool_configs_.push_back(config);
+    }
+
     // Make slot index 3 (4th slot) empty for realistic demo
     if (slot_count > 3) {
         auto* slot = system_info_.get_slot_global(3);
@@ -1158,6 +1167,81 @@ void AmsBackendMock::schedule_completion(AmsAction action, const std::string& co
         emit_event(complete_event, slot_index >= 0 ? std::to_string(slot_index) : "");
         emit_event(EVENT_STATE_CHANGED);
     });
+}
+
+// ============================================================================
+// Endless spool implementation
+// ============================================================================
+
+void AmsBackendMock::set_endless_spool_supported(bool supported) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    endless_spool_supported_ = supported;
+    // Update system_info to reflect the new capability
+    system_info_.supports_endless_spool = supported;
+    spdlog::debug("[AmsBackendMock] Endless spool supported set to {}", supported);
+}
+
+void AmsBackendMock::set_endless_spool_editable(bool editable) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    endless_spool_editable_ = editable;
+    spdlog::debug("[AmsBackendMock] Endless spool editable set to {}", editable);
+}
+
+helix::printer::EndlessSpoolCapabilities AmsBackendMock::get_endless_spool_capabilities() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    helix::printer::EndlessSpoolCapabilities caps;
+    caps.supported = endless_spool_supported_;
+    caps.editable = endless_spool_supported_ && endless_spool_editable_;
+    if (caps.supported) {
+        caps.description =
+            caps.editable ? "Per-slot backup (AFC-style)" : "Group-based (Happy Hare-style)";
+    }
+    return caps;
+}
+
+std::vector<helix::printer::EndlessSpoolConfig> AmsBackendMock::get_endless_spool_config() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return endless_spool_configs_;
+}
+
+AmsError AmsBackendMock::set_endless_spool_backup(int slot_index, int backup_slot) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Check if endless spool is supported
+    if (!endless_spool_supported_) {
+        return AmsErrorHelper::not_supported("Endless spool");
+    }
+
+    // Check if editable
+    if (!endless_spool_editable_) {
+        return AmsErrorHelper::not_supported("Endless spool configuration");
+    }
+
+    // Validate slot_index
+    if (slot_index < 0 || slot_index >= system_info_.total_slots) {
+        return AmsErrorHelper::invalid_slot(slot_index, system_info_.total_slots - 1);
+    }
+
+    // Cannot set slot as its own backup
+    if (backup_slot == slot_index) {
+        return AmsError(AmsResult::INVALID_SLOT,
+                        "Cannot set slot " + std::to_string(slot_index) + " as its own backup",
+                        "Invalid backup configuration", "Select a different slot as backup");
+    }
+
+    // Validate backup_slot (must be -1 or valid slot index)
+    if (backup_slot != -1 && (backup_slot < 0 || backup_slot >= system_info_.total_slots)) {
+        return AmsErrorHelper::invalid_slot(backup_slot, system_info_.total_slots - 1);
+    }
+
+    // Update the config
+    if (slot_index < static_cast<int>(endless_spool_configs_.size())) {
+        endless_spool_configs_[slot_index].backup_slot = backup_slot;
+        spdlog::info("[AmsBackendMock] Set slot {} backup to {}", slot_index, backup_slot);
+    }
+
+    return AmsErrorHelper::success();
 }
 
 // ============================================================================

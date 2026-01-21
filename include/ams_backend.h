@@ -443,6 +443,57 @@ class AmsBackend {
     }
 
     // ========================================================================
+    // Endless Spool Control
+    // ========================================================================
+
+    /**
+     * @brief Get endless spool capabilities for this backend
+     *
+     * Returns information about whether endless spool is supported and
+     * whether the configuration can be modified via the UI.
+     *
+     * @return Capabilities struct with supported/editable flags
+     */
+    [[nodiscard]] virtual helix::printer::EndlessSpoolCapabilities
+    get_endless_spool_capabilities() const {
+        return {false, false, ""}; // Default: not supported
+    }
+
+    /**
+     * @brief Get endless spool configuration for all slots
+     *
+     * Returns the backup slot configuration for each slot in the system.
+     * For Happy Hare, this translates the group-based configuration to
+     * per-slot backup mappings.
+     *
+     * @return Vector of configs, one per slot
+     */
+    [[nodiscard]] virtual std::vector<helix::printer::EndlessSpoolConfig>
+    get_endless_spool_config() const {
+        return {}; // Default: empty
+    }
+
+    /**
+     * @brief Set backup slot for endless spool
+     *
+     * Configures which slot will be used as a backup when the specified
+     * slot runs out of filament. Pass -1 as backup_slot to disable backup.
+     *
+     * Not all backends support editing:
+     * - AFC: Fully editable via SET_RUNOUT G-code
+     * - Happy Hare: Read-only (configured via mmu_vars.cfg)
+     *
+     * @param slot_index Source slot
+     * @param backup_slot Backup slot (-1 to disable)
+     * @return AmsError with result
+     */
+    virtual AmsError set_endless_spool_backup(int slot_index, int backup_slot) {
+        (void)slot_index;
+        (void)backup_slot;
+        return AmsErrorHelper::not_supported("Endless spool");
+    }
+
+    // ========================================================================
     // Capability Queries
     // ========================================================================
 

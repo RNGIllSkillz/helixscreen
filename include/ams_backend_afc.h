@@ -113,6 +113,39 @@ class AmsBackendAfc : public AmsBackend {
         return true;
     }
 
+    // Endless Spool support
+    /**
+     * @brief Get endless spool capabilities for AFC
+     *
+     * AFC supports per-slot backup configuration via SET_RUNOUT G-code.
+     *
+     * @return Capabilities with supported=true, editable=true
+     */
+    [[nodiscard]] helix::printer::EndlessSpoolCapabilities
+    get_endless_spool_capabilities() const override;
+
+    /**
+     * @brief Get endless spool configuration for all lanes
+     *
+     * Returns the backup slot configuration for each lane.
+     *
+     * @return Vector of configs, one per lane
+     */
+    [[nodiscard]] std::vector<helix::printer::EndlessSpoolConfig>
+    get_endless_spool_config() const override;
+
+    /**
+     * @brief Set backup slot for endless spool
+     *
+     * Sends SET_RUNOUT G-code to configure which lane will be used as backup
+     * when the specified lane runs out of filament.
+     *
+     * @param slot_index Source lane (0 to lane_names_.size()-1)
+     * @param backup_slot Backup lane (-1 to disable)
+     * @return AmsError with result
+     */
+    AmsError set_endless_spool_backup(int slot_index, int backup_slot) override;
+
     /**
      * @brief Set discovered lane and hub names from PrinterCapabilities
      *
@@ -131,6 +164,7 @@ class AmsBackendAfc : public AmsBackend {
   protected:
     // Allow test helper access to private members
     friend class AmsBackendAfcTestHelper;
+    friend class AmsBackendAfcEndlessSpoolHelper;
 
   private:
     /**
@@ -326,4 +360,8 @@ class AmsBackendAfc : public AmsBackend {
 
     // Path visualization state
     PathSegment error_segment_{PathSegment::NONE}; ///< Inferred error location
+
+    // Endless spool configuration
+    std::vector<helix::printer::EndlessSpoolConfig>
+        endless_spool_configs_; ///< Per-lane backup config
 };

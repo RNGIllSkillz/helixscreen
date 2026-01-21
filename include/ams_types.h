@@ -766,3 +766,39 @@ inline std::vector<DryingPreset> get_default_drying_presets() {
         {"ASA", 65.0f, 360, 50}    // 65°C for 6 hours
     };
 }
+
+// ============================================================================
+// Endless Spool Types
+// ============================================================================
+
+namespace helix::printer {
+
+/**
+ * @brief Capabilities for endless spool feature
+ *
+ * Describes whether endless spool is supported and whether the UI can modify
+ * the configuration. Different backends have different capabilities:
+ * - AFC: Fully editable, per-slot backup configuration
+ * - Happy Hare: Read-only, group-based (configured via mmu_vars.cfg)
+ * - Mock: Configurable for testing both modes
+ */
+struct EndlessSpoolCapabilities {
+    bool supported = false; ///< Does backend support endless spool?
+    bool editable = false;  ///< Can UI modify configuration?
+    std::string
+        description; ///< Human-readable description (e.g., "Per-slot backup", "Group-based")
+};
+
+/**
+ * @brief Configuration for a single slot's endless spool backup
+ *
+ * Represents which slot will be used as a backup when the primary slot runs out.
+ * This provides a unified view regardless of backend (AFC's runout_lane or
+ * Happy Hare's endless_spool_groups).
+ */
+struct EndlessSpoolConfig {
+    int slot_index = 0;   ///< Slot this config applies to
+    int backup_slot = -1; ///< Backup slot index (-1 = no backup)
+};
+
+} // namespace helix::printer

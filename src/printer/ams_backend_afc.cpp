@@ -26,7 +26,7 @@ AmsBackendAfc::AmsBackendAfc(MoonrakerAPI* api, MoonrakerClient* client)
     system_info_.action = AmsAction::IDLE;
     system_info_.total_slots = 0;
     // AFC capabilities - may vary by configuration
-    system_info_.supports_endless_spool = false;
+    system_info_.supports_endless_spool = true;
     system_info_.supports_spoolman = true;
     system_info_.supports_tool_mapping = true;
     system_info_.supports_bypass = true; // AFC supports bypass via bypass_state
@@ -945,6 +945,16 @@ void AmsBackendAfc::initialize_lanes(const std::vector<std::string>& lane_names)
         system_info_.tool_to_slot_map.push_back(i);
     }
 
+    // Initialize endless spool configs (no backup by default)
+    endless_spool_configs_.clear();
+    endless_spool_configs_.reserve(lane_count);
+    for (int i = 0; i < lane_count; ++i) {
+        helix::printer::EndlessSpoolConfig config;
+        config.slot_index = i;
+        config.backup_slot = -1; // No backup by default
+        endless_spool_configs_.push_back(config);
+    }
+
     lanes_initialized_ = true;
 }
 
@@ -1331,4 +1341,86 @@ AmsError AmsBackendAfc::disable_bypass() {
 bool AmsBackendAfc::is_bypass_active() const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     return bypass_active_;
+}
+
+// ============================================================================
+// Endless Spool Operations
+// ============================================================================
+
+helix::printer::EndlessSpoolCapabilities AmsBackendAfc::get_endless_spool_capabilities() const {
+    // AFC supports per-slot backup configuration via SET_RUNOUT G-code
+    return {true, true, "AFC per-slot backup"};
+}
+
+std::vector<helix::printer::EndlessSpoolConfig> AmsBackendAfc::get_endless_spool_config() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return endless_spool_configs_;
+}
+
+AmsError AmsBackendAfc::set_endless_spool_backup(int slot_index, int backup_slot) {
+    std::string lane_name;
+    std::string backup_lane_name;
+    int lane_count = 0;
+
+    {
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+        lane_count = static_cast<int>(lane_names_.size());
+
+        // Validate slot_index (0 to lane_names_.size()-1)
+        if (slot_index < 0 || slot_index >= lane_count) {
+            return AmsErrorHelper::invalid_slot(slot_index, lane_count > 0 ? lane_count - 1 : 0);
+        }
+
+        // Validate backup_slot (-1 or 0 to lane_names_.size()-1, not equal to slot_index)
+        if (backup_slot != -1) {
+            if (backup_slot < 0 || backup_slot >= lane_count) {
+                return AmsErrorHelper::invalid_slot(backup_slot,
+                                                    lane_count > 0 ? lane_count - 1 : 0);
+            }
+            if (backup_slot == slot_index) {
+                return AmsError(AmsResult::INVALID_SLOT, "Cannot use slot as its own backup",
+                                "A slot cannot be set as its own endless spool backup",
+                                "Select a different backup slot");
+            }
+        }
+
+        // Get lane names
+        lane_name = lane_names_[slot_index];
+        if (backup_slot >= 0) {
+            backup_lane_name = lane_names_[backup_slot];
+        }
+
+        // Update cached config
+        if (slot_index < static_cast<int>(endless_spool_configs_.size())) {
+            endless_spool_configs_[slot_index].backup_slot = backup_slot;
+        }
+    }
+
+    // Validate lane names to prevent command injection
+    if (!MoonrakerAPI::is_safe_gcode_param(lane_name)) {
+        spdlog::warn("[AMS AFC] Unsafe lane name characters in endless spool config");
+        return AmsError(AmsResult::MAPPING_ERROR, "Invalid lane name",
+                        "Lane name contains invalid characters", "Check AFC configuration");
+    }
+    if (backup_slot >= 0 && !MoonrakerAPI::is_safe_gcode_param(backup_lane_name)) {
+        spdlog::warn("[AMS AFC] Unsafe backup lane name characters");
+        return AmsError(AmsResult::MAPPING_ERROR, "Invalid backup lane name",
+                        "Backup lane name contains invalid characters", "Check AFC configuration");
+    }
+
+    // Build and send G-code command
+    // SET_RUNOUT LANE={lane_name} RUNOUT_LANE={backup_lane_name}
+    // If backup_slot == -1, send empty RUNOUT_LANE= to disable
+    std::string gcode;
+    if (backup_slot >= 0) {
+        gcode = fmt::format("SET_RUNOUT LANE={} RUNOUT_LANE={}", lane_name, backup_lane_name);
+        spdlog::info("[AMS AFC] Setting endless spool backup: {} -> {}", lane_name,
+                     backup_lane_name);
+    } else {
+        gcode = fmt::format("SET_RUNOUT LANE={} RUNOUT_LANE=", lane_name);
+        spdlog::info("[AMS AFC] Disabling endless spool backup for {}", lane_name);
+    }
+
+    return execute_gcode(gcode);
 }
