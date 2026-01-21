@@ -96,9 +96,17 @@ class AmsBackendHappyHare : public AmsBackend {
     AmsError disable_bypass() override;
     [[nodiscard]] bool is_bypass_active() const override;
 
+    // Endless Spool support (read-only - configured in Happy Hare config)
+    [[nodiscard]] helix::printer::EndlessSpoolCapabilities
+    get_endless_spool_capabilities() const override;
+    [[nodiscard]] std::vector<helix::printer::EndlessSpoolConfig>
+    get_endless_spool_config() const override;
+    AmsError set_endless_spool_backup(int slot_index, int backup_slot) override;
+
   protected:
     // Allow test helper access to private members
     friend class AmsBackendHappyHareTestHelper;
+    friend class AmsBackendHappyHareEndlessSpoolHelper;
 
   private:
     /**

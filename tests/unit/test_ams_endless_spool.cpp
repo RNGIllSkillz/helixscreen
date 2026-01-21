@@ -20,7 +20,7 @@
 
 // Uncomment these as implementations are added:
 #include "ams_backend_afc.h"
-// #include "ams_backend_happy_hare.h"
+#include "ams_backend_happy_hare.h"
 
 using namespace helix::printer;
 
@@ -339,7 +339,7 @@ TEST_CASE("AFC backend endless spool - full implementation", "[ams][endless_spoo
 // These tests will be enabled when ams_backend_happy_hare.h is implemented with
 // endless spool support. Currently marked as [.disabled] to skip.
 
-#if 0  // Happy Hare implementation pending - enable when ready
+#if 1 // Happy Hare implementation enabled
 // Helper class to test Happy Hare without real Moonraker connection
 class AmsBackendHappyHareEndlessSpoolHelper : public AmsBackendHappyHare {
   public:
@@ -347,6 +347,7 @@ class AmsBackendHappyHareEndlessSpoolHelper : public AmsBackendHappyHare {
 
     void initialize_test_gates(int count) {
         system_info_.units.clear();
+        system_info_.total_slots = count;
 
         AmsUnit unit;
         unit.unit_index = 0;
@@ -360,7 +361,7 @@ class AmsBackendHappyHareEndlessSpoolHelper : public AmsBackendHappyHare {
             slot.global_index = i;
             slot.status = SlotStatus::AVAILABLE;
             slot.mapped_tool = i;
-            slot.endless_spool_group = -1;  // No group by default
+            slot.endless_spool_group = -1; // No group by default
             unit.slots.push_back(slot);
         }
 
@@ -369,15 +370,14 @@ class AmsBackendHappyHareEndlessSpoolHelper : public AmsBackendHappyHare {
 
     void set_endless_spool_groups(const std::vector<int>& groups) {
         // Simulate data from printer.mmu.endless_spool_groups
-        for (size_t i = 0; i < groups.size() && i < system_info_.units[0].slots.size();
-             ++i) {
+        for (size_t i = 0; i < groups.size() && i < system_info_.units[0].slots.size(); ++i) {
             system_info_.units[0].slots[i].endless_spool_group = groups[i];
         }
     }
 };
 
 TEST_CASE("Happy Hare backend endless spool - read-only implementation",
-          "[ams][endless_spool][happy_hare][.disabled]") {
+          "[ams][endless_spool][happy_hare]") {
     AmsBackendHappyHareEndlessSpoolHelper helper;
     helper.initialize_test_gates(4);
 
@@ -385,9 +385,10 @@ TEST_CASE("Happy Hare backend endless spool - read-only implementation",
         auto caps = helper.get_endless_spool_capabilities();
 
         CHECK(caps.supported == true);
-        CHECK(caps.editable == false);  // Happy Hare is read-only
-        CHECK(caps.description.find("group") != std::string::npos ||
-              caps.description.find("Group") != std::string::npos);
+        CHECK(caps.editable == false); // Happy Hare is read-only
+        // Check description contains "group" (case-insensitive via separate checks)
+        CHECK((caps.description.find("group") != std::string::npos ||
+               caps.description.find("Group") != std::string::npos));
     }
 
     SECTION("get_endless_spool_config converts groups to slot mapping") {
@@ -420,14 +421,14 @@ TEST_CASE("Happy Hare backend endless spool - read-only implementation",
 
         auto configs = helper.get_endless_spool_config();
 
-        CHECK(configs[0].backup_slot == -1);  // No group
-        CHECK(configs[1].backup_slot == -1);  // No group
-        CHECK(configs[2].backup_slot == 3);   // Group 0
-        CHECK(configs[3].backup_slot == 2);   // Group 0
+        CHECK(configs[0].backup_slot == -1); // No group
+        CHECK(configs[1].backup_slot == -1); // No group
+        CHECK(configs[2].backup_slot == 3);  // Group 0
+        CHECK(configs[3].backup_slot == 2);  // Group 0
     }
 
     SECTION("single slot in group has no backup") {
-        helper.set_endless_spool_groups({0, 1, 2, 3});  // Each slot alone in group
+        helper.set_endless_spool_groups({0, 1, 2, 3}); // Each slot alone in group
 
         auto configs = helper.get_endless_spool_config();
 
@@ -444,7 +445,7 @@ TEST_CASE("Happy Hare backend endless spool - read-only implementation",
         CHECK(result.result == AmsResult::NOT_SUPPORTED);
     }
 }
-#endif // Happy Hare implementation pending
+#endif // Happy Hare implementation enabled
 
 // =============================================================================
 // Edge Cases and Integration
