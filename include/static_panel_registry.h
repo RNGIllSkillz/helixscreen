@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <functional>
 #include <string>
 #include <vector>
@@ -43,6 +44,15 @@ class StaticPanelRegistry {
     static bool is_destroyed();
 
     /**
+     * @brief Check if destroy_all() is currently executing
+     *
+     * During destroy_all(), callers should skip lv_obj_delete() calls
+     * because lv_deinit() (called after destroy_all()) cleans up all
+     * LVGL objects. Attempting to delete risks use-after-free.
+     */
+    static bool is_destroying_all();
+
+    /**
      * @brief Register a destruction callback for a panel
      * @param name Panel name for logging
      * @param destroy_fn Function to call during destroy_all()
@@ -78,4 +88,5 @@ class StaticPanelRegistry {
     };
 
     std::vector<DestroyEntry> destroyers_;
+    static std::atomic<bool> s_destroying_all_;
 };

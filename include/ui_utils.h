@@ -4,6 +4,7 @@
 #pragma once
 
 #include "lvgl/lvgl.h"
+#include "static_panel_registry.h"
 
 #include <cstdint>
 #include <ctime>
@@ -344,6 +345,11 @@ inline bool lv_obj_safe_delete(lv_obj_t*& obj) {
         return false;
     }
     if (!lv_display_get_next(nullptr)) {
+        obj = nullptr;
+        return false;
+    }
+    // Skip during destroy_all() - lv_deinit() will clean up all widgets
+    if (StaticPanelRegistry::is_destroying_all()) {
         obj = nullptr;
         return false;
     }

@@ -9,6 +9,8 @@ namespace {
 bool g_registry_destroyed = false;
 }
 
+std::atomic<bool> StaticPanelRegistry::s_destroying_all_{false};
+
 StaticPanelRegistry& StaticPanelRegistry::instance() {
     static StaticPanelRegistry registry;
     return registry;
@@ -16,6 +18,10 @@ StaticPanelRegistry& StaticPanelRegistry::instance() {
 
 bool StaticPanelRegistry::is_destroyed() {
     return g_registry_destroyed;
+}
+
+bool StaticPanelRegistry::is_destroying_all() {
+    return s_destroying_all_.load(std::memory_order_acquire);
 }
 
 StaticPanelRegistry::~StaticPanelRegistry() {
@@ -40,6 +46,9 @@ void StaticPanelRegistry::destroy_all() {
     spdlog::debug("[StaticPanelRegistry] Destroying {} panels in reverse order...",
                   destroyers_.size());
 
+    // Set flag so lv_obj_safe_delete() skips deletion during this window
+    s_destroying_all_.store(true, std::memory_order_release);
+
     // Destroy in reverse registration order (LIFO)
     // This ensures dependencies are respected: panels created later
     // (which may depend on earlier ones) are destroyed first
@@ -51,5 +60,6 @@ void StaticPanelRegistry::destroy_all() {
     }
 
     destroyers_.clear();
+    s_destroying_all_.store(false, std::memory_order_release);
     spdlog::debug("[StaticPanelRegistry] All panels destroyed");
 }
