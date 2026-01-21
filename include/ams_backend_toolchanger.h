@@ -124,6 +124,11 @@ class AmsBackendToolChanger : public AmsBackend {
     AmsError disable_bypass() override;
     [[nodiscard]] bool is_bypass_active() const override;
 
+    // Device Actions (stub - not applicable for tool changers)
+    [[nodiscard]] std::vector<helix::printer::DeviceSection> get_device_sections() const override;
+    [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
+    AmsError execute_device_action(const std::string& action_id, const std::any& value = {}) override;
+
   private:
     /**
      * @brief Handle status update notifications from Moonraker

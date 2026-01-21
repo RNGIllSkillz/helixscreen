@@ -609,3 +609,24 @@ AmsError AmsBackendToolChanger::disable_bypass() {
 bool AmsBackendToolChanger::is_bypass_active() const {
     return false; // Tool changers never have bypass
 }
+
+// ============================================================================
+// Device Actions (stub - not applicable for tool changers)
+// ============================================================================
+
+std::vector<helix::printer::DeviceSection> AmsBackendToolChanger::get_device_sections() const {
+    // Tool changers don't expose device-specific actions
+    return {};
+}
+
+std::vector<helix::printer::DeviceAction> AmsBackendToolChanger::get_device_actions() const {
+    // Tool changers don't expose device-specific actions
+    return {};
+}
+
+AmsError AmsBackendToolChanger::execute_device_action(const std::string& action_id,
+                                                       const std::any& value) {
+    (void)action_id;
+    (void)value;
+    return AmsErrorHelper::not_supported("Device actions");
+}

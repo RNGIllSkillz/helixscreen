@@ -135,6 +135,14 @@ class AmsBackendValgACE : public AmsBackend {
     AmsError update_drying(float temp_c = -1, int duration_min = -1, int fan_pct = -1) override;
     [[nodiscard]] std::vector<DryingPreset> get_drying_presets() const override;
 
+    // ========================================================================
+    // Device Actions (stub - not yet exposed)
+    // ========================================================================
+
+    [[nodiscard]] std::vector<helix::printer::DeviceSection> get_device_sections() const override;
+    [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
+    AmsError execute_device_action(const std::string& action_id, const std::any& value = {}) override;
+
   protected:
     // ========================================================================
     // Response Parsing (protected for unit testing)

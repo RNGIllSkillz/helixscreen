@@ -823,3 +823,25 @@ bool AmsBackendValgACE::interruptible_sleep(int ms) {
     return !stop_cv_.wait_for(lock, std::chrono::milliseconds(ms),
                               [this] { return stop_requested_.load(); });
 }
+
+// ============================================================================
+// Device Actions (stub - not yet exposed)
+// ============================================================================
+
+std::vector<helix::printer::DeviceSection> AmsBackendValgACE::get_device_sections() const {
+    // ValgACE doesn't expose device-specific actions yet
+    // Future: could expose dryer settings here
+    return {};
+}
+
+std::vector<helix::printer::DeviceAction> AmsBackendValgACE::get_device_actions() const {
+    // ValgACE doesn't expose device-specific actions yet
+    return {};
+}
+
+AmsError AmsBackendValgACE::execute_device_action(const std::string& action_id,
+                                                   const std::any& value) {
+    (void)action_id;
+    (void)value;
+    return AmsErrorHelper::not_supported("Device actions");
+}
