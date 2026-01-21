@@ -6,6 +6,8 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
 #include <dirent.h>
 #include <fstream>
 #include <sstream>
@@ -214,12 +216,24 @@ std::string get_themes_directory() {
 }
 
 bool ensure_themes_directory(const std::string& themes_dir) {
-    // Create directory if it doesn't exist
     struct stat st;
+
+    // First ensure parent config directory exists
+    std::string config_dir = "config";
+    if (stat(config_dir.c_str(), &st) != 0) {
+        if (mkdir(config_dir.c_str(), 0755) != 0) {
+            spdlog::error("[ThemeLoader] Failed to create config directory {}: {}", config_dir,
+                          strerror(errno));
+            return false;
+        }
+        spdlog::info("[ThemeLoader] Created config directory: {}", config_dir);
+    }
+
+    // Then create themes directory if it doesn't exist
     if (stat(themes_dir.c_str(), &st) != 0) {
-        // Directory doesn't exist, create it
         if (mkdir(themes_dir.c_str(), 0755) != 0) {
-            spdlog::error("[ThemeLoader] Failed to create themes directory: {}", themes_dir);
+            spdlog::error("[ThemeLoader] Failed to create themes directory {}: {}", themes_dir,
+                          strerror(errno));
             return false;
         }
         spdlog::info("[ThemeLoader] Created themes directory: {}", themes_dir);
