@@ -9,11 +9,14 @@
 #include "ui_ams_settings_overlay.h"
 
 #include "ui_ams_behavior_overlay.h"
+#include "ui_ams_spoolman_overlay.h"
 #include "ui_ams_tool_mapping_overlay.h"
 #include "ui_event_safety.h"
 #include "ui_nav_manager.h"
 
 #include "ams_state.h"
+#include "app_globals.h"
+#include "moonraker_client.h"
 #include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
@@ -281,8 +284,21 @@ void AmsSettingsOverlay::on_speed_settings_clicked(lv_event_t* e) {
 void AmsSettingsOverlay::on_spoolman_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[AmsSettingsOverlay] on_spoolman_clicked");
     LV_UNUSED(e);
-    spdlog::info("[AmsSettingsOverlay] Spoolman clicked (not yet implemented)");
-    // TODO: Push Spoolman settings sub-panel
+
+    auto& overlay = get_ams_spoolman_overlay();
+    if (!overlay.are_subjects_initialized()) {
+        overlay.init_subjects();
+        overlay.register_callbacks();
+    }
+
+    // Set MoonrakerClient for database access
+    MoonrakerClient* client = get_moonraker_client();
+    if (client) {
+        overlay.set_client(client);
+    }
+
+    overlay.show(get_ams_settings_overlay().get_parent_screen());
+
     LVGL_SAFE_EVENT_CB_END();
 }
 
