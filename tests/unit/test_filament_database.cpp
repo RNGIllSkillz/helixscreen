@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ams_types.h"
 #include "filament_database.h"
 
 #include <set>
@@ -504,4 +505,69 @@ TEST_CASE("Phase 1 - All compat groups have representatives", "[filament][databa
     CHECK(groups_found.count("TPU") == 1);
     CHECK(groups_found.count("PC") == 1);
     CHECK(groups_found.count("HIGH_TEMP") == 1);
+}
+
+// ============================================================================
+// Phase 2: ams_types.h integration tests (get_default_drying_presets delegates to filament)
+// ============================================================================
+
+TEST_CASE("Phase 2 - get_default_drying_presets covers all compat groups",
+          "[filament][database][phase2][ams]") {
+    // get_default_drying_presets() should return one preset per compat group
+    auto presets = get_default_drying_presets();
+
+    // Should have presets for all 7 compat groups
+    CHECK(presets.size() >= 7);
+
+    // Verify we have the expected groups
+    auto has_preset = [&presets](std::string_view name) {
+        for (const auto& p : presets) {
+            if (p.name == name)
+                return true;
+        }
+        return false;
+    };
+
+    CHECK(has_preset("PLA"));
+    CHECK(has_preset("PETG"));
+    CHECK(has_preset("ABS_ASA"));
+    CHECK(has_preset("PA"));
+    CHECK(has_preset("TPU"));
+    CHECK(has_preset("PC"));
+    CHECK(has_preset("HIGH_TEMP"));
+}
+
+TEST_CASE("Phase 2 - get_default_drying_presets matches filament database",
+          "[filament][database][phase2][ams]") {
+    auto ams_presets = get_default_drying_presets();
+    auto filament_presets = get_drying_presets_by_group();
+
+    // For each filament preset, there should be a matching ams preset with same temp/time
+    for (const auto& fp : filament_presets) {
+        bool found = false;
+        for (const auto& ap : ams_presets) {
+            if (ap.name == fp.name) {
+                found = true;
+                // Temperature should match (ams uses float, filament uses int)
+                CHECK(static_cast<int>(ap.temp_c) == fp.temp_c);
+                // Duration should match
+                CHECK(ap.duration_min == fp.time_min);
+                break;
+            }
+        }
+        INFO("Missing preset for: " << fp.name);
+        CHECK(found);
+    }
+}
+
+TEST_CASE("Phase 2 - get_default_drying_presets includes fan_pct",
+          "[filament][database][phase2][ams]") {
+    auto presets = get_default_drying_presets();
+
+    // All presets should have reasonable fan_pct values (0-100)
+    for (const auto& p : presets) {
+        INFO("Checking preset: " << p.name);
+        CHECK(p.fan_pct >= 0);
+        CHECK(p.fan_pct <= 100);
+    }
 }

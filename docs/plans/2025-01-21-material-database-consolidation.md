@@ -176,9 +176,9 @@ float weight_to_length_m(float weight_g, float density, float diameter_mm = 1.75
 
 ## Progress
 
-- [ ] Phase 0: Extend filament_database.h
-- [ ] Phase 1: Add new materials
-- [ ] Phase 2: Refactor ams_types.h
+- [x] Phase 0: Extend filament_database.h - `24d411ff`
+- [x] Phase 1: Add new materials - `b51b59bd`
+- [x] Phase 2: Refactor ams_types.h - `57087da8`
 - [ ] Phase 3: Endless spool material validation
 - [ ] Phase 4: Dryer presets dropdown
 - [ ] Phase 5: Refactor ui_panel_filament.cpp
