@@ -3,6 +3,7 @@
 
 #include "ams_backend_mock.h"
 
+#include "filament_database.h"
 #include "runtime_config.h"
 
 #include <spdlog/spdlog.h>
@@ -103,33 +104,25 @@ AmsBackendMock::AmsBackendMock(int slot_count) {
         static const float fill_levels[] = {1.0f, 0.75f, 0.40f, 0.10f, 0.90f, 0.50f, 0.25f, 0.05f};
         slot.remaining_weight_g = slot.total_weight_g * fill_levels[i % 8];
 
-        // Temperature recommendations based on material type
-        std::string mat(sample.material);
-        if (mat == "PLA" || mat == "PLA-CF") {
-            slot.nozzle_temp_min = 190;
-            slot.nozzle_temp_max = 220;
-            slot.bed_temp = 60;
-        } else if (mat == "PETG" || mat == "PETG-GF") {
-            slot.nozzle_temp_min = 230;
-            slot.nozzle_temp_max = 250;
-            slot.bed_temp = 80;
-        } else if (mat == "ABS") {
-            slot.nozzle_temp_min = 240;
-            slot.nozzle_temp_max = 260;
-            slot.bed_temp = 100;
-        } else if (mat == "ASA") {
-            slot.nozzle_temp_min = 240;
-            slot.nozzle_temp_max = 270;
-            slot.bed_temp = 90;
-        } else if (mat == "PA-CF" || mat == "PA" || mat == "PA-GF") {
-            // Nylon-based materials need high temps
-            slot.nozzle_temp_min = 260;
-            slot.nozzle_temp_max = 290;
-            slot.bed_temp = 85;
-        } else if (mat == "TPU") {
-            slot.nozzle_temp_min = 220;
-            slot.nozzle_temp_max = 250;
-            slot.bed_temp = 50;
+        // Temperature recommendations from filament database
+        auto mat_info = filament::find_material(sample.material);
+        if (mat_info) {
+            slot.nozzle_temp_min = mat_info->nozzle_min;
+            slot.nozzle_temp_max = mat_info->nozzle_max;
+            slot.bed_temp = mat_info->bed_temp;
+        } else {
+            // Fallback to PLA defaults for unknown materials
+            auto pla_info = filament::find_material("PLA");
+            if (pla_info) {
+                slot.nozzle_temp_min = pla_info->nozzle_min;
+                slot.nozzle_temp_max = pla_info->nozzle_max;
+                slot.bed_temp = pla_info->bed_temp;
+            } else {
+                // Ultimate fallback (should never happen - PLA is in database)
+                slot.nozzle_temp_min = 190;
+                slot.nozzle_temp_max = 220;
+                slot.bed_temp = 60;
+            }
         }
 
         unit.slots.push_back(slot);

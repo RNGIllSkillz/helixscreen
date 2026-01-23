@@ -4,18 +4,17 @@
 #include "ui_ams_edit_modal.h"
 
 #include "ui_error_reporting.h"
-#include "ui_theme.h"
 
-#include "ams_backend.h"
 #include "ams_state.h"
-#include "color_utils.h"
 #include "filament_database.h"
 #include "moonraker_api.h"
+#include "spoolman_types.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cmath>
+#include <set>
 
 namespace helix::ui {
 
@@ -127,6 +126,9 @@ bool AmsEditModal::show_for_slot(lv_obj_t* parent, int slot_index, const SlotInf
 void AmsEditModal::on_show() {
     // Create callback guard for async operations [L012]
     callback_guard_ = std::make_shared<bool>(true);
+
+    // Fetch vendor list from Spoolman (async, will update dropdown when ready)
+    fetch_vendors_from_spoolman();
 
     // Bind labels to subjects for reactive text updates (save observers for cleanup)
     lv_obj_t* slot_indicator = find_widget("slot_indicator");
@@ -256,6 +258,77 @@ void AmsEditModal::deinit_subjects() {
     spdlog::debug("[AmsEditModal] Subjects deinitialized");
 }
 
+void AmsEditModal::fetch_vendors_from_spoolman() {
+    if (!api_ || vendors_loaded_) {
+        return;
+    }
+
+    // Capture callback guard for async safety [L012]
+    std::weak_ptr<bool> guard = callback_guard_;
+
+    api_->get_spoolman_spools(
+        [this, guard](const std::vector<SpoolInfo>& spools) {
+            // Check if modal still exists before using 'this'
+            if (guard.expired()) {
+                return;
+            }
+
+            // Extract unique vendors from spools
+            std::set<std::string> unique_vendors;
+            unique_vendors.insert("Generic"); // Always have Generic as first option
+            for (const auto& spool : spools) {
+                if (!spool.vendor.empty()) {
+                    unique_vendors.insert(spool.vendor);
+                }
+            }
+
+            // Build vendor list and options string
+            vendor_list_.clear();
+            vendor_options_.clear();
+            for (const auto& vendor : unique_vendors) {
+                if (!vendor_options_.empty()) {
+                    vendor_options_ += '\n';
+                }
+                vendor_options_ += vendor;
+                vendor_list_.push_back(vendor);
+            }
+
+            vendors_loaded_ = true;
+            spdlog::debug("[AmsEditModal] Loaded {} vendors from Spoolman", vendor_list_.size());
+
+            // Update the dropdown if modal is still visible
+            update_vendor_dropdown();
+        },
+        [](const MoonrakerError& err) {
+            spdlog::warn("[AmsEditModal] Failed to fetch Spoolman spools for vendor list: {}",
+                         err.message);
+            // Keep using fallback vendors
+        });
+}
+
+void AmsEditModal::update_vendor_dropdown() {
+    if (!dialog_ || vendor_options_.empty()) {
+        return;
+    }
+
+    lv_obj_t* vendor_dropdown = find_widget("vendor_dropdown");
+    if (!vendor_dropdown) {
+        return;
+    }
+
+    lv_dropdown_set_options(vendor_dropdown, vendor_options_.c_str());
+
+    // Set selection based on working_info_.brand
+    int vendor_idx = 0; // Default to first (Generic)
+    for (size_t i = 0; i < vendor_list_.size(); i++) {
+        if (working_info_.brand == vendor_list_[i]) {
+            vendor_idx = static_cast<int>(i);
+            break;
+        }
+    }
+    lv_dropdown_set_selected(vendor_dropdown, vendor_idx);
+}
+
 // ============================================================================
 // Internal Methods
 // ============================================================================
@@ -282,36 +355,61 @@ void AmsEditModal::update_ui() {
         }
     }
 
-    // Set dropdown options (requires \n separators in C++)
-    static const char* vendors[] = {"Generic",  "Polymaker", "Bambu",   "eSUN",
-                                    "Overture", "Prusa",     "Hatchbox"};
-    static const char* materials[] = {"PLA", "PETG", "ABS", "ASA", "TPU", "PA", "PC"};
+    // Build material options from filament database (if not already built)
+    if (material_list_.empty()) {
+        auto all_materials = filament::get_all_material_names();
+        material_list_.reserve(all_materials.size());
+        for (const char* mat : all_materials) {
+            if (!material_options_.empty()) {
+                material_options_ += '\n';
+            }
+            material_options_ += mat;
+            material_list_.push_back(mat);
+        }
+        spdlog::debug("[AmsEditModal] Built material list with {} materials from database",
+                      material_list_.size());
+    }
 
+    // Set up vendor dropdown (use cached vendors from Spoolman, or fallback)
     lv_obj_t* vendor_dropdown = find_widget("vendor_dropdown");
     if (vendor_dropdown) {
-        lv_dropdown_set_options(vendor_dropdown,
-                                "Generic\nPolymaker\nBambu\neSUN\nOverture\nPrusa\nHatchbox");
+        if (!vendor_options_.empty()) {
+            // Use vendors from Spoolman
+            lv_dropdown_set_options(vendor_dropdown, vendor_options_.c_str());
+        } else {
+            // Fallback: static vendor list while Spoolman query is pending
+            static const char* fallback_vendors =
+                "Generic\nPolymaker\nBambu\neSUN\nOverture\nPrusa\nHatchbox";
+            lv_dropdown_set_options(vendor_dropdown, fallback_vendors);
+
+            // Build fallback vendor_list_ for index lookup
+            if (vendor_list_.empty()) {
+                vendor_list_ = {"Generic",  "Polymaker", "Bambu",   "eSUN",
+                                "Overture", "Prusa",     "Hatchbox"};
+            }
+        }
 
         // Set initial selection based on working_info_.brand
-        int vendor_idx = 0; // Default to Generic
-        for (int i = 0; i < 7; i++) {
-            if (working_info_.brand == vendors[i]) {
-                vendor_idx = i;
+        int vendor_idx = 0; // Default to first
+        for (size_t i = 0; i < vendor_list_.size(); i++) {
+            if (working_info_.brand == vendor_list_[i]) {
+                vendor_idx = static_cast<int>(i);
                 break;
             }
         }
         lv_dropdown_set_selected(vendor_dropdown, vendor_idx);
     }
 
+    // Set up material dropdown from filament database
     lv_obj_t* material_dropdown = find_widget("material_dropdown");
     if (material_dropdown) {
-        lv_dropdown_set_options(material_dropdown, "PLA\nPETG\nABS\nASA\nTPU\nPA\nPC");
+        lv_dropdown_set_options(material_dropdown, material_options_.c_str());
 
         // Set initial selection based on working_info_.material
-        int material_idx = 0; // Default to PLA
-        for (int i = 0; i < 7; i++) {
-            if (working_info_.material == materials[i]) {
-                material_idx = i;
+        int material_idx = 0; // Default to first (PLA)
+        for (size_t i = 0; i < material_list_.size(); i++) {
+            if (working_info_.material == material_list_[i]) {
+                material_idx = static_cast<int>(i);
                 break;
             }
         }
@@ -394,11 +492,19 @@ void AmsEditModal::update_temp_display() {
                           "{}°C bed",
                           working_info_.material, nozzle_min, nozzle_max, bed_temp);
         } else {
-            // Generic defaults for unknown materials
-            nozzle_min = 200;
-            nozzle_max = 230;
-            bed_temp = 60;
-            spdlog::debug("[AmsEditModal] Material '{}' not in database, using generic defaults",
+            // Fallback to PLA defaults for unknown materials
+            auto pla_info = filament::find_material("PLA");
+            if (pla_info) {
+                nozzle_min = pla_info->nozzle_min;
+                nozzle_max = pla_info->nozzle_max;
+                bed_temp = pla_info->bed_temp;
+            } else {
+                // Ultimate fallback (should never happen - PLA is in database)
+                nozzle_min = 200;
+                nozzle_max = 230;
+                bed_temp = 60;
+            }
+            spdlog::debug("[AmsEditModal] Material '{}' not in database, using PLA defaults",
                           working_info_.material);
         }
     }
@@ -504,21 +610,16 @@ void AmsEditModal::handle_close() {
 }
 
 void AmsEditModal::handle_vendor_changed(int index) {
-    // Vendor list: Generic, Polymaker, Bambu, eSUN, Overture, Prusa, Hatchbox
-    static const char* vendors[] = {"Generic",  "Polymaker", "Bambu",   "eSUN",
-                                    "Overture", "Prusa",     "Hatchbox"};
-    if (index >= 0 && index < static_cast<int>(sizeof(vendors) / sizeof(vendors[0]))) {
-        working_info_.brand = vendors[index];
+    if (index >= 0 && index < static_cast<int>(vendor_list_.size())) {
+        working_info_.brand = vendor_list_[index];
         spdlog::debug("[AmsEditModal] Vendor changed to: {}", working_info_.brand);
         update_sync_button_state();
     }
 }
 
 void AmsEditModal::handle_material_changed(int index) {
-    // Material list: PLA, PETG, ABS, ASA, TPU, PA, PC
-    static const char* materials[] = {"PLA", "PETG", "ABS", "ASA", "TPU", "PA", "PC"};
-    if (index >= 0 && index < static_cast<int>(sizeof(materials) / sizeof(materials[0]))) {
-        working_info_.material = materials[index];
+    if (index >= 0 && index < static_cast<int>(material_list_.size())) {
+        working_info_.material = material_list_[index];
         spdlog::debug("[AmsEditModal] Material changed to: {}", working_info_.material);
 
         // Clear existing temp values so update_temp_display uses material-based defaults

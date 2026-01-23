@@ -63,19 +63,6 @@ constexpr lv_coord_t BREAKPOINT_MEDIUM_MAX = 1023;
 } // namespace Responsive
 
 /**
- * @brief Material temperature presets
- *
- * Common filament material extrusion temperatures.
- * These can be overridden by user settings in the future.
- */
-namespace MaterialPresets {
-constexpr int PLA = 210;
-constexpr int PETG = 240;
-constexpr int ABS = 250;
-constexpr int CUSTOM_DEFAULT = 200;
-} // namespace MaterialPresets
-
-/**
  * @brief AMS/Filament loading constants
  */
 namespace Ams {

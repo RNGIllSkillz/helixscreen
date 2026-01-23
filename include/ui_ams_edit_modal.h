@@ -12,6 +12,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 class MoonrakerAPI;
 
@@ -129,7 +130,16 @@ class AmsEditModal : public Modal {
     // === Async callback guard [L012] ===
     std::shared_ptr<bool> callback_guard_;
 
+    // === Dropdown data (materials from filament_database, vendors from Spoolman) ===
+    std::string material_options_;           ///< Newline-separated material names for dropdown
+    std::vector<std::string> material_list_; ///< Material names for index lookup
+    std::string vendor_options_;             ///< Newline-separated vendor names for dropdown
+    std::vector<std::string> vendor_list_;   ///< Vendor names for index lookup
+    bool vendors_loaded_ = false;            ///< True once Spoolman vendors have been fetched
+
     // === Internal Methods ===
+    void fetch_vendors_from_spoolman();
+    void update_vendor_dropdown();
     void init_subjects();
 
     /**

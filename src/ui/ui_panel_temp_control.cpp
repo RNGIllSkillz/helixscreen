@@ -15,6 +15,7 @@
 
 #include "app_constants.h"
 #include "app_globals.h"
+#include "filament_database.h"
 #include "moonraker_api.h"
 #include "observer_factory.h"
 #include "printer_state.h"
@@ -36,13 +37,28 @@ TempControlPanel::TempControlPanel(PrinterState& printer_state, MoonrakerAPI* ap
       nozzle_max_temp_(AppConstants::Temperature::DEFAULT_NOZZLE_MAX),
       bed_min_temp_(AppConstants::Temperature::DEFAULT_MIN_TEMP),
       bed_max_temp_(AppConstants::Temperature::DEFAULT_BED_MAX) {
+    // Get recommended temperatures from filament database
+    auto pla_info = filament::find_material("PLA");
+    auto petg_info = filament::find_material("PETG");
+    auto abs_info = filament::find_material("ABS");
+
+    // Nozzle presets: Off, PLA, PETG, ABS (using database midpoint recommendations)
+    int nozzle_pla = pla_info ? pla_info->nozzle_recommended() : 210;
+    int nozzle_petg = petg_info ? petg_info->nozzle_recommended() : 245;
+    int nozzle_abs = abs_info ? abs_info->nozzle_recommended() : 255;
+
+    // Bed presets: Off, PLA, PETG, ABS (using database recommendations)
+    int bed_pla = pla_info ? pla_info->bed_temp : 60;
+    int bed_petg = petg_info ? petg_info->bed_temp : 80;
+    int bed_abs = abs_info ? abs_info->bed_temp : 100;
+
     nozzle_config_ = {.type = HEATER_NOZZLE,
                       .name = "Nozzle",
                       .title = "Nozzle Temperature",
                       .color = ui_theme_get_color("heating_color"),
                       .temp_range_max = 320.0f,
                       .y_axis_increment = 80,
-                      .presets = {0, 210, 240, 250},
+                      .presets = {0, nozzle_pla, nozzle_petg, nozzle_abs},
                       .keypad_range = {0.0f, 350.0f}};
 
     bed_config_ = {.type = HEATER_BED,
@@ -51,7 +67,7 @@ TempControlPanel::TempControlPanel(PrinterState& printer_state, MoonrakerAPI* ap
                    .color = ui_theme_get_color("cooling_color"),
                    .temp_range_max = 140.0f,
                    .y_axis_increment = 35,
-                   .presets = {0, 60, 80, 100},
+                   .presets = {0, bed_pla, bed_petg, bed_abs},
                    .keypad_range = {0.0f, 150.0f}};
 
     nozzle_current_buf_.fill('\0');
