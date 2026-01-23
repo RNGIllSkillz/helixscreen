@@ -113,7 +113,7 @@ bool AmsSpoolmanPicker::show_for_slot(lv_obj_t* parent, int slot_index, int curr
     callback_guard_ = std::make_shared<bool>(true);
 
     // Create picker from XML
-    picker_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "spoolman_picker_backdrop", nullptr));
+    picker_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "spoolman_picker_modal", nullptr));
     if (!picker_) {
         spdlog::error("[AmsSpoolmanPicker] Failed to create picker from XML");
         return false;
