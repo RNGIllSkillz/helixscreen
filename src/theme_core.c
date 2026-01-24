@@ -27,6 +27,7 @@ typedef struct {
     lv_style_t slider_indicator_style;   // Slider indicator (filled portion) - primary color
     lv_style_t slider_knob_style;        // Slider knob with shadow
     lv_style_t slider_disabled_style;    // Slider disabled state (50% opacity)
+    lv_style_t dropdown_selected_style;  // Dropdown selected item highlight
     bool is_dark_mode;                   // Track theme mode for context
 } helix_theme_t;
 
@@ -105,6 +106,8 @@ static void helix_theme_apply(lv_theme_t* theme, lv_obj_t* obj) {
     // Dropdown list uses input bg style to match dropdown button appearance
     if (lv_obj_check_type(obj, &lv_dropdownlist_class)) {
         lv_obj_add_style(obj, &helix->input_bg_style, LV_PART_MAIN);
+        // Selected item highlight
+        lv_obj_add_style(obj, &helix->dropdown_selected_style, LV_PART_SELECTED);
     }
 #endif
 
@@ -180,6 +183,7 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
         lv_style_reset(&helix_theme_instance->slider_indicator_style);
         lv_style_reset(&helix_theme_instance->slider_knob_style);
         lv_style_reset(&helix_theme_instance->slider_disabled_style);
+        lv_style_reset(&helix_theme_instance->dropdown_selected_style);
         free(helix_theme_instance);
         helix_theme_instance = NULL;
     }
@@ -304,6 +308,11 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
     lv_style_init(&helix_theme_instance->slider_disabled_style);
     lv_style_set_opa(&helix_theme_instance->slider_disabled_style, LV_OPA_50);
 
+    // Initialize dropdown selected item style - uses card_alt for selection highlight
+    lv_style_init(&helix_theme_instance->dropdown_selected_style);
+    lv_style_set_bg_color(&helix_theme_instance->dropdown_selected_style, surface_control);
+    lv_style_set_bg_opa(&helix_theme_instance->dropdown_selected_style, LV_OPA_COVER);
+
     // CRITICAL: Now we need to patch the default theme's color fields
     // This is necessary because LVGL's default theme bakes colors into pre-computed
     // styles during init. We must update both the theme color fields AND the styles.
@@ -391,6 +400,9 @@ void theme_core_update_colors(bool is_dark, lv_color_t screen_bg, lv_color_t car
     lv_style_set_bg_color(&helix_theme_instance->slider_indicator_style, primary_color);
     lv_style_set_bg_color(&helix_theme_instance->slider_knob_style, card_bg);
     lv_style_set_shadow_color(&helix_theme_instance->slider_knob_style, screen_bg);
+
+    // Update dropdown selected item style
+    lv_style_set_bg_color(&helix_theme_instance->dropdown_selected_style, surface_control);
 
     // Update LVGL default theme's internal styles
     // This is the same private API access pattern used in theme_core_init
@@ -493,6 +505,9 @@ void theme_core_preview_colors(bool is_dark, const char* colors[16], int32_t bor
     lv_style_set_bg_color(&helix_theme_instance->slider_indicator_style, accent_color);
     lv_style_set_bg_color(&helix_theme_instance->slider_knob_style, card_bg);
     lv_style_set_shadow_color(&helix_theme_instance->slider_knob_style, screen_bg);
+
+    // Update dropdown selected item style
+    lv_style_set_bg_color(&helix_theme_instance->dropdown_selected_style, card_alt);
 
     // Update default theme internal styles (private API access)
     typedef struct {
