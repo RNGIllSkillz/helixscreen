@@ -27,7 +27,7 @@
               start_angle="135" end_angle="135"
               min_value="0" max_value="100" value="$speed_percent"
               rotation="0" mode="normal"
-              style_arc_width="10" style_arc_color="#theme_grey"
+              style_arc_width="10" style_arc_color="#surface_control"
               style_arc_width:indicator="10" style_arc_color:indicator="#text_secondary"
               style_arc_rounded="true" style_arc_rounded:indicator="true"
               style_bg_opa="0" style_border_width="0"

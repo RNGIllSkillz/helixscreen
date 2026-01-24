@@ -97,11 +97,11 @@ Palette colors map to semantic colors used in XML/C++. Mapping is hardcoded in C
 | `text_secondary` | text_light (4) | border_muted (3) |
 | `header_text` | bg_light (5) | bg_dark (1) |
 
-### Border/Muted
+### Control Surface
 
 | Semantic Color | Dark Mode | Light Mode |
 |----------------|-----------|------------|
-| `theme_grey` | border_muted (3) | text_light (4) |
+| `surface_control` | surface_dim (3) | surface_elevated (2) |
 
 ### Accents (same in both modes)
 

@@ -199,7 +199,7 @@
             <text_small text="Part Fan" style_text_color="#text_secondary" style_pad_top="#space_sm"/>
             <lv_slider name="part_fan_slider"
                        width="80%" height="#space_lg" bind_value="controls_fan_pct" range_min="0" range_max="100"
-                       style_bg_color="#theme_grey" style_radius="#space_md" style_pad_top="#space_xs"
+                       style_bg_color="#surface_control" style_radius="#space_md" style_pad_top="#space_xs"
                        style_margin_left="#space_md" style_margin_right="#space_sm">
               <event_cb trigger="value_changed" callback="on_controls_fan_slider"/>
             </lv_slider>

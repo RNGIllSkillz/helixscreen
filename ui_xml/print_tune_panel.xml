@@ -26,7 +26,7 @@
           <text_heading name="speed_display" bind_text="tune_speed_display"/>
           <lv_slider name="speed_slider"
                      width="100%" height="#space_lg" min_value="50" max_value="200" value="100"
-                     style_bg_color="#theme_grey" style_radius="#space_md">
+                     style_bg_color="#surface_control" style_radius="#space_md">
             <event_cb trigger="value_changed" callback="on_tune_speed_display"/>
             <event_cb trigger="released" callback="on_tune_speed_send"/>
           </lv_slider>
@@ -40,7 +40,7 @@
           <text_heading name="flow_display" bind_text="tune_flow_display"/>
           <lv_slider name="flow_slider"
                      width="100%" height="#space_lg" min_value="75" max_value="125" value="100"
-                     style_bg_color="#theme_grey" style_radius="#space_md">
+                     style_bg_color="#surface_control" style_radius="#space_md">
             <event_cb trigger="value_changed" callback="on_tune_flow_display"/>
             <event_cb trigger="released" callback="on_tune_flow_send"/>
           </lv_slider>

@@ -53,7 +53,7 @@
     </lv_obj>
     <!-- Unlink button (for clearing assignment) -->
     <lv_button name="btn_unlink"
-               width="100%" height="#button_height_sm" style_radius="#border_radius_small" style_bg_color="#theme_grey"
+               width="100%" height="#button_height_sm" style_radius="#border_radius_small" style_bg_color="#surface_control"
                style_border_width="0" style_shadow_width="0" hidden="true">
       <text_button text="Clear Assignment" style_text_color="#text_secondary"/>
       <event_cb trigger="clicked" callback="spoolman_picker_unlink_cb"/>

@@ -44,7 +44,7 @@
         <lv_obj name="preview_typography_card"
                 width="0" height="content" flex_grow="3" flex_flow="column" style_bg_color="#card_bg" style_bg_opa="255"
                 style_radius="#border_radius" style_pad_all="#space_md" style_pad_gap="#space_md" style_border_width="1"
-                style_border_color="#theme_grey" style_border_opa="40" scrollable="false">
+                style_border_color="#surface_control" style_border_opa="40" scrollable="false">
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
                   style_border_width="0" style_flex_cross_place="center" scrollable="false">
@@ -91,7 +91,7 @@
         <lv_obj name="preview_actions_card"
                 width="0" height="content" flex_grow="2" flex_flow="column" style_bg_color="#card_bg" style_bg_opa="255"
                 style_radius="#border_radius" style_pad_all="#space_md" style_pad_gap="#space_md" style_border_width="1"
-                style_border_color="#theme_grey" style_border_opa="40" scrollable="false">
+                style_border_color="#surface_control" style_border_opa="40" scrollable="false">
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
                   style_border_width="0" style_flex_cross_place="center" scrollable="false">
@@ -146,23 +146,23 @@
               <lv_obj width="#color_preview_size_small"
                       height="#color_preview_size_small" style_radius="#border_radius_small"
                       style_bg_color="#status_error" style_bg_opa="255" style_border_width="1"
-                      style_border_color="#theme_grey" style_border_opa="80" scrollable="false"/>
+                      style_border_color="#surface_control" style_border_opa="80" scrollable="false"/>
               <lv_obj width="#color_preview_size_small"
                       height="#color_preview_size_small" style_radius="#border_radius_small"
                       style_bg_color="#status_danger" style_bg_opa="255" style_border_width="1"
-                      style_border_color="#theme_grey" style_border_opa="80" scrollable="false"/>
+                      style_border_color="#surface_control" style_border_opa="80" scrollable="false"/>
               <lv_obj width="#color_preview_size_small"
                       height="#color_preview_size_small" style_radius="#border_radius_small"
                       style_bg_color="#status_warning" style_bg_opa="255" style_border_width="1"
-                      style_border_color="#theme_grey" style_border_opa="80" scrollable="false"/>
+                      style_border_color="#surface_control" style_border_opa="80" scrollable="false"/>
               <lv_obj width="#color_preview_size_small"
                       height="#color_preview_size_small" style_radius="#border_radius_small"
                       style_bg_color="#status_success" style_bg_opa="255" style_border_width="1"
-                      style_border_color="#theme_grey" style_border_opa="80" scrollable="false"/>
+                      style_border_color="#surface_control" style_border_opa="80" scrollable="false"/>
               <lv_obj width="#color_preview_size_small"
                       height="#color_preview_size_small" style_radius="#border_radius_small"
                       style_bg_color="#status_special" style_bg_opa="255" style_border_width="1"
-                      style_border_color="#theme_grey" style_border_opa="80" scrollable="false"/>
+                      style_border_color="#surface_control" style_border_opa="80" scrollable="false"/>
             </lv_obj>
           </lv_obj>
         </lv_obj>
@@ -170,7 +170,7 @@
       <!-- Background Preview -->
       <lv_obj name="preview_background"
               width="100%" height="content" style_bg_color="#app_bg_color" style_bg_opa="255" style_border_width="1"
-              style_border_color="#theme_grey" style_radius="#border_radius" style_pad_all="#space_md"
+              style_border_color="#surface_control" style_radius="#border_radius" style_pad_all="#space_md"
               style_pad_gap="#space_xs" flex_flow="column" scrollable="false">
         <text_body text="App Background" style_text_color="#text_primary"/>
         <text_small text="Surfaces inherit app background tokens for light and dark modes."

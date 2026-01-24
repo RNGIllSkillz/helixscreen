@@ -62,8 +62,8 @@ TEST_CASE("parse_theme_json parses valid theme", "[theme]") {
         "colors": {
             "bg_darkest": "#2e3440",
             "bg_dark": "#3b4252",
-            "bg_dark_highlight": "#434c5e",
-            "border_muted": "#4c566a",
+            "surface_elevated": "#434c5e",
+            "surface_dim": "#4c566a",
             "text_light": "#d8dee9",
             "bg_light": "#e5e9f0",
             "bg_lightest": "#eceff4",

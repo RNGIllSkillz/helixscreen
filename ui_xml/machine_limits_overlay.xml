@@ -61,7 +61,7 @@
         </lv_obj>
       </lv_obj>
       <!-- Divider -->
-      <divider_horizontal color="#theme_grey" opacity="100"/>
+      <divider_horizontal color="#surface_control" opacity="100"/>
       <!-- ================================================================== -->
       <!-- MAX ACCELERATION -->
       <!-- ================================================================== -->
@@ -102,7 +102,7 @@
         </lv_obj>
       </lv_obj>
       <!-- Divider -->
-      <divider_horizontal color="#theme_grey" opacity="100"/>
+      <divider_horizontal color="#surface_control" opacity="100"/>
       <!-- ================================================================== -->
       <!-- ACCEL TO DECEL -->
       <!-- ================================================================== -->
@@ -143,7 +143,7 @@
         </lv_obj>
       </lv_obj>
       <!-- Divider -->
-      <divider_horizontal color="#theme_grey" opacity="100"/>
+      <divider_horizontal color="#surface_control" opacity="100"/>
       <!-- ================================================================== -->
       <!-- SQUARE CORNER VELOCITY -->
       <!-- ================================================================== -->
@@ -185,7 +185,7 @@
         </lv_obj>
       </lv_obj>
       <!-- Divider -->
-      <divider_horizontal color="#theme_grey" opacity="100"/>
+      <divider_horizontal color="#surface_control" opacity="100"/>
       <!-- ================================================================== -->
       <!-- READ-ONLY SECTION HEADER -->
       <!-- ================================================================== -->
@@ -211,7 +211,7 @@
     <!-- ACTION BUTTONS -->
     <!-- ================================================================== -->
     <!-- Horizontal divider above buttons -->
-    <divider_horizontal color="#theme_grey" opacity="100"/>
+    <divider_horizontal color="#surface_control" opacity="100"/>
     <!-- Action buttons row - centered Reset button only (changes apply immediately) -->
     <lv_obj width="100%"
             height="#button_height" style_bg_opa="0" style_border_width="0" style_pad_all="#space_md" flex_flow="row"
@@ -219,7 +219,7 @@
       <!-- Reset button - restores to original config values from API -->
       <lv_button name="btn_reset"
                  width="150" height="100%" style_radius="6" style_bg_color="#card_bg" style_border_width="1"
-                 style_border_color="#theme_grey" style_shadow_width="0" clickable="true">
+                 style_border_color="#surface_control" style_shadow_width="0" clickable="true">
         <text_button text="Reset" style_text_color="#text_secondary"/>
         <event_cb trigger="clicked" callback="on_limits_reset"/>
       </lv_button>

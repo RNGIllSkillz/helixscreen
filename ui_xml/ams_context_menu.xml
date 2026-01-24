@@ -12,7 +12,7 @@
     <event_cb trigger="clicked" callback="ams_context_backdrop_cb"/>
     <!-- Context menu card - positioned by C++ -->
     <lv_obj name="context_menu"
-            width="170" height="content" style_bg_color="#theme_grey" style_bg_opa="255" style_radius="#border_radius"
+            width="170" height="content" style_bg_color="#surface_control" style_bg_opa="255" style_radius="#border_radius"
             style_border_width="0" style_pad_all="#space_sm" style_pad_gap="#space_xs" flex_flow="column"
             style_flex_main_place="start" style_flex_cross_place="start" scrollable="false" clickable="true">
       <!-- Load Button -->

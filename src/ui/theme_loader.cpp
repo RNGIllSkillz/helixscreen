@@ -20,10 +20,10 @@ namespace helix {
 
 const std::array<const char*, 16>& ThemePalette::color_names() {
     static const std::array<const char*, 16> names = {
-        "bg_darkest",     "bg_dark",          "bg_dark_highlight", "border_muted",
-        "text_light",     "bg_light",         "bg_lightest",       "accent_highlight",
-        "accent_primary", "accent_secondary", "accent_tertiary",   "status_error",
-        "status_danger",  "status_warning",   "status_success",    "status_special"};
+        "bg_darkest",     "bg_dark",          "surface_elevated", "surface_dim",
+        "text_light",     "bg_light",         "bg_lightest",      "accent_highlight",
+        "accent_primary", "accent_secondary", "accent_tertiary",  "status_error",
+        "status_danger",  "status_warning",   "status_success",   "status_special"};
     return names;
 }
 
@@ -34,9 +34,9 @@ const std::string& ThemePalette::at(size_t index) const {
     case 1:
         return bg_dark;
     case 2:
-        return bg_dark_highlight;
+        return surface_elevated;
     case 3:
-        return border_muted;
+        return surface_dim;
     case 4:
         return text_light;
     case 5:
@@ -88,8 +88,8 @@ ThemeData get_default_nord_theme() {
 
     theme.colors.bg_darkest = "#2e3440";
     theme.colors.bg_dark = "#3b4252";
-    theme.colors.bg_dark_highlight = "#434c5e";
-    theme.colors.border_muted = "#4c566a";
+    theme.colors.surface_elevated = "#434c5e";
+    theme.colors.surface_dim = "#4c566a";
     theme.colors.text_light = "#d8dee9";
     theme.colors.bg_light = "#e5e9f0";
     theme.colors.bg_lightest = "#eceff4";

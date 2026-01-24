@@ -245,7 +245,7 @@ lv_obj_t* AmsToolMappingOverlay::create_tool_row(int tool_index, int current_slo
     lv_obj_set_size(swatch, theme_manager_get_spacing("space_lg"),
                     theme_manager_get_spacing("space_lg"));
     lv_obj_set_style_border_width(swatch, 1, LV_PART_MAIN);
-    lv_obj_set_style_border_color(swatch, theme_manager_get_color("theme_grey"), LV_PART_MAIN);
+    lv_obj_set_style_border_color(swatch, theme_manager_get_color("surface_control"), LV_PART_MAIN);
     lv_obj_set_style_radius(swatch, theme_manager_get_spacing("space_xs"), LV_PART_MAIN);
     lv_obj_remove_flag(swatch, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(swatch, LV_OBJ_FLAG_EVENT_BUBBLE);

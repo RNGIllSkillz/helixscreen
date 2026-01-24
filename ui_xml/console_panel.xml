@@ -40,7 +40,7 @@
           <icon src="send" size="md" variant="primary"/>
         </lv_button>
         <!-- Clear button -->
-        <lv_button name="clear_btn" width="60" height="100%" style_bg_color="#theme_grey" style_radius="#border_radius">
+        <lv_button name="clear_btn" width="60" height="100%" style_bg_color="#surface_control" style_radius="#border_radius">
           <event_cb trigger="clicked" callback="on_console_clear_clicked"/>
           <icon src="delete" size="md" variant="secondary"/>
         </lv_button>

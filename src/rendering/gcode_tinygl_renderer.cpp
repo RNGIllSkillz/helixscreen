@@ -359,7 +359,7 @@ void GCodeTinyGLRenderer::render_bounding_box(const ParsedGCodeFile& gcode) {
             "max=({:.2f},{:.2f},{:.2f})",
             bbox_min.x, bbox_min.y, bbox_min.z, bbox_max.x, bbox_max.y, bbox_max.z);
 
-        // Use material emission for subtle grey lines (matches theme_grey #808080)
+        // Use material emission for subtle grey lines (matches surface_control #808080)
         glDisable(GL_DEPTH_TEST);                  // Draw on top
         GLfloat grey[] = {0.5f, 0.5f, 0.5f, 1.0f}; // #808080 - subtle but visible
 

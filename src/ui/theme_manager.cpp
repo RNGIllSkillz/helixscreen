@@ -7,11 +7,11 @@
 #include "ui_fonts.h"
 
 #include "config.h"
-#include "theme_core.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/libs/expat/expat.h"
 #include "lvgl/src/xml/lv_xml.h"
 #include "settings_manager.h"
+#include "theme_core.h"
 #include "theme_loader.h"
 
 #include <spdlog/spdlog.h>
@@ -331,7 +331,7 @@ void theme_manager_register_responsive_fonts(lv_display_t* display) {
  * palette colors are available for semantic mapping.
  */
 static void theme_manager_register_palette_colors(lv_xml_component_scope_t* scope,
-                                             const helix::ThemeData& theme) {
+                                                  const helix::ThemeData& theme) {
     auto& names = helix::ThemePalette::color_names();
     for (size_t i = 0; i < 16; ++i) {
         lv_xml_register_const(scope, names[i], theme.colors.at(i).c_str());
@@ -351,7 +351,7 @@ static void theme_manager_register_palette_colors(lv_xml_component_scope_t* scop
  * @param dark_mode Whether to use dark mode values for base names
  */
 static void theme_manager_register_semantic_colors(lv_xml_component_scope_t* scope,
-                                              const helix::ThemeData& theme, bool dark_mode) {
+                                                   const helix::ThemeData& theme, bool dark_mode) {
     const auto& c = theme.colors;
 
     // Helper to register a themed color pair and its base name
@@ -370,18 +370,20 @@ static void theme_manager_register_semantic_colors(lv_xml_component_scope_t* sco
     // Background colors (mode-dependent)
     register_themed("app_bg_color", c.bg_darkest.c_str(), c.bg_lightest.c_str());
     register_themed("card_bg", c.bg_dark.c_str(), c.bg_light.c_str());
-    register_themed("selection_highlight", c.bg_dark_highlight.c_str(), c.text_light.c_str());
+    register_themed("selection_highlight", c.surface_elevated.c_str(), c.text_light.c_str());
 
     // Text colors (mode-dependent)
     register_themed("text_primary", c.bg_lightest.c_str(), c.bg_darkest.c_str());
-    register_themed("text_secondary", c.text_light.c_str(), c.border_muted.c_str());
+    register_themed("text_secondary", c.text_light.c_str(), c.surface_dim.c_str());
     register_themed("header_text", c.bg_light.c_str(), c.bg_dark.c_str());
 
-    // Border/muted (mode-dependent)
-    register_themed("theme_grey", c.border_muted.c_str(), c.text_light.c_str());
+    // Control surface (mode-dependent) - used for buttons, inputs
+    register_themed("surface_control", c.surface_dim.c_str(), c.surface_elevated.c_str());
+    // Alias for backward compatibility with existing XML
+    register_themed("surface_control", c.surface_dim.c_str(), c.surface_elevated.c_str());
 
     // Keyboard colors (mode-dependent)
-    register_themed("keyboard_key", c.bg_dark_highlight.c_str(), c.bg_lightest.c_str());
+    register_themed("keyboard_key", c.surface_elevated.c_str(), c.bg_lightest.c_str());
     register_themed("keyboard_key_special", c.bg_dark.c_str(), c.text_light.c_str());
 
     // Accent colors (same in both modes)
@@ -475,7 +477,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     theme_manager_register_static_constants(scope);
 
     // Auto-register all color pairs from globals.xml (xxx_light/xxx_dark -> xxx)
-    // This handles app_bg_color, text_primary, header_text, theme_grey, card_bg, etc.
+    // This handles app_bg_color, text_primary, header_text, surface_control, card_bg, etc.
     theme_manager_register_color_pairs(scope, use_dark_mode);
 
     // Register responsive constants (must be before theme_core_init so fonts are available)
@@ -527,17 +529,17 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     // Read color values from auto-registered constants
     const char* screen_bg_str = lv_xml_get_const(nullptr, "app_bg_color");
     const char* card_bg_str = lv_xml_get_const(nullptr, "card_bg");
-    const char* theme_grey_str = lv_xml_get_const(nullptr, "theme_grey");
+    const char* surface_control_str = lv_xml_get_const(nullptr, "surface_control");
     const char* text_primary_str = lv_xml_get_const(nullptr, "text_primary");
 
-    if (!screen_bg_str || !card_bg_str || !theme_grey_str || !text_primary_str) {
+    if (!screen_bg_str || !card_bg_str || !surface_control_str || !text_primary_str) {
         spdlog::error("[Theme] Failed to read auto-registered color constants");
         return;
     }
 
     lv_color_t screen_bg = theme_manager_parse_hex_color(screen_bg_str);
     lv_color_t card_bg = theme_manager_parse_hex_color(card_bg_str);
-    lv_color_t theme_grey = theme_manager_parse_hex_color(theme_grey_str);
+    lv_color_t surface_control = theme_manager_parse_hex_color(surface_control_str);
     lv_color_t text_primary_color = theme_manager_parse_hex_color(text_primary_str);
 
     // Read border radius from globals.xml
@@ -551,14 +553,14 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     // Initialize custom HelixScreen theme (wraps LVGL default theme)
     current_theme =
         theme_core_init(display, primary_color, secondary_color, text_primary_color, use_dark_mode,
-                         base_font, screen_bg, card_bg, theme_grey, border_radius);
+                        base_font, screen_bg, card_bg, surface_control, border_radius);
 
     if (current_theme) {
         lv_display_set_theme(display, current_theme);
         spdlog::info("[Theme] Initialized HelixScreen theme: {} mode",
                      use_dark_mode ? "dark" : "light");
         spdlog::debug("[Theme] Colors: primary={}, secondary={}, screen={}, card={}, grey={}",
-                      primary_str, secondary_str, screen_bg_str, card_bg_str, theme_grey_str);
+                      primary_str, secondary_str, screen_bg_str, card_bg_str, surface_control_str);
     } else {
         spdlog::error("[Theme] Failed to initialize HelixScreen theme");
     }
@@ -609,10 +611,10 @@ void theme_manager_toggle_dark_mode() {
 
     const char* screen_bg_str = get_themed_color("app_bg_color");
     const char* card_bg_str = get_themed_color("card_bg");
-    const char* theme_grey_str = get_themed_color("theme_grey");
+    const char* surface_control_str = get_themed_color("surface_control");
     const char* text_primary_str = get_themed_color("text_primary");
 
-    if (!screen_bg_str || !card_bg_str || !theme_grey_str || !text_primary_str) {
+    if (!screen_bg_str || !card_bg_str || !surface_control_str || !text_primary_str) {
         spdlog::error("[Theme] Failed to read color constants for {} mode",
                       new_use_dark_mode ? "dark" : "light");
         return;
@@ -620,15 +622,15 @@ void theme_manager_toggle_dark_mode() {
 
     lv_color_t screen_bg = theme_manager_parse_hex_color(screen_bg_str);
     lv_color_t card_bg = theme_manager_parse_hex_color(card_bg_str);
-    lv_color_t theme_grey = theme_manager_parse_hex_color(theme_grey_str);
+    lv_color_t surface_control = theme_manager_parse_hex_color(surface_control_str);
     lv_color_t text_primary_color = theme_manager_parse_hex_color(text_primary_str);
 
     spdlog::debug("[Theme] New colors: screen={}, card={}, grey={}, text={}", screen_bg_str,
-                  card_bg_str, theme_grey_str, text_primary_str);
+                  card_bg_str, surface_control_str, text_primary_str);
 
     // Update helix theme styles in-place (triggers lv_obj_report_style_change)
-    theme_core_update_colors(new_use_dark_mode, screen_bg, card_bg, theme_grey,
-                              text_primary_color);
+    theme_core_update_colors(new_use_dark_mode, screen_bg, card_bg, surface_control,
+                             text_primary_color);
 
     // Force style refresh on entire widget tree for local/inline styles
     theme_manager_refresh_widget_tree(lv_screen_active());
@@ -968,8 +970,9 @@ static void XMLCALL suffix_value_element_start(void* user_data, const XML_Char* 
     }
 }
 
-void theme_manager_parse_xml_file_for_all(const char* filepath, const char* element_type,
-                                     std::unordered_map<std::string, std::string>& token_values) {
+void theme_manager_parse_xml_file_for_all(
+    const char* filepath, const char* element_type,
+    std::unordered_map<std::string, std::string>& token_values) {
     if (!filepath)
         return;
 
@@ -1092,7 +1095,7 @@ theme_manager_parse_all_xml_for_element(const char* directory, const char* eleme
 
 std::unordered_map<std::string, std::string>
 theme_manager_parse_all_xml_for_suffix(const char* directory, const char* element_type,
-                                  const char* suffix) {
+                                       const char* suffix) {
     std::unordered_map<std::string, std::string> token_values;
 
     // Get sorted list of all XML files
@@ -1100,7 +1103,8 @@ theme_manager_parse_all_xml_for_suffix(const char* directory, const char* elemen
 
     // Parse each file in alphabetical order (last-wins via map overwrite)
     for (const auto& filepath : files) {
-        theme_manager_parse_xml_file_for_suffix(filepath.c_str(), element_type, suffix, token_values);
+        theme_manager_parse_xml_file_for_suffix(filepath.c_str(), element_type, suffix,
+                                                token_values);
     }
 
     return token_values;
@@ -1319,7 +1323,8 @@ std::vector<std::string> theme_manager_validate_constant_sets(const char* direct
         for (const auto& [name, _] : theme_manager_parse_all_xml_for_element(directory, "str")) {
             defined_constants.insert(name);
         }
-        for (const auto& [name, _] : theme_manager_parse_all_xml_for_element(directory, "percentage")) {
+        for (const auto& [name, _] :
+             theme_manager_parse_all_xml_for_element(directory, "percentage")) {
             defined_constants.insert(name);
         }
         for (const auto& [name, _] : theme_manager_parse_all_xml_for_element(directory, "int")) {

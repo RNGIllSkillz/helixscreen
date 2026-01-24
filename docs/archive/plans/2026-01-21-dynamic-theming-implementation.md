@@ -841,9 +841,9 @@ static void ui_theme_register_semantic_colors(lv_xml_component_scope_t* scope,
     lv_xml_register_const(scope, "header_text_dark", c.bg_light.c_str());
     lv_xml_register_const(scope, "header_text_light", c.bg_dark.c_str());
 
-    // Border/muted (mode-dependent)
-    lv_xml_register_const(scope, "theme_grey_dark", c.border_muted.c_str());
-    lv_xml_register_const(scope, "theme_grey_light", c.text_light.c_str());
+    // Control surface (mode-dependent)
+    lv_xml_register_const(scope, "surface_control_dark", c.surface_dim.c_str());
+    lv_xml_register_const(scope, "surface_control_light", c.surface_elevated.c_str());
 
     // Accent colors (same in both modes)
     lv_xml_register_const(scope, "primary_color", c.accent_primary.c_str());
@@ -860,7 +860,7 @@ static void ui_theme_register_semantic_colors(lv_xml_component_scope_t* scope,
     lv_xml_register_const(scope, "info_color", c.accent_primary.c_str());
 
     // Keyboard colors (mode-dependent)
-    lv_xml_register_const(scope, "keyboard_key_dark", c.bg_dark_highlight.c_str());
+    lv_xml_register_const(scope, "keyboard_key_dark", c.surface_elevated.c_str());
     lv_xml_register_const(scope, "keyboard_key_light", c.bg_lightest.c_str());
     lv_xml_register_const(scope, "keyboard_key_special_dark", c.bg_dark.c_str());
     lv_xml_register_const(scope, "keyboard_key_special_light", c.text_light.c_str());
@@ -888,7 +888,7 @@ Remove these from `ui_xml/globals.xml` since they're now registered programmatic
 - `header_text_light`, `header_text_dark`
 - `text_secondary_light`, `text_secondary_dark`
 - `card_bg_light`, `card_bg_dark`
-- `theme_grey_light`, `theme_grey_dark`
+- `surface_control_light`, `surface_control_dark`
 - `keyboard_key_light`, `keyboard_key_dark`
 - `keyboard_key_special_light`, `keyboard_key_special_dark`
 
@@ -1114,9 +1114,9 @@ void helix_theme_preview_colors(bool is_dark, const char* colors[16], int32_t bo
         lv_color_hex(strtoul(colors[1] + 1, NULL, 16)) :  // bg_dark
         lv_color_hex(strtoul(colors[5] + 1, NULL, 16));   // bg_light
 
-    lv_color_t theme_grey = is_dark ?
-        lv_color_hex(strtoul(colors[3] + 1, NULL, 16)) :  // border_muted
-        lv_color_hex(strtoul(colors[4] + 1, NULL, 16));   // text_light
+    lv_color_t surface_control = is_dark ?
+        lv_color_hex(strtoul(colors[3] + 1, NULL, 16)) :  // surface_dim
+        lv_color_hex(strtoul(colors[2] + 1, NULL, 16));   // surface_elevated
 
     lv_color_t text_primary = is_dark ?
         lv_color_hex(strtoul(colors[6] + 1, NULL, 16)) :  // bg_lightest
@@ -1130,7 +1130,7 @@ void helix_theme_preview_colors(bool is_dark, const char* colors[16], int32_t bo
     lv_style_set_bg_color(&helix_theme_instance->input_bg_style, input_bg);
 
     // Update button style
-    lv_style_set_bg_color(&helix_theme_instance->button_style, theme_grey);
+    lv_style_set_bg_color(&helix_theme_instance->button_style, surface_control);
     lv_style_set_text_color(&helix_theme_instance->button_style, text_primary);
     lv_style_set_radius(&helix_theme_instance->button_style, border_radius);
     lv_style_set_radius(&helix_theme_instance->pressed_style, border_radius);

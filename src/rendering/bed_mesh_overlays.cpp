@@ -113,7 +113,7 @@ void render_grid_lines(lv_layer_t* layer, const bed_mesh_renderer_t* renderer, i
     // Configure line drawing style
     lv_draw_line_dsc_t line_dsc;
     lv_draw_line_dsc_init(&line_dsc);
-    line_dsc.color = theme_manager_get_color("theme_grey");
+    line_dsc.color = theme_manager_get_color("surface_control");
     line_dsc.width = 1;
     line_dsc.opa = GRID_LINE_OPACITY;
 
@@ -246,7 +246,7 @@ void render_reference_grids(lv_layer_t* layer, const bed_mesh_renderer_t* render
     // Configure grid line drawing style
     lv_draw_line_dsc_t grid_line_dsc;
     lv_draw_line_dsc_init(&grid_line_dsc);
-    grid_line_dsc.color = theme_manager_get_color("theme_grey");
+    grid_line_dsc.color = theme_manager_get_color("surface_control");
     grid_line_dsc.width = 1;
     grid_line_dsc.opa = LV_OPA_60;
 

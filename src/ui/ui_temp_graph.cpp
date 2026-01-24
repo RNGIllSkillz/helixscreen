@@ -468,7 +468,7 @@ static void draw_grid_lines_cb(lv_event_t* e) {
     // Setup line style - use explicit theme token for consistent grid appearance
     lv_draw_line_dsc_t line_dsc;
     lv_draw_line_dsc_init(&line_dsc);
-    line_dsc.color = theme_manager_get_color("theme_grey"); // Match bed mesh grid
+    line_dsc.color = theme_manager_get_color("surface_control"); // Match bed mesh grid
     line_dsc.width = 1;
     line_dsc.opa = LV_OPA_30;
 

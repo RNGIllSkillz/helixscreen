@@ -25,22 +25,22 @@ namespace helix {
  * 7-10: Accents, 11-15: Status colors
  */
 struct ThemePalette {
-    std::string bg_darkest;        // 0: Dark mode app background
-    std::string bg_dark;           // 1: Dark mode cards/surfaces
-    std::string bg_dark_highlight; // 2: Selection highlight on dark
-    std::string border_muted;      // 3: Borders, muted text
-    std::string text_light;        // 4: Primary text on dark surfaces
-    std::string bg_light;          // 5: Light mode cards/surfaces
-    std::string bg_lightest;       // 6: Light mode app background
-    std::string accent_highlight;  // 7: Subtle highlights
-    std::string accent_primary;    // 8: Primary accent, links
-    std::string accent_secondary;  // 9: Secondary accent
-    std::string accent_tertiary;   // 10: Tertiary accent
-    std::string status_error;      // 11: Error, danger (red)
-    std::string status_danger;     // 12: Danger, attention (orange)
-    std::string status_warning;    // 13: Warning, caution (yellow)
-    std::string status_success;    // 14: Success, positive (green)
-    std::string status_special;    // 15: Special, unusual (purple)
+    std::string bg_darkest;       // 0: Dark mode app background
+    std::string bg_dark;          // 1: Dark mode cards/surfaces
+    std::string surface_elevated; // 2: Elevated surfaces, selections
+    std::string surface_dim;      // 3: Control surfaces (buttons, inputs)
+    std::string text_light;       // 4: Primary text on dark surfaces
+    std::string bg_light;         // 5: Light mode cards/surfaces
+    std::string bg_lightest;      // 6: Light mode app background
+    std::string accent_highlight; // 7: Subtle highlights
+    std::string accent_primary;   // 8: Primary accent, links
+    std::string accent_secondary; // 9: Secondary accent
+    std::string accent_tertiary;  // 10: Tertiary accent
+    std::string status_error;     // 11: Error, danger (red)
+    std::string status_danger;    // 12: Danger, attention (orange)
+    std::string status_warning;   // 13: Warning, caution (yellow)
+    std::string status_success;   // 14: Success, positive (green)
+    std::string status_special;   // 15: Special, unusual (purple)
 
     /** @brief Access color by index (0-15) */
     const std::string& at(size_t index) const;

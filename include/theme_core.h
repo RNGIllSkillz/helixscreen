@@ -31,7 +31,7 @@ extern "C" {
  * @param base_font Base font for theme
  * @param screen_bg Screen background color (from globals.xml variant)
  * @param card_bg Card background color (from globals.xml variant)
- * @param theme_grey Grey color for buttons (from globals.xml variant)
+ * @param surface_control Control surface color for buttons/inputs (mode-aware)
  * @param border_radius Border radius for buttons/cards (from globals.xml)
  * @return Initialized theme, or NULL on failure
  *
@@ -47,9 +47,9 @@ extern "C" {
  * @endcode
  */
 lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
-                             lv_color_t secondary_color, lv_color_t text_primary_color,
-                             bool is_dark, const lv_font_t* base_font, lv_color_t screen_bg,
-                             lv_color_t card_bg, lv_color_t theme_grey, int32_t border_radius);
+                            lv_color_t secondary_color, lv_color_t text_primary_color, bool is_dark,
+                            const lv_font_t* base_font, lv_color_t screen_bg, lv_color_t card_bg,
+                            lv_color_t surface_control, int32_t border_radius);
 
 /**
  * @brief Update theme colors in-place without recreating the theme
@@ -64,11 +64,11 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
  * @param is_dark true for dark mode colors, false for light mode
  * @param screen_bg Screen background color
  * @param card_bg Card/panel background color
- * @param theme_grey Grey color for buttons
+ * @param surface_control Control surface color for buttons/inputs
  * @param text_primary_color Primary text color
  */
 void theme_core_update_colors(bool is_dark, lv_color_t screen_bg, lv_color_t card_bg,
-                               lv_color_t theme_grey, lv_color_t text_primary_color);
+                              lv_color_t surface_control, lv_color_t text_primary_color);
 
 /**
  * @brief Update all theme colors for live preview
