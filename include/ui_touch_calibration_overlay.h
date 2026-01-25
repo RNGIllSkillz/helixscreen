@@ -30,13 +30,11 @@
 
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
+#include "touch_calibration.h"
 #include "touch_calibration_panel.h"
 
 #include <functional>
 #include <memory>
-
-// Forward declarations
-struct TouchCalibration;
 
 namespace helix::ui {
 
@@ -238,6 +236,10 @@ class TouchCalibrationOverlay : public OverlayBase {
     lv_subject_t instruction_subject_; ///< string: instruction text
     char instruction_buffer_[128];
 
+    // Accept button countdown text
+    lv_subject_t accept_button_text_;
+    char accept_text_buffer_[32] = "Accept";
+
     //
     // === Callbacks ===
     //
@@ -245,6 +247,10 @@ class TouchCalibrationOverlay : public OverlayBase {
     CompletionCallback completion_callback_;
     bool callback_invoked_ = false; ///< Guard against double-invoke
     bool auto_start_ = false;       ///< Skip IDLE, start at POINT_1
+
+    // Backup calibration for revert on timeout
+    helix::TouchCalibration backup_calibration_;
+    bool has_backup_ = false;
 
     //
     // === Widget References ===

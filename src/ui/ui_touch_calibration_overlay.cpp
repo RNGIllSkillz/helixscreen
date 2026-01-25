@@ -114,6 +114,37 @@ TouchCalibrationOverlay::TouchCalibrationOverlay() {
         update_crosshair_position();
     });
 
+    // Set up countdown callback to update Accept button text
+    panel_->set_countdown_callback([this](int remaining) {
+        snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept (%d)", remaining);
+        lv_subject_copy_string(&accept_button_text_, accept_text_buffer_);
+        spdlog::debug("[{}] Countdown: {} seconds remaining", get_name(), remaining);
+    });
+
+    // Set up timeout callback to revert and restart
+    panel_->set_timeout_callback([this]() {
+        spdlog::info("[{}] Calibration timeout - reverting to previous", get_name());
+
+        // Restore backup calibration
+        if (has_backup_) {
+            DisplayManager::instance()->apply_touch_calibration(backup_calibration_);
+            has_backup_ = false;
+        }
+
+        // Reset accept button text
+        snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
+        lv_subject_copy_string(&accept_button_text_, accept_text_buffer_);
+
+        // Update instruction text
+        lv_subject_copy_string(&instruction_subject_, "Calibration timed out. Please try again.");
+
+        // Restart calibration from POINT_1
+        panel_->start();
+        update_state_subject();
+        update_crosshair_position();
+        update_step_progress();
+    });
+
     spdlog::debug("[{}] Instance created", get_name());
 }
 
@@ -153,6 +184,10 @@ void TouchCalibrationOverlay::init_subjects() {
     // Instruction text subject
     UI_MANAGED_SUBJECT_STRING(instruction_subject_, instruction_buffer_,
                               "Tap Start to begin calibration", "touch_cal_instruction", subjects_);
+
+    // Accept button text subject (for countdown display)
+    UI_MANAGED_SUBJECT_STRING(accept_button_text_, accept_text_buffer_, "Accept",
+                              "touch_cal_accept_text", subjects_);
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
@@ -353,6 +388,9 @@ void TouchCalibrationOverlay::cleanup() {
     completion_callback_ = nullptr;
     callback_invoked_ = false;
 
+    // Clear backup state
+    has_backup_ = false;
+
     spdlog::debug("[{}] Cleanup complete", get_name());
 }
 
@@ -416,6 +454,13 @@ void TouchCalibrationOverlay::handle_accept_clicked() {
         spdlog::debug("[{}] Could not apply calibration immediately (may require restart)",
                       get_name());
     }
+
+    // Calibration accepted - no need to restore backup
+    has_backup_ = false;
+
+    // Reset accept button text for next calibration
+    snprintf(accept_text_buffer_, sizeof(accept_text_buffer_), "Accept");
+    lv_subject_copy_string(&accept_button_text_, accept_text_buffer_);
 
     // Accept in panel (transitions to COMPLETE state)
     panel_->accept();
@@ -679,12 +724,23 @@ void TouchCalibrationOverlay::on_calibration_complete(const TouchCalibration* ca
 
     if (cal && cal->valid) {
         spdlog::info("[{}] Calibration complete callback received (valid)", get_name());
+
+        // Backup current calibration before applying new one for verification
+        DisplayManager* dm = DisplayManager::instance();
+        if (dm) {
+            backup_calibration_ = dm->get_current_calibration();
+            has_backup_ = true;
+
+            // Apply new calibration immediately so user can verify it feels right
+            if (dm->apply_touch_calibration(*cal)) {
+                spdlog::info("[{}] Calibration applied for verification", get_name());
+            } else {
+                spdlog::debug("[{}] Could not apply calibration for verification", get_name());
+            }
+        }
     } else {
         spdlog::debug("[{}] Calibration cancelled or invalid", get_name());
     }
-
-    // UI updates are handled in handle_accept_clicked() where save logic lives
-    // This callback is primarily for logging/debugging
 }
 
 } // namespace helix::ui

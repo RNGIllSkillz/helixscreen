@@ -404,6 +404,18 @@ bool DisplayManager::apply_touch_calibration(const helix::TouchCalibration& cal)
     return false;
 }
 
+helix::TouchCalibration DisplayManager::get_current_calibration() const {
+#ifdef HELIX_DISPLAY_FBDEV
+    if (m_backend && m_backend->type() == DisplayBackendType::FBDEV) {
+        auto* fbdev = static_cast<DisplayBackendFbdev*>(m_backend.get());
+        return fbdev->get_calibration();
+    }
+#endif
+
+    // Return invalid calibration for non-fbdev backends
+    return helix::TouchCalibration{};
+}
+
 // ============================================================================
 // Input Gating (Wake-Only First Touch)
 // ============================================================================

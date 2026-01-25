@@ -18,7 +18,9 @@ constexpr int DEFAULT_SCREEN_HEIGHT = 480;
 
 TouchCalibrationPanel::TouchCalibrationPanel() = default;
 
-TouchCalibrationPanel::~TouchCalibrationPanel() = default;
+TouchCalibrationPanel::~TouchCalibrationPanel() {
+    stop_countdown_timer();
+}
 
 void TouchCalibrationPanel::set_completion_callback(CompletionCallback cb) {
     callback_ = std::move(cb);
@@ -26,6 +28,18 @@ void TouchCalibrationPanel::set_completion_callback(CompletionCallback cb) {
 
 void TouchCalibrationPanel::set_failure_callback(FailureCallback cb) {
     failure_callback_ = std::move(cb);
+}
+
+void TouchCalibrationPanel::set_countdown_callback(CountdownCallback cb) {
+    countdown_callback_ = std::move(cb);
+}
+
+void TouchCalibrationPanel::set_timeout_callback(TimeoutCallback cb) {
+    timeout_callback_ = std::move(cb);
+}
+
+void TouchCalibrationPanel::set_verify_timeout_seconds(int seconds) {
+    verify_timeout_seconds_ = seconds;
 }
 
 void TouchCalibrationPanel::set_screen_size(int width, int height) {
@@ -82,6 +96,7 @@ void TouchCalibrationPanel::capture_point(Point raw) {
         // Compute calibration and check for degenerate case (collinear points)
         if (compute_calibration(screen_points_, touch_points_, calibration_)) {
             state_ = State::VERIFY;
+            start_countdown_timer();
         } else {
             // Calibration failed (collinear/duplicate points) - restart from POINT_1
             spdlog::warn(
@@ -101,6 +116,8 @@ void TouchCalibrationPanel::capture_point(Point raw) {
 }
 
 void TouchCalibrationPanel::accept() {
+    stop_countdown_timer();
+
     if (state_ != State::VERIFY) {
         return;
     }
@@ -112,6 +129,8 @@ void TouchCalibrationPanel::accept() {
 }
 
 void TouchCalibrationPanel::retry() {
+    stop_countdown_timer();
+
     if (state_ != State::VERIFY) {
         return;
     }
@@ -126,6 +145,8 @@ void TouchCalibrationPanel::retry() {
 }
 
 void TouchCalibrationPanel::cancel() {
+    stop_countdown_timer();
+
     state_ = State::IDLE;
     calibration_.valid = false;
     if (callback_) {
@@ -150,6 +171,44 @@ const TouchCalibration* TouchCalibrationPanel::get_calibration() const {
         return &calibration_;
     }
     return nullptr;
+}
+
+void TouchCalibrationPanel::start_countdown_timer() {
+    countdown_remaining_ = verify_timeout_seconds_;
+    countdown_timer_ = lv_timer_create(countdown_timer_cb, 1000, this);
+    spdlog::debug("[TouchCalibrationPanel] Started countdown timer: {} seconds", countdown_remaining_);
+
+    // Immediately notify with initial value
+    if (countdown_callback_) {
+        countdown_callback_(countdown_remaining_);
+    }
+}
+
+void TouchCalibrationPanel::stop_countdown_timer() {
+    if (countdown_timer_ != nullptr) {
+        lv_timer_delete(countdown_timer_);
+        countdown_timer_ = nullptr;
+        spdlog::debug("[TouchCalibrationPanel] Stopped countdown timer");
+    }
+}
+
+void TouchCalibrationPanel::countdown_timer_cb(lv_timer_t* timer) {
+    auto* self = static_cast<TouchCalibrationPanel*>(lv_timer_get_user_data(timer));
+    self->countdown_remaining_--;
+    spdlog::debug("[TouchCalibrationPanel] Countdown tick: {} seconds remaining",
+                  self->countdown_remaining_);
+
+    if (self->countdown_remaining_ > 0) {
+        if (self->countdown_callback_) {
+            self->countdown_callback_(self->countdown_remaining_);
+        }
+    } else {
+        spdlog::debug("[TouchCalibrationPanel] Countdown expired, invoking timeout callback");
+        if (self->timeout_callback_) {
+            self->timeout_callback_();
+        }
+        self->stop_countdown_timer();
+    }
 }
 
 } // namespace helix

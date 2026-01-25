@@ -235,6 +235,15 @@ class DisplayManager {
      */
     bool apply_touch_calibration(const helix::TouchCalibration& cal);
 
+    /**
+     * @brief Get current touch calibration from backend
+     *
+     * Used to backup calibration before applying a new one.
+     *
+     * @return Current calibration, or invalid calibration if not calibrated/not fbdev
+     */
+    helix::TouchCalibration get_current_calibration() const;
+
     // ========================================================================
     // Static Timing Functions (portable across platforms)
     // ========================================================================

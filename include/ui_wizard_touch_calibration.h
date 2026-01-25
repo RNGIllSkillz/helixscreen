@@ -130,6 +130,10 @@ class WizardTouchCalibrationStep {
     bool has_pending_calibration_ = false;
     helix::TouchCalibration pending_calibration_;
 
+    // Backup calibration for revert on timeout
+    helix::TouchCalibration backup_calibration_;
+    bool has_backup_ = false;
+
     // Event handlers (static trampolines)
     static void on_accept_clicked_static(lv_event_t* e);
     static void on_retry_clicked_static(lv_event_t* e);

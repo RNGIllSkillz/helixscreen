@@ -60,7 +60,7 @@
         <lv_button name="btn_accept" width="150" height="#button_height">
           <event_cb trigger="clicked" callback="on_touch_cal_accept_clicked"/>
           <bind_flag_if_not_eq subject="touch_cal_state" flag="hidden" ref_value="4"/>
-          <text_button text="Accept"/>
+          <text_button bind_text="touch_cal_accept_text"/>
         </lv_button>
 
         <!-- Retry button - visible only in VERIFY (state=4) -->

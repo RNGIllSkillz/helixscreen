@@ -6,6 +6,7 @@
 #include "touch_calibration.h"
 
 #include <functional>
+#include <lvgl.h>
 
 namespace helix {
 
@@ -57,6 +58,17 @@ class TouchCalibrationPanel {
      */
     using FailureCallback = std::function<void(const char* reason)>;
 
+    /**
+     * @brief Callback invoked each second during verify countdown
+     * @param seconds_remaining Seconds until timeout (15, 14, 13, ...)
+     */
+    using CountdownCallback = std::function<void(int seconds_remaining)>;
+
+    /**
+     * @brief Callback invoked when verify timeout expires without accept
+     */
+    using TimeoutCallback = std::function<void()>;
+
     TouchCalibrationPanel();
     ~TouchCalibrationPanel();
 
@@ -79,6 +91,21 @@ class TouchCalibrationPanel {
      * @param cb Callback to invoke when calibration fails (degenerate points, etc.)
      */
     void set_failure_callback(FailureCallback cb);
+
+    /**
+     * @brief Set callback for countdown ticks during verify state
+     */
+    void set_countdown_callback(CountdownCallback cb);
+
+    /**
+     * @brief Set callback for timeout expiration
+     */
+    void set_timeout_callback(TimeoutCallback cb);
+
+    /**
+     * @brief Set verify timeout duration (default: 15 seconds)
+     */
+    void set_verify_timeout_seconds(int seconds);
 
     /**
      * @brief Set the screen dimensions for target position calculations
@@ -158,6 +185,11 @@ class TouchCalibrationPanel {
     int screen_height_ = 480;
     CompletionCallback callback_;
     FailureCallback failure_callback_;
+    CountdownCallback countdown_callback_;
+    TimeoutCallback timeout_callback_;
+    int verify_timeout_seconds_ = 15;
+    int countdown_remaining_ = 0;
+    lv_timer_t* countdown_timer_ = nullptr;
 
     Point screen_points_[3]; ///< Target screen positions
     Point touch_points_[3];  ///< Captured raw touch positions
@@ -165,6 +197,15 @@ class TouchCalibrationPanel {
 
     /// Calculate target position for a given step using screen dimensions
     Point compute_target_position(int step) const;
+
+    /// Start countdown timer when entering VERIFY state
+    void start_countdown_timer();
+
+    /// Stop countdown timer
+    void stop_countdown_timer();
+
+    /// Timer callback - static member
+    static void countdown_timer_cb(lv_timer_t* timer);
 
     // Calibration target positions as screen ratios
     // These form a well-distributed triangle for accurate affine transform

@@ -93,6 +93,40 @@ WizardTouchCalibrationStep::WizardTouchCalibrationStep() {
         }
     });
 
+    // Set up countdown callback to update subtitle
+    panel_->set_countdown_callback([this](int remaining) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "Test calibration - reverting in %ds if not accepted", remaining);
+        lv_subject_copy_string(&wizard_subtitle, buf);
+        spdlog::debug("[{}] Countdown: {} seconds remaining", get_name(), remaining);
+    });
+
+    // Set up timeout callback to revert and restart
+    panel_->set_timeout_callback([this]() {
+        spdlog::info("[{}] Calibration timeout - reverting to previous", get_name());
+
+        // Restore backup calibration
+        if (has_backup_) {
+            DisplayManager::instance()->apply_touch_calibration(backup_calibration_);
+            has_backup_ = false;
+        }
+
+        // Show timeout message
+        lv_subject_copy_string(&wizard_subtitle,
+                               "Calibration timed out. Touch the targets to try again.");
+
+        // Reset to pending state
+        has_pending_calibration_ = false;
+
+        // Restart calibration from POINT_1
+        panel_->start();
+        update_crosshair_position();
+        update_button_visibility();
+
+        // Reset button text to "Skip" since we're back to calibrating
+        lv_subject_copy_string(&wizard_next_button_text, "Skip");
+    });
+
     spdlog::debug("[{}] Instance created", get_name());
 }
 
@@ -217,6 +251,7 @@ void WizardTouchCalibrationStep::cleanup() {
 
     // Clear pending calibration (user skipped or went back)
     has_pending_calibration_ = false;
+    has_backup_ = false;
 }
 
 // ============================================================================
@@ -246,6 +281,7 @@ bool WizardTouchCalibrationStep::commit_calibration() {
 
     spdlog::info("[{}] Calibration committed to config", get_name());
     has_pending_calibration_ = false;
+    has_backup_ = false; // Calibration committed, no need to restore
     return true;
 }
 
@@ -446,8 +482,12 @@ void WizardTouchCalibrationStep::on_calibration_complete(const helix::TouchCalib
         has_pending_calibration_ = true;
         spdlog::debug("[{}] Calibration stored (will save when 'Next' is clicked)", get_name());
 
-        // Apply calibration immediately (no restart required)
+        // Backup current calibration before applying new one
         DisplayManager* dm = DisplayManager::instance();
+        backup_calibration_ = dm->get_current_calibration();
+        has_backup_ = true;
+
+        // Apply calibration immediately (no restart required)
         if (dm && dm->apply_touch_calibration(*cal)) {
             spdlog::info("[{}] Calibration applied to touch input", get_name());
         } else {
