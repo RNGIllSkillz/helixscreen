@@ -37,7 +37,7 @@
       <text_body name="error_message" width="100%" text="An error occurred while loading filament." long_mode="wrap"/>
       <!-- Hint text -->
       <text_small name="error_hint"
-                  width="100%" text="Check the filament path and try again." style_text_color="#text_secondary"
+                  width="100%" text="Check the filament path and try again." style_text_color="#text_muted"
                   long_mode="wrap"/>
     </lv_obj>
     <!-- Horizontal divider above buttons -->
@@ -50,7 +50,7 @@
       <lv_button name="btn_cancel"
                  height="100%" flex_grow="1" style_radius="#border_radius" style_border_width="0" style_shadow_width="0"
                  clickable="true">
-        <text_button text="Close" style_text_color="#text_secondary"/>
+        <text_button text="Close" style_text_color="#text_muted"/>
         <event_cb trigger="clicked" callback="ams_loading_error_cancel_cb"/>
       </lv_button>
       <!-- Vertical divider -->
@@ -59,7 +59,7 @@
       <lv_button name="btn_retry"
                  height="100%" flex_grow="1" style_radius="#border_radius" style_border_width="0" style_shadow_width="0"
                  clickable="true">
-        <text_button text="Retry" style_text_color="#primary_color"/>
+        <text_button text="Retry" style_text_color="#primary"/>
         <event_cb trigger="clicked" callback="ams_loading_error_retry_cb"/>
       </lv_button>
     </lv_obj>

@@ -4,14 +4,14 @@
 <component>
   <!-- Styles for reactive purge button state binding (L040: no inline bg attrs) -->
   <styles>
-    <style name="purge_btn_selected" bg_color="#tertiary_color" bg_opa="255"/>
-    <style name="purge_btn_unselected" bg_color="#tertiary_color" bg_opa="40"/>
+    <style name="purge_btn_selected" bg_color="#primary" bg_opa="255"/>
+    <style name="purge_btn_unselected" bg_color="#primary" bg_opa="40"/>
   </styles>
   <!-- Filament Management Panel -->
   <!-- Two-column layout: left (temp status + AMS), right (material + operations) -->
   <view name="filament_panel"
         extends="lv_obj" width="100%" height="100%" style_border_width="0" style_pad_all="#space_lg" scrollable="false"
-        flex_flow="row" style_flex_cross_place="start" style_pad_gap="#space_lg" style_bg_color="#app_bg_color">
+        flex_flow="row" style_flex_cross_place="start" style_pad_gap="#space_lg" style_bg_color="#app_bg">
     <!-- ================================================================== -->
     <!-- LEFT COLUMN: Temperature Status & AMS                              -->
     <!-- ================================================================== -->
@@ -100,7 +100,7 @@
                 height="content" style_bg_opa="0" style_pad_all="0" style_border_width="0" scrollable="false"
                 flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
           <icon src="filament" size="sm" variant="secondary"/>
-          <text_body text="Multi-Filament" style_text_color="#text_primary" style_translate_y="2"/>
+          <text_body text="Multi-Filament" style_text_color="#text" style_translate_y="2"/>
         </lv_obj>
         <!-- AMS mini status + Manage button row -->
         <lv_obj width="100%"
@@ -148,7 +148,7 @@
               <event_cb trigger="clicked" callback="on_filament_preset_pla"/>
               <text_body width="100%" text="PLA" style_text_align="center"/>
               <text_small width="100%" text="210°C / 60°C" style_text_align="center"
-                          style_text_color="#text_secondary" style_text_color:checked="#text_primary"/>
+                          style_text_color="#text_muted" style_text_color:checked="#text"/>
             </lv_button>
             <lv_button name="preset_petg"
                        height="content" flex_grow="1" style_radius="#border_radius" style_border_width="0"
@@ -157,7 +157,7 @@
               <event_cb trigger="clicked" callback="on_filament_preset_petg"/>
               <text_body width="100%" text="PETG" style_text_align="center"/>
               <text_small width="100%" text="240°C / 80°C" style_text_align="center"
-                          style_text_color="#text_secondary" style_text_color:checked="#text_primary"/>
+                          style_text_color="#text_muted" style_text_color:checked="#text"/>
             </lv_button>
           </lv_obj>
           <!-- Row 2: ABS, TPU -->
@@ -172,7 +172,7 @@
               <event_cb trigger="clicked" callback="on_filament_preset_abs"/>
               <text_body width="100%" text="ABS" style_text_align="center"/>
               <text_small width="100%" text="250°C / 100°C" style_text_align="center"
-                          style_text_color="#text_secondary" style_text_color:checked="#text_primary"/>
+                          style_text_color="#text_muted" style_text_color:checked="#text"/>
             </lv_button>
             <lv_button name="preset_tpu"
                        height="content" flex_grow="1" style_radius="#border_radius" style_border_width="0"
@@ -181,7 +181,7 @@
               <event_cb trigger="clicked" callback="on_filament_preset_tpu"/>
               <text_body width="100%" text="TPU" style_text_align="center"/>
               <text_small width="100%" text="230°C / 50°C" style_text_align="center"
-                          style_text_color="#text_secondary" style_text_color:checked="#text_primary"/>
+                          style_text_color="#text_muted" style_text_color:checked="#text"/>
             </lv_button>
           </lv_obj>
         </lv_obj>
@@ -214,7 +214,7 @@
             <bind_style name="purge_btn_selected" subject="filament_purge_5mm_active" ref_value="1"/>
             <bind_style name="purge_btn_unselected" subject="filament_purge_5mm_active" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_filament_purge_5mm"/>
-            <text_small text="5mm" align="center" style_text_color="#text_primary"/>
+            <text_small text="5mm" align="center" style_text_color="#text"/>
           </lv_button>
           <lv_button name="purge_10mm"
                      height="#button_height_sm" flex_grow="1" style_radius="#border_radius" style_border_width="0">
@@ -222,7 +222,7 @@
             <bind_style name="purge_btn_selected" subject="filament_purge_10mm_active" ref_value="1"/>
             <bind_style name="purge_btn_unselected" subject="filament_purge_10mm_active" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_filament_purge_10mm"/>
-            <text_small text="10mm" align="center" style_text_color="#text_primary"/>
+            <text_small text="10mm" align="center" style_text_color="#text"/>
           </lv_button>
           <lv_button name="purge_25mm"
                      height="#button_height_sm" flex_grow="1" style_radius="#border_radius" style_border_width="0">
@@ -230,7 +230,7 @@
             <bind_style name="purge_btn_selected" subject="filament_purge_25mm_active" ref_value="1"/>
             <bind_style name="purge_btn_unselected" subject="filament_purge_25mm_active" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_filament_purge_25mm"/>
-            <text_small text="25mm" align="center" style_text_color="#text_primary"/>
+            <text_small text="25mm" align="center" style_text_color="#text"/>
           </lv_button>
         </lv_obj>
         <!-- Action Buttons: Load/Unload side-by-side, Purge below -->

@@ -25,7 +25,7 @@
                    text="Input shaping reduces vibration artifacts (ringing) in your prints." style_text_align="center"/>
         <text_small width="100%"
                     text="An accelerometer was detected on your printer." style_text_align="center"
-                    style_text_color="#text_secondary"/>
+                    style_text_color="#text_muted"/>
       </lv_obj>
 
       <!-- Status display -->
@@ -50,15 +50,15 @@
         <lv_button name="skip_calibration_btn"
                    width="#wizard_button_width" height="#button_height" style_bg_color="#card_bg"
                    style_radius="#border_radius">
-          <text_body text="Skip for now" style_text_color="#text_primary"/>
+          <text_body text="Skip for now" style_text_color="#text"/>
           <event_cb trigger="clicked" callback="on_skip_is_calibration"/>
         </lv_button>
 
         <!-- Start calibration button -->
         <lv_button name="start_calibration_btn"
-                   width="#wizard_button_width" height="#button_height" style_bg_color="#primary_color"
+                   width="#wizard_button_width" height="#button_height" style_bg_color="#primary"
                    style_radius="#border_radius">
-          <text_body text="Start Calibration" style_text_color="#text_primary"/>
+          <text_body text="Start Calibration" style_text_color="#text"/>
           <event_cb trigger="clicked" callback="on_start_is_calibration"/>
         </lv_button>
 

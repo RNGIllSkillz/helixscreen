@@ -9,7 +9,7 @@
     <color name="panel_bg" value="#1E1E1E"/>
   </consts>
   <view name="timelapse_settings_overlay"
-        extends="overlay_panel" width="#overlay_panel_width_full" title="Timelapse Settings" bg_color="#app_bg_color">
+        extends="overlay_panel" width="#overlay_panel_width_full" title="Timelapse Settings" bg_color="#app_bg">
     <!-- Content Area - no padding, rows handle their own -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_bg_opa="0" style_pad_all="0" scrollable="true" scroll_dir="ver"
@@ -35,7 +35,7 @@
               style_margin_bottom="#space_md">
         <text_small name="mode_info_text"
                     width="100%" text="Layer mode captures one frame per layer change. Best for most prints."
-                    style_text_color="#text_secondary" long_mode="wrap"/>
+                    style_text_color="#text_muted" long_mode="wrap"/>
       </lv_obj>
       <!-- ================================================================== -->
       <!-- FRAMERATE -->
@@ -57,7 +57,7 @@
               style_pad_right="#space_lg" style_pad_top="#space_md" style_pad_bottom="#space_lg" flex_flow="row"
               style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_sm">
         <icon src="info" size="xs" variant="secondary"/>
-        <text_small text="Requires Moonraker-Timelapse plugin" style_text_color="#text_secondary"/>
+        <text_small text="Requires Moonraker-Timelapse plugin" style_text_color="#text_muted"/>
       </lv_obj>
     </lv_obj>
   </view>

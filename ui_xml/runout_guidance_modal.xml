@@ -37,7 +37,7 @@
       <!-- Load button -->
       <lv_button name="btn_load_filament"
                  height="#button_height" flex_grow="1" style_radius="#border_radius" style_border_width="1"
-                 style_border_color="#border" style_bg_color="#secondary_color" flex_flow="row"
+                 style_border_color="#border" style_bg_color="#success" flex_flow="row"
                  style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
                  style_pad_gap="#space_xs">
         <event_cb trigger="clicked" callback="on_runout_load_filament"/>
@@ -47,7 +47,7 @@
       <!-- Unload button -->
       <lv_button name="btn_unload_filament"
                  height="#button_height" flex_grow="1" style_radius="#border_radius" style_border_width="1"
-                 style_border_color="#border" style_bg_color="#secondary_color" flex_flow="row"
+                 style_border_color="#border" style_bg_color="#success" flex_flow="row"
                  style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
                  style_pad_gap="#space_xs">
         <event_cb trigger="clicked" callback="on_runout_unload_filament"/>
@@ -57,7 +57,7 @@
       <!-- Purge button -->
       <lv_button name="btn_purge"
                  height="#button_height" flex_grow="1" style_radius="#border_radius" style_border_width="1"
-                 style_border_color="#border" style_bg_color="#secondary_color" flex_flow="row"
+                 style_border_color="#border" style_bg_color="#success" flex_flow="row"
                  style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
                  style_pad_gap="#space_xs">
         <event_cb trigger="clicked" callback="on_runout_purge"/>
@@ -87,7 +87,7 @@
       <!-- Cancel Print button -->
       <lv_button name="btn_cancel_print"
                  height="100%" flex_grow="1" style_radius="0" style_border_width="0" style_shadow_width="0"
-                 style_bg_color="#error_color" clickable="true">
+                 style_bg_color="#danger" clickable="true">
         <event_cb trigger="clicked" callback="on_runout_cancel_print"/>
         <text_button text="Cancel Print"/>
       </lv_button>

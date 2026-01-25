@@ -418,55 +418,6 @@ static void theme_manager_register_semantic_colors(lv_xml_component_scope_t* sco
         register_color(names[i], i);
     }
 
-    // Register legacy aliases for backward compatibility with existing XML
-    // Use silent lookup to avoid LVGL warnings for missing light/dark variants
-    auto register_alias = [&](const char* legacy_name, const char* new_name) {
-        const char* value = lv_xml_get_const(scope, new_name);
-        if (value) {
-            lv_xml_register_const(scope, legacy_name, value);
-            // Also register _dark/_light variants for the legacy name (if available)
-            char dark_name[128], light_name[128];
-            char new_dark[128], new_light[128];
-            snprintf(dark_name, sizeof(dark_name), "%s_dark", legacy_name);
-            snprintf(light_name, sizeof(light_name), "%s_light", legacy_name);
-            snprintf(new_dark, sizeof(new_dark), "%s_dark", new_name);
-            snprintf(new_light, sizeof(new_light), "%s_light", new_name);
-
-            // Only look up variants that exist based on theme mode support
-            if (has_dark) {
-                const char* dark_val = lv_xml_get_const_silent(scope, new_dark);
-                if (dark_val)
-                    lv_xml_register_const(scope, dark_name, dark_val);
-            }
-            if (has_light) {
-                const char* light_val = lv_xml_get_const_silent(scope, new_light);
-                if (light_val)
-                    lv_xml_register_const(scope, light_name, light_val);
-            }
-        }
-    };
-
-    // Legacy aliases - map old names to new semantic names
-    register_alias("app_bg_color", "app_bg");
-    register_alias("text_primary", "text");
-    register_alias("text_secondary", "text_muted");
-    register_alias("header_text", "text_muted");
-    register_alias("primary_color", "primary");
-    register_alias("secondary_color", "secondary");
-    register_alias("tertiary_color", "tertiary");
-    register_alias("error_color", "danger");
-    register_alias("danger_color", "danger");
-    register_alias("attention_color", "warning");
-    register_alias("warning_color", "warning");
-    register_alias("success_color", "success");
-    register_alias("info_color", "info");
-    register_alias("highlight_color", "primary");
-    register_alias("special_color", "info");
-    register_alias("surface_control", "card_alt");
-    register_alias("selection_highlight", "card_alt");
-    register_alias("keyboard_key", "card_bg");
-    register_alias("keyboard_key_special", "panel_bg");
-
     // Swatch descriptions for theme editor - new semantic names
     lv_xml_register_const(scope, "swatch_0_desc", "App background");
     lv_xml_register_const(scope, "swatch_1_desc", "Panel/sidebar background");
@@ -553,7 +504,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     theme_manager_register_static_constants(scope);
 
     // Auto-register all color pairs from globals.xml (xxx_light/xxx_dark -> xxx)
-    // This handles app_bg_color, text_primary, header_text, surface_control, card_bg, etc.
+    // This handles app_bg, text, header_text, card_alt, card_bg, etc.
     theme_manager_register_color_pairs(scope, use_dark_mode);
 
     // Register responsive constants (must be before theme_core_init so fonts are available)
@@ -561,7 +512,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     theme_manager_register_responsive_fonts(display);
 
     // Validate critical color pairs were registered (fail-fast if missing)
-    static const char* required_colors[] = {"app_bg_color", "text_primary", "header_text", nullptr};
+    static const char* required_colors[] = {"app_bg", "text", "text_muted", nullptr};
     for (const char** name = required_colors; *name != nullptr; ++name) {
         if (!lv_xml_get_const(nullptr, *name)) {
             spdlog::critical(
@@ -574,8 +525,8 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     spdlog::debug("[Theme] Runtime constants set for {} mode", use_dark_mode ? "dark" : "light");
 
     // Read colors from globals.xml
-    const char* primary_str = lv_xml_get_const(NULL, "primary_color");
-    const char* secondary_str = lv_xml_get_const(NULL, "secondary_color");
+    const char* primary_str = lv_xml_get_const(NULL, "primary");
+    const char* secondary_str = lv_xml_get_const(NULL, "secondary");
 
     if (!primary_str || !secondary_str) {
         spdlog::error("[Theme] Failed to read color constants from globals.xml");
@@ -603,26 +554,26 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     }
 
     // Read color values from auto-registered constants
-    const char* screen_bg_str = lv_xml_get_const(nullptr, "app_bg_color");
+    const char* screen_bg_str = lv_xml_get_const(nullptr, "app_bg");
     const char* card_bg_str = lv_xml_get_const(nullptr, "card_bg");
-    const char* surface_control_str = lv_xml_get_const(nullptr, "surface_control");
-    const char* text_primary_str = lv_xml_get_const(nullptr, "text_primary");
+    const char* card_alt_str = lv_xml_get_const(nullptr, "card_alt");
+    const char* text_str = lv_xml_get_const(nullptr, "text");
     const char* focus_str = lv_xml_get_const(nullptr, "focus");
     const char* border_str = lv_xml_get_const(nullptr, "border");
 
-    if (!screen_bg_str || !card_bg_str || !surface_control_str || !text_primary_str) {
+    if (!screen_bg_str || !card_bg_str || !card_alt_str || !text_str) {
         spdlog::error("[Theme] Failed to read auto-registered color constants");
         return;
     }
 
     lv_color_t screen_bg = theme_manager_parse_hex_color(screen_bg_str);
     lv_color_t card_bg = theme_manager_parse_hex_color(card_bg_str);
-    lv_color_t surface_control = theme_manager_parse_hex_color(surface_control_str);
-    lv_color_t text_primary_color = theme_manager_parse_hex_color(text_primary_str);
+    lv_color_t card_alt = theme_manager_parse_hex_color(card_alt_str);
+    lv_color_t text_color = theme_manager_parse_hex_color(text_str);
     // Default to primary color if focus token not available
     lv_color_t focus_color = focus_str ? theme_manager_parse_hex_color(focus_str) : primary_color;
-    // Default to surface_control if border token not available
-    lv_color_t border_color = border_str ? theme_manager_parse_hex_color(border_str) : surface_control;
+    // Default to card_alt if border token not available
+    lv_color_t border_color = border_str ? theme_manager_parse_hex_color(border_str) : card_alt;
 
     // Read border radius from globals.xml
     const char* border_radius_str = lv_xml_get_const(nullptr, "border_radius");
@@ -633,17 +584,16 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     int32_t border_radius = atoi(border_radius_str);
 
     // Initialize custom HelixScreen theme (wraps LVGL default theme)
-    current_theme =
-        theme_core_init(display, primary_color, secondary_color, text_primary_color, use_dark_mode,
-                        base_font, screen_bg, card_bg, surface_control, focus_color, border_color,
-                        border_radius);
+    current_theme = theme_core_init(display, primary_color, secondary_color, text_color,
+                                    use_dark_mode, base_font, screen_bg, card_bg, card_alt,
+                                    focus_color, border_color, border_radius);
 
     if (current_theme) {
         lv_display_set_theme(display, current_theme);
         spdlog::info("[Theme] Initialized HelixScreen theme: {} mode",
                      use_dark_mode ? "dark" : "light");
-        spdlog::debug("[Theme] Colors: primary={}, secondary={}, screen={}, card={}, grey={}",
-                      primary_str, secondary_str, screen_bg_str, card_bg_str, surface_control_str);
+        spdlog::debug("[Theme] Colors: primary={}, secondary={}, screen={}, card={}, card_alt={}",
+                      primary_str, secondary_str, screen_bg_str, card_bg_str, card_alt_str);
     } else {
         spdlog::error("[Theme] Failed to initialize HelixScreen theme");
     }
@@ -699,16 +649,16 @@ void theme_manager_toggle_dark_mode() {
         return val;
     };
 
-    // Use new semantic names with legacy fallbacks
-    const char* screen_bg_str = get_themed_color("app_bg", "app_bg_color");
+    // Use semantic token names (no legacy fallbacks)
+    const char* screen_bg_str = get_themed_color("app_bg", nullptr);
     const char* card_bg_str = get_themed_color("card_bg", nullptr);
-    const char* surface_control_str = get_themed_color("card_alt", "surface_control");
-    const char* text_primary_str = get_themed_color("text", "text_primary");
+    const char* card_alt_str = get_themed_color("card_alt", nullptr);
+    const char* text_str = get_themed_color("text", nullptr);
     const char* focus_str = get_themed_color("focus", nullptr);
     const char* primary_str = get_themed_color("primary", nullptr);
     const char* border_str = get_themed_color("border", nullptr);
 
-    if (!screen_bg_str || !card_bg_str || !surface_control_str || !text_primary_str) {
+    if (!screen_bg_str || !card_bg_str || !card_alt_str || !text_str) {
         spdlog::error("[Theme] Failed to read color constants for {} mode",
                       new_use_dark_mode ? "dark" : "light");
         return;
@@ -716,24 +666,23 @@ void theme_manager_toggle_dark_mode() {
 
     lv_color_t screen_bg = theme_manager_parse_hex_color(screen_bg_str);
     lv_color_t card_bg = theme_manager_parse_hex_color(card_bg_str);
-    lv_color_t surface_control = theme_manager_parse_hex_color(surface_control_str);
-    lv_color_t text_primary_color = theme_manager_parse_hex_color(text_primary_str);
+    lv_color_t card_alt = theme_manager_parse_hex_color(card_alt_str);
+    lv_color_t text_color = theme_manager_parse_hex_color(text_str);
     // Default to primary accent color (#5e81ac) if focus token not available
     lv_color_t focus_color =
         focus_str ? theme_manager_parse_hex_color(focus_str) : lv_color_hex(0x5e81ac);
     // Default to primary accent color if primary token not available
     lv_color_t primary_color =
         primary_str ? theme_manager_parse_hex_color(primary_str) : lv_color_hex(0x5e81ac);
-    // Default to surface_control if border token not available
-    lv_color_t border_color =
-        border_str ? theme_manager_parse_hex_color(border_str) : surface_control;
+    // Default to card_alt if border token not available
+    lv_color_t border_color = border_str ? theme_manager_parse_hex_color(border_str) : card_alt;
 
-    spdlog::debug("[Theme] New colors: screen={}, card={}, surface={}, text={}", screen_bg_str,
-                  card_bg_str, surface_control_str, text_primary_str);
+    spdlog::debug("[Theme] New colors: screen={}, card={}, card_alt={}, text={}", screen_bg_str,
+                  card_bg_str, card_alt_str, text_str);
 
     // Update helix theme styles in-place (triggers lv_obj_report_style_change)
-    theme_core_update_colors(new_use_dark_mode, screen_bg, card_bg, surface_control,
-                             text_primary_color, focus_color, primary_color, border_color);
+    theme_core_update_colors(new_use_dark_mode, screen_bg, card_bg, card_alt, text_color,
+                             focus_color, primary_color, border_color);
 
     // Force style refresh on entire widget tree for local/inline styles
     theme_manager_refresh_widget_tree(lv_screen_active());
@@ -787,17 +736,17 @@ void theme_manager_revert_preview() {
  * First attempts to look up {base_name}_light and {base_name}_dark from globals.xml,
  * selecting the appropriate one based on current theme mode. If the theme variants
  * don't exist, falls back to {base_name} directly (for static colors like
- * warning_color, error_color that are the same in both themes).
+ * warning, danger that are the same in both themes).
  *
- * @param base_name Color constant base name (e.g., "app_bg_color", "warning_color")
+ * @param base_name Color constant base name (e.g., "app_bg", "warning")
  * @return Parsed color, or black (0x000000) if not found
  *
  * Example:
- *   lv_color_t bg = theme_manager_get_color("app_bg_color");
- *   // Returns app_bg_color_light in light mode, app_bg_color_dark in dark mode
+ *   lv_color_t bg = theme_manager_get_color("app_bg");
+ *   // Returns app_bg_light in light mode, app_bg_dark in dark mode
  *
- *   lv_color_t warn = theme_manager_get_color("warning_color");
- *   // Returns warning_color directly (static, no theme variants)
+ *   lv_color_t warn = theme_manager_get_color("warning");
+ *   // Returns warning directly (static, no theme variants)
  */
 lv_color_t theme_manager_get_color(const char* base_name) {
     if (!base_name) {
@@ -845,12 +794,12 @@ lv_color_t theme_manager_get_color(const char* base_name) {
  * Convenience wrapper that gets the color variant and applies it to the object.
  *
  * @param obj LVGL object to apply color to
- * @param base_name Color constant base name (e.g., "app_bg_color", "card_bg")
+ * @param base_name Color constant base name (e.g., "app_bg", "card_bg")
  * @param part Style part to apply to (default: LV_PART_MAIN)
  *
  * Example:
- *   theme_manager_apply_bg_color(screen, "app_bg_color", LV_PART_MAIN);
- *   // Applies app_bg_color_light/dark depending on theme mode
+ *   theme_manager_apply_bg_color(screen, "app_bg", LV_PART_MAIN);
+ *   // Applies app_bg_light/dark depending on theme mode
  */
 void theme_manager_apply_bg_color(lv_obj_t* obj, const char* base_name, lv_part_t part) {
     if (!obj) {

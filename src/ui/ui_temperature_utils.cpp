@@ -99,16 +99,16 @@ char* format_temperature_range(int min_temp, int max_temp, char* buffer, size_t 
 lv_color_t get_heating_state_color(int current_deg, int target_deg, int tolerance) {
     if (target_deg == 0) {
         // OFF: Heater is disabled - GRAY
-        return theme_manager_get_color("text_secondary");
+        return theme_manager_get_color("text_muted");
     } else if (current_deg < target_deg - tolerance) {
         // HEATING: Actively heating up - RED
-        return theme_manager_get_color("primary_color");
+        return theme_manager_get_color("primary");
     } else if (current_deg > target_deg + tolerance) {
         // COOLING: Cooling down to target - BLUE
-        return theme_manager_get_color("info_color");
+        return theme_manager_get_color("info");
     } else {
         // AT_TEMP: Within tolerance of target - GREEN
-        return theme_manager_get_color("success_color");
+        return theme_manager_get_color("success");
     }
 }
 

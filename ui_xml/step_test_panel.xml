@@ -8,7 +8,7 @@
     <!-- Pending state (not yet started) -->
     <const name="step_pending_light" value="#A0A0A0"/>
     <const name="step_pending_dark" value="#808080"/>
-    <!-- Active state (currently in progress) - uses global primary_color -->
+    <!-- Active state (currently in progress) - uses global primary -->
     <const name="step_active_light" value="#FF4444"/>
     <const name="step_active_dark" value="#FF4444"/>
     <!-- Completed state (finished) -->
@@ -26,8 +26,6 @@
     <!-- Label text color for pending/completed steps -->
     <const name="step_label_inactive_light" value="#666666"/>
     <const name="step_label_inactive_dark" value="#CCCCCC"/>
-    <!-- Legacy success color for test buttons -->
-    <color name="success_color" value="#00FF00"/>
   </consts>
   <!-- Test panel for step progress widget demonstrations -->
   <view extends="lv_obj"
@@ -62,13 +60,13 @@
         <event_cb trigger="clicked" callback="on_step_test_prev"/>
       </lv_button>
       <lv_button name="btn_next"
-                 width="140" height="#button_height_normal" style_bg_color="#primary_color"
+                 width="140" height="#button_height_normal" style_bg_color="#primary"
                  style_radius="#border_radius">
         <text_button text="Next"/>
         <event_cb trigger="clicked" callback="on_step_test_next"/>
       </lv_button>
       <lv_button name="btn_complete"
-                 width="140" height="#button_height_normal" style_bg_color="#success_color"
+                 width="140" height="#button_height_normal" style_bg_color="#success"
                  style_radius="#border_radius">
         <text_button text="Complete"/>
         <event_cb trigger="clicked" callback="on_step_test_complete"/>

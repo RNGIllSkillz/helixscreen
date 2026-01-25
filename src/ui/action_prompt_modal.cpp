@@ -120,7 +120,7 @@ void ActionPromptModal::create_text_lines() {
 
         // Apply body text styling
         lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), LV_PART_MAIN);
-        lv_obj_set_style_text_color(label, theme_manager_get_color("text_primary"), LV_PART_MAIN);
+        lv_obj_set_style_text_color(label, theme_manager_get_color("text"), LV_PART_MAIN);
 
         created_text_labels_.push_back(label);
     }
@@ -238,20 +238,20 @@ void ActionPromptModal::create_button(const PromptButton& btn, lv_obj_t* contain
 lv_color_t ActionPromptModal::get_button_color(const std::string& color_name) {
     // Map Klipper color hints to design tokens
     if (color_name == "primary" || color_name.empty()) {
-        return theme_manager_get_color("primary_color");
+        return theme_manager_get_color("primary");
     } else if (color_name == "secondary") {
-        return theme_manager_get_color("secondary_color");
+        return theme_manager_get_color("success");
     } else if (color_name == "info") {
-        return theme_manager_get_color("info_color");
+        return theme_manager_get_color("info");
     } else if (color_name == "warning") {
-        return theme_manager_get_color("warning_color");
+        return theme_manager_get_color("warning");
     } else if (color_name == "error") {
-        return theme_manager_get_color("error_color");
+        return theme_manager_get_color("danger");
     }
 
     // Unknown color - default to primary
     spdlog::debug("[ActionPromptModal] Unknown color '{}', using primary", color_name);
-    return theme_manager_get_color("primary_color");
+    return theme_manager_get_color("primary");
 }
 
 void ActionPromptModal::clear_dynamic_content() {

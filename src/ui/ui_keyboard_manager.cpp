@@ -177,7 +177,7 @@ void KeyboardManager::show_overlay(const lv_area_t* key_area, const char* altern
     lv_obj_set_style_bg_opa(overlay_, LV_OPA_90, LV_PART_MAIN);
     lv_obj_set_style_border_width(overlay_, 2, LV_PART_MAIN);
 
-    const char* border_color_str = lv_xml_get_const(NULL, "secondary_color");
+    const char* border_color_str = lv_xml_get_const(NULL, "success");
     if (border_color_str) {
         lv_obj_set_style_border_color(overlay_, theme_manager_parse_hex_color(border_color_str),
                                       LV_PART_MAIN);
@@ -192,10 +192,10 @@ void KeyboardManager::show_overlay(const lv_area_t* key_area, const char* altern
     lv_obj_set_style_flex_cross_place(overlay_, LV_FLEX_ALIGN_CENTER, LV_PART_MAIN);
     lv_obj_set_style_pad_all(overlay_, padding, LV_PART_MAIN);
 
-    const char* text_color_str = lv_xml_get_const(
-        NULL, theme_manager_is_dark_mode() ? "text_primary_dark" : "text_primary_light");
+    const char* text_color_str =
+        lv_xml_get_const(NULL, theme_manager_is_dark_mode() ? "text_dark" : "text_light");
     lv_color_t text_color = text_color_str ? theme_manager_parse_hex_color(text_color_str)
-                                           : theme_manager_get_color("text_primary");
+                                           : theme_manager_get_color("text");
 
     for (size_t i = 0; i < alt_count; i++) {
         lv_obj_t* label = lv_label_create(overlay_);
@@ -605,9 +605,9 @@ void KeyboardManager::keyboard_draw_alternative_chars(lv_event_t* e) {
         return;
 
     const char* gray_color_str = lv_xml_get_const(
-        NULL, theme_manager_is_dark_mode() ? "text_secondary_dark" : "text_secondary_light");
+        NULL, theme_manager_is_dark_mode() ? "text_muted_dark" : "text_muted_light");
     lv_color_t gray_color = gray_color_str ? theme_manager_parse_hex_color(gray_color_str)
-                                           : theme_manager_get_color("text_secondary");
+                                           : theme_manager_get_color("text_muted");
 
     for (uint32_t i = 0; map[i][0] != '\0'; i++) {
         if (strcmp(map[i], "\n") == 0) {
@@ -712,11 +712,10 @@ void KeyboardManager::init(lv_obj_t* parent) {
     mode_ = MODE_ALPHA_LC;
     apply_keyboard_mode();
 
-    lv_color_t keyboard_bg = theme_manager_parse_hex_color(lv_xml_get_const(NULL, "app_bg_color"));
-    lv_color_t key_bg = theme_manager_parse_hex_color(lv_xml_get_const(NULL, "keyboard_key"));
-    lv_color_t key_special_bg =
-        theme_manager_parse_hex_color(lv_xml_get_const(NULL, "keyboard_key_special"));
-    lv_color_t key_text = theme_manager_parse_hex_color(lv_xml_get_const(NULL, "header_text"));
+    lv_color_t keyboard_bg = theme_manager_parse_hex_color(lv_xml_get_const(NULL, "app_bg"));
+    lv_color_t key_bg = theme_manager_parse_hex_color(lv_xml_get_const(NULL, "card_bg"));
+    lv_color_t key_special_bg = theme_manager_parse_hex_color(lv_xml_get_const(NULL, "panel_bg"));
+    lv_color_t key_text = theme_manager_parse_hex_color(lv_xml_get_const(NULL, "text"));
 
     lv_obj_set_style_bg_color(keyboard_, keyboard_bg, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(keyboard_, LV_OPA_COVER, LV_PART_MAIN);

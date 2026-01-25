@@ -25,9 +25,9 @@
     <prop name="hide_action_button_icon" type="string" default="false"/>
     <!-- Hide the text label in action button (for icon-only circular buttons) -->
     <prop name="hide_action_button_text" type="string" default="false"/>
-    <prop name="action_button_icon_color" type="string" default="#text_primary"/>
+    <prop name="action_button_icon_color" type="string" default="#text"/>
     <!-- Styling props for custom action buttons (e.g., E-stop) -->
-    <prop name="action_button_bg_color" type="string" default="#primary_color"/>
+    <prop name="action_button_bg_color" type="string" default="#primary"/>
     <prop name="action_button_radius" type="string" default="#border_radius"/>
     <!-- Button dimensions - use same value for width/height + radius=9999 for circular buttons -->
     <prop name="action_button_width" type="string" default="content"/>
@@ -43,7 +43,7 @@
         style_flex_main_place="space_between" style_flex_track_place="center" style_flex_cross_place="center"
         scrollable="false">
     <!-- Back button (fixed width, left-aligned) -->
-    <icon name="back_button" src="back" size="lg" color="#text_primary" align="center" clickable="true">
+    <icon name="back_button" src="back" size="lg" color="#text" align="center" clickable="true">
       <event_cb trigger="clicked" callback="$back_button_callback"/>
     </icon>
     <!-- Title (flexible width, centered) -->

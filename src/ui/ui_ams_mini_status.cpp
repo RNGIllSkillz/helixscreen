@@ -118,7 +118,7 @@ static void update_slot_bar(SlotBarData* slot) {
     // Empty slots get very dim "ghosted" outline, present slots get normal outline
     lv_obj_set_style_bg_opa(slot->bar_bg, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(slot->bar_bg, 1, LV_PART_MAIN);
-    lv_obj_set_style_border_color(slot->bar_bg, theme_manager_get_color("text_secondary"),
+    lv_obj_set_style_border_color(slot->bar_bg, theme_manager_get_color("text_muted"),
                                   LV_PART_MAIN);
 
     if (slot->present) {
@@ -153,13 +153,13 @@ static void update_slot_bar(SlotBarData* slot) {
     if (slot->status_line) {
         if (slot->has_error) {
             // Red - slot is in error/blocked state
-            lv_obj_set_style_bg_color(slot->status_line, theme_manager_get_color("error_color"),
+            lv_obj_set_style_bg_color(slot->status_line, theme_manager_get_color("danger"),
                                       LV_PART_MAIN);
             lv_obj_set_style_bg_opa(slot->status_line, LV_OPA_COVER, LV_PART_MAIN);
             lv_obj_remove_flag(slot->status_line, LV_OBJ_FLAG_HIDDEN);
         } else if (slot->loaded) {
             // Green - filament loaded to toolhead from this lane
-            lv_obj_set_style_bg_color(slot->status_line, theme_manager_get_color("success_color"),
+            lv_obj_set_style_bg_color(slot->status_line, theme_manager_get_color("success"),
                                       LV_PART_MAIN);
             lv_obj_set_style_bg_opa(slot->status_line, LV_OPA_COVER, LV_PART_MAIN);
             lv_obj_remove_flag(slot->status_line, LV_OBJ_FLAG_HIDDEN);
@@ -364,7 +364,7 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
     data_ptr->overflow_label = lv_label_create(container);
     lv_obj_add_flag(data_ptr->overflow_label, LV_OBJ_FLAG_EVENT_BUBBLE); // Pass clicks to parent
     lv_label_set_text(data_ptr->overflow_label, "+0");
-    lv_obj_set_style_text_color(data_ptr->overflow_label, theme_manager_get_color("text_secondary"),
+    lv_obj_set_style_text_color(data_ptr->overflow_label, theme_manager_get_color("text_muted"),
                                 LV_PART_MAIN);
     const char* font_xs_name = lv_xml_get_const(nullptr, "font_xs");
     const lv_font_t* font_xs =
@@ -595,7 +595,7 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
     data_ptr->overflow_label = lv_label_create(container);
     lv_obj_add_flag(data_ptr->overflow_label, LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_label_set_text(data_ptr->overflow_label, "+0");
-    lv_obj_set_style_text_color(data_ptr->overflow_label, theme_manager_get_color("text_secondary"),
+    lv_obj_set_style_text_color(data_ptr->overflow_label, theme_manager_get_color("text_muted"),
                                 LV_PART_MAIN);
     const char* font_xs_name = lv_xml_get_const(nullptr, "font_xs");
     const lv_font_t* font_xs =

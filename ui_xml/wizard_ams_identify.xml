@@ -31,14 +31,14 @@
 
       <!-- Details: "4 lanes • Turtle_1" - REACTIVE BINDING -->
       <text_body name="ams_details_label"
-                 bind_text="wizard_ams_details" style_text_color="#text_secondary" style_text_align="center"/>
+                 bind_text="wizard_ams_details" style_text_color="#text_muted" style_text_align="center"/>
 
       <!-- Spacer between content and message -->
       <lv_obj width="1" height="#space_lg" style_bg_opa="0" style_border_width="0"/>
 
       <!-- Integration message - static text -->
       <text_body width="85%"
-                 style_text_align="center" style_text_color="#text_secondary"
+                 style_text_align="center" style_text_color="#text_muted"
                  text="HelixScreen will integrate with your filament changer for multi-spool/color print operations."/>
 
     </ui_card>

@@ -5,14 +5,14 @@
 <!-- Sub-panel for configuring AMS behavior settings (bypass mode, auto-heat) -->
 <component>
   <view name="ams_settings_behavior"
-        extends="overlay_panel" width="#overlay_panel_width_full" title="Behavior" bg_color="#app_bg_color">
+        extends="overlay_panel" width="#overlay_panel_width_full" title="Behavior" bg_color="#app_bg">
     <!-- Content Area (scrollable) -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_bg_opa="0" style_pad_all="#space_md" scrollable="true" scroll_dir="ver"
             style_border_width="0" flex_flow="column" style_pad_gap="#space_sm">
       <!-- Description text (hidden when no features available) -->
       <text_small name="description"
-                  width="100%" text="Configure AMS system behavior settings." style_text_color="#text_secondary">
+                  width="100%" text="Configure AMS system behavior settings." style_text_color="#text_muted">
         <bind_flag_if_eq subject="ams_behavior_has_features" flag="hidden" ref_value="0"/>
       </text_small>
       <!-- ================================================================== -->
@@ -29,8 +29,8 @@
           <lv_obj width="content"
                   height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="column"
                   style_pad_gap="#space_xs" scrollable="false">
-            <text_body text="Bypass Mode" style_text_color="#text_primary"/>
-            <text_small text="Feed filament directly to extruder" style_text_color="#text_secondary"/>
+            <text_body text="Bypass Mode" style_text_color="#text"/>
+            <text_small text="Feed filament directly to extruder" style_text_color="#text_muted"/>
           </lv_obj>
         </lv_obj>
         <!-- Right side: Switch toggle -->
@@ -53,8 +53,8 @@
         <lv_obj width="content"
                 height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="column"
                 style_pad_gap="#space_xs" scrollable="false" flex_grow="1">
-          <text_body text="Auto-Heat on Load" style_text_color="#text_primary"/>
-          <text_small text="Extruder heats automatically based on material" style_text_color="#text_secondary"/>
+          <text_body text="Auto-Heat on Load" style_text_color="#text"/>
+          <text_small text="Extruder heats automatically based on material" style_text_color="#text_muted"/>
         </lv_obj>
         <!-- Right side: Status indicator (always enabled when shown) -->
         <icon src="check_circle" size="sm" variant="primary"/>
@@ -71,7 +71,7 @@
         <icon src="info" size="lg" variant="secondary"/>
         <text_body name="no_features_text"
                    width="100%" text="No behavior settings available for this backend."
-                   style_text_color="#text_secondary" style_text_align="center"/>
+                   style_text_color="#text_muted" style_text_align="center"/>
       </ui_card>
     </lv_obj>
   </view>

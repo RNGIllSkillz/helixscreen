@@ -421,7 +421,7 @@ void ui_create_ripple(lv_obj_t* parent, lv_coord_t x, lv_coord_t y, int start_si
     lv_obj_set_style_radius(ripple, LV_RADIUS_CIRCLE, 0);
 
     // Style: primary color, semi-transparent
-    lv_obj_set_style_bg_color(ripple, theme_manager_get_color("primary_color"), 0);
+    lv_obj_set_style_bg_color(ripple, theme_manager_get_color("primary"), 0);
     lv_obj_set_style_bg_opa(ripple, LV_OPA_50, 0);
     lv_obj_set_style_border_width(ripple, 0, 0);
 

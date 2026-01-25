@@ -13,21 +13,21 @@
             style_pad_right="#space_lg" style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column"
             style_flex_cross_place="center" style_pad_gap="#space_md">
       <!-- Warning icon -->
-      <icon src="alert" size="lg" color="#warning_color"/>
+      <icon src="alert" size="lg" color="#warning"/>
       <!-- Title -->
       <text_heading width="100%" text="Save Z-Offset?" style_text_align="center"/>
       <!-- Warning message (VERY IMPORTANT) -->
       <text_body width="100%"
                  text="Saving will restart Klipper and CANCEL any active print!" long_mode="wrap"
-                 style_text_align="center" style_text_color="#warning_color"/>
+                 style_text_align="center" style_text_color="#warning"/>
       <!-- Info message -->
       <text_small width="100%"
                   text="Adjustments stay active until restart. Save after print completes." long_mode="wrap"
-                  style_text_align="center" style_text_color="#text_secondary"/>
+                  style_text_align="center" style_text_color="#text_muted"/>
     </lv_obj>
     <!-- Button row -->
     <modal_button_row secondary_text="Cancel"
                       secondary_callback="on_z_offset_cancel" primary_text="Save &amp; Restart"
-                      primary_callback="on_z_offset_save" primary_bg_color="#error_color"/>
+                      primary_callback="on_z_offset_save" primary_bg_color="#danger"/>
   </view>
 </component>

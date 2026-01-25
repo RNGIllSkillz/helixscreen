@@ -5,7 +5,7 @@
 <!-- Displays plugins in sections: Loaded, Disabled, Failed -->
 <component>
   <view name="settings_plugins_overlay"
-        extends="overlay_panel" width="#overlay_panel_width_full" title="Plugins" bg_color="#app_bg_color">
+        extends="overlay_panel" width="#overlay_panel_width_full" title="Plugins" bg_color="#app_bg">
     <!-- Content Area -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_bg_opa="0" style_pad_all="#space_lg" scrollable="true" scroll_dir="ver"
@@ -19,7 +19,7 @@
               style_flex_cross_place="center" style_pad_gap="#space_md">
         <!-- Status icon - shows plugin icon -->
         <lv_obj name="status_icon_container"
-                width="48" height="48" style_bg_color="#primary_color" style_bg_opa="255" style_radius="24"
+                width="48" height="48" style_bg_color="#primary" style_bg_opa="255" style_radius="24"
                 style_border_width="0" scrollable="false" style_pad_all="0" flex_flow="column"
                 style_flex_main_place="center" style_flex_cross_place="center">
           <icon name="status_icon" src="puzzle_outline" size="md" color="#text"/>
@@ -29,7 +29,7 @@
                 height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
                 flex_flow="column" style_pad_gap="#space_xs" flex_grow="1">
           <text_heading name="status_title" bind_text="plugins_status_title"/>
-          <text_small name="status_detail" bind_text="plugins_status_detail" style_text_color="#text_secondary"/>
+          <text_small name="status_detail" bind_text="plugins_status_detail" style_text_color="#text_muted"/>
         </lv_obj>
       </lv_obj>
       <!-- ================================================================== -->
@@ -83,9 +83,9 @@
               style_pad_gap="#space_md">
         <bind_flag_if_not_eq subject="plugins_total_count" flag="hidden" ref_value="0"/>
         <icon src="puzzle_outline" size="lg" variant="secondary"/>
-        <text_body text="No plugins found" style_text_color="#text_secondary"/>
+        <text_body text="No plugins found" style_text_color="#text_muted"/>
         <text_small text="Place plugins in the plugins directory to extend HelixScreen"
-                    style_text_color="#text_secondary" style_text_align="center"/>
+                    style_text_color="#text_muted" style_text_align="center"/>
       </lv_obj>
       <!-- ================================================================== -->
       <!-- INFO NOTE -->

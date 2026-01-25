@@ -518,8 +518,8 @@ void ExtrusionPanel::start_extrusion_animation(bool is_extruding) {
     lv_obj_remove_flag(filament_anim_obj_, LV_OBJ_FLAG_HIDDEN);
 
     // Green for extrude (pushing filament down), orange for retract (pulling up)
-    lv_color_t color = is_extruding ? theme_manager_get_color("success_color")
-                                    : theme_manager_get_color("warning_color");
+    lv_color_t color =
+        is_extruding ? theme_manager_get_color("success") : theme_manager_get_color("warning");
     lv_obj_set_style_bg_color(filament_anim_obj_, color, 0);
     lv_obj_set_style_bg_opa(filament_anim_obj_, LV_OPA_COVER, 0);
 

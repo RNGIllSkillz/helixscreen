@@ -152,7 +152,7 @@ static void load_theme_colors(FilamentPathData* data) {
                                                                : "filament_hub_border_light");
     data->color_nozzle =
         theme_manager_get_color(dark_mode ? "filament_nozzle_dark" : "filament_nozzle_light");
-    data->color_text = theme_manager_get_color("text_primary");
+    data->color_text = theme_manager_get_color("text");
 
     // Get responsive sizing from theme
     int32_t space_xs = theme_manager_get_spacing("space_xs");

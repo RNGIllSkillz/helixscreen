@@ -41,7 +41,7 @@
                    style_shadow_width="0" style_pad_left="#space_lg" style_pad_right="#space_lg"
                    style_pad_top="#space_xxs" style_pad_bottom="#space_xxs" scrollable="false">
           <event_cb trigger="clicked" callback="on_print_select_source_printer"/>
-          <text_small text="Printer" scrollable="false" align="center" style_text_color="#text_primary"/>
+          <text_small text="Printer" scrollable="false" align="center" style_text_color="#text"/>
         </lv_button>
 
         <!-- usb files (conditionally hidden) -->
@@ -50,7 +50,7 @@
                    style_shadow_width="0" style_pad_left="#space_lg" style_pad_right="#space_lg"
                    style_pad_top="#space_xxs" style_pad_bottom="#space_xxs" scrollable="false">
           <event_cb trigger="clicked" callback="on_print_select_source_usb"/>
-          <text_small text="USB" scrollable="false" align="center" style_text_color="#text_primary"/>
+          <text_small text="USB" scrollable="false" align="center" style_text_color="#text"/>
         </lv_button>
       </lv_obj>
 

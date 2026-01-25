@@ -10,9 +10,9 @@
     <const name="wizard_button_width" value="160"/>
   </consts>
   <!-- Wizard Container Root: Vertical stack (header, content, footer) -->
-  <!-- Background color applied via app_bg_color runtime constant (theme-aware: light/dark variants) -->
+  <!-- Background color applied via app_bg runtime constant (theme-aware: light/dark variants) -->
   <view name="wizard_container"
-        extends="lv_obj" width="100%" height="100%" style_bg_color="#app_bg_color" flex_flow="column" style_pad_all="0"
+        extends="lv_obj" width="100%" height="100%" style_bg_color="#app_bg" flex_flow="column" style_pad_all="0"
         style_pad_hor="#space_md" style_border_width="0">
 
     <!-- ==================== HEADER ==================== -->
@@ -44,7 +44,7 @@
               width="0" height="#button_height" style_border_width="0" style_bg_opa="0" flex_grow="1"/>
 
       <!-- NEXT/FINISH BUTTON (text bound to subject, clickable only when connection_test_passed == 1) -->
-      <lv_button name="btn_next" width="#wizard_button_width" height="#button_height" style_bg_color="#primary_color">
+      <lv_button name="btn_next" width="#wizard_button_width" height="#button_height" style_bg_color="#primary">
         <text_button name="btn_next_label" bind_text="wizard_next_button_text"/>
         <event_cb trigger="clicked" callback="on_next_clicked"/>
         <!-- Button is enabled when connection_test_passed == 1 (disabled otherwise) -->

@@ -7,7 +7,7 @@
 <!-- Subjects are registered in C++ (init_subjects) - do not define here to avoid shadowing -->
 <component>
   <view name="touch_calibration_overlay"
-        extends="overlay_panel" width="#overlay_panel_width_full" title="Touch Calibration" bg_color="#app_bg_color">
+        extends="overlay_panel" width="#overlay_panel_width_full" title="Touch Calibration" bg_color="#app_bg">
 
     <!-- Main content area - full screen for touch capture -->
     <lv_obj name="calibration_content"
@@ -23,7 +23,7 @@
       <!-- Visible only during POINT_1, POINT_2, POINT_3 (states 1, 2, 3) -->
       <lv_label name="crosshair"
                 width="50" height="50" text="#icon_target" style_text_font="mdi_icons_48"
-                style_text_color="#primary_color" style_text_align="center" align="top_left">
+                style_text_color="#primary" style_text_align="center" align="top_left">
         <!-- Bindings control visibility: hidden in states 0, 4, 5 (visible in 1, 2, 3) -->
         <!-- NOTE: Do NOT add hidden="true" base attribute - bindings handle it -->
         <bind_flag_if_eq subject="touch_cal_state" flag="hidden" ref_value="0"/>

@@ -37,7 +37,7 @@
                     style_text_align="right" style_border_width="#input_border_width" style_radius="#border_radius"
                     one_line="true" clickable="false" scrollable="false"/>
         <lv_label name="input_unit"
-                  text="" style_text_font="#font_body" style_text_color="#text_secondary" style_pad_left="#space_sm"/>
+                  text="" style_text_font="#font_body" style_text_color="#text_muted" style_pad_left="#space_sm"/>
       </lv_obj>
 
       <!-- Button Grid: row_wrap with explicit row gaps (no space_evenly override) -->

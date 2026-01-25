@@ -46,7 +46,7 @@
         <!-- Roller options loaded dynamically from PrinterDetector (printer_database.json) -->
         <lv_roller name="printer_type_roller"
                    width="100%" flex_grow="1" style_text_font="#font_body" style_border_width="2" style_border_opa="60"
-                   style_selected_bg_color="#primary_color"/>
+                   style_selected_bg_color="#primary"/>
       </lv_obj>
     </ui_card>
   </view>

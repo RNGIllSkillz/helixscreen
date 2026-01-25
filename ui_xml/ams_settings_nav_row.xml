@@ -26,10 +26,10 @@
       <icon name="row_icon" src="$icon" size="sm" variant="secondary" clickable="false" event_bubble="true"/>
       <!-- Middle: Label (flex_grow fills available space) -->
       <text_body name="label"
-                 text="$label" style_text_color="#text_primary" flex_grow="1" clickable="false" event_bubble="true"/>
+                 text="$label" style_text_color="#text" flex_grow="1" clickable="false" event_bubble="true"/>
       <!-- Right side: Summary text (optional, supports both static and bound) -->
       <text_body name="summary"
-                 text="$summary" bind_text="$summary_bind" style_text_color="#text_secondary" clickable="false"
+                 text="$summary" bind_text="$summary_bind" style_text_color="#text_muted" clickable="false"
                  event_bubble="true"/>
       <!-- Right side: Chevron icon -->
       <icon src="chevron_right" size="sm" variant="secondary" clickable="false" event_bubble="true"/>

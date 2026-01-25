@@ -33,12 +33,12 @@
     <!-- Click handler registered in C++ -->
     <event_cb trigger="clicked" callback="on_ams_current_tool_clicked"/>
     <!-- Filament/spool icon -->
-    <icon src="filament" size="sm" color="#text_secondary"/>
+    <icon src="filament" size="sm" color="#text_muted"/>
     <!-- Tool label (T0, T1, etc.) -->
-    <text_small name="tool_label" text="T0" bind_text="ams_current_tool_text" style_text_color="#text_secondary"/>
+    <text_small name="tool_label" text="T0" bind_text="ams_current_tool_text" style_text_color="#text_muted"/>
     <!-- Color swatch showing current filament color (color set via C++) -->
     <lv_obj name="color_swatch"
-            width="16" height="16" style_radius="8" style_border_width="1" style_border_color="#text_secondary"
+            width="16" height="16" style_radius="8" style_border_width="1" style_border_color="#text_muted"
             style_border_opa="80" style_bg_color="#text_muted" style_bg_opa="255" scrollable="false"/>
   </view>
 </component>

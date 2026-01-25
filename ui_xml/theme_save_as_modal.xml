@@ -18,7 +18,7 @@
       <!-- Instructions -->
       <text_small width="100%"
                   text="Enter a name for your custom theme:" style_text_align="center"
-                  style_text_color="#text_secondary"/>
+                  style_text_color="#text_muted"/>
       <!-- Theme name input -->
       <lv_textarea name="theme_name_input"
                    width="100%" height="#input_height" placeholder="My Custom Theme" max_length="32" one_line="true"
@@ -26,7 +26,7 @@
                    style_margin_top="#space_sm"/>
       <!-- Status message (hidden by default) -->
       <text_small name="save_as_status"
-                  width="100%" text="" style_text_align="center" style_text_color="#error_color" hidden="true"/>
+                  width="100%" text="" style_text_align="center" style_text_color="#danger" hidden="true"/>
     </lv_obj>
     <modal_button_row primary_text="Save"
                       secondary_text="Cancel" primary_callback="on_theme_save_as_confirm"

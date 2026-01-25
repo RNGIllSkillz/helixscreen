@@ -305,8 +305,8 @@ void PIDCalibrationPanel::update_heater_selection() {
         return;
 
     // Use background color to indicate selection
-    lv_color_t selected_color = theme_manager_get_color("primary_color");
-    lv_color_t neutral_color = theme_manager_get_color("surface_control");
+    lv_color_t selected_color = theme_manager_get_color("primary");
+    lv_color_t neutral_color = theme_manager_get_color("card_alt");
 
     if (selected_heater_ == Heater::EXTRUDER) {
         lv_obj_set_style_bg_color(btn_heater_extruder_, selected_color, LV_PART_MAIN);

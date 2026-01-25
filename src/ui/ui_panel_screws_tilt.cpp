@@ -623,11 +623,11 @@ lv_color_t ScrewsTiltPanel::get_adjustment_color(const ScrewTiltResult& screw,
     };
 
     if (screw.is_reference) {
-        return get_theme_color("success_color");
+        return get_theme_color("success");
     }
 
     if (!screw.needs_adjustment()) {
-        return get_theme_color("success_color");
+        return get_theme_color("success");
     }
 
     // Parse adjustment severity
@@ -637,16 +637,16 @@ lv_color_t ScrewsTiltPanel::get_adjustment_color(const ScrewTiltResult& screw,
         int total_minutes = turns * 60 + minutes;
 
         if (total_minutes <= 5) {
-            return get_theme_color("success_color");
+            return get_theme_color("success");
         } else if (is_worst_screw) {
             // Highlight the worst screw with primary color (bright, attention-grabbing)
-            return get_theme_color("primary_color");
+            return get_theme_color("primary");
         } else if (total_minutes <= 30) {
-            return get_theme_color("warning_color");
+            return get_theme_color("warning");
         }
     }
 
-    return get_theme_color("error_color");
+    return get_theme_color("danger");
 }
 
 bool ScrewsTiltPanel::check_all_level(int tolerance_minutes) const {

@@ -264,7 +264,7 @@ void SpoolmanPanel::update_row_visuals(lv_obj_t* row, const SpoolInfo& spool) {
     lv_obj_t* canvas = lv_obj_find_by_name(row, "spool_canvas");
     if (canvas) {
         // Parse color from hex string (e.g., "FF5722" or "#FF5722")
-        lv_color_t color = theme_manager_get_color("text_secondary"); // Default gray
+        lv_color_t color = theme_manager_get_color("text_muted"); // Default gray
         if (!spool.color_hex.empty()) {
             std::string hex = spool.color_hex;
             if (!hex.empty() && hex[0] == '#') {

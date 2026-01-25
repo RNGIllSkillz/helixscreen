@@ -184,7 +184,7 @@ static void ui_switch_xml_apply(lv_xml_parser_state_t* state, const char** attrs
     // LV_PART_KNOB - The sliding handle (drawn last, on top)
     //   - Circular button that slides left/right
     //   - Always visible in both states
-    const char* primary_str = lv_xml_get_const(NULL, "primary_color");
+    const char* primary_str = lv_xml_get_const(NULL, "primary");
     if (primary_str) {
         lv_color_t primary = theme_manager_parse_hex_color(primary_str);
 

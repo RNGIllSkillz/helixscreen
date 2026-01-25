@@ -305,7 +305,7 @@ lv_obj_t* AmsEndlessSpoolOverlay::create_slot_row(lv_obj_t* parent, int slot_ind
     char slot_text[32];
     snprintf(slot_text, sizeof(slot_text), "Slot %d", slot_index);
     lv_label_set_text(slot_label, slot_text);
-    lv_obj_set_style_text_color(slot_label, theme_manager_get_color("text_primary"), 0);
+    lv_obj_set_style_text_color(slot_label, theme_manager_get_color("text"), 0);
 
     // Arrow indicator (use responsive icon font)
     lv_obj_t* arrow_label = lv_label_create(left_container);
@@ -314,7 +314,7 @@ lv_obj_t* AmsEndlessSpoolOverlay::create_slot_row(lv_obj_t* parent, int slot_ind
     if (icon_font_name) {
         lv_obj_set_style_text_font(arrow_label, lv_xml_get_font(nullptr, icon_font_name), 0);
     }
-    lv_obj_set_style_text_color(arrow_label, theme_manager_get_color("text_secondary"), 0);
+    lv_obj_set_style_text_color(arrow_label, theme_manager_get_color("text_muted"), 0);
 
     // Right side: Backup indicator or dropdown
     if (editable) {
@@ -364,7 +364,7 @@ lv_obj_t* AmsEndlessSpoolOverlay::create_slot_row(lv_obj_t* parent, int slot_ind
             snprintf(backup_text, sizeof(backup_text), "Slot %d", backup_slot);
         }
         lv_label_set_text(backup_label, backup_text);
-        lv_obj_set_style_text_color(backup_label, theme_manager_get_color("text_secondary"), 0);
+        lv_obj_set_style_text_color(backup_label, theme_manager_get_color("text_muted"), 0);
 
         // Lock icon to indicate read-only
         lv_obj_t* lock_label = lv_label_create(right_container);

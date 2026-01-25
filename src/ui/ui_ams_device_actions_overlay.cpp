@@ -246,7 +246,7 @@ void AmsDeviceActionsOverlay::create_section_ui(lv_obj_t* parent,
     // Section label
     lv_obj_t* label = lv_label_create(card);
     lv_label_set_text(label, section.label.c_str());
-    lv_obj_set_style_text_color(label, theme_manager_get_color("text_primary"), 0);
+    lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
     lv_obj_set_style_pad_bottom(label, theme_manager_get_spacing("space_sm"), 0);
 
     // Create actions container
@@ -321,7 +321,7 @@ void AmsDeviceActionsOverlay::create_action_control(lv_obj_t* parent,
         // Label on left
         lv_obj_t* label = lv_label_create(row);
         lv_label_set_text(label, action.label.c_str());
-        lv_obj_set_style_text_color(label, theme_manager_get_color("text_primary"), 0);
+        lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
 
         // Switch on right (placeholder - full implementation later)
         lv_obj_t* sw = lv_switch_create(row);
@@ -347,11 +347,11 @@ void AmsDeviceActionsOverlay::create_action_control(lv_obj_t* parent,
         // Label on left
         lv_obj_t* label = lv_label_create(row);
         lv_label_set_text(label, action.label.c_str());
-        lv_obj_set_style_text_color(label, theme_manager_get_color("text_primary"), 0);
+        lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
 
         // Value on right
         lv_obj_t* value_label = lv_label_create(row);
-        lv_obj_set_style_text_color(value_label, theme_manager_get_color("text_secondary"), 0);
+        lv_obj_set_style_text_color(value_label, theme_manager_get_color("text_muted"), 0);
         try {
             if (action.current_value.has_value()) {
                 std::string val = std::any_cast<std::string>(action.current_value);
@@ -375,7 +375,7 @@ void AmsDeviceActionsOverlay::create_action_control(lv_obj_t* parent,
             lv_obj_t* label = lv_label_create(row);
             std::string text = action.label + " (coming soon)";
             lv_label_set_text(label, text.c_str());
-            lv_obj_set_style_text_color(label, theme_manager_get_color("text_secondary"), 0);
+            lv_obj_set_style_text_color(label, theme_manager_get_color("text_muted"), 0);
             spdlog::debug("[{}] {} control '{}' placeholder created", get_name(),
                           helix::printer::action_type_to_string(action.type), action.id);
         }

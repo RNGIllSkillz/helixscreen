@@ -15,14 +15,14 @@
     <!-- Dimmed image when printer is not connected (state 0 or 1) -->
     <style name="image_dimmed" image_opa="128"/>
     <!-- Notification badge severity colors -->
-    <style name="badge_info" bg_color="#info_color"/>
-    <style name="badge_warning" bg_color="#warning_color"/>
-    <style name="badge_error" bg_color="#error_color"/>
+    <style name="badge_info" bg_color="#info"/>
+    <style name="badge_warning" bg_color="#warning"/>
+    <style name="badge_error" bg_color="#danger"/>
   </styles>
   <!-- Now references global constants from globals.xml -->
   <view extends="lv_obj"
         width="100%" height="100%" style_pad_all="0" style_pad_gap="0" style_border_width="0" flex_flow="column"
-        style_bg_color="#app_bg_color" scrollable="false">
+        style_bg_color="#app_bg" scrollable="false">
 
     <!-- Top section: Printer visualization + Tip -->
     <lv_obj width="100%"
@@ -46,12 +46,12 @@
             <bind_style name="image_dimmed" subject="klippy_state" ref_value="3"/>
           </lv_image>
           <!-- Disconnected overlay - shown when NOT connected (state != 2) -->
-          <icon name="disconnected_overlay" src="prohibited" size="xl" align="center" color="#error_color">
+          <icon name="disconnected_overlay" src="prohibited" size="xl" align="center" color="#danger">
             <bind_flag_if_eq subject="printer_connection_state" flag="hidden" ref_value="2"/>
           </icon>
           <!-- Shutdown overlay - shown when klippy is SHUTDOWN (state 2) -->
           <icon name="shutdown_overlay"
-                src="alert_octagon" size="xl" align="center" color="#warning_color" hidden="true">
+                src="alert_octagon" size="xl" align="center" color="#warning" hidden="true">
             <bind_flag_if_not_eq subject="klippy_state" flag="hidden" ref_value="2"/>
           </icon>
         </lv_obj>
@@ -62,7 +62,7 @@
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0">
           <bind_flag_if_eq subject="printer_info_visible" flag="hidden" ref_value="0"/>
           <text_small width="100%"
-                      height="content" bind_text="printer_type_text" style_text_color="#text_primary"
+                      height="content" bind_text="printer_type_text" style_text_color="#text"
                       style_text_align="center" stroke_width="1" stroke_color="#app_bg" stroke_opa="180"/>
         </lv_obj>
       </lv_obj>
@@ -75,7 +75,7 @@
         <!-- Tip container: left border acts as accent bar, auto-sizes to text height -->
         <lv_obj width="100%"
                 height="content" flex_flow="row" style_bg_opa="0%" style_radius="0"
-                style_border_width="#accent_bar_width" style_border_side="left" style_border_color="#primary_color"
+                style_border_width="#accent_bar_width" style_border_side="left" style_border_color="#primary"
                 style_pad_top="#space_sm" style_pad_bottom="#space_sm" style_pad_left="#accent_bar_gap"
                 style_pad_right="0" style_pad_gap="#space_sm" style_flex_track_place="center" clickable="true">
           <event_cb trigger="clicked" callback="tip_text_clicked_cb"/>
@@ -121,13 +121,13 @@
                 style_pad_gap="#space_sm" hidden="true" clickable="false">
           <bind_flag_if_eq subject="print_start_phase" flag="hidden" ref_value="0"/>
           <!-- "Preparing Print" heading -->
-          <text_body text="Preparing Print" style_text_color="#text_primary"/>
+          <text_body text="Preparing Print" style_text_color="#text"/>
           <!-- Progress bar -->
           <lv_bar name="print_start_bar"
                   width="90%" height="8" bind_value="print_start_progress" range_min="0" range_max="100"
-                  style_bg_color="#app_bg_color" style_radius="4"/>
+                  style_bg_color="#app_bg" style_radius="4"/>
           <!-- Phase message -->
-          <text_small bind_text="print_start_message" style_text_color="#text_secondary"/>
+          <text_small bind_text="print_start_message" style_text_color="#text_muted"/>
         </lv_obj>
         <!-- PRINTING STATE: Actual print progress (hidden when print_show_progress==0) -->
         <!-- Horizontal layout: thumbnail left, info right (mirrors idle state layout) -->
@@ -147,14 +147,14 @@
                   scrollable="false">
             <!-- Filename (constrained width with wrapping for long names) -->
             <text_body width="100%"
-                       bind_text="print_display_filename" style_text_color="#text_primary" long_mode="wrap"
+                       bind_text="print_display_filename" style_text_color="#text" long_mode="wrap"
                        style_text_align="center"/>
             <!-- Progress bar showing actual print progress -->
             <lv_bar name="print_progress_bar"
                     width="90%" height="8" bind_value="print_progress" range_min="0" range_max="100"
-                    style_bg_color="#app_bg_color" style_radius="4"/>
+                    style_bg_color="#app_bg" style_radius="4"/>
             <!-- Progress percentage -->
-            <text_small bind_text="print_progress_text" style_text_color="#text_secondary"/>
+            <text_small bind_text="print_progress_text" style_text_color="#text_muted"/>
           </lv_obj>
         </lv_obj>
       </lv_button>
@@ -257,14 +257,14 @@
                 <event_cb trigger="clicked" callback="status_notification_history_clicked"/>
                 <!-- Background with severity-bound color -->
                 <lv_obj name="badge_bg"
-                        width="100%" height="100%" style_radius="9" style_border_width="0" style_bg_color="#info_color">
+                        width="100%" height="100%" style_radius="9" style_border_width="0" style_bg_color="#info">
                   <bind_style name="badge_info" subject="notification_severity" ref_value="0"/>
                   <bind_style name="badge_warning" subject="notification_severity" ref_value="1"/>
                   <bind_style name="badge_error" subject="notification_severity" ref_value="2"/>
                 </lv_obj>
                 <text_small name="notification_badge_count"
                             bind_text="notification_count_text" style_pad_top="0" align="center"
-                            style_text_color="#text_primary"/>
+                            style_text_color="#text"/>
               </lv_obj>
             </lv_obj>
           </lv_obj>
@@ -282,9 +282,9 @@
             <!-- Circular button: radius=24 is half of button_height_small (48px) -->
             <lv_button name="estop_button_home"
                        width="#button_height_sm" height="#button_height_sm" style_radius="24"
-                       style_bg_color="#error_color" style_border_width="2" style_border_color="#text_primary"
+                       style_bg_color="#danger" style_border_width="2" style_border_color="#text"
                        style_shadow_width="0" style_pad_all="0" align="center">
-              <icon src="alert_octagon" size="sm" color="#text_primary" align="center"/>
+              <icon src="alert_octagon" size="sm" color="#text" align="center"/>
               <event_cb trigger="clicked" callback="emergency_stop_clicked"/>
             </lv_button>
           </lv_obj>
@@ -299,12 +299,12 @@
                   flex_grow="1" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="column"
                   style_flex_main_place="center" style_flex_track_place="center" hidden="true">
             <bind_flag_if_not_eq subject="klippy_state" flag="hidden" ref_value="2"/>
-            <!-- Circular button: uses primary_color to indicate "safe" recovery action -->
+            <!-- Circular button: uses primary to indicate "safe" recovery action -->
             <lv_button name="firmware_restart_button_home"
                        width="#button_height_sm" height="#button_height_sm" style_radius="24"
-                       style_bg_color="#primary_color" style_border_width="2" style_border_color="#text_primary"
+                       style_bg_color="#primary" style_border_width="2" style_border_color="#text"
                        style_shadow_width="0" style_pad_all="0" align="center">
-              <icon src="refresh" size="sm" color="#text_primary" align="center"/>
+              <icon src="refresh" size="sm" color="#text" align="center"/>
               <event_cb trigger="clicked" callback="firmware_restart_clicked"/>
             </lv_button>
           </lv_obj>

@@ -5,7 +5,7 @@
 <!-- Sub-panel for viewing and configuring endless spool backup slot mappings -->
 <component>
   <view name="ams_settings_endless_spool"
-        extends="overlay_panel" width="#overlay_panel_width_full" title="Endless Spool" bg_color="#app_bg_color">
+        extends="overlay_panel" width="#overlay_panel_width_full" title="Endless Spool" bg_color="#app_bg">
     <!-- Content Area (scrollable) -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_bg_opa="0" style_pad_all="#space_md" scrollable="true" scroll_dir="ver"
@@ -21,8 +21,8 @@
         <lv_obj width="content"
                 height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="column"
                 style_pad_gap="#space_xs" scrollable="false" flex_grow="1">
-          <text_body text="Not Supported" style_text_color="#text_primary"/>
-          <text_small bind_text="ams_endless_spool_description" style_text_color="#text_secondary"/>
+          <text_body text="Not Supported" style_text_color="#text"/>
+          <text_small bind_text="ams_endless_spool_description" style_text_color="#text_muted"/>
         </lv_obj>
       </ui_card>
       <!-- ================================================================== -->
@@ -37,11 +37,11 @@
         <lv_obj width="content"
                 height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="column"
                 style_pad_gap="#space_xs" scrollable="false" flex_grow="1">
-          <text_body bind_text="ams_endless_spool_description" style_text_color="#text_primary"/>
+          <text_body bind_text="ams_endless_spool_description" style_text_color="#text"/>
           <text_small text="Configure backup slots for automatic filament switching when a spool runs out."
-                      style_text_color="#text_secondary"/>
+                      style_text_color="#text_muted"/>
           <text_small name="editable_hint"
-                      style_text_color="#text_secondary" bind_text="ams_endless_spool_editable_text">
+                      style_text_color="#text_muted" bind_text="ams_endless_spool_editable_text">
             <bind_flag_if_eq subject="ams_endless_spool_editable" flag="hidden" ref_value="1"/>
           </text_small>
         </lv_obj>
@@ -66,7 +66,7 @@
         <lv_button name="reset_mappings_btn"
                    style_bg_color="#card_bg" style_radius="#border_radius" style_pad_left="#space_md"
                    style_pad_right="#space_md" style_pad_top="#space_sm" style_pad_bottom="#space_sm">
-          <text_body text="Reset Mappings" style_text_color="#text_primary"/>
+          <text_body text="Reset Mappings" style_text_color="#text"/>
           <event_cb trigger="clicked" callback="on_endless_spool_reset_clicked"/>
         </lv_button>
       </lv_obj>

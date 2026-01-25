@@ -372,19 +372,19 @@ void ConsolePanel::create_entry_widget(const GcodeEntry& entry) {
             // Determine color based on segment's color class
             lv_color_t color;
             if (seg.color_class == "success") {
-                color = theme_manager_get_color("success_color");
+                color = theme_manager_get_color("success");
             } else if (seg.color_class == "info") {
-                color = theme_manager_get_color("info_color");
+                color = theme_manager_get_color("info");
             } else if (seg.color_class == "warning") {
-                color = theme_manager_get_color("warning_color");
+                color = theme_manager_get_color("warning");
             } else if (seg.color_class == "error") {
-                color = theme_manager_get_color("error_color");
+                color = theme_manager_get_color("danger");
             } else {
                 // Default color based on entry type
-                color = entry.is_error ? theme_manager_get_color("error_color")
+                color = entry.is_error ? theme_manager_get_color("danger")
                         : entry.type == GcodeEntry::Type::RESPONSE
-                            ? theme_manager_get_color("success_color")
-                            : theme_manager_get_color("text_primary");
+                            ? theme_manager_get_color("success")
+                            : theme_manager_get_color("text");
             }
             lv_style_set_text_color(lv_span_get_style(span), color);
         }
@@ -398,12 +398,12 @@ void ConsolePanel::create_entry_widget(const GcodeEntry& entry) {
         // Apply color based on entry type
         lv_color_t color;
         if (entry.is_error) {
-            color = theme_manager_get_color("error_color");
+            color = theme_manager_get_color("danger");
         } else if (entry.type == GcodeEntry::Type::RESPONSE) {
-            color = theme_manager_get_color("success_color");
+            color = theme_manager_get_color("success");
         } else {
             // Commands use primary text color
-            color = theme_manager_get_color("text_primary");
+            color = theme_manager_get_color("text");
         }
         lv_obj_set_style_text_color(label, color, 0);
         lv_obj_set_style_text_font(label, font, 0);

@@ -74,7 +74,7 @@ static EndlessSpoolArrowsData* get_data(lv_obj_t* obj) {
 // Load theme-aware colors
 static void load_theme_colors(EndlessSpoolArrowsData* data) {
     // Use text_secondary for subtle arrow color
-    data->arrow_color = theme_manager_get_color("text_secondary");
+    data->arrow_color = theme_manager_get_color("text_muted");
 
     // Get responsive sizing from theme
     int32_t space_xxs = theme_manager_get_spacing("space_xxs");

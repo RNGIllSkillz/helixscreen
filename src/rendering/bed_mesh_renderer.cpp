@@ -1433,7 +1433,7 @@ static void render_2d_heatmap(lv_layer_t* layer, bed_mesh_renderer_t* renderer, 
     lv_draw_rect_dsc_t border_dsc;
     lv_draw_rect_dsc_init(&border_dsc);
     border_dsc.bg_opa = LV_OPA_TRANSP;
-    border_dsc.border_color = theme_manager_get_color("surface_control");
+    border_dsc.border_color = theme_manager_get_color("card_alt");
     border_dsc.border_width = 1;
     border_dsc.border_opa = LV_OPA_60;
     border_dsc.radius = 2;
@@ -1482,7 +1482,7 @@ static void render_2d_heatmap(lv_layer_t* layer, bed_mesh_renderer_t* renderer, 
         tooltip_bg.bg_color = theme_manager_get_color("card_bg");
         tooltip_bg.bg_opa = LV_OPA_90;
         tooltip_bg.radius = 6;
-        tooltip_bg.border_color = theme_manager_get_color("surface_control");
+        tooltip_bg.border_color = theme_manager_get_color("card_alt");
         tooltip_bg.border_width = 1;
         tooltip_bg.border_opa = LV_OPA_60;
 

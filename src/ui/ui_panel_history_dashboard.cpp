@@ -504,7 +504,7 @@ void HistoryDashboardPanel::create_trend_chart() {
 
     // Series line style - use secondary color (gold) for visibility
     // Must resolve XML constant first, then parse the hex string
-    const char* secondary_str = lv_xml_get_const(nullptr, "secondary_color");
+    const char* secondary_str = lv_xml_get_const(nullptr, "success");
     lv_color_t line_color = secondary_str ? theme_manager_parse_hex_color(secondary_str)
                                           : lv_color_hex(0xD4A84B); // Fallback gold
     lv_obj_set_style_line_width(trend_chart_, 2, LV_PART_ITEMS);
@@ -731,14 +731,14 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
 
     // Generate complementary palette from theme's primary color
     // This creates visually harmonious colors that fit the theme
-    lv_color_t primary_color = lv_color_hex(0xB83232); // Fallback red
-    const char* primary_str = lv_xml_get_const(nullptr, "primary_color");
+    lv_color_t primary = lv_color_hex(0xB83232); // Fallback red
+    const char* primary_str = lv_xml_get_const(nullptr, "primary");
     if (primary_str) {
-        primary_color = theme_manager_parse_hex_color(primary_str);
+        primary = theme_manager_parse_hex_color(primary_str);
     }
 
     // Convert primary to HSV to generate palette
-    lv_color_hsv_t primary_hsv = lv_color_to_hsv(primary_color);
+    lv_color_hsv_t primary_hsv = lv_color_to_hsv(primary);
 
     // Generate colors by rotating hue - creates triadic/complementary harmony
     // Each filament type gets a consistent hue offset based on name hash
@@ -766,10 +766,10 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
 
     // Get theme colors for text (use primary for labels/amounts to match stats)
     // Must use lv_xml_get_const() to resolve theme-aware constants
-    lv_color_t text_primary = lv_color_hex(0xE6E8F0); // Fallback (text_primary_dark)
-    const char* text_primary_str = lv_xml_get_const(nullptr, "text_primary");
-    if (text_primary_str) {
-        text_primary = theme_manager_parse_hex_color(text_primary_str);
+    lv_color_t text = lv_color_hex(0xE6E8F0); // Fallback (text_dark)
+    const char* text_str = lv_xml_get_const(nullptr, "text");
+    if (text_str) {
+        text = theme_manager_parse_hex_color(text_str);
     }
 
     // Create labeled bar rows
@@ -801,7 +801,7 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
         lv_obj_t* type_label = lv_label_create(row);
         lv_label_set_text(type_label, type.c_str());
         lv_obj_set_width(type_label, 50); // Fixed width for type names
-        lv_obj_set_style_text_color(type_label, text_primary, 0);
+        lv_obj_set_style_text_color(type_label, text, 0);
         if (font_small) {
             lv_obj_set_style_text_font(type_label, font_small, 0);
         }
@@ -839,7 +839,7 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
         std::string amount_str = format_filament(amount);
         lv_label_set_text(amount_label, amount_str.c_str());
         lv_obj_set_width(amount_label, 60);
-        lv_obj_set_style_text_color(amount_label, text_primary, 0);
+        lv_obj_set_style_text_color(amount_label, text, 0);
         lv_obj_set_style_text_align(amount_label, LV_TEXT_ALIGN_RIGHT, 0);
         if (font_small) {
             lv_obj_set_style_text_font(amount_label, font_small, 0);

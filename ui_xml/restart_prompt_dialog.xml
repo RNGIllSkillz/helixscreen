@@ -26,7 +26,7 @@
         <text_body name="dialog_message"
                    width="352" height="content" text="Some settings will take effect after restart."
                    style_text_align="center" style_pad_all="0" style_pad_top="#space_md" long_mode="wrap"
-                   style_text_color="#text_secondary"/>
+                   style_text_color="#text_muted"/>
       </lv_obj>
       <!-- Button row -->
       <lv_obj width="100%"
@@ -42,7 +42,7 @@
         <!-- Restart Now button (primary action) -->
         <lv_button name="dialog_restart_btn"
                    width="160" height="#button_height" style_radius="#border_radius_small" style_border_width="0"
-                   clickable="true" style_bg_color="#primary_color">
+                   clickable="true" style_bg_color="#primary">
           <event_cb trigger="clicked" callback="on_restart_now_clicked"/>
           <text_button text="Restart Now"/>
         </lv_button>

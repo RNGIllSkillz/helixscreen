@@ -221,7 +221,7 @@ static void* ui_spinner_create(lv_xml_parser_state_t* state, const char** attrs)
     lv_obj_set_style_opa(arc, LV_OPA_0, LV_PART_KNOB);
 
     // Apply consistent styling - primary color indicator
-    lv_color_t primary = theme_manager_get_color("primary_color");
+    lv_color_t primary = theme_manager_get_color("primary");
     lv_obj_set_style_arc_color(arc, primary, LV_PART_INDICATOR);
     lv_obj_set_style_arc_width(arc, arc_width, LV_PART_INDICATOR);
     lv_obj_set_style_arc_rounded(arc, true, LV_PART_INDICATOR);

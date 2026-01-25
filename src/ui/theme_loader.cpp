@@ -194,14 +194,14 @@ ThemeData get_default_nord_theme() {
     theme.dark.text = "#eceff4";
     theme.dark.text_muted = "#d8dee9";
     theme.dark.text_subtle = "#b8c2d1";
-    theme.dark.primary = "#88c0d0";
-    theme.dark.secondary = "#a3be8c";
-    theme.dark.tertiary = "#d08770";
-    theme.dark.info = "#81a1c1";
-    theme.dark.success = "#a3be8c";
-    theme.dark.warning = "#ebcb8b";
-    theme.dark.danger = "#bf616a";
-    theme.dark.focus = "#88c0d0";
+    theme.dark.primary = "#88c0d0";   // nord8 - frost cyan
+    theme.dark.secondary = "#81a1c1"; // nord9 - frost blue
+    theme.dark.tertiary = "#5e81ac";  // nord10 - frost dark blue
+    theme.dark.info = "#b48ead";      // nord15 - aurora purple
+    theme.dark.success = "#a3be8c";   // nord14 - aurora green
+    theme.dark.warning = "#ebcb8b";   // nord13 - aurora yellow
+    theme.dark.danger = "#bf616a";    // nord11 - aurora red
+    theme.dark.focus = "#8fbcbb";     // nord7 - frost teal
 
     // NEW: Populate dual palette system (light mode)
     theme.light.app_bg = "#eceff4";
@@ -212,14 +212,14 @@ ThemeData get_default_nord_theme() {
     theme.light.text = "#2e3440";
     theme.light.text_muted = "#3b4252";
     theme.light.text_subtle = "#64748b";
-    theme.light.primary = "#5e81ac";
-    theme.light.secondary = "#a3be8c";
-    theme.light.tertiary = "#d08770";
-    theme.light.info = "#5e81ac";
-    theme.light.success = "#3fa47d";
-    theme.light.warning = "#b08900";
-    theme.light.danger = "#b23a48";
-    theme.light.focus = "#5e81ac";
+    theme.light.primary = "#5e81ac";   // nord10 - darker frost for light bg
+    theme.light.secondary = "#81a1c1"; // nord9 - frost blue
+    theme.light.tertiary = "#4c566a";  // nord3 - polar night for contrast
+    theme.light.info = "#b48ead";      // nord15 - aurora purple
+    theme.light.success = "#3fa47d";   // adjusted green for light bg
+    theme.light.warning = "#b08900";   // adjusted yellow for light bg
+    theme.light.danger = "#b23a48";    // adjusted red for light bg
+    theme.light.focus = "#8fbcbb";     // nord7 - frost teal
 
     // LEGACY: Keep for backward compatibility
     theme.colors.bg_darkest = "#2e3440";

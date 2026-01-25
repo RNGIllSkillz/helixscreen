@@ -46,7 +46,7 @@
           <lv_obj name="selected_color_preview"
                   width="#color_preview_size" height="#color_preview_size" style_radius="#border_radius"
                   style_bg_color="0x808080" style_bg_opa="255" style_border_width="2"
-                  style_border_color="#text_secondary" style_border_opa="80" scrollable="false"/>
+                  style_border_color="#text_muted" style_border_opa="80" scrollable="false"/>
           <!-- HSV picker: SV square + horizontal hue bar below -->
           <ui_hsv_picker name="hsv_picker" sv_size="180" hue_height="20" gap="#space_sm"/>
         </lv_obj>
@@ -73,10 +73,10 @@
                 <event_cb trigger="defocused" callback="hex_input_defocused_cb"/>
               </text_input>
               <lv_label name="selected_name_label"
-                        width="content" text="Gray" style_text_color="#text_secondary"/>
+                        width="content" text="Gray" style_text_color="#text_muted"/>
             </lv_obj>
             <!-- Presets label -->
-            <text_small text="Presets" style_text_color="#text_secondary"/>
+            <text_small text="Presets" style_text_color="#text_muted"/>
           </lv_obj>
           <!-- BOTTOM: Presets grid (pushed to bottom via space_between) -->
           <!-- Preset grid: 6 columns x 4 rows -->
@@ -109,13 +109,13 @@
               </lv_obj>
               <lv_obj width="#swatch_size"
                       height="#swatch_size" style_radius="#border_radius_small" style_bg_color="0xE8E8E8"
-                      style_bg_opa="255" style_border_width="1" style_border_color="#text_secondary" clickable="true"
+                      style_bg_opa="255" style_border_width="1" style_border_color="#text_muted" clickable="true"
                       scrollable="false">
                 <event_cb trigger="clicked" callback="color_swatch_clicked_cb"/>
               </lv_obj>
               <lv_obj width="#swatch_size"
                       height="#swatch_size" style_radius="#border_radius_small" style_bg_color="0xFFFFFF"
-                      style_bg_opa="255" style_border_width="1" style_border_color="#text_secondary" clickable="true"
+                      style_bg_opa="255" style_border_width="1" style_border_color="#text_muted" clickable="true"
                       scrollable="false">
                 <event_cb trigger="clicked" callback="color_swatch_clicked_cb"/>
               </lv_obj>
@@ -216,13 +216,13 @@
               </lv_obj>
               <lv_obj width="#swatch_size"
                       height="#swatch_size" style_radius="#border_radius_small" style_bg_color="0xC0C0C0"
-                      style_bg_opa="255" style_border_width="1" style_border_color="#text_secondary" clickable="true"
+                      style_bg_opa="255" style_border_width="1" style_border_color="#text_muted" clickable="true"
                       scrollable="false">
                 <event_cb trigger="clicked" callback="color_swatch_clicked_cb"/>
               </lv_obj>
               <lv_obj width="#swatch_size"
                       height="#swatch_size" style_radius="#border_radius_small" style_bg_color="0xE0D5C7"
-                      style_bg_opa="255" style_border_width="1" style_border_color="#text_secondary" clickable="true"
+                      style_bg_opa="255" style_border_width="1" style_border_color="#text_muted" clickable="true"
                       scrollable="false">
                 <event_cb trigger="clicked" callback="color_swatch_clicked_cb"/>
               </lv_obj>
@@ -275,7 +275,7 @@
         <lv_button name="btn_cancel"
                    height="100%" flex_grow="1" style_radius="0" style_border_width="0"
                    style_shadow_width="0" style_outline_width="0" style_bg_opa="0" clickable="true">
-          <text_button text="Cancel" style_text_color="#text_secondary" clickable="false"/>
+          <text_button text="Cancel" style_text_color="#text_muted" clickable="false"/>
           <event_cb trigger="clicked" callback="color_picker_cancel_cb"/>
         </lv_button>
         <!-- Vertical divider -->

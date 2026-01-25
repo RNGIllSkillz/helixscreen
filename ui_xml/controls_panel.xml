@@ -5,24 +5,24 @@
 <component>
   <styles>
     <!-- Homing button styles -->
-    <style name="home_btn_homed" bg_color="#success_color"/>
+    <style name="home_btn_homed" bg_color="#success"/>
     <style name="home_btn_unhomed" bg_color="#card_bg"/>
     <!-- Homing label styles (applied to text_small inside buttons) -->
-    <style name="home_label_homed" text_color="#text_primary"/>
-    <style name="home_label_unhomed" text_color="#text_secondary"/>
+    <style name="home_label_homed" text_color="#text"/>
+    <style name="home_label_unhomed" text_color="#text_muted"/>
     <!-- Motor icon styles: warning when enabled, dimmed when disabled -->
-    <style name="icon_motors_enabled" text_color="#warning_color"/>
-    <style name="icon_motors_disabled" text_color="#text_secondary"/>
+    <style name="icon_motors_enabled" text_color="#warning"/>
+    <style name="icon_motors_disabled" text_color="#text_muted"/>
     <!-- Homing indicator styles for Position card -->
-    <style name="indicator_homed" bg_color="#success_color"/>
-    <style name="indicator_unhomed" bg_color="#text_secondary"/>
+    <style name="indicator_homed" bg_color="#success"/>
+    <style name="indicator_unhomed" bg_color="#text_muted"/>
   </styles>
   <!-- Main container: 3+2 layout (3 cards top, 2 cards bottom) -->
   <!-- NOTE: Using explicit heights (55%) instead of flex-grow to work around LVGL bug
        where hidden objects affect flex-grow space calculation -->
   <view name="controls_panel"
         extends="lv_obj" width="100%" height="100%" style_pad_all="#space_md" style_border_width="0" flex_flow="column"
-        style_bg_color="#app_bg_color" style_pad_gap="#space_md" scrollable="false">
+        style_bg_color="#app_bg" style_pad_gap="#space_md" scrollable="false">
     <!-- Row 1: Position card (left) | Right section with conditional E-Stop + Temps/Cooling -->
     <!-- Using explicit 55% height instead of flex-grow to avoid LVGL hidden-object bug -->
     <lv_obj width="100%"
@@ -37,7 +37,7 @@
                 flex_flow="row" style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="0"
                 style_pad_gap="#space_sm" style_border_width="0">
           <icon src="axis_arrow" size="sm" variant="accent"/>
-          <text_small text="Position" style_text_color="#text_primary" style_translate_y="2"/>
+          <text_small text="Position" style_text_color="#text" style_translate_y="2"/>
         </lv_obj>
         <!-- Position display with homing indicators -->
         <!-- Split into static label + dynamic value for proper alignment with proportional fonts -->
@@ -83,34 +83,34 @@
                    width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0"
                    flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center">
           <event_cb trigger="clicked" callback="on_zoffset_tune"/>
-          <text_body text="Z-Offset:" style_text_color="#text_secondary"/>
+          <text_body text="Z-Offset:" style_text_color="#text_muted"/>
           <lv_obj width="content"
                   height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_xs"
                   style_bg_opa="0" style_border_width="0" clickable="false" scrollable="false">
-            <text_body bind_text="controls_z_offset" style_text_color="#text_primary"/>
+            <text_body bind_text="controls_z_offset" style_text_color="#text"/>
             <icon src="chevron_right" size="xs" variant="secondary"/>
           </lv_obj>
         </lv_button>
         <!-- Save Z-Offset button (conditional: visible when gcode_z_offset != 0, disabled during print) -->
         <lv_button name="btn_save_z_offset"
-                   width="100%" height="#button_height_sm" style_radius="#border_radius" style_bg_color="#success_color"
+                   width="100%" height="#button_height_sm" style_radius="#border_radius" style_bg_color="#success"
                    style_border_width="0" hidden="true" flex_flow="row" style_flex_main_place="center"
                    style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_xs">
           <bind_flag_if_eq subject="gcode_z_offset" flag="hidden" ref_value="0"/>
           <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
           <event_cb trigger="clicked" callback="on_controls_save_z_offset"/>
           <icon src="check" size="sm"/>
-          <text_body text="Save Z-Offset" style_text_color="#text_primary"/>
+          <text_body text="Save Z-Offset" style_text_color="#text"/>
         </lv_button>
         <!-- Motion panel navigation button -->
         <lv_button name="btn_motion"
                    width="100%" height="#button_height_sm" style_radius="#border_radius" style_pad_left="#space_sm"
-                   style_pad_right="#space_sm" style_bg_color="#primary_color" style_bg_opa="80" style_border_width="0"
+                   style_pad_right="#space_sm" style_bg_color="#primary" style_bg_opa="80" style_border_width="0"
                    flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                    style_flex_track_place="center" style_pad_gap="#space_xs">
           <event_cb trigger="clicked" callback="on_controls_quick_actions"/>
           <icon src="cursor_move" size="sm"/>
-          <text_body text="Motion" style_text_color="#text_primary"/>
+          <text_body text="Motion" style_text_color="#text"/>
         </lv_button>
       </ui_card>
 
@@ -121,12 +121,12 @@
         <!-- Emergency Stop Banner (conditional, compact) -->
         <lv_button name="estop_button_controls"
                    width="100%" height="#button_height_sm" hidden="true" style_radius="#border_radius"
-                   style_border_width="0" style_bg_color="#error_color" flex_flow="row" style_flex_main_place="center"
+                   style_border_width="0" style_bg_color="#danger" flex_flow="row" style_flex_main_place="center"
                    style_flex_cross_place="center" style_pad_gap="#space_sm">
           <bind_flag_if_eq subject="estop_visible" flag="hidden" ref_value="0"/>
           <event_cb trigger="clicked" callback="emergency_stop_clicked"/>
-          <icon src="alert_octagon" size="sm" color="#text_primary"/>
-          <text_body text="Emergency Stop" style_text_color="#text_primary"/>
+          <icon src="alert_octagon" size="sm" color="#text"/>
+          <text_body text="Emergency Stop" style_text_color="#text"/>
         </lv_button>
 
         <!-- Temps + Cooling row (always visible) -->
@@ -143,7 +143,7 @@
                     height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
                     style_pad_gap="#space_sm" style_border_width="0" scrollable="false">
               <icon src="heater" size="sm" variant="accent"/>
-              <text_small text="Temperatures" style_text_color="#text_primary" style_translate_y="2"/>
+              <text_small text="Temperatures" style_text_color="#text" style_translate_y="2"/>
             </lv_obj>
             <!-- Nozzle section (clickable) -->
             <lv_button name="btn_nozzle_temp"
@@ -151,13 +151,13 @@
                        style_radius="0" flex_flow="row" style_flex_main_place="space_between"
                        style_flex_cross_place="center" style_pad_top="#space_sm">
               <event_cb trigger="clicked" callback="on_nozzle_temp_clicked"/>
-              <text_small text="Nozzle" style_text_color="#text_secondary"/>
+              <text_small text="Nozzle" style_text_color="#text_muted"/>
               <temp_display name="nozzle_temp_display"
                             size="md" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"
                             event_cb="on_nozzle_temp_clicked"/>
             </lv_button>
             <text_small name="nozzle_status"
-                        width="90%" bind_text="controls_nozzle_status" style_text_color="#text_primary"
+                        width="90%" bind_text="controls_nozzle_status" style_text_color="#text"
                         style_text_align="right"/>
             <!-- Bed section (clickable) -->
             <lv_button name="btn_bed_temp"
@@ -165,13 +165,13 @@
                        style_radius="0" flex_flow="row" style_flex_main_place="space_between"
                        style_flex_cross_place="center" style_pad_top="#space_xs">
               <event_cb trigger="clicked" callback="on_bed_temp_clicked"/>
-              <text_small text="Bed" style_text_color="#text_secondary"/>
+              <text_small text="Bed" style_text_color="#text_muted"/>
               <temp_display name="bed_temp_display"
                             size="md" show_target="true" bind_current="bed_temp" bind_target="bed_target"
                             event_cb="on_bed_temp_clicked"/>
             </lv_button>
             <text_small name="bed_status"
-                        width="90%" bind_text="controls_bed_status" style_text_color="#text_primary"
+                        width="90%" bind_text="controls_bed_status" style_text_color="#text"
                         style_text_align="right"/>
             <!-- Chamber section (visible only if printer has chamber sensor) -->
             <lv_obj name="chamber_section"
@@ -179,7 +179,7 @@
                     style_pad_top="#space_xs" hidden="true" flex_flow="row" style_flex_main_place="space_between"
                     style_flex_cross_place="center">
               <bind_flag_if_eq subject="printer_has_chamber_sensor" flag="hidden" ref_value="0"/>
-              <text_small text="Chamber" style_text_color="#text_secondary"/>
+              <text_small text="Chamber" style_text_color="#text_muted"/>
               <temp_display name="chamber_temp_display" size="md" show_target="false" bind_current="chamber_temp"/>
             </lv_obj>
           </ui_card>
@@ -193,10 +193,10 @@
                     height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
                     style_pad_gap="#space_sm" style_border_width="0" scrollable="false">
               <icon name="fan_icon" src="fan" size="sm" variant="accent"/>
-              <text_small text="Cooling" style_text_color="#text_primary" style_translate_y="2"/>
+              <text_small text="Cooling" style_text_color="#text" style_translate_y="2"/>
             </lv_obj>
             <!-- Part cooling hero section -->
-            <text_small text="Part Fan" style_text_color="#text_secondary" style_pad_top="#space_sm"/>
+            <text_small text="Part Fan" style_text_color="#text_muted" style_pad_top="#space_sm"/>
             <lv_slider name="part_fan_slider"
                        width="80%" height="#space_lg" bind_value="controls_fan_pct" range_min="0" range_max="100"
                        style_bg_color="#card_alt" style_radius="#space_md" style_pad_top="#space_xs"
@@ -229,7 +229,7 @@
                 height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
                 flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
           <icon src="wrench" size="sm" variant="accent"/>
-          <text_small text="Calibration &amp; Tools" style_text_color="#text_primary" style_translate_y="2"/>
+          <text_small text="Calibration &amp; Tools" style_text_color="#text" style_translate_y="2"/>
         </lv_obj>
         <!-- 2x2 Grid Container -->
         <lv_obj width="100%"
@@ -306,17 +306,17 @@
                 flex_flow="row" style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="0"
                 style_pad_gap="#space_sm" style_border_width="0">
           <icon src="flash" size="sm" variant="accent"/>
-          <text_small text="Quick Actions" style_text_color="#text_primary" style_translate_y="2"/>
+          <text_small text="Quick Actions" style_text_color="#text" style_translate_y="2"/>
         </lv_obj>
         <!-- Home section header -->
-        <text_small text="Home" style_text_color="#text_secondary" style_pad_bottom="#space_xxs"/>
+        <text_small text="Home" style_text_color="#text_muted" style_pad_bottom="#space_xxs"/>
         <!-- Home buttons row -->
         <lv_obj width="100%"
                 height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
                 flex_flow="row" style_flex_main_place="center" style_pad_gap="#space_xs">
           <lv_button name="btn_home_all"
                      width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
-                     style_border_width="1" style_border_color="#text_secondary" style_border_opa="60">
+                     style_border_width="1" style_border_color="#text_muted" style_border_opa="60">
             <bind_style name="home_btn_homed" subject="all_homed" ref_value="1"/>
             <bind_style name="home_btn_unhomed" subject="all_homed" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_controls_home_all"/>
@@ -327,7 +327,7 @@
           </lv_button>
           <lv_button name="btn_home_xy"
                      width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
-                     style_border_width="1" style_border_color="#text_secondary" style_border_opa="60">
+                     style_border_width="1" style_border_color="#text_muted" style_border_opa="60">
             <bind_style name="home_btn_homed" subject="xy_homed" ref_value="1"/>
             <bind_style name="home_btn_unhomed" subject="xy_homed" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_controls_home_xy"/>
@@ -338,7 +338,7 @@
           </lv_button>
           <lv_button name="btn_home_z"
                      width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
-                     style_border_width="1" style_border_color="#text_secondary" style_border_opa="60">
+                     style_border_width="1" style_border_color="#text_muted" style_border_opa="60">
             <bind_style name="home_btn_homed" subject="z_homed" ref_value="1"/>
             <bind_style name="home_btn_unhomed" subject="z_homed" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_controls_home_z"/>
@@ -359,28 +359,28 @@
             <!-- QGL button - visible only if printer has quad_gantry_level -->
             <lv_button name="btn_qgl"
                        width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
-                       style_bg_color="#secondary_color" style_bg_opa="40" style_border_width="0" hidden="true">
+                       style_bg_color="#success" style_bg_opa="40" style_border_width="0" hidden="true">
               <bind_flag_if_eq subject="printer_has_qgl" flag="hidden" ref_value="0"/>
               <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_qgl"/>
-              <text_small text="Quad Gantry Level" style_text_color="#text_primary" align="center"/>
+              <text_small text="Quad Gantry Level" style_text_color="#text" align="center"/>
             </lv_button>
             <!-- Z-Tilt button - visible only if printer has z_tilt_adjust -->
             <lv_button name="btn_z_tilt"
                        width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
-                       style_bg_color="#secondary_color" style_bg_opa="40" style_border_width="0" hidden="true">
+                       style_bg_color="#success" style_bg_opa="40" style_border_width="0" hidden="true">
               <bind_flag_if_eq subject="printer_has_z_tilt" flag="hidden" ref_value="0"/>
               <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_z_tilt"/>
-              <text_small text="Z-Tilt Adjust" style_text_color="#text_primary" align="center"/>
+              <text_small text="Z-Tilt Adjust" style_text_color="#text" align="center"/>
             </lv_button>
             <lv_button name="btn_macro_1"
                        width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
-                       style_bg_color="#secondary_color" style_bg_opa="40" style_border_width="0">
+                       style_bg_color="#success" style_bg_opa="40" style_border_width="0">
               <bind_flag_if_eq subject="macro_1_visible" flag="hidden" ref_value="0"/>
               <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_macro_1"/>
-              <text_small name="macro_1_label" bind_text="macro_1_name" style_text_color="#text_primary" align="center"/>
+              <text_small name="macro_1_label" bind_text="macro_1_name" style_text_color="#text" align="center"/>
             </lv_button>
           </lv_obj>
           <!-- Macro row 2 -->
@@ -389,27 +389,27 @@
                   flex_flow="row" style_pad_gap="#space_xs">
             <lv_button name="btn_macro_2"
                        width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
-                       style_bg_color="#secondary_color" style_bg_opa="40" style_border_width="0">
+                       style_bg_color="#success" style_bg_opa="40" style_border_width="0">
               <bind_flag_if_eq subject="macro_2_visible" flag="hidden" ref_value="0"/>
               <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_macro_2"/>
-              <text_small name="macro_2_label" bind_text="macro_2_name" style_text_color="#text_primary" align="center"/>
+              <text_small name="macro_2_label" bind_text="macro_2_name" style_text_color="#text" align="center"/>
             </lv_button>
             <lv_button name="btn_macro_3"
                        width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
-                       style_bg_color="#secondary_color" style_bg_opa="40" style_border_width="0">
+                       style_bg_color="#success" style_bg_opa="40" style_border_width="0">
               <bind_flag_if_eq subject="macro_3_visible" flag="hidden" ref_value="0"/>
               <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_macro_3"/>
-              <text_small name="macro_3_label" bind_text="macro_3_name" style_text_color="#text_primary" align="center"/>
+              <text_small name="macro_3_label" bind_text="macro_3_name" style_text_color="#text" align="center"/>
             </lv_button>
             <lv_button name="btn_macro_4"
                        width="0" height="#button_height_sm" flex_grow="1" style_radius="#border_radius"
-                       style_bg_color="#secondary_color" style_bg_opa="40" style_border_width="0">
+                       style_bg_color="#success" style_bg_opa="40" style_border_width="0">
               <bind_flag_if_eq subject="macro_4_visible" flag="hidden" ref_value="0"/>
               <bind_state_if_eq subject="print_active" state="disabled" ref_value="1"/>
               <event_cb trigger="clicked" callback="on_controls_macro_4"/>
-              <text_small name="macro_4_label" bind_text="macro_4_name" style_text_color="#text_primary" align="center"/>
+              <text_small name="macro_4_label" bind_text="macro_4_name" style_text_color="#text" align="center"/>
             </lv_button>
           </lv_obj>
         </lv_obj>

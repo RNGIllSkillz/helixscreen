@@ -20,15 +20,15 @@
             height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_top="#space_xxs">
       <!-- Severity icons - all hidden by default, finalize() shows the correct one -->
       <lv_label name="icon_info"
-                text="#icon_info_circle" hidden="true" style_text_font="mdi_icons_24" style_text_color="#info_color"/>
+                text="#icon_info_circle" hidden="true" style_text_font="mdi_icons_24" style_text_color="#info"/>
       <lv_label name="icon_success"
-                text="#icon_check" hidden="true" style_text_font="mdi_icons_24" style_text_color="#success_color"/>
+                text="#icon_check" hidden="true" style_text_font="mdi_icons_24" style_text_color="#success"/>
       <lv_label name="icon_warning"
                 text="#icon_triangle_exclamation" hidden="true" style_text_font="mdi_icons_24"
-                style_text_color="#warning_color"/>
+                style_text_color="#warning"/>
       <lv_label name="icon_error"
                 text="#icon_triangle_exclamation" hidden="true" style_text_font="mdi_icons_24"
-                style_text_color="#error_color"/>
+                style_text_color="#danger"/>
     </lv_obj>
     <!-- Content column (flex grow) -->
     <lv_obj height="content"
@@ -39,10 +39,10 @@
               height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row"
               style_flex_main_place="space_between" style_flex_cross_place="center">
         <text_body name="item_title" text="$title"/>
-        <text_small name="item_timestamp" text="$timestamp" style_text_color="#text_secondary"/>
+        <text_small name="item_timestamp" text="$timestamp" style_text_color="#text_muted"/>
       </lv_obj>
       <!-- Message -->
-      <text_small name="item_message" width="100%" text="$message" style_text_color="#text_secondary" long_mode="wrap"/>
+      <text_small name="item_message" width="100%" text="$message" style_text_color="#text_muted" long_mode="wrap"/>
     </lv_obj>
   </view>
 </component>

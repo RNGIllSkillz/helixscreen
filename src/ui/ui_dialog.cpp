@@ -46,7 +46,7 @@ static void ui_dialog_xml_apply(lv_xml_parser_state_t* state, const char** attrs
     }
 
     // Apply theme grey as background (matches lv_button styling from helix_theme)
-    lv_color_t bg_color = theme_manager_get_color("surface_control");
+    lv_color_t bg_color = theme_manager_get_color("card_alt");
     lv_obj_set_style_bg_color(obj, bg_color, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_MAIN);
 

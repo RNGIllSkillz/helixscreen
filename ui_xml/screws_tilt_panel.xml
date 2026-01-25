@@ -52,7 +52,7 @@
           <!-- Generic text - not hex-key specific -->
           <text_small width="100%"
                       text="Have your bed adjustment tool (screwdriver, hex-key, etc.) ready if your bed isn't adjusted with                              thumb wheels or some other built-in mechanism."
-                      style_text_align="center" style_text_color="#text_secondary"/>
+                      style_text_align="center" style_text_color="#text_muted"/>
         </lv_obj>
         <!-- Steps Preview -->
         <lv_obj width="90%"
@@ -66,7 +66,7 @@
         <!-- Start Button -->
         <lv_button name="btn_start"
                    width="#panel_button_width" height="#button_height_normal" style_radius="#border_radius"
-                   style_bg_color="#primary_color">
+                   style_bg_color="#primary">
           <event_cb trigger="clicked" callback="screws_tilt_start_cb"/>
           <text_button text="Start Probing"/>
         </lv_button>
@@ -86,7 +86,7 @@
         <!-- Cancel Button -->
         <lv_button name="btn_cancel_probing"
                    width="#panel_button_width" height="#button_height_normal" style_radius="#border_radius"
-                   style_bg_color="#error_color">
+                   style_bg_color="#danger">
           <event_cb trigger="clicked" callback="screws_tilt_cancel_cb"/>
           <text_button text="Cancel"/>
         </lv_button>
@@ -110,7 +110,7 @@
             <!-- Screw indicators positioned dynamically by C++ code using LVGL alignment -->
           </lv_obj>
           <!-- FRONT label below diagram -->
-          <text_xs text="^ FRONT" style_text_color="#text_secondary"/>
+          <text_xs text="^ FRONT" style_text_color="#text_muted"/>
         </lv_obj>
         <!-- RIGHT: Screw List + Buttons (takes ~55% width) -->
         <lv_obj name="results_right_column"
@@ -119,7 +119,7 @@
           <!-- Instruction text -->
           <text_small name="results_instruction"
                       width="100%" text="Adjust screws, then re-probe." style_text_align="center"
-                      style_text_color="#text_secondary"/>
+                      style_text_color="#text_muted"/>
           <!-- Legend for rotation icons -->
           <lv_obj width="100%"
                   height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row"
@@ -128,13 +128,13 @@
                     height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row"
                     style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
               <icon src="rotate_right" size="xs" variant="secondary"/>
-              <text_xs text="= Tighten" style_text_color="#text_secondary"/>
+              <text_xs text="= Tighten" style_text_color="#text_muted"/>
             </lv_obj>
             <lv_obj width="content"
                     height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row"
                     style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
               <icon src="rotate_left" size="xs" variant="secondary"/>
-              <text_xs text="= Loosen" style_text_color="#text_secondary"/>
+              <text_xs text="= Loosen" style_text_color="#text_muted"/>
             </lv_obj>
           </lv_obj>
           <!-- Screw List - 4 pre-defined rows with subject bindings -->
@@ -196,7 +196,7 @@
             </lv_button>
             <lv_button name="btn_reprobe"
                        width="120" height="#button_height_sm" style_radius="#border_radius"
-                       style_bg_color="#primary_color">
+                       style_bg_color="#primary">
               <event_cb trigger="clicked" callback="screws_tilt_reprobe_cb"/>
               <text_button text="Re-probe"/>
             </lv_button>
@@ -211,10 +211,10 @@
               style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_lg"
               scrollable="false">
         <bind_flag_if_not_eq subject="screws_tilt_state" flag="hidden" ref_value="3"/>
-        <lv_label text="#icon_check_circle" style_text_font="mdi_icons_48" style_text_color="#success_color"/>
+        <lv_label text="#icon_check_circle" style_text_font="mdi_icons_48" style_text_color="#success"/>
         <text_heading text="Bed is Level!" style_text_align="center"/>
-        <text_body text="All screws are within tolerance." style_text_color="#text_secondary"/>
-        <text_small name="probe_count_label" text="Completed in 3 probes" style_text_color="#text_secondary"/>
+        <text_body text="All screws are within tolerance." style_text_color="#text_muted"/>
+        <text_small name="probe_count_label" text="Completed in 3 probes" style_text_color="#text_muted"/>
         <lv_button name="btn_done_leveled"
                    width="#panel_button_width" height="#button_height_normal" style_radius="#border_radius">
           <event_cb trigger="clicked" callback="screws_tilt_done_cb"/>
@@ -229,10 +229,10 @@
               style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_lg"
               scrollable="false">
         <bind_flag_if_not_eq subject="screws_tilt_state" flag="hidden" ref_value="4"/>
-        <lv_label text="#icon_xmark_circle" style_text_font="mdi_icons_48" style_text_color="#error_color"/>
+        <lv_label text="#icon_xmark_circle" style_text_font="mdi_icons_48" style_text_color="#danger"/>
         <text_heading text="Probing Failed" style_text_align="center"/>
         <text_body name="error_message"
-                   width="80%" text="An error occurred during probing." style_text_color="#text_secondary"
+                   width="80%" text="An error occurred during probing." style_text_color="#text_muted"
                    style_text_align="center" long_mode="wrap"/>
         <lv_obj width="100%"
                 height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row"
@@ -244,7 +244,7 @@
           </lv_button>
           <lv_button name="btn_retry"
                      width="#panel_button_width" height="#button_height_normal" style_radius="#border_radius"
-                     style_bg_color="#primary_color">
+                     style_bg_color="#primary">
             <event_cb trigger="clicked" callback="screws_tilt_retry_cb"/>
             <text_button text="Retry"/>
           </lv_button>

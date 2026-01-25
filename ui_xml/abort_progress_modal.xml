@@ -24,7 +24,7 @@
         <!-- Progress message (dynamically bound to abort_progress_message subject) -->
         <text_body name="abort_message_label"
                    width="100%" bind_text="abort_progress_message" text="Processing..." long_mode="wrap"
-                   style_text_align="center" style_text_color="#text_secondary"/>
+                   style_text_align="center" style_text_color="#text_muted"/>
       </lv_obj>
     </ui_dialog>
   </view>

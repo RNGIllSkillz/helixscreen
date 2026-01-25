@@ -19,15 +19,15 @@
  */
 static const char* severity_to_color_const(const char* severity) {
     if (!severity || strcmp(severity, "info") == 0) {
-        return "info_color";
+        return "info";
     } else if (strcmp(severity, "error") == 0) {
-        return "error_color";
+        return "danger";
     } else if (strcmp(severity, "warning") == 0) {
-        return "warning_color";
+        return "warning";
     } else if (strcmp(severity, "success") == 0) {
-        return "success_color";
+        return "success";
     }
-    return "info_color";
+    return "info";
 }
 
 /**

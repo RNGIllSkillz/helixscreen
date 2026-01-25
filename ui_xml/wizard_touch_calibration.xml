@@ -28,7 +28,7 @@
     <!-- flag_floating=true takes it out of flex layout for absolute positioning -->
     <lv_label name="crosshair"
               width="50" height="50" text="#icon_target" style_text_font="mdi_icons_48"
-              style_text_color="#primary_color" style_text_align="center" align="top_left" flag_floating="true"
+              style_text_color="#primary" style_text_align="center" align="top_left" flag_floating="true"
               hidden="true"/>
 
     <!-- Test area container - shown in COMPLETE state for testing calibration -->

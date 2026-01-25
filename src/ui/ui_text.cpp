@@ -26,7 +26,7 @@
  *
  * @param label Label widget to style
  * @param font_const_name Name of font constant in globals.xml (e.g., "font_heading")
- * @param color_const_name Name of color constant in globals.xml (e.g., "header_text")
+ * @param color_const_name Name of color constant in globals.xml (e.g., "text_muted")
  */
 static void apply_semantic_style(lv_obj_t* label, const char* font_const_name,
                                  const char* color_const_name) {
@@ -157,19 +157,19 @@ static lv_obj_t* create_semantic_label(lv_xml_parser_state_t* state, const char*
 // XML create callbacks - each variant just specifies font/color constants
 
 static void* ui_text_heading_create(lv_xml_parser_state_t* state, const char** attrs) {
-    return create_semantic_label(state, attrs, "font_heading", "header_text");
+    return create_semantic_label(state, attrs, "font_heading", "text_muted");
 }
 
 static void* ui_text_body_create(lv_xml_parser_state_t* state, const char** attrs) {
-    return create_semantic_label(state, attrs, "font_body", "text_primary");
+    return create_semantic_label(state, attrs, "font_body", "text");
 }
 
 static void* ui_text_small_create(lv_xml_parser_state_t* state, const char** attrs) {
-    return create_semantic_label(state, attrs, "font_small", "text_secondary");
+    return create_semantic_label(state, attrs, "font_small", "text_muted");
 }
 
 static void* ui_text_xs_create(lv_xml_parser_state_t* state, const char** attrs) {
-    return create_semantic_label(state, attrs, "font_xs", "text_secondary");
+    return create_semantic_label(state, attrs, "font_xs", "text_muted");
 }
 
 /**
@@ -179,7 +179,7 @@ static void* ui_text_xs_create(lv_xml_parser_state_t* state, const char** attrs)
  * Used inside lv_button elements to provide consistent button label styling.
  */
 static void* ui_text_button_create(lv_xml_parser_state_t* state, const char** attrs) {
-    lv_obj_t* label = create_semantic_label(state, attrs, "font_body", "text_primary");
+    lv_obj_t* label = create_semantic_label(state, attrs, "font_body", "text");
     if (label) {
         // Center the label within its parent (the button)
         lv_obj_set_align(label, LV_ALIGN_CENTER);

@@ -6,7 +6,7 @@
 <!-- XML-First Design: Layout/styling here; C++ populates sensor list dynamically -->
 <component>
   <view name="filament_sensors_overlay"
-        extends="overlay_panel" width="#overlay_panel_width_full" title="Filament Sensors" bg_color="#app_bg_color">
+        extends="overlay_panel" width="#overlay_panel_width_full" title="Filament Sensors" bg_color="#app_bg">
     <!-- Content Area -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_bg_opa="0" style_pad_all="#space_lg" scrollable="false"
@@ -15,7 +15,7 @@
       <!-- MASTER ENABLE SECTION -->
       <!-- ================================================================== -->
       <lv_obj name="master_enable_card"
-              width="100%" height="content" style_bg_color="#app_bg_color" style_bg_opa="255"
+              width="100%" height="content" style_bg_color="#app_bg" style_bg_opa="255"
               style_radius="#border_radius" style_border_width="0" style_pad_all="#space_lg" scrollable="false"
               flex_flow="column" style_pad_gap="#space_sm">
         <!-- Header Row: Label + toggle -->
@@ -26,7 +26,7 @@
                   height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
                   flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
             <icon src="filament" size="sm" variant="secondary"/>
-            <text_body text="Enable Monitoring" style_text_color="#text_primary"/>
+            <text_body text="Enable Monitoring" style_text_color="#text"/>
           </lv_obj>
           <!-- Master Toggle Switch -->
           <ui_switch name="master_toggle" size="small">
@@ -36,7 +36,7 @@
         </lv_obj>
         <!-- Description -->
         <text_small width="100%"
-                    text="When disabled, all filament sensor monitoring is bypassed" style_text_color="#text_secondary"
+                    text="When disabled, all filament sensor monitoring is bypassed" style_text_color="#text_muted"
                     style_text_align="left"/>
       </lv_obj>
       <!-- Divider -->
@@ -47,12 +47,12 @@
       <lv_obj width="100%"
               height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
               flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center">
-        <text_body text="Discovered Sensors" style_text_color="#text_primary"/>
-        <text_small name="sensor_count_label" text="(0)" style_text_color="#text_secondary"/>
+        <text_body text="Discovered Sensors" style_text_color="#text"/>
+        <text_small name="sensor_count_label" text="(0)" style_text_color="#text_muted"/>
       </lv_obj>
       <!-- Sensors List Container (scrollable) -->
       <lv_obj name="sensors_list"
-              width="100%" flex_grow="1" style_bg_color="#app_bg_color" style_bg_opa="255" style_radius="#border_radius"
+              width="100%" flex_grow="1" style_bg_color="#app_bg" style_bg_opa="255" style_radius="#border_radius"
               style_border_width="0" style_pad_all="#space_sm" scrollable="true" scroll_dir="VER" scroll_elastic="false"
               style_clip_corner="true" flex_flow="column" style_pad_gap="#space_sm">
         <!-- filament_sensor_row components are created here dynamically by C++ -->
@@ -61,7 +61,7 @@
           <bind_flag_if_not_eq subject="filament_sensor_count" flag="hidden" ref_value="0"/>
           <icon src="filament" size="md" variant="secondary"/>
           <text_small text="No filament sensors detected"
-                      style_text_color="#text_secondary" style_margin_top="#space_sm"/>
+                      style_text_color="#text_muted" style_margin_top="#space_sm"/>
         </centered_column>
       </lv_obj>
       <!-- ================================================================== -->

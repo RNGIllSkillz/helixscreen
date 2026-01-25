@@ -4,8 +4,8 @@
 <component>
   <!-- Styles for reactive Z-offset amount button state binding (L040: no inline bg attrs) -->
   <styles>
-    <style name="z_amount_selected" bg_color="#tertiary_color" bg_opa="255"/>
-    <style name="z_amount_unselected" bg_color="#tertiary_color" bg_opa="40"/>
+    <style name="z_amount_selected" bg_color="#primary" bg_opa="255"/>
+    <style name="z_amount_unselected" bg_color="#primary" bg_opa="40"/>
   </styles>
   <!-- Print Tuning Panel: Speed and Flow adjustment during active print -->
   <view name="print_tune_panel" extends="overlay_panel" title="Print Tuning">
@@ -30,7 +30,7 @@
             <event_cb trigger="value_changed" callback="on_tune_speed_display"/>
             <event_cb trigger="released" callback="on_tune_speed_send"/>
           </lv_slider>
-          <text_small text="Movement speed" style_text_color="#text_secondary"/>
+          <text_small text="Movement speed" style_text_color="#text_muted"/>
         </lv_obj>
         <!-- Flow Control (right) -->
         <lv_obj name="flow_section"
@@ -44,7 +44,7 @@
             <event_cb trigger="value_changed" callback="on_tune_flow_display"/>
             <event_cb trigger="released" callback="on_tune_flow_send"/>
           </lv_slider>
-          <text_small text="Extrusion rate" style_text_color="#text_secondary"/>
+          <text_small text="Extrusion rate" style_text_color="#text_muted"/>
         </lv_obj>
       </lv_obj>
       <!-- Reset Speed & Flow Button (under sliders) -->
@@ -83,28 +83,28 @@
               <bind_style name="z_amount_selected" subject="z_amount_005_active" ref_value="1"/>
               <bind_style name="z_amount_unselected" subject="z_amount_005_active" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_tune_z_amount_select"/>
-              <text_small text="0.05" align="center" style_text_color="#text_primary"/>
+              <text_small text="0.05" align="center" style_text_color="#text"/>
             </lv_button>
             <lv_button name="btn_z_amount_0025"
                        height="#button_height" flex_grow="1" style_radius="#border_radius" style_border_width="0">
               <bind_style name="z_amount_selected" subject="z_amount_0025_active" ref_value="1"/>
               <bind_style name="z_amount_unselected" subject="z_amount_0025_active" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_tune_z_amount_select"/>
-              <text_small text="0.025" align="center" style_text_color="#text_primary"/>
+              <text_small text="0.025" align="center" style_text_color="#text"/>
             </lv_button>
             <lv_button name="btn_z_amount_001"
                        height="#button_height" flex_grow="1" style_radius="#border_radius" style_border_width="0">
               <bind_style name="z_amount_selected" subject="z_amount_001_active" ref_value="1"/>
               <bind_style name="z_amount_unselected" subject="z_amount_001_active" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_tune_z_amount_select"/>
-              <text_small text="0.01" align="center" style_text_color="#text_primary"/>
+              <text_small text="0.01" align="center" style_text_color="#text"/>
             </lv_button>
             <lv_button name="btn_z_amount_00025"
                        height="#button_height" flex_grow="1" style_radius="#border_radius" style_border_width="0">
               <bind_style name="z_amount_selected" subject="z_amount_00025_active" ref_value="1"/>
               <bind_style name="z_amount_unselected" subject="z_amount_00025_active" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_tune_z_amount_select"/>
-              <text_small text="0.0025" align="center" style_text_color="#text_primary"/>
+              <text_small text="0.0025" align="center" style_text_color="#text"/>
             </lv_button>
           </lv_obj>
           <!-- Up/Down direction buttons (stacked vertically) -->
@@ -141,10 +141,10 @@
             </lv_button>
           </lv_obj>
         </lv_obj>
-        <text_small text="Closer = more squish | Farther = less squish" style_text_color="#text_secondary"/>
+        <text_small text="Closer = more squish | Farther = less squish" style_text_color="#text_muted"/>
         <text_small name="z_offset_help_text"
                     text="Temporary adjustment for this print, unless saved on Controls panel"
-                    style_text_color="#text_secondary"/>
+                    style_text_color="#text_muted"/>
       </lv_obj>
     </lv_obj>
   </view>

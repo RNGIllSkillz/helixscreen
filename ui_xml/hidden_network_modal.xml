@@ -56,7 +56,7 @@
       </lv_obj>
       <!-- Error message (hidden when empty) -->
       <text_small name="error_label"
-                  width="100%" text="" style_text_align="center" style_text_color="#error_color" hidden="true"/>
+                  width="100%" text="" style_text_align="center" style_text_color="#danger" hidden="true"/>
     </lv_obj>
     <!-- ============================================================ -->
     <!-- STATE: CONNECTING - Spinner and status (shown when connecting) -->

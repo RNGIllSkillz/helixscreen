@@ -45,12 +45,12 @@
     <!-- Folder icon - shown for regular directories (folder_type=1) -->
     <lv_label name="folder_icon"
               width="#folder_icon_size" height="#folder_icon_size" text="󰉋" style_text_font="mdi_icons_64"
-              align="center" style_text_align="center" style_text_color="#warning_color" style_translate_y="-10"
+              align="center" style_text_align="center" style_text_color="#warning" style_translate_y="-10"
               hidden="true"/>
     <!-- Parent directory icon - shown for ".." entries (folder_type=2) -->
     <lv_label name="parent_dir_icon"
               width="#folder_icon_size" height="#folder_icon_size" text="󱧰" style_text_font="mdi_icons_64"
-              align="center" style_text_align="center" style_text_color="#warning_color" style_translate_y="-10"
+              align="center" style_text_align="center" style_text_color="#warning" style_translate_y="-10"
               hidden="true"/>
     <!-- Metadata clip container - sharp top edge, clips the inner overlay's top rounded corners -->
     <lv_obj name="metadata_clip"
@@ -64,7 +64,7 @@
               scrollable="false">
         <!-- Filename label (single line, truncated with ...) -->
         <text_xs name="filename_label"
-                 width="100%" height="18" text="$filename" long_mode="dots" style_text_color="#text_primary"/>
+                 width="100%" height="18" text="$filename" long_mode="dots" style_text_color="#text"/>
         <!-- Metadata row (horizontal layout, responsive) -->
         <lv_obj name="metadata_row"
                 width="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_top="#metadata_top_pad"

@@ -126,37 +126,37 @@ static void apply_variant(lv_obj_t* obj, IconVariant variant) {
     switch (variant) {
     case IconVariant::PRIMARY:
         // Primary text color (white in dark mode)
-        color = theme_manager_get_color("text_primary");
+        color = theme_manager_get_color("text");
         break;
     case IconVariant::SECONDARY:
         // Secondary text color (gray)
-        color = theme_manager_get_color("text_secondary");
+        color = theme_manager_get_color("text_muted");
         break;
     case IconVariant::ACCENT:
         // Accent color (red)
-        color = theme_manager_get_color("primary_color");
+        color = theme_manager_get_color("primary");
         break;
     case IconVariant::DISABLED:
         // Primary text color at 50% opacity
-        color = theme_manager_get_color("text_primary");
+        color = theme_manager_get_color("text");
         opa = LV_OPA_50;
         break;
     case IconVariant::SUCCESS:
         // Success color (green) from globals.xml
-        color = theme_manager_get_color("success_color");
+        color = theme_manager_get_color("success");
         break;
     case IconVariant::WARNING:
         // Warning color (orange) from globals.xml
-        color = theme_manager_get_color("warning_color");
+        color = theme_manager_get_color("warning");
         break;
     case IconVariant::ERROR:
         // Error color (red) from globals.xml
-        color = theme_manager_get_color("error_color");
+        color = theme_manager_get_color("danger");
         break;
     case IconVariant::NONE:
     default:
         // Use default text color (inherit from theme)
-        color = theme_manager_get_color("text_primary");
+        color = theme_manager_get_color("text");
         break;
     }
 

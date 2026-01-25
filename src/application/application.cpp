@@ -666,7 +666,7 @@ bool Application::init_theme() {
     theme_manager_init(m_display->display(), dark_mode);
 
     // Apply background color to screen
-    theme_manager_apply_bg_color(m_screen, "app_bg_color", LV_PART_MAIN);
+    theme_manager_apply_bg_color(m_screen, "app_bg", LV_PART_MAIN);
 
     // Show splash screen if not skipped
     if (!get_runtime_config()->should_skip_splash()) {

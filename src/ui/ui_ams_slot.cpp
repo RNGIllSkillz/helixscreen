@@ -250,10 +250,10 @@ static void apply_slot_status(AmsSlotData* data, int status_int) {
     case SlotStatus::AVAILABLE:
     case SlotStatus::LOADED:
     case SlotStatus::FROM_BUFFER:
-        badge_bg = theme_manager_get_color("success_color");
+        badge_bg = theme_manager_get_color("success");
         break;
     case SlotStatus::BLOCKED:
-        badge_bg = theme_manager_get_color("error_color");
+        badge_bg = theme_manager_get_color("danger");
         break;
     case SlotStatus::EMPTY:
         show_badge = false;
@@ -302,7 +302,7 @@ static void apply_current_slot_highlight(AmsSlotData* data, int current_slot) {
 
     if (is_active) {
         // Active slot: glowing border effect
-        lv_color_t primary = theme_manager_parse_hex_color(lv_xml_get_const(NULL, "primary_color"));
+        lv_color_t primary = theme_manager_parse_hex_color(lv_xml_get_const(NULL, "primary"));
 
         // Border highlight on spool area only
         lv_obj_set_style_border_color(highlight_target, primary, LV_PART_MAIN);
@@ -420,7 +420,7 @@ static void create_slot_children(lv_obj_t* container, AmsSlotData* data) {
     const lv_font_t* font_small =
         font_small_name ? lv_xml_get_font(NULL, font_small_name) : &noto_sans_16;
     lv_obj_set_style_text_font(material, font_small, LV_PART_MAIN);
-    lv_obj_set_style_text_color(material, theme_manager_get_color("text_primary"), LV_PART_MAIN);
+    lv_obj_set_style_text_color(material, theme_manager_get_color("text"), LV_PART_MAIN);
     lv_obj_set_style_text_letter_space(material, 1, LV_PART_MAIN);
     lv_obj_add_flag(material, LV_OBJ_FLAG_CLICKABLE);    // Make label tappable
     lv_obj_add_flag(material, LV_OBJ_FLAG_EVENT_BUBBLE); // Propagate clicks to slot
@@ -591,7 +591,7 @@ static void create_slot_children(lv_obj_t* container, AmsSlotData* data) {
     // Position badge at top-left of the canvas area
     lv_obj_align(tool_badge, LV_ALIGN_TOP_LEFT, 2, 2);
     lv_obj_set_style_radius(tool_badge, 4, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(tool_badge, theme_manager_get_color("text_secondary"), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(tool_badge, theme_manager_get_color("text_muted"), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(tool_badge, LV_OPA_80, LV_PART_MAIN);
     lv_obj_set_style_border_width(tool_badge, 0, LV_PART_MAIN);
     lv_obj_remove_flag(tool_badge, LV_OBJ_FLAG_SCROLLABLE);
@@ -999,8 +999,8 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
             lv_obj_add_flag(data->leader_line, LV_OBJ_FLAG_EVENT_BUBBLE);
 
             // Style: dashed line using theme color
-            lv_obj_set_style_line_color(data->leader_line,
-                                        theme_manager_get_color("text_secondary"), LV_PART_MAIN);
+            lv_obj_set_style_line_color(data->leader_line, theme_manager_get_color("text_muted"),
+                                        LV_PART_MAIN);
             lv_obj_set_style_line_width(data->leader_line, 1, LV_PART_MAIN);
             lv_obj_set_style_line_dash_width(data->leader_line, 4, LV_PART_MAIN);
             lv_obj_set_style_line_dash_gap(data->leader_line, 3, LV_PART_MAIN);
@@ -1110,7 +1110,7 @@ void ui_ams_slot_move_label_to_layer(lv_obj_t* obj, lv_obj_t* labels_layer, int3
         lv_obj_set_pos(data->leader_line, slot_center_x, line_start_y);
 
         // Restore normal line styling (dashed, subtle)
-        lv_obj_set_style_line_color(data->leader_line, theme_manager_get_color("text_secondary"),
+        lv_obj_set_style_line_color(data->leader_line, theme_manager_get_color("text_muted"),
                                     LV_PART_MAIN);
         lv_obj_set_style_line_width(data->leader_line, 1, LV_PART_MAIN);
         lv_obj_set_style_line_opa(data->leader_line, LV_OPA_70, LV_PART_MAIN);

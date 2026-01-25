@@ -6,7 +6,7 @@
 <!-- Uses setting_* components for consistency with main settings panel -->
 <component>
   <view name="display_settings_overlay"
-        extends="overlay_panel" width="#overlay_panel_width_full" title="Display Settings" bg_color="#app_bg_color">
+        extends="overlay_panel" width="#overlay_panel_width_full" title="Display Settings" bg_color="#app_bg">
     <!-- Content Area - no padding, rows handle their own -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_bg_opa="0" style_pad_all="0" scrollable="true" scroll_dir="ver"
@@ -41,12 +41,12 @@
                   height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
                   style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false">
             <icon src="light" size="sm" variant="secondary"/>
-            <text_body text="Brightness" style_text_color="#text_primary"/>
+            <text_body text="Brightness" style_text_color="#text"/>
           </lv_obj>
-          <text_body name="brightness_value_label" bind_text="brightness_value" style_text_color="#text_secondary"/>
+          <text_body name="brightness_value_label" bind_text="brightness_value" style_text_color="#text_muted"/>
         </lv_obj>
         <!-- Description -->
-        <text_small text="Adjust screen brightness level" style_text_color="#text_secondary"/>
+        <text_small text="Adjust screen brightness level" style_text_color="#text_muted"/>
         <!-- Slider with min/max icons -->
         <lv_obj width="100%"
                 height="content" flex_flow="row" style_flex_cross_place="center" style_bg_opa="0" style_border_width="0"

@@ -194,7 +194,7 @@ void PluginInstallModal::show_result_state(bool success, const std::string& mess
     if (success) {
         if (result_icon) {
             lv_image_set_src(result_icon, "check_circle");
-            lv_obj_set_style_image_recolor(result_icon, theme_manager_get_color("success_color"),
+            lv_obj_set_style_image_recolor(result_icon, theme_manager_get_color("success"),
                                            LV_PART_MAIN);
         }
         if (result_title) {
@@ -203,7 +203,7 @@ void PluginInstallModal::show_result_state(bool success, const std::string& mess
     } else {
         if (result_icon) {
             lv_image_set_src(result_icon, "alert_circle");
-            lv_obj_set_style_image_recolor(result_icon, theme_manager_get_color("error_color"),
+            lv_obj_set_style_image_recolor(result_icon, theme_manager_get_color("danger"),
                                            LV_PART_MAIN);
         }
         if (result_title) {

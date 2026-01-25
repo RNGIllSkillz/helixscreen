@@ -24,11 +24,11 @@ void GCodeRenderer::ensure_colors_initialized() {
     colors_initialized_ = true;
 
     // Load colors from theme (theme is guaranteed to be loaded by first render)
-    color_extrusion_ = theme_manager_get_color("primary_color");
-    color_travel_ = theme_manager_get_color("text_secondary");
-    color_object_boundary_ = theme_manager_get_color("secondary_color");
-    color_highlighted_ = theme_manager_get_color("secondary_color");
-    color_excluded_ = theme_manager_get_color("error_color");
+    color_extrusion_ = theme_manager_get_color("primary");
+    color_travel_ = theme_manager_get_color("text_muted");
+    color_object_boundary_ = theme_manager_get_color("success");
+    color_highlighted_ = theme_manager_get_color("success");
+    color_excluded_ = theme_manager_get_color("danger");
 
     // Save theme defaults for reset
     theme_color_extrusion_ = color_extrusion_;

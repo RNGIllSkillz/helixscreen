@@ -3,9 +3,10 @@
 
 #include "ui_color_picker.h"
 
+#include "ui_hsv_picker.h"
+
 #include "color_utils.h"
 #include "theme_manager.h"
-#include "ui_hsv_picker.h"
 
 #include <spdlog/spdlog.h>
 
@@ -143,8 +144,7 @@ void ColorPicker::on_show() {
                 self->update_preview(rgb, true); // from HSV picker
             },
             this);
-        spdlog::debug("[ColorPicker] HSV picker initialized with color #{:06X}",
-                      selected_color_);
+        spdlog::debug("[ColorPicker] HSV picker initialized with color #{:06X}", selected_color_);
     }
 }
 
@@ -204,8 +204,7 @@ void ColorPicker::deinit_subjects() {
 // Internal Methods
 // ============================================================================
 
-void ColorPicker::update_preview(uint32_t color_rgb, bool from_hsv_picker,
-                                    bool from_hex_input) {
+void ColorPicker::update_preview(uint32_t color_rgb, bool from_hsv_picker, bool from_hex_input) {
     if (!dialog_) {
         return;
     }
@@ -223,8 +222,7 @@ void ColorPicker::update_preview(uint32_t color_rgb, bool from_hsv_picker,
         hex_input_updating_ = true;
         snprintf(hex_buf_, sizeof(hex_buf_), "#%06X", color_rgb);
         lv_textarea_set_text(hex_input_, hex_buf_);
-        lv_obj_set_style_text_color(hex_input_, theme_manager_get_color("text_primary"),
-                                    LV_PART_MAIN);
+        lv_obj_set_style_text_color(hex_input_, theme_manager_get_color("text"), LV_PART_MAIN);
         hex_input_updating_ = false;
     }
 
@@ -277,13 +275,11 @@ void ColorPicker::handle_hex_input_changed() {
 
     if (helix::parse_hex_color(text, parsed_color)) {
         // Valid - normal text color, update preview
-        lv_obj_set_style_text_color(hex_input_, theme_manager_get_color("text_primary"),
-                                    LV_PART_MAIN);
+        lv_obj_set_style_text_color(hex_input_, theme_manager_get_color("text"), LV_PART_MAIN);
         update_preview(parsed_color, false, true); // from_hex_input=true
     } else {
         // Invalid - show error color
-        lv_obj_set_style_text_color(hex_input_, theme_manager_get_color("error_color"),
-                                    LV_PART_MAIN);
+        lv_obj_set_style_text_color(hex_input_, theme_manager_get_color("danger"), LV_PART_MAIN);
     }
 }
 
@@ -300,8 +296,7 @@ void ColorPicker::handle_hex_input_defocused() {
         hex_input_updating_ = true;
         snprintf(hex_buf_, sizeof(hex_buf_), "#%06X", selected_color_);
         lv_textarea_set_text(hex_input_, hex_buf_);
-        lv_obj_set_style_text_color(hex_input_, theme_manager_get_color("text_primary"),
-                                    LV_PART_MAIN);
+        lv_obj_set_style_text_color(hex_input_, theme_manager_get_color("text"), LV_PART_MAIN);
         hex_input_updating_ = false;
     }
 }

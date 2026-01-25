@@ -75,7 +75,7 @@
       </lv_obj>
       <!-- Status/error message area -->
       <text_small name="fan_status_text"
-                  width="100%" style_pad_top="#space_md" style_text_color="#error_color" hidden="true"/>
+                  width="100%" style_pad_top="#space_md" style_text_color="#danger" hidden="true"/>
     </ui_card>
   </view>
 </component>

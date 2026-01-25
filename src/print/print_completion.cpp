@@ -72,20 +72,20 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
     int total_layers = lv_subject_get_int(printer_state.get_print_layer_total_subject());
 
     // Determine icon colors and title based on state
-    const char* icon_color_token = "success_color";
+    const char* icon_color_token = "success";
     const char* title = "Print Complete";
 
     switch (state) {
     case PrintJobState::COMPLETE:
-        icon_color_token = "success_color";
+        icon_color_token = "success";
         title = "Print Complete";
         break;
     case PrintJobState::CANCELLED:
-        icon_color_token = "warning_color";
+        icon_color_token = "warning";
         title = "Print Cancelled";
         break;
     case PrintJobState::ERROR:
-        icon_color_token = "error_color";
+        icon_color_token = "danger";
         title = "Print Failed";
         break;
     default:

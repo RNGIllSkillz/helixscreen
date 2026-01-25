@@ -217,8 +217,8 @@ void HeatingIconAnimator::apply_color() {
 }
 
 lv_color_t HeatingIconAnimator::get_secondary_color() {
-    // Use theme's text_secondary color for "off" state
-    return theme_manager_get_color("text_secondary");
+    // Use theme's text_muted color for "off" state
+    return theme_manager_get_color("text_muted");
 }
 
 void HeatingIconAnimator::pulse_anim_cb(void* var, int32_t value) {
