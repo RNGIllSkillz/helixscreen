@@ -26,13 +26,15 @@ This guide walks you through installing HelixScreen on your 3D printer's touchsc
 **One-liner install (recommended):**
 ```bash
 # Raspberry Pi (MainsailOS)
-curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | sh
 
 # Adventurer 5M (run as root)
-curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | sh
 ```
 
 The installer automatically detects your platform and downloads the correct release.
+
+> **Note:** Both `bash` and `sh` work. The installer is POSIX-compatible for BusyBox environments (like AD5M).
 
 **Manual installation** (if you prefer):
 
@@ -560,14 +562,15 @@ sudo systemctl restart helixscreen
 The uninstall script removes HelixScreen and **restores your previous UI** (GuppyScreen, FeatherScreen, etc.):
 
 ```bash
-# If HelixScreen is installed (AD5M - run as root)
-/opt/helixscreen/scripts/uninstall.sh
+# Download and run (recommended - works on any platform)
+curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/uninstall.sh | sh
 
-# If HelixScreen is installed (Pi - use sudo)
-sudo /opt/helixscreen/scripts/uninstall.sh
+# Or if HelixScreen is already installed, use the local script
+./scripts/uninstall.sh           # AD5M (already root)
+sudo ./scripts/uninstall.sh      # Pi
 
-# Or download and run
-curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/uninstall.sh | sudo bash
+# Skip confirmation prompt
+./scripts/uninstall.sh --force
 ```
 
 ### Using Install Script

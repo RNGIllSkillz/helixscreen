@@ -348,6 +348,57 @@ docs(readme): update build instructions
 
 ---
 
+## Installer Scripts
+
+The installation system is modular for maintainability and BusyBox compatibility.
+
+### Structure
+
+```
+scripts/
+├── install.sh                    # Main orchestrator (~220 lines)
+├── uninstall.sh                  # Standalone uninstaller
+├── lib/installer/                # Shared modules
+│   ├── common.sh                 # Logging, colors, error handling
+│   ├── platform.sh               # Platform/firmware detection
+│   ├── permissions.sh            # Root/sudo handling
+│   ├── requirements.sh           # Pre-flight checks
+│   ├── forgex.sh                 # ForgeX-specific functions
+│   ├── competing_uis.sh          # Stop GuppyScreen, KlipperScreen, etc.
+│   ├── release.sh                # Download and extract
+│   ├── service.sh                # Systemd/SysV service management
+│   └── uninstall.sh              # Uninstall/clean functions
+├── bundle-installer.sh           # Generate single-file version
+└── install-bundled.sh            # Auto-generated for curl|sh
+```
+
+### BusyBox Compatibility
+
+All modules use POSIX `#!/bin/sh` (not bash) for AD5M's BusyBox environment:
+- `[ ]` instead of `[[ ]]`
+- `command -v X >/dev/null 2>&1` instead of `&>`
+- No arrays (use space-separated strings)
+- `ps -ef` instead of `ps aux`
+
+### Generating Bundled Installer
+
+```bash
+./scripts/bundle-installer.sh -o ./scripts/install-bundled.sh
+```
+
+The bundled version inlines all modules for curl|sh usage.
+
+### Testing Installers
+
+```bash
+./scripts/install.sh --help           # Test modular version
+./scripts/install-bundled.sh --help   # Test bundled version
+./scripts/uninstall.sh --help         # Test uninstaller
+sh -n scripts/install.sh              # Check POSIX syntax
+```
+
+---
+
 ## Related Documentation
 
 - **[README.md](../README.md)** - Project overview

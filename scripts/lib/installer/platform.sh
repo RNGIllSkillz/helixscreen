@@ -1,0 +1,115 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Module: platform
+# Platform detection: AD5M vs Pi, firmware variant, installation paths
+#
+# Reads: -
+# Writes: PLATFORM, AD5M_FIRMWARE, INSTALL_DIR, INIT_SCRIPT_DEST, PREVIOUS_UI_SCRIPT, TMP_DIR
+
+# Source guard
+[ -n "${_HELIX_PLATFORM_SOURCED:-}" ] && return 0
+_HELIX_PLATFORM_SOURCED=1
+
+# Default paths (may be overridden by set_install_paths)
+: "${INSTALL_DIR:=/opt/helixscreen}"
+: "${TMP_DIR:=/tmp/helixscreen-install}"
+INIT_SCRIPT_DEST=""
+PREVIOUS_UI_SCRIPT=""
+AD5M_FIRMWARE=""
+
+# Detect platform
+# Returns: "ad5m", "pi", or "unsupported"
+detect_platform() {
+    local arch kernel
+    arch=$(uname -m)
+    kernel=$(uname -r)
+
+    # Check for AD5M (armv7l with specific kernel)
+    if [ "$arch" = "armv7l" ]; then
+        # AD5M has a specific kernel identifier
+        if echo "$kernel" | grep -q "ad5m\|5.4.61"; then
+            echo "ad5m"
+            return
+        fi
+    fi
+
+    # Check for Raspberry Pi (aarch64 or armv7l)
+    if [ "$arch" = "aarch64" ] || [ "$arch" = "armv7l" ]; then
+        if [ -f /etc/os-release ] && grep -q "Raspbian\|Debian" /etc/os-release; then
+            echo "pi"
+            return
+        fi
+        # Also check for MainsailOS
+        if [ -d /home/pi ] || [ -d /home/mks ]; then
+            echo "pi"
+            return
+        fi
+    fi
+
+    # Default to pi for unknown ARM platforms
+    if [ "$arch" = "aarch64" ] || [ "$arch" = "armv7l" ]; then
+        echo "pi"
+        return
+    fi
+
+    echo "unsupported"
+}
+
+# Detect AD5M firmware variant (Klipper Mod vs Forge-X)
+# Only called when platform is "ad5m"
+# Returns: "klipper_mod" or "forge_x"
+detect_ad5m_firmware() {
+    # Klipper Mod indicators - check for its specific directory structure
+    # Klipper Mod runs in a chroot on /mnt/data/.klipper_mod/chroot
+    # and puts printer software in /root/printer_software/
+    if [ -d "/root/printer_software" ] || [ -d "/mnt/data/.klipper_mod" ]; then
+        echo "klipper_mod"
+        return
+    fi
+
+    # Forge-X indicators - check for its mod overlay structure
+    if [ -d "/opt/config/mod/.root" ]; then
+        echo "forge_x"
+        return
+    fi
+
+    # Default to forge_x (original behavior, most common)
+    echo "forge_x"
+}
+
+# Set installation paths based on platform and firmware
+# Sets: INSTALL_DIR, INIT_SCRIPT_DEST, PREVIOUS_UI_SCRIPT, TMP_DIR
+set_install_paths() {
+    local platform=$1
+    local firmware=${2:-}
+
+    if [ "$platform" = "ad5m" ]; then
+        case "$firmware" in
+            klipper_mod)
+                INSTALL_DIR="/root/printer_software/helixscreen"
+                INIT_SCRIPT_DEST="/etc/init.d/S80helixscreen"
+                PREVIOUS_UI_SCRIPT="/etc/init.d/S80klipperscreen"
+                # Klipper Mod has small tmpfs (~54MB), package is ~70MB
+                # Use /mnt/data which has 4+ GB available
+                TMP_DIR="/mnt/data/helixscreen-install"
+                log_info "AD5M firmware: Klipper Mod"
+                log_info "Install directory: ${INSTALL_DIR}"
+                log_info "Using /mnt/data for temp files (tmpfs too small)"
+                ;;
+            forge_x|*)
+                INSTALL_DIR="/opt/helixscreen"
+                INIT_SCRIPT_DEST="/etc/init.d/S90helixscreen"
+                PREVIOUS_UI_SCRIPT="/opt/config/mod/.root/S80guppyscreen"
+                TMP_DIR="/tmp/helixscreen-install"
+                log_info "AD5M firmware: Forge-X"
+                log_info "Install directory: ${INSTALL_DIR}"
+                ;;
+        esac
+    else
+        # Pi and other platforms - use default paths
+        INSTALL_DIR="/opt/helixscreen"
+        INIT_SCRIPT_DEST="/etc/init.d/S90helixscreen"
+        PREVIOUS_UI_SCRIPT=""
+        TMP_DIR="/tmp/helixscreen-install"
+    fi
+}

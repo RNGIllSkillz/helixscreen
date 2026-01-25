@@ -17,271 +17,47 @@
 
 set -e
 
-# Colors (if terminal supports it)
-if [ -t 1 ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    CYAN='\033[0;36m'
-    NC='\033[0m'
-else
-    RED=''
-    GREEN=''
-    YELLOW=''
-    CYAN=''
-    NC=''
-fi
+# Source modules
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LIB_DIR="$SCRIPT_DIR/lib/installer"
 
-log_info() { echo "${CYAN}[INFO]${NC} $1"; }
-log_success() { echo "${GREEN}[OK]${NC} $1"; }
-log_warn() { echo "${YELLOW}[WARN]${NC} $1"; }
-log_error() { echo "${RED}[ERROR]${NC} $1" >&2; }
+. "$LIB_DIR/common.sh"
+. "$LIB_DIR/platform.sh"
+. "$LIB_DIR/permissions.sh"
+. "$LIB_DIR/requirements.sh"
+. "$LIB_DIR/forgex.sh"
+. "$LIB_DIR/service.sh"
+. "$LIB_DIR/uninstall.sh"
 
-# Default paths - may be overridden by set_install_paths()
-INSTALL_DIR="/opt/helixscreen"
-INIT_SCRIPT="/etc/init.d/S90helixscreen"
-SYSTEMD_SERVICE="/etc/systemd/system/helixscreen.service"
-PREVIOUS_UI_SCRIPT=""
-AD5M_FIRMWARE=""
-
-# Previous UIs we may need to re-enable
+# Previous UIs we may need to re-enable (for scanning)
 PREVIOUS_UIS="guppyscreen GuppyScreen featherscreen FeatherScreen klipperscreen KlipperScreen"
 
-# Detect init system
-detect_init_system() {
-    if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
-        echo "systemd"
-    elif [ -d /etc/init.d ]; then
-        echo "sysv"
-    else
-        echo "unknown"
-    fi
-}
-
-# Detect platform (AD5M vs Pi)
-detect_platform() {
-    local arch=$(uname -m)
-    local kernel=$(uname -r)
-
-    # Check for AD5M (armv7l with specific kernel)
-    if [ "$arch" = "armv7l" ]; then
-        if echo "$kernel" | grep -q "ad5m\|5.4.61"; then
-            echo "ad5m"
-            return
-        fi
-    fi
-
-    # Default to pi for other platforms
-    echo "pi"
-}
-
-# Detect AD5M firmware variant (Klipper Mod vs Forge-X)
-# Only called when platform is "ad5m"
-detect_ad5m_firmware() {
-    # Klipper Mod indicators - check for its specific directory structure
-    if [ -d "/root/printer_software" ] || [ -d "/mnt/data/.klipper_mod" ]; then
-        echo "klipper_mod"
-        return
-    fi
-
-    # Forge-X indicators - check for its mod overlay structure
-    if [ -d "/opt/config/mod/.root" ]; then
-        echo "forge_x"
-        return
-    fi
-
-    # Default to forge_x (original behavior, most common)
-    echo "forge_x"
-}
-
-# Set installation paths based on platform and firmware
-set_install_paths() {
-    local platform=$1
-    local firmware=${2:-}
-
-    if [ "$platform" = "ad5m" ]; then
-        case "$firmware" in
-            klipper_mod)
-                INSTALL_DIR="/root/printer_software/helixscreen"
-                INIT_SCRIPT="/etc/init.d/S80helixscreen"
-                PREVIOUS_UI_SCRIPT="/etc/init.d/S80klipperscreen"
-                ;;
-            forge_x|*)
-                INSTALL_DIR="/opt/helixscreen"
-                INIT_SCRIPT="/etc/init.d/S90helixscreen"
-                PREVIOUS_UI_SCRIPT="/opt/config/mod/.root/S80guppyscreen"
-                ;;
-        esac
-    else
-        # Pi and other platforms - use default paths
-        INSTALL_DIR="/opt/helixscreen"
-        INIT_SCRIPT="/etc/init.d/S90helixscreen"
-        PREVIOUS_UI_SCRIPT=""
-    fi
-}
-
-# Restore ForgeX display settings to re-enable GuppyScreen
-# This reverses what configure_forgex_display() does in install.sh
-restore_forgex_display() {
-    local var_file="/opt/config/mod_data/variables.cfg"
-    if [ -f "$var_file" ]; then
-        # Restore display = 'GUPPY' if currently set to STOCK
-        if grep -q "display[[:space:]]*=[[:space:]]*'STOCK'" "$var_file"; then
-            log_info "Restoring GuppyScreen in ForgeX configuration..."
-            sed -i "s/display[[:space:]]*=[[:space:]]*'STOCK'/display = 'GUPPY'/" "$var_file"
-            log_success "ForgeX display mode restored to GUPPY"
-            return 0
-        fi
-    fi
-    return 1
-}
-
-# Restore stock FlashForge UI in auto_run.sh
-# This reverses what disable_stock_firmware_ui() does in install.sh
-restore_stock_firmware_ui() {
-    local auto_run="/opt/auto_run.sh"
-    if [ -f "$auto_run" ]; then
-        # Check if our disabled line exists
-        if grep -q "^# Disabled by HelixScreen: /opt/PROGRAM/ffstartup-arm" "$auto_run"; then
-            log_info "Re-enabling stock FlashForge UI in auto_run.sh..."
-            sed -i 's|^# Disabled by HelixScreen: /opt/PROGRAM/ffstartup-arm|/opt/PROGRAM/ffstartup-arm|' "$auto_run"
-            log_success "Stock FlashForge UI re-enabled"
-            return 0
-        fi
-    fi
-    return 1
-}
-
-# Check if running as root
-check_root() {
-    if [ "$(id -u)" != "0" ]; then
-        log_error "This script must be run as root."
-        log_error "Please run: sudo $0"
-        exit 1
-    fi
-}
-
-# Stop HelixScreen
-stop_helixscreen() {
-    log_info "Stopping HelixScreen..."
-
-    INIT_SYSTEM=$(detect_init_system)
-
-    if [ "$INIT_SYSTEM" = "systemd" ]; then
-        systemctl stop helixscreen 2>/dev/null || true
-        systemctl disable helixscreen 2>/dev/null || true
-    fi
-
-    # Stop via configured init script
-    if [ -x "$INIT_SCRIPT" ]; then
-        "$INIT_SCRIPT" stop 2>/dev/null || true
-    fi
-
-    # Also check both possible init script locations (for cross-firmware compatibility)
-    for init_script in /etc/init.d/S80helixscreen /etc/init.d/S90helixscreen; do
-        if [ -x "$init_script" ] && [ "$init_script" != "$INIT_SCRIPT" ]; then
-            "$init_script" stop 2>/dev/null || true
-        fi
-    done
-
-    # Kill any remaining processes (watchdog first to prevent crash dialog flash)
-    if command -v killall >/dev/null 2>&1; then
-        killall helix-watchdog 2>/dev/null || true
-        killall helix-screen 2>/dev/null || true
-        killall helix-splash 2>/dev/null || true
-    elif command -v pidof >/dev/null 2>&1; then
-        for proc in helix-watchdog helix-screen helix-splash; do
-            for pid in $(pidof "$proc" 2>/dev/null); do
-                kill "$pid" 2>/dev/null || true
-            done
-        done
-    fi
-
-    log_success "HelixScreen stopped"
-}
-
-# Remove init script or systemd service
-remove_service() {
-    log_info "Removing service configuration..."
-
-    INIT_SYSTEM=$(detect_init_system)
-
-    if [ "$INIT_SYSTEM" = "systemd" ]; then
-        if [ -f "$SYSTEMD_SERVICE" ]; then
-            rm -f "$SYSTEMD_SERVICE"
-            systemctl daemon-reload
-            log_success "Removed systemd service"
-        fi
-    fi
-
-    # Remove configured init script
-    if [ -f "$INIT_SCRIPT" ]; then
-        rm -f "$INIT_SCRIPT"
-        log_success "Removed SysV init script: $INIT_SCRIPT"
-    fi
-
-    # Also check and remove from both possible locations (for cross-firmware compatibility)
-    for init_script in /etc/init.d/S80helixscreen /etc/init.d/S90helixscreen; do
-        if [ -f "$init_script" ] && [ "$init_script" != "$INIT_SCRIPT" ]; then
-            rm -f "$init_script"
-            log_success "Removed SysV init script: $init_script"
-        fi
-    done
-}
-
-# Remove installation directory
-remove_installation() {
-    log_info "Removing installation..."
-
-    local removed_any=false
-
-    # Remove from configured location
-    if [ -d "$INSTALL_DIR" ]; then
-        rm -rf "$INSTALL_DIR"
-        log_success "Removed $INSTALL_DIR"
-        removed_any=true
-    fi
-
-    # Also check and remove from both possible locations (for cross-firmware compatibility)
-    for install_dir in /root/printer_software/helixscreen /opt/helixscreen; do
-        if [ -d "$install_dir" ] && [ "$install_dir" != "$INSTALL_DIR" ]; then
-            rm -rf "$install_dir"
-            log_success "Removed $install_dir"
-            removed_any=true
-        fi
-    done
-
-    if [ "$removed_any" = false ]; then
-        log_warn "No HelixScreen installation found (already removed?)"
-    fi
-
-    # Clean up PID files
-    rm -f /var/run/helixscreen.pid 2>/dev/null || true
-    rm -f /var/run/helix-splash.pid 2>/dev/null || true
-
-    # Clean up log file
-    rm -f /tmp/helixscreen.log 2>/dev/null || true
-}
-
-# Re-enable previous UI
+# Re-enable previous UI (extended version with scanning)
 reenable_previous_ui() {
     log_info "Looking for previous screen UI to re-enable..."
 
-    local found_ui=false
-    local restored_xorg=false
+    found_ui=false
+    restored_xorg=false
 
     # For ForgeX firmware, restore display setting and stock UI in auto_run.sh
-    # This must happen before re-enabling GuppyScreen init script
     if [ "$AD5M_FIRMWARE" = "forge_x" ]; then
-        restore_forgex_display || true
+        # Restore display mode to GUPPY if needed
+        if [ -f "/opt/config/mod_data/variables.cfg" ]; then
+            if grep -q "display[[:space:]]*=[[:space:]]*'STOCK'" "/opt/config/mod_data/variables.cfg"; then
+                log_info "Restoring GuppyScreen in ForgeX configuration..."
+                $SUDO sed -i "s/display[[:space:]]*=[[:space:]]*'STOCK'/display = 'GUPPY'/" "/opt/config/mod_data/variables.cfg"
+                log_success "ForgeX display mode restored to GUPPY"
+            fi
+        fi
         restore_stock_firmware_ui || true
+        unpatch_forgex_screen_sh || true
     fi
 
     # For Klipper Mod, re-enable Xorg first (required for KlipperScreen)
     if [ "$AD5M_FIRMWARE" = "klipper_mod" ] || [ -f "/etc/init.d/S40xorg" ]; then
         if [ -f "/etc/init.d/S40xorg" ]; then
             log_info "Re-enabling Xorg display server..."
-            chmod +x "/etc/init.d/S40xorg" 2>/dev/null || true
+            $SUDO chmod +x "/etc/init.d/S40xorg" 2>/dev/null || true
             restored_xorg=true
         fi
     fi
@@ -289,7 +65,7 @@ reenable_previous_ui() {
     # First, try the specific previous UI script for this firmware
     if [ -n "$PREVIOUS_UI_SCRIPT" ] && [ -f "$PREVIOUS_UI_SCRIPT" ]; then
         log_info "Found previous UI: $PREVIOUS_UI_SCRIPT"
-        chmod +x "$PREVIOUS_UI_SCRIPT" 2>/dev/null || true
+        $SUDO chmod +x "$PREVIOUS_UI_SCRIPT" 2>/dev/null || true
         if "$PREVIOUS_UI_SCRIPT" start 2>/dev/null; then
             log_success "Re-enabled and started: $PREVIOUS_UI_SCRIPT"
             found_ui=true
@@ -311,7 +87,7 @@ reenable_previous_ui() {
             if [ -f "$initscript" ] 2>/dev/null; then
                 log_info "Found previous UI: $initscript"
                 # Re-enable by making executable
-                chmod +x "$initscript" 2>/dev/null || true
+                $SUDO chmod +x "$initscript" 2>/dev/null || true
                 # Start it (only if we haven't already started one)
                 if [ "$found_ui" = false ]; then
                     if "$initscript" start 2>/dev/null; then
@@ -329,12 +105,11 @@ reenable_previous_ui() {
         done
 
         # Check for systemd services
-        INIT_SYSTEM=$(detect_init_system)
         if [ "$INIT_SYSTEM" = "systemd" ]; then
             if systemctl list-unit-files "${ui}.service" >/dev/null 2>&1; then
                 log_info "Found previous UI (systemd): $ui"
-                systemctl enable "$ui" 2>/dev/null || true
-                if systemctl start "$ui" 2>/dev/null; then
+                $SUDO systemctl enable "$ui" 2>/dev/null || true
+                if $SUDO systemctl start "$ui" 2>/dev/null; then
                     log_success "Re-enabled and started: $ui"
                     found_ui=true
                 else
@@ -344,6 +119,11 @@ reenable_previous_ui() {
             fi
         fi
     done
+
+    # Re-enable tslib for ForgeX
+    if [ -f "/opt/config/mod/.root/S35tslib" ]; then
+        $SUDO chmod +x "/opt/config/mod/.root/S35tslib" 2>/dev/null || true
+    fi
 
     if [ "$found_ui" = false ]; then
         log_info "No previous screen UI found to re-enable"
@@ -355,9 +135,106 @@ reenable_previous_ui() {
     fi
 }
 
+# Stop HelixScreen processes and service
+stop_helixscreen() {
+    log_info "Stopping HelixScreen..."
+
+    # Stop via init system
+    if [ "$INIT_SYSTEM" = "systemd" ]; then
+        $SUDO systemctl stop helixscreen 2>/dev/null || true
+        $SUDO systemctl disable helixscreen 2>/dev/null || true
+    fi
+
+    # Stop via configured init script
+    if [ -n "$INIT_SCRIPT_DEST" ] && [ -x "$INIT_SCRIPT_DEST" ]; then
+        $SUDO "$INIT_SCRIPT_DEST" stop 2>/dev/null || true
+    fi
+
+    # Also check both possible init script locations
+    for init_script in /etc/init.d/S80helixscreen /etc/init.d/S90helixscreen; do
+        if [ -x "$init_script" ]; then
+            $SUDO "$init_script" stop 2>/dev/null || true
+        fi
+    done
+
+    # Kill any remaining processes (watchdog first to prevent crash dialog flash)
+    if command -v killall >/dev/null 2>&1; then
+        $SUDO killall helix-watchdog 2>/dev/null || true
+        $SUDO killall helix-screen 2>/dev/null || true
+        $SUDO killall helix-splash 2>/dev/null || true
+    elif command -v pidof >/dev/null 2>&1; then
+        for proc in helix-watchdog helix-screen helix-splash; do
+            for pid in $(pidof "$proc" 2>/dev/null); do
+                $SUDO kill "$pid" 2>/dev/null || true
+            done
+        done
+    fi
+
+    log_success "HelixScreen stopped"
+}
+
+# Remove init script or systemd service
+remove_service() {
+    log_info "Removing service configuration..."
+
+    if [ "$INIT_SYSTEM" = "systemd" ]; then
+        if [ -f "/etc/systemd/system/helixscreen.service" ]; then
+            $SUDO rm -f "/etc/systemd/system/helixscreen.service"
+            $SUDO systemctl daemon-reload
+            log_success "Removed systemd service"
+        fi
+    fi
+
+    # Remove configured init script
+    if [ -n "$INIT_SCRIPT_DEST" ] && [ -f "$INIT_SCRIPT_DEST" ]; then
+        $SUDO rm -f "$INIT_SCRIPT_DEST"
+        log_success "Removed SysV init script: $INIT_SCRIPT_DEST"
+    fi
+
+    # Also check and remove from both possible locations
+    for init_script in /etc/init.d/S80helixscreen /etc/init.d/S90helixscreen; do
+        if [ -f "$init_script" ]; then
+            $SUDO rm -f "$init_script"
+            log_success "Removed SysV init script: $init_script"
+        fi
+    done
+}
+
+# Remove installation directory
+remove_installation() {
+    log_info "Removing installation..."
+
+    removed_any=false
+
+    # Remove from configured location
+    if [ -d "$INSTALL_DIR" ]; then
+        $SUDO rm -rf "$INSTALL_DIR"
+        log_success "Removed $INSTALL_DIR"
+        removed_any=true
+    fi
+
+    # Also check and remove from both possible locations
+    for install_dir in /root/printer_software/helixscreen /opt/helixscreen; do
+        if [ -d "$install_dir" ] && [ "$install_dir" != "$INSTALL_DIR" ]; then
+            $SUDO rm -rf "$install_dir"
+            log_success "Removed $install_dir"
+            removed_any=true
+        fi
+    done
+
+    if [ "$removed_any" = false ]; then
+        log_warn "No HelixScreen installation found (already removed?)"
+    fi
+
+    # Clean up PID files and log file
+    $SUDO rm -f /var/run/helixscreen.pid 2>/dev/null || true
+    $SUDO rm -f /var/run/helix-splash.pid 2>/dev/null || true
+    $SUDO rm -f /tmp/helixscreen.log 2>/dev/null || true
+}
+
 # Main uninstall
 main() {
-    local force=false
+    force=false
 
     # Parse arguments
     while [ $# -gt 0 ]; do
@@ -389,16 +266,19 @@ main() {
     echo "${CYAN}========================================${NC}"
     echo ""
 
-    # Check for root
-    check_root
-
     # Detect platform and firmware to set correct paths
-    local platform=$(detect_platform)
+    platform=$(detect_platform)
     if [ "$platform" = "ad5m" ]; then
         AD5M_FIRMWARE=$(detect_ad5m_firmware)
         log_info "Detected AD5M firmware: $AD5M_FIRMWARE"
     fi
     set_install_paths "$platform" "$AD5M_FIRMWARE"
+
+    # Check for root
+    check_permissions "$platform"
+
+    # Detect init system
+    detect_init_system
 
     # Confirm unless --force
     if [ "$force" = false ]; then
