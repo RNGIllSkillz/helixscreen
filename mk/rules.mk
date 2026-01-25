@@ -70,11 +70,12 @@ ifndef _PARALLEL_CHECKED
 	@echo "$(CURRENT_TARGET)" > "$(ARCH_MARKER)"
 	@# Check dependencies BEFORE parallel build starts (prevents confusing errors)
 	@# Only run if marker is missing or older than check script
+	@# SKIP_OPTIONAL_DEPS=1 passes --minimal for cross-compilation builds (Docker)
 	@if [ ! -f "$(DEPS_CHECKED_MARKER)" ] || [ "scripts/check-deps.sh" -nt "$(DEPS_CHECKED_MARKER)" ]; then \
 		CC="$(CC)" CXX="$(CXX)" ENABLE_SSL="$(ENABLE_SSL)" \
 			LVGL_DIR="$(LVGL_DIR)" SPDLOG_DIR="$(SPDLOG_DIR)" \
 			LIBHV_DIR="$(LIBHV_DIR)" WPA_DIR="$(WPA_DIR)" VENV="$(VENV)" \
-			./scripts/check-deps.sh || exit 1; \
+			./scripts/check-deps.sh $(if $(filter 1,$(SKIP_OPTIONAL_DEPS)),--minimal,) || exit 1; \
 		touch "$(DEPS_CHECKED_MARKER)"; \
 	fi
 	@# Auto-parallelize: add -j$(NPROC) unless bounded -jN already set

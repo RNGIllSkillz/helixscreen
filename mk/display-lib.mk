@@ -11,30 +11,43 @@
 DISPLAY_LIB := $(BUILD_DIR)/lib/libhelix-display.a
 
 # Core display backend sources (always included)
-DISPLAY_SRCS := \
+# Split into API sources and other sources for proper object path handling
+DISPLAY_API_SRCS := \
     src/api/display_backend.cpp
+
+# Touch calibration is needed by display_backend_fbdev.cpp
+DISPLAY_UI_SRCS := \
+    src/ui/touch_calibration.cpp
 
 # Platform-specific backends
 ifeq ($(UNAME_S),Darwin)
     # macOS: SDL only
-    DISPLAY_SRCS += src/api/display_backend_sdl.cpp
+    DISPLAY_API_SRCS += src/api/display_backend_sdl.cpp
 else
     # Linux: framebuffer and DRM for embedded, SDL for desktop
-    DISPLAY_SRCS += src/api/display_backend_fbdev.cpp
-    DISPLAY_SRCS += src/api/display_backend_drm.cpp
+    DISPLAY_API_SRCS += src/api/display_backend_fbdev.cpp
+    DISPLAY_API_SRCS += src/api/display_backend_drm.cpp
     ifndef CROSS_COMPILE
         # Native Linux desktop also gets SDL
-        DISPLAY_SRCS += src/api/display_backend_sdl.cpp
+        DISPLAY_API_SRCS += src/api/display_backend_sdl.cpp
     endif
 endif
 
-DISPLAY_OBJS := $(DISPLAY_SRCS:src/api/%.cpp=$(BUILD_DIR)/display/%.o)
+# Generate object file paths for each source category
+DISPLAY_API_OBJS := $(DISPLAY_API_SRCS:src/api/%.cpp=$(BUILD_DIR)/display/%.o)
+DISPLAY_UI_OBJS := $(DISPLAY_UI_SRCS:src/ui/%.cpp=$(BUILD_DIR)/display/%.o)
+DISPLAY_OBJS := $(DISPLAY_API_OBJS) $(DISPLAY_UI_OBJS)
 
 # Display library needs LVGL headers, project includes, libhv (for config.h -> json.hpp), and SDL2
 DISPLAY_CXXFLAGS := $(CXXFLAGS) -I$(INC_DIR) $(LVGL_INC) $(SPDLOG_INC) $(LIBHV_INC) $(SDL2_INC)
 
-# Build object files (with dependency tracking for header changes)
+# Build object files from src/api/ (with dependency tracking)
 $(BUILD_DIR)/display/%.o: src/api/%.cpp | $(BUILD_DIR)/display
+	@echo "[CXX] $<"
+	$(Q)$(CXX) $(DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# Build object files from src/ui/ (with dependency tracking)
+$(BUILD_DIR)/display/%.o: src/ui/%.cpp | $(BUILD_DIR)/display
 	@echo "[CXX] $<"
 	$(Q)$(CXX) $(DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
