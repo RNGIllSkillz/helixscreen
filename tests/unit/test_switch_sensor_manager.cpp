@@ -685,3 +685,142 @@ TEST_CASE_METHOD(FilamentSensorTestFixture, "FilamentSensorManager - thread safe
         REQUIRE(it2->role == FilamentSensorRole::TOOLHEAD);
     }
 }
+
+// ============================================================================
+// SwitchSensorTypes Tests (switch_sensor_types.h)
+// ============================================================================
+
+// Include the new types header for testing the helpers
+#include "switch_sensor_types.h"
+
+using namespace helix::sensors;
+
+TEST_CASE("SwitchSensorTypes - role string conversion", "[sensors][switch][types]") {
+    SECTION("switch_role_to_string") {
+        REQUIRE(switch_role_to_string(SwitchSensorRole::NONE) == "none");
+        REQUIRE(switch_role_to_string(SwitchSensorRole::FILAMENT_RUNOUT) == "filament_runout");
+        REQUIRE(switch_role_to_string(SwitchSensorRole::FILAMENT_TOOLHEAD) == "filament_toolhead");
+        REQUIRE(switch_role_to_string(SwitchSensorRole::FILAMENT_ENTRY) == "filament_entry");
+        REQUIRE(switch_role_to_string(SwitchSensorRole::Z_PROBE) == "z_probe");
+        REQUIRE(switch_role_to_string(SwitchSensorRole::DOCK_DETECT) == "dock_detect");
+    }
+
+    SECTION("switch_role_from_string") {
+        REQUIRE(switch_role_from_string("none") == SwitchSensorRole::NONE);
+        REQUIRE(switch_role_from_string("filament_runout") == SwitchSensorRole::FILAMENT_RUNOUT);
+        REQUIRE(switch_role_from_string("filament_toolhead") == SwitchSensorRole::FILAMENT_TOOLHEAD);
+        REQUIRE(switch_role_from_string("filament_entry") == SwitchSensorRole::FILAMENT_ENTRY);
+        REQUIRE(switch_role_from_string("z_probe") == SwitchSensorRole::Z_PROBE);
+        REQUIRE(switch_role_from_string("dock_detect") == SwitchSensorRole::DOCK_DETECT);
+        REQUIRE(switch_role_from_string("invalid") == SwitchSensorRole::NONE);
+        REQUIRE(switch_role_from_string("") == SwitchSensorRole::NONE);
+    }
+
+    SECTION("switch_role_from_string - backwards compatibility") {
+        // Old config strings should still work
+        REQUIRE(switch_role_from_string("runout") == SwitchSensorRole::FILAMENT_RUNOUT);
+        REQUIRE(switch_role_from_string("toolhead") == SwitchSensorRole::FILAMENT_TOOLHEAD);
+        REQUIRE(switch_role_from_string("entry") == SwitchSensorRole::FILAMENT_ENTRY);
+    }
+
+    SECTION("switch_role_to_display_string") {
+        REQUIRE(switch_role_to_display_string(SwitchSensorRole::NONE) == "Unassigned");
+        REQUIRE(switch_role_to_display_string(SwitchSensorRole::FILAMENT_RUNOUT) == "Runout");
+        REQUIRE(switch_role_to_display_string(SwitchSensorRole::Z_PROBE) == "Z Probe");
+        REQUIRE(switch_role_to_display_string(SwitchSensorRole::DOCK_DETECT) == "Dock Detect");
+    }
+}
+
+TEST_CASE("SwitchSensorTypes - role category helpers", "[sensors][switch][types]") {
+    SECTION("is_filament_role") {
+        REQUIRE(is_filament_role(SwitchSensorRole::FILAMENT_RUNOUT) == true);
+        REQUIRE(is_filament_role(SwitchSensorRole::FILAMENT_TOOLHEAD) == true);
+        REQUIRE(is_filament_role(SwitchSensorRole::FILAMENT_ENTRY) == true);
+        REQUIRE(is_filament_role(SwitchSensorRole::Z_PROBE) == false);
+        REQUIRE(is_filament_role(SwitchSensorRole::DOCK_DETECT) == false);
+        REQUIRE(is_filament_role(SwitchSensorRole::NONE) == false);
+    }
+
+    SECTION("is_probe_role") {
+        REQUIRE(is_probe_role(SwitchSensorRole::Z_PROBE) == true);
+        REQUIRE(is_probe_role(SwitchSensorRole::FILAMENT_RUNOUT) == false);
+        REQUIRE(is_probe_role(SwitchSensorRole::NONE) == false);
+    }
+}
+
+TEST_CASE("SwitchSensorTypes - type string conversion", "[sensors][switch][types]") {
+    SECTION("switch_type_to_string") {
+        REQUIRE(switch_type_to_string(SwitchSensorType::SWITCH) == "switch");
+        REQUIRE(switch_type_to_string(SwitchSensorType::MOTION) == "motion");
+    }
+
+    SECTION("switch_type_from_string") {
+        REQUIRE(switch_type_from_string("switch") == SwitchSensorType::SWITCH);
+        REQUIRE(switch_type_from_string("motion") == SwitchSensorType::MOTION);
+        REQUIRE(switch_type_from_string("invalid") == SwitchSensorType::SWITCH);
+        REQUIRE(switch_type_from_string("") == SwitchSensorType::SWITCH);
+    }
+}
+
+// ============================================================================
+// Z_PROBE Role Tests (will fail until implemented in FilamentSensorManager)
+// ============================================================================
+// Note: These tests use the EXISTING FilamentSensorManager infrastructure.
+// Once we rename to SwitchSensorManager and add probe support, they'll pass.
+
+TEST_CASE_METHOD(FilamentSensorTestFixture, "FilamentSensorManager - Z_PROBE role assignment",
+                 "[filament][probe]") {
+    // Discover a sensor that can be assigned as probe
+    std::vector<std::string> sensors = {"filament_switch_sensor e1_sensor"};
+    mgr().discover_sensors(sensors);
+
+    SECTION("Can assign Z_PROBE role") {
+        // This will fail until we add Z_PROBE to FilamentSensorRole
+        // For now, skip this test - it documents the intended behavior
+        SKIP("Z_PROBE role not yet implemented in FilamentSensorRole");
+
+        // Intended test (uncomment when implementing):
+        // mgr().set_sensor_role("filament_switch_sensor e1_sensor", FilamentSensorRole::Z_PROBE);
+        // auto configs = mgr().get_sensors();
+        // REQUIRE(configs[0].role == FilamentSensorRole::Z_PROBE);
+    }
+}
+
+TEST_CASE_METHOD(FilamentSensorTestFixture, "FilamentSensorManager - probe subject updates",
+                 "[filament][probe]") {
+    SECTION("Probe triggered subject updates from sensor state") {
+        SKIP("Probe subject not yet implemented");
+
+        // Intended test:
+        // mgr().discover_sensors({"filament_switch_sensor probe"});
+        // mgr().set_sensor_role("filament_switch_sensor probe", FilamentSensorRole::Z_PROBE);
+        //
+        // auto* subject = mgr().get_probe_triggered_subject();
+        // REQUIRE(subject != nullptr);
+        //
+        // json status;
+        // status["filament_switch_sensor probe"]["filament_detected"] = true;
+        // mgr().update_from_status(status);
+        //
+        // REQUIRE(lv_subject_get_int(subject) == 1);  // Triggered
+    }
+}
+
+TEST_CASE_METHOD(FilamentSensorTestFixture, "FilamentSensorManager - is_probe_triggered query",
+                 "[filament][probe]") {
+    SECTION("is_probe_triggered returns correct state") {
+        SKIP("is_probe_triggered not yet implemented");
+
+        // Intended test:
+        // REQUIRE_FALSE(mgr().is_probe_triggered());  // No probe assigned
+        //
+        // mgr().discover_sensors({"filament_switch_sensor e1"});
+        // mgr().set_sensor_role("filament_switch_sensor e1", FilamentSensorRole::Z_PROBE);
+        //
+        // json status;
+        // status["filament_switch_sensor e1"]["filament_detected"] = true;
+        // mgr().update_from_status(status);
+        //
+        // REQUIRE(mgr().is_probe_triggered());
+    }
+}

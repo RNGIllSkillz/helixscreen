@@ -37,8 +37,8 @@ struct SwitchSensorConfig {
     SwitchSensorConfig() = default;
 
     SwitchSensorConfig(std::string klipper_name_, std::string sensor_name_, SwitchSensorType type_)
-        : klipper_name(std::move(klipper_name_)), sensor_name(std::move(sensor_name_)), type(type_) {
-    }
+        : klipper_name(std::move(klipper_name_)), sensor_name(std::move(sensor_name_)),
+          type(type_) {}
 };
 
 /// @brief Runtime state for a switch sensor
