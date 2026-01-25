@@ -222,6 +222,46 @@ void FilamentSensorSettingsOverlay::populate_sensor_list() {
             },
             LV_EVENT_DELETE, nullptr);
 
+        // Wire up enable toggle first (so role dropdown callback can reference it)
+        lv_obj_t* enable_toggle = lv_obj_find_by_name(row, "enable_toggle");
+        lv_obj_t* enable_container = enable_toggle ? lv_obj_get_parent(enable_toggle) : nullptr;
+
+        if (enable_toggle) {
+            // Set current state
+            if (sensor.enabled) {
+                lv_obj_add_state(enable_toggle, LV_STATE_CHECKED);
+            } else {
+                lv_obj_remove_state(enable_toggle, LV_STATE_CHECKED);
+            }
+
+            // Hide enable toggle when role is NONE (toggle has no effect)
+            if (enable_container && sensor.role == helix::FilamentSensorRole::NONE) {
+                lv_obj_add_flag(enable_container, LV_OBJ_FLAG_HIDDEN);
+            }
+
+            // Store klipper_name reference for callback
+            lv_obj_set_user_data(enable_toggle, klipper_name);
+
+            // Wire up value change
+            lv_obj_add_event_cb(
+                enable_toggle,
+                [](lv_event_t* e) {
+                    auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+                    auto* klipper_name_ptr = static_cast<const char*>(lv_obj_get_user_data(toggle));
+                    if (!klipper_name_ptr)
+                        return;
+
+                    bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
+
+                    auto& mgr = helix::FilamentSensorManager::instance();
+                    mgr.set_sensor_enabled(klipper_name_ptr, enabled);
+                    mgr.save_config();
+                    spdlog::info("[FilamentSensorSettingsOverlay] Sensor {} enabled: {}",
+                                 klipper_name_ptr, enabled ? "ON" : "OFF");
+                },
+                LV_EVENT_VALUE_CHANGED, nullptr);
+        }
+
         // Wire up role dropdown (options set in XML)
         lv_obj_t* role_dropdown = lv_obj_find_by_name(row, "role_dropdown");
         if (role_dropdown) {
@@ -249,39 +289,19 @@ void FilamentSensorSettingsOverlay::populate_sensor_list() {
                     mgr.save_config();
                     spdlog::info("[FilamentSensorSettingsOverlay] Sensor {} role changed to {}",
                                  klipper_name_ptr, helix::role_to_config_string(role));
-                },
-                LV_EVENT_VALUE_CHANGED, nullptr);
-        }
 
-        // Wire up enable toggle
-        lv_obj_t* enable_toggle = lv_obj_find_by_name(row, "enable_toggle");
-        if (enable_toggle) {
-            // Set current state
-            if (sensor.enabled) {
-                lv_obj_add_state(enable_toggle, LV_STATE_CHECKED);
-            } else {
-                lv_obj_remove_state(enable_toggle, LV_STATE_CHECKED);
-            }
-
-            // Store klipper_name reference for callback
-            lv_obj_set_user_data(enable_toggle, klipper_name);
-
-            // Wire up value change
-            lv_obj_add_event_cb(
-                enable_toggle,
-                [](lv_event_t* e) {
-                    auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-                    auto* klipper_name_ptr = static_cast<const char*>(lv_obj_get_user_data(toggle));
-                    if (!klipper_name_ptr)
-                        return;
-
-                    bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
-
-                    auto& mgr = helix::FilamentSensorManager::instance();
-                    mgr.set_sensor_enabled(klipper_name_ptr, enabled);
-                    mgr.save_config();
-                    spdlog::info("[FilamentSensorSettingsOverlay] Sensor {} enabled: {}",
-                                 klipper_name_ptr, enabled ? "ON" : "OFF");
+                    // Show/hide enable toggle based on role
+                    // (toggle has no effect when role is NONE)
+                    lv_obj_t* row_obj = lv_obj_get_parent(lv_obj_get_parent(dropdown));
+                    lv_obj_t* toggle = lv_obj_find_by_name(row_obj, "enable_toggle");
+                    if (toggle) {
+                        lv_obj_t* container = lv_obj_get_parent(toggle);
+                        if (role == helix::FilamentSensorRole::NONE) {
+                            lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
+                        } else {
+                            lv_obj_remove_flag(container, LV_OBJ_FLAG_HIDDEN);
+                        }
+                    }
                 },
                 LV_EVENT_VALUE_CHANGED, nullptr);
         }
