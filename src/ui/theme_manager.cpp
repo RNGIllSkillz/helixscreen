@@ -735,9 +735,9 @@ void theme_manager_refresh_preview_elements(lv_obj_t* root, const helix::ThemeDa
     }
 
     // Get mode-appropriate palette (all colors should come from the same palette)
-    const helix::ModePalette* palette =
-        use_dark_mode ? (theme.supports_dark() ? &theme.dark : nullptr)
-                      : (theme.supports_light() ? &theme.light : nullptr);
+    const helix::ModePalette* palette = use_dark_mode
+                                            ? (theme.supports_dark() ? &theme.dark : nullptr)
+                                            : (theme.supports_light() ? &theme.light : nullptr);
     if (!palette) {
         palette = theme.supports_dark() ? &theme.dark : &theme.light;
     }
@@ -754,10 +754,12 @@ void theme_manager_refresh_preview_elements(lv_obj_t* root, const helix::ThemeDa
 
     // Text colors
     lv_color_t text_color = theme_manager_parse_hex_color(palette->text.c_str());
+    lv_color_t text_muted = theme_manager_parse_hex_color(palette->text_muted.c_str());
 
     // Semantic/accent colors
     lv_color_t primary = theme_manager_parse_hex_color(palette->primary.c_str());
     lv_color_t secondary = theme_manager_parse_hex_color(palette->secondary.c_str());
+    lv_color_t tertiary = theme_manager_parse_hex_color(palette->tertiary.c_str());
     lv_color_t success = theme_manager_parse_hex_color(palette->success.c_str());
     lv_color_t warning = theme_manager_parse_hex_color(palette->warning.c_str());
     lv_color_t danger = theme_manager_parse_hex_color(palette->danger.c_str());
@@ -779,14 +781,15 @@ void theme_manager_refresh_preview_elements(lv_obj_t* root, const helix::ThemeDa
     // Fallback: Find unique named elements and walk up to overlay roots
     // Structure: overlay_root -> overlay_content -> ... -> named_element
     if (!preview_overlay) {
-        // Find edit_colors_btn which is a direct child of overlay_content
-        lv_obj_t* edit_btn = lv_obj_find_by_name(root, "edit_colors_btn");
-        if (edit_btn) {
-            // Walk up: edit_colors_btn -> overlay_content -> overlay_root
-            lv_obj_t* parent1 = lv_obj_get_parent(edit_btn);
-            if (parent1) {
-                preview_overlay = lv_obj_get_parent(parent1);
+        // Find theme_preset_dropdown which is in overlay_content
+        lv_obj_t* dropdown = lv_obj_find_by_name(root, "theme_preset_dropdown");
+        if (dropdown) {
+            // Walk up: dropdown -> container -> theme_controls_row -> overlay_content -> overlay_root
+            lv_obj_t* p = dropdown;
+            for (int i = 0; i < 4 && p; i++) {
+                p = lv_obj_get_parent(p);
             }
+            preview_overlay = p;
         }
     }
     if (!editor_overlay) {
@@ -805,7 +808,8 @@ void theme_manager_refresh_preview_elements(lv_obj_t* root, const helix::ThemeDa
     // The actual styled content (with style_bg_color) is the first child.
     // So we update BOTH the found object and its first child to be safe.
     auto update_overlay_bg = [&](lv_obj_t* overlay, const char* name) {
-        if (!overlay) return;
+        if (!overlay)
+            return;
         // Update the wrapper
         lv_obj_set_style_bg_color(overlay, app_bg, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(overlay, LV_OPA_COVER, LV_PART_MAIN);
@@ -833,7 +837,8 @@ void theme_manager_refresh_preview_elements(lv_obj_t* root, const helix::ThemeDa
     // Update header bars - header_bar component has bg_opa="0" by default
     // Also need to update first child since name is on component wrapper
     auto update_header = [&](lv_obj_t* overlay) {
-        if (!overlay) return;
+        if (!overlay)
+            return;
         lv_obj_t* header = lv_obj_find_by_name(overlay, "overlay_header");
         if (header) {
             // Header should match overlay background (app_bg), not card_bg
@@ -844,6 +849,11 @@ void theme_manager_refresh_preview_elements(lv_obj_t* root, const helix::ThemeDa
             if (inner) {
                 lv_obj_set_style_bg_color(inner, app_bg, LV_PART_MAIN);
                 lv_obj_set_style_bg_opa(inner, LV_OPA_COVER, LV_PART_MAIN);
+            }
+            // Back button should have no background (transparent icon)
+            lv_obj_t* back_btn = lv_obj_find_by_name(header, "back_button");
+            if (back_btn) {
+                lv_obj_set_style_bg_opa(back_btn, LV_OPA_TRANSP, LV_PART_MAIN);
             }
         }
     };
@@ -870,15 +880,66 @@ void theme_manager_refresh_preview_elements(lv_obj_t* root, const helix::ThemeDa
     }
 
     // ========================================================================
+    // TYPOGRAPHY - Update text colors for labeled elements
+    // ========================================================================
+    // Elements using primary text color (palette.text)
+    static const char* text_primary_elements[] = {
+        "preview_sample_body", // Sample body text demonstration
+        "preview_bg_title",    // "App Background" title
+        nullptr};
+
+    // Elements using muted text color (palette.text_muted)
+    static const char* text_muted_elements[] = {
+        // Card section headers
+        "preview_heading_typography",
+        "preview_heading_actions",
+        // Sample typography demonstrations
+        "preview_sample_heading",
+        "preview_sample_small",
+        // Form/control labels
+        "preview_label_preset",
+        "preview_label_dark_mode",
+        "preview_label_mode",
+        "preview_label_auto",
+        "preview_label_input",
+        "preview_label_intensity",
+        "preview_label_status_icons",
+        "preview_label_status",
+        // Descriptive text
+        "preview_description",
+        "preview_bg_description",
+        nullptr};
+
+    // Apply primary text color
+    for (const char** name = text_primary_elements; *name != nullptr; ++name) {
+        lv_obj_t* elem = lv_obj_find_by_name(root, *name);
+        if (elem) {
+            lv_obj_set_style_text_color(elem, text_color, LV_PART_MAIN);
+        }
+    }
+
+    // Apply muted text color
+    for (const char** name = text_muted_elements; *name != nullptr; ++name) {
+        lv_obj_t* elem = lv_obj_find_by_name(root, *name);
+        if (elem) {
+            lv_obj_set_style_text_color(elem, text_muted, LV_PART_MAIN);
+        }
+    }
+
+    // ========================================================================
     // ACTION BUTTONS
     // ========================================================================
     lv_obj_t* btn = lv_obj_find_by_name(root, "example_btn_primary");
     if (btn) {
         lv_obj_set_style_bg_color(btn, primary, LV_PART_MAIN);
     }
-    btn = lv_obj_find_by_name(root, "example_btn_success");
+    btn = lv_obj_find_by_name(root, "example_btn_secondary");
     if (btn) {
-        lv_obj_set_style_bg_color(btn, success, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(btn, secondary, LV_PART_MAIN);
+    }
+    btn = lv_obj_find_by_name(root, "example_btn_tertiary");
+    if (btn) {
+        lv_obj_set_style_bg_color(btn, tertiary, LV_PART_MAIN);
     }
     btn = lv_obj_find_by_name(root, "example_btn_warning");
     if (btn) {
@@ -888,10 +949,14 @@ void theme_manager_refresh_preview_elements(lv_obj_t* root, const helix::ThemeDa
     if (btn) {
         lv_obj_set_style_bg_color(btn, danger, LV_PART_MAIN);
     }
-    // Edit Colors button uses success color
-    btn = lv_obj_find_by_name(root, "edit_colors_btn");
+    // Header action buttons - button_2 (Edit) uses secondary, button (Apply) uses primary
+    btn = lv_obj_find_by_name(root, "action_button_2");
     if (btn) {
-        lv_obj_set_style_bg_color(btn, success, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(btn, secondary, LV_PART_MAIN);
+    }
+    btn = lv_obj_find_by_name(root, "action_button");
+    if (btn) {
+        lv_obj_set_style_bg_color(btn, primary, LV_PART_MAIN);
     }
 
     // ========================================================================
@@ -968,7 +1033,8 @@ void theme_manager_refresh_preview_elements(lv_obj_t* root, const helix::ThemeDa
         lv_obj_t* inner_switch = lv_obj_find_by_name(sw, "switch");
         if (inner_switch) {
             lv_obj_set_style_bg_color(inner_switch, border, LV_PART_MAIN);
-            lv_obj_set_style_bg_color(inner_switch, secondary, LV_PART_INDICATOR | LV_STATE_CHECKED);
+            lv_obj_set_style_bg_color(inner_switch, secondary,
+                                      LV_PART_INDICATOR | LV_STATE_CHECKED);
             lv_obj_set_style_bg_color(inner_switch, primary, LV_PART_KNOB);
         }
     }

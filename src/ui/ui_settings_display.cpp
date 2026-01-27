@@ -624,10 +624,14 @@ void DisplaySettingsOverlay::handle_preview_dark_mode_toggled(bool is_dark) {
         update_text_colors_recursive(background_card, text_primary);
     }
 
-    // Update Edit Colors button text
-    lv_obj_t* edit_colors_btn = lv_obj_find_by_name(theme_explorer_overlay_, "edit_colors_btn");
-    if (edit_colors_btn) {
-        update_text_colors_recursive(edit_colors_btn, text_primary);
+    // Update header action buttons text
+    lv_obj_t* action_btn_2 = lv_obj_find_by_name(theme_explorer_overlay_, "action_button_2");
+    if (action_btn_2) {
+        update_text_colors_recursive(action_btn_2, text_primary);
+    }
+    lv_obj_t* action_btn = lv_obj_find_by_name(theme_explorer_overlay_, "action_button");
+    if (action_btn) {
+        update_text_colors_recursive(action_btn, text_primary);
     }
 
     // Also update the content area text
@@ -639,13 +643,14 @@ void DisplaySettingsOverlay::handle_preview_dark_mode_toggled(bool is_dark) {
     // Update header bar for complete preview
     lv_obj_t* header = lv_obj_find_by_name(theme_explorer_overlay_, "overlay_header");
     if (header) {
-        // Header background
-        lv_obj_set_style_bg_color(header, card_bg, LV_PART_MAIN);
+        // Header background should use app_bg, not card_bg
+        lv_obj_set_style_bg_color(header, app_bg, LV_PART_MAIN);
 
-        // Back button icon
+        // Back button icon - ensure transparent background
         lv_obj_t* back_btn = lv_obj_find_by_name(header, "back_button");
         if (back_btn) {
             lv_obj_set_style_text_color(back_btn, text_primary, LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(back_btn, LV_OPA_TRANSP, LV_PART_MAIN);
         }
 
         // Header title
@@ -663,6 +668,23 @@ void DisplaySettingsOverlay::handle_preview_dark_mode_toggled(bool is_dark) {
 
     spdlog::debug("[DisplaySettingsOverlay] Preview dark mode toggled to {} (local only)",
                   is_dark ? "dark" : "light");
+}
+
+void DisplaySettingsOverlay::show_theme_preview(lv_obj_t* parent_screen) {
+    // Store parent screen for overlay creation
+    parent_screen_ = parent_screen;
+
+    // Register callbacks (idempotent - safe to call multiple times)
+    register_callbacks();
+
+    // Use the same flow as handle_theme_settings_clicked()
+    handle_theme_settings_clicked();
+
+    // Show and push the overlay (handle_theme_settings_clicked creates it hidden)
+    if (theme_explorer_overlay_) {
+        lv_obj_remove_flag(theme_explorer_overlay_, LV_OBJ_FLAG_HIDDEN);
+        ui_nav_push_overlay(theme_explorer_overlay_);
+    }
 }
 
 } // namespace helix::settings

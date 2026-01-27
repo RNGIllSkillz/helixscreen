@@ -20,6 +20,7 @@ typedef struct {
     lv_style_t button_style;             // Default button style (grey background)
     lv_style_t dropdown_indicator_style; // Dropdown indicator font (MDI icons)
     lv_style_t checkbox_indicator_style; // Checkbox checkmark font (MDI icons)
+    lv_style_t checkbox_text_style;      // Checkbox label text color
     lv_style_t switch_track_style;       // Switch track (OFF state background)
     lv_style_t switch_indicator_style;   // Switch checked state (accent color)
     lv_style_t switch_knob_style;        // Switch knob (handle) color
@@ -125,9 +126,11 @@ static void helix_theme_apply(lv_theme_t* theme, lv_obj_t* obj) {
 #endif
 
 #if LV_USE_CHECKBOX
-    // Apply MDI font to checkbox indicator (checkmark symbol)
-    // LV_SYMBOL_OK isn't in our fonts, so we use MDI check icon via font override
+    // Checkbox theming: text color and indicator (checkmark) font
     if (lv_obj_check_type(obj, &lv_checkbox_class)) {
+        // Text label color - uses theme text color
+        lv_obj_add_style(obj, &helix->checkbox_text_style, LV_PART_MAIN);
+        // MDI font for checkmark symbol (LV_SYMBOL_OK isn't in our fonts)
         lv_obj_add_style(obj, &helix->checkbox_indicator_style,
                          LV_PART_INDICATOR | LV_STATE_CHECKED);
     }
@@ -179,6 +182,7 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
         lv_style_reset(&helix_theme_instance->button_style);
         lv_style_reset(&helix_theme_instance->dropdown_indicator_style);
         lv_style_reset(&helix_theme_instance->checkbox_indicator_style);
+        lv_style_reset(&helix_theme_instance->checkbox_text_style);
         lv_style_reset(&helix_theme_instance->switch_track_style);
         lv_style_reset(&helix_theme_instance->switch_indicator_style);
         lv_style_reset(&helix_theme_instance->switch_knob_style);
@@ -272,6 +276,10 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
     // Override to use MDI check icon (same fix used in ui_step_progress.cpp)
     lv_style_init(&helix_theme_instance->checkbox_indicator_style);
     lv_style_set_text_font(&helix_theme_instance->checkbox_indicator_style, &mdi_icons_16);
+
+    // Initialize checkbox text style - ensure label uses theme text color
+    lv_style_init(&helix_theme_instance->checkbox_text_style);
+    lv_style_set_text_color(&helix_theme_instance->checkbox_text_style, text_primary_color);
 
     // Initialize switch track style (OFF state background) - uses border color for visibility
     lv_style_init(&helix_theme_instance->switch_track_style);
@@ -396,6 +404,9 @@ void theme_core_update_colors(bool is_dark, lv_color_t screen_bg, lv_color_t car
     // Update button style colors
     lv_style_set_bg_color(&helix_theme_instance->button_style, surface_control);
     lv_style_set_text_color(&helix_theme_instance->button_style, text_primary_color);
+
+    // Update checkbox text color
+    lv_style_set_text_color(&helix_theme_instance->checkbox_text_style, text_primary_color);
 
     // Update switch colors (track=border, indicator=secondary, knob=primary)
     lv_style_set_bg_color(&helix_theme_instance->switch_track_style, border_color);

@@ -7,7 +7,9 @@
   <view name="theme_preview_overlay"
         extends="overlay_panel" width="#overlay_panel_width_full" title="Theme" bg_color="#app_bg"
         hide_action_button="false" action_button_text="Apply" action_button_callback="on_apply_theme_clicked"
-        action_button_height="#button_height" action_button_pad="#space_md">
+        action_button_height="#button_height_sm" action_button_pad="#space_sm"
+        hide_action_button_2="false" action_button_2_text="Edit" action_button_2_callback="on_edit_colors_clicked"
+        action_button_2_bg_color="#secondary">
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_bg_opa="0" style_pad_all="#space_lg" style_border_width="0"
             flex_flow="column" style_pad_gap="#space_md" scrollable="true" scroll_dir="ver">
@@ -18,7 +20,7 @@
         <!-- Theme Preset Dropdown -->
         <lv_obj width="0" height="content" flex_grow="1" flex_flow="column" style_bg_opa="0"
                 style_border_width="0" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
-          <text_small text="Theme Preset" style_text_color="#text_muted"/>
+          <text_small name="preview_label_preset" text="Theme Preset" style_text_color="#text_muted"/>
           <lv_dropdown name="theme_preset_dropdown"
                        width="100%" height="#input_height" style_radius="#border_radius"
                        style_border_width="1" style_border_color="#border">
@@ -29,13 +31,13 @@
         <lv_obj name="dark_mode_toggle_container" width="content" height="content" flex_flow="column" style_bg_opa="0"
                 style_border_width="0" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
           <bind_flag_if_eq subject="settings_dark_mode_available" flag="hidden" ref_value="0"/>
-          <text_small text="Dark Mode" style_text_color="#text_muted"/>
+          <text_small name="preview_label_dark_mode" text="Dark Mode" style_text_color="#text_muted"/>
           <ui_switch name="preview_dark_mode_toggle" size="small" checked="true">
             <event_cb trigger="value_changed" callback="on_preview_dark_mode_toggled"/>
           </ui_switch>
         </lv_obj>
       </lv_obj>
-      <text_body text="Explore how the selected palette shapes text, controls, and status colors."
+      <text_body name="preview_description" text="Explore how the selected palette shapes text, controls, and status colors."
                  style_text_color="#text_muted" long_mode="wrap"/>
       <!-- Preview Cards Row -->
       <lv_obj name="preview_row"
@@ -50,11 +52,11 @@
                   height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
                   style_border_width="0" style_flex_cross_place="center" scrollable="false">
             <icon src="tune" size="sm" variant="accent"/>
-            <text_heading text="Typography"/>
+            <text_heading name="preview_heading_typography" text="Typography"/>
           </lv_obj>
-          <text_heading text="Heading"/>
-          <text_body width="100%" text="Body text supports longer guidance while staying readable." long_mode="wrap"/>
-          <text_small text="Small labels help keep controls calm and focused." style_text_color="#text_muted"/>
+          <text_heading name="preview_sample_heading" text="Heading"/>
+          <text_body name="preview_sample_body" width="100%" text="Body text supports longer guidance while staying readable." long_mode="wrap"/>
+          <text_small name="preview_sample_small" text="Small labels help keep controls calm and focused." style_text_color="#text_muted"/>
           <divider_horizontal opacity="30"/>
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
@@ -62,7 +64,7 @@
             <lv_obj width="0"
                     height="content" flex_grow="1" flex_flow="column" style_bg_opa="0" style_border_width="0"
                     style_pad_all="0" style_pad_gap="#space_xs" scrollable="false">
-              <text_small text="Mode" style_text_color="#text_muted"/>
+              <text_small name="preview_label_mode" text="Mode" style_text_color="#text_muted"/>
               <lv_dropdown name="preview_dropdown"
                            width="100%" height="#input_height" options="Standard&#10;Quiet&#10;Focused"
                            style_radius="#border_radius" style_border_width="0"/>
@@ -70,15 +72,15 @@
             <lv_obj width="content"
                     height="content" flex_flow="column" style_bg_opa="0" style_border_width="0" style_pad_all="0"
                     style_pad_gap="#space_xs" scrollable="false">
-              <text_small text="Auto" style_text_color="#text_muted"/>
+              <text_small name="preview_label_auto" text="Auto" style_text_color="#text_muted"/>
               <ui_switch name="preview_switch" size="small" checked="true"/>
             </lv_obj>
           </lv_obj>
-          <text_small text="Input" style_text_color="#text_muted"/>
+          <text_small name="preview_label_input" text="Input" style_text_color="#text_muted"/>
           <lv_textarea name="preview_text_input"
                        width="100%" height="#input_height" placeholder="Type to preview input field..."
                        style_radius="#border_radius" style_border_width="0" one_line="true"/>
-          <text_small text="Intensity" style_text_color="#text_muted"/>
+          <text_small name="preview_label_intensity" text="Intensity" style_text_color="#text_muted"/>
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_pad_top="#space_sm" style_pad_bottom="#space_sm"
                   style_pad_left="0" style_pad_right="0" style_pad_gap="#space_sm" style_bg_opa="0"
@@ -86,6 +88,7 @@
             <icon src="light_off" size="xs" variant="secondary"/>
             <lv_slider name="preview_intensity_slider" flex_grow="1" min_value="0" max_value="100" value="60"/>
             <icon src="light" size="xs" variant="primary"/>
+            <lv_checkbox name="preview_checkbox" text="Enable" style_pad_all="#space_xs" checked="true"/>
           </lv_obj>
         </lv_obj>
         <!-- Actions Preview Card -->
@@ -97,7 +100,7 @@
                   height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
                   style_border_width="0" style_flex_cross_place="center" scrollable="false">
             <icon src="check_circle" size="sm" variant="accent"/>
-            <text_heading text="Actions"/>
+            <text_heading name="preview_heading_actions" text="Actions"/>
           </lv_obj>
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
@@ -107,26 +110,31 @@
                        style_bg_color="#primary" style_border_width="0" style_shadow_width="0">
               <text_button text="Primary"/>
             </lv_button>
-            <lv_button name="example_btn_success" width="0"
+            <lv_button name="example_btn_secondary" width="0"
                        height="#button_height_sm" flex_grow="1" style_radius="#border_radius_small"
-                       style_bg_color="#success" style_border_width="0" style_shadow_width="0">
+                       style_bg_color="#secondary" style_border_width="0" style_shadow_width="0">
               <text_button text="Secondary"/>
             </lv_button>
           </lv_obj>
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
                   style_border_width="0" style_flex_cross_place="center" scrollable="false">
+            <lv_button name="example_btn_tertiary" width="0"
+                       height="#button_height_sm" flex_grow="1" style_radius="#border_radius_small"
+                       style_bg_color="#tertiary" style_border_width="0" style_shadow_width="0">
+              <text_button text="Tertiary"/>
+            </lv_button>
             <lv_button name="example_btn_warning" width="0"
                        height="#button_height_sm" flex_grow="1" style_radius="#border_radius_small"
                        style_bg_color="#warning" style_border_width="0" style_shadow_width="0">
               <text_button text="Warning"/>
             </lv_button>
-            <lv_button name="example_btn_danger" width="0"
-                       height="#button_height_sm" flex_grow="1" style_radius="#border_radius_small"
-                       style_bg_color="#danger" style_border_width="0" style_shadow_width="0">
-              <text_button text="Danger"/>
-            </lv_button>
           </lv_obj>
+          <lv_button name="example_btn_danger" width="100%"
+                     height="#button_height_sm" style_radius="#border_radius_small"
+                     style_bg_color="#danger" style_border_width="0" style_shadow_width="0">
+            <text_button text="Danger"/>
+          </lv_button>
           <divider_horizontal opacity="20"/>
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
@@ -135,12 +143,12 @@
             <icon src="check_circle" size="sm" variant="success"/>
             <icon src="alert" size="sm" variant="warning"/>
             <icon src="alert_octagon" size="sm" variant="error"/>
-            <text_small text="Status icons" style_text_color="#text_muted"/>
+            <text_small name="preview_label_status_icons" text="Status icons" style_text_color="#text_muted"/>
           </lv_obj>
           <lv_obj width="100%"
                   height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs" style_bg_opa="0"
                   style_border_width="0" scrollable="false">
-            <text_small text="Status" style_text_color="#text_muted"/>
+            <text_small name="preview_label_status" text="Status" style_text_color="#text_muted"/>
             <lv_obj name="aurora_row" width="100%"
                     height="content" flex_flow="row" style_pad_all="0" style_flex_main_place="space_between"
                     style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" scrollable="false">
@@ -169,17 +177,10 @@
               width="100%" height="content" style_bg_color="#app_bg" style_bg_opa="255" style_border_width="1"
               style_border_color="#border" style_radius="#border_radius" style_pad_all="#space_md"
               style_pad_gap="#space_xs" flex_flow="column" scrollable="false">
-        <text_body text="App Background" style_text_color="#text"/>
-        <text_small text="Surfaces inherit app background tokens for light and dark modes."
+        <text_body name="preview_bg_title" text="App Background" style_text_color="#text"/>
+        <text_small name="preview_bg_description" text="Surfaces inherit app background tokens for light and dark modes."
                     style_text_color="#text_muted" long_mode="wrap"/>
       </lv_obj>
-      <!-- Edit Colors Button -->
-      <lv_button name="edit_colors_btn"
-                 width="100%" height="#button_height" style_radius="#border_radius" style_bg_color="#success"
-                 style_bg_opa="255" style_border_width="0" style_shadow_width="0" scroll_on_focus="false">
-        <event_cb trigger="clicked" callback="on_edit_colors_clicked"/>
-        <text_button text="Edit Colors"/>
-      </lv_button>
       <info_note icon="info" text="Theme changes apply after restart."/>
     </lv_obj>
   </view>
