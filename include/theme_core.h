@@ -33,8 +33,10 @@ extern "C" {
  * @param card_bg Card background color (from globals.xml variant)
  * @param surface_control Control surface color for buttons/inputs (mode-aware)
  * @param focus_color Focus ring color for accessibility
- * @param border_color Border/outline color for slider tracks
- * @param border_radius Border radius for buttons/cards (from globals.xml)
+ * @param border_color Border/outline color for slider tracks and buttons
+ * @param border_radius Border radius for buttons/cards (from theme)
+ * @param border_width Border width for buttons (from theme)
+ * @param knob_color Color for slider/switch knobs (brighter of primary/tertiary)
  * @return Initialized theme, or NULL on failure
  *
  * Example usage:
@@ -52,7 +54,8 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
                             lv_color_t secondary_color, lv_color_t text_primary_color, bool is_dark,
                             const lv_font_t* base_font, lv_color_t screen_bg, lv_color_t card_bg,
                             lv_color_t surface_control, lv_color_t focus_color,
-                            lv_color_t border_color, int32_t border_radius);
+                            lv_color_t border_color, int32_t border_radius, int32_t border_width,
+                            lv_color_t knob_color);
 
 /**
  * @brief Update theme colors in-place without recreating the theme
@@ -70,14 +73,16 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
  * @param surface_control Control surface color for buttons/inputs
  * @param text_primary_color Primary text color
  * @param focus_color Focus ring color for accessibility
- * @param primary_color Primary accent color for slider/switch knobs
+ * @param primary_color Primary accent color (unused, kept for compatibility)
  * @param secondary_color Secondary accent color for slider/switch indicators
  * @param border_color Border color for slider tracks
+ * @param knob_color Color for slider/switch knobs (brighter of secondary/tertiary)
  */
 void theme_core_update_colors(bool is_dark, lv_color_t screen_bg, lv_color_t card_bg,
                               lv_color_t surface_control, lv_color_t text_primary_color,
                               lv_color_t focus_color, lv_color_t primary_color,
-                              lv_color_t secondary_color, lv_color_t border_color);
+                              lv_color_t secondary_color, lv_color_t border_color,
+                              lv_color_t knob_color);
 
 /**
  * @brief Update all theme colors for live preview

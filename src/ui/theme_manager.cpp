@@ -66,7 +66,25 @@ static const char* darken_hex_color(const char* hex_str, float percent) {
     return result;
 }
 
-// No longer needed - helix_theme.c handles all color patching and input widget styling
+/**
+ * @brief Calculate perceived brightness of an lv_color_t
+ * Uses standard luminance formula: 0.299*R + 0.587*G + 0.114*B
+ * @return Brightness value 0-255
+ */
+static int color_brightness(lv_color_t color) {
+    uint32_t c = lv_color_to_u32(color);
+    uint8_t r = (c >> 16) & 0xFF;
+    uint8_t g = (c >> 8) & 0xFF;
+    uint8_t b = c & 0xFF;
+    return (299 * r + 587 * g + 114 * b) / 1000;
+}
+
+/**
+ * @brief Return the brighter of two colors
+ */
+static lv_color_t brighter_color(lv_color_t a, lv_color_t b) {
+    return color_brightness(a) >= color_brightness(b) ? a : b;
+}
 
 /**
  * Auto-register theme-aware color constants from all XML files
@@ -416,6 +434,47 @@ static void theme_manager_register_semantic_colors(lv_xml_component_scope_t* sco
 }
 
 /**
+ * @brief Register theme properties (border_radius, border_width, etc.) as XML constants
+ *
+ * These override the default values from globals.xml, allowing themes to customize
+ * geometry like corner radius and border width - similar to how colors work.
+ *
+ * IMPORTANT: Must be called BEFORE theme_manager_register_static_constants() since
+ * LVGL ignores duplicate lv_xml_register_const calls (first registration wins).
+ *
+ * @param scope LVGL XML scope to register constants in
+ * @param theme Theme data with properties
+ */
+static void theme_manager_register_theme_properties(lv_xml_component_scope_t* scope,
+                                                    const helix::ThemeData& theme) {
+    char buf[32];
+
+    // Register button_radius and card_radius - theme-specific corner radii
+    // Separate from border_radius which controls general UI elements like dropdowns/inputs
+    // Both currently use the same theme value, but may be split later
+    snprintf(buf, sizeof(buf), "%d", theme.properties.border_radius);
+    lv_xml_register_const(scope, "button_radius", buf);
+    lv_xml_register_const(scope, "card_radius", buf);
+
+    // Register border_width
+    snprintf(buf, sizeof(buf), "%d", theme.properties.border_width);
+    lv_xml_register_const(scope, "border_width", buf);
+
+    // Register border_opacity (0-255)
+    snprintf(buf, sizeof(buf), "%d", theme.properties.border_opacity);
+    lv_xml_register_const(scope, "border_opacity", buf);
+
+    // Register shadow_intensity
+    snprintf(buf, sizeof(buf), "%d", theme.properties.shadow_intensity);
+    lv_xml_register_const(scope, "shadow_intensity", buf);
+
+    spdlog::debug("[Theme] Registered properties: border_radius={}, border_width={}, "
+                  "border_opacity={}, shadow_intensity={}",
+                  theme.properties.border_radius, theme.properties.border_width,
+                  theme.properties.border_opacity, theme.properties.shadow_intensity);
+}
+
+/**
  * @brief Load active theme from config
  *
  * Reads /display/theme from config, loads corresponding JSON file.
@@ -471,7 +530,11 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     // Register semantic colors from theme (includes _light/_dark variants and base names)
     theme_manager_register_semantic_colors(scope, active_theme, use_dark_mode);
 
-    // Register static constants first (colors, px, strings without dynamic suffixes)
+    // Register theme properties (border_radius, etc.) - must be before static constants
+    // so theme values override globals.xml defaults (first registration wins in LVGL)
+    theme_manager_register_theme_properties(scope, active_theme);
+
+    // Register static constants (colors, px, strings without dynamic suffixes)
     theme_manager_register_static_constants(scope);
 
     // Auto-register all color pairs from globals.xml (xxx_light/xxx_dark -> xxx)
@@ -546,18 +609,33 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     // Default to card_alt if border token not available
     lv_color_t border_color = border_str ? theme_manager_parse_hex_color(border_str) : card_alt;
 
-    // Read border radius from globals.xml
-    const char* border_radius_str = lv_xml_get_const(nullptr, "border_radius");
+    // Read border radius and width from theme (registered in
+    // theme_manager_register_theme_properties)
+    const char* border_radius_str = lv_xml_get_const(nullptr, "button_radius");
     if (!border_radius_str) {
-        spdlog::error("[Theme] Failed to read border_radius from globals.xml");
+        border_radius_str = lv_xml_get_const(nullptr, "border_radius");
+    }
+    if (!border_radius_str) {
+        spdlog::error("[Theme] Failed to read button_radius from globals.xml");
         return;
     }
     int32_t border_radius = atoi(border_radius_str);
 
+    const char* border_width_str = lv_xml_get_const(nullptr, "border_width");
+    int32_t border_width = border_width_str ? atoi(border_width_str) : 1;
+
+    // Compute knob color: brighter of secondary vs tertiary for slider/switch handles
+    // Note: We use secondary/tertiary (accent colors), not primary (which may be neutral in some
+    // themes)
+    const char* tertiary_str = lv_xml_get_const(nullptr, "tertiary");
+    lv_color_t tertiary_color =
+        tertiary_str ? theme_manager_parse_hex_color(tertiary_str) : secondary_color;
+    lv_color_t knob_color = brighter_color(secondary_color, tertiary_color);
+
     // Initialize custom HelixScreen theme (wraps LVGL default theme)
-    current_theme = theme_core_init(display, primary_color, secondary_color, text_color,
-                                    use_dark_mode, base_font, screen_bg, card_bg, card_alt,
-                                    focus_color, border_color, border_radius);
+    current_theme = theme_core_init(
+        display, primary_color, secondary_color, text_color, use_dark_mode, base_font, screen_bg,
+        card_bg, card_alt, focus_color, border_color, border_radius, border_width, knob_color);
 
     if (current_theme) {
         lv_display_set_theme(display, current_theme);
@@ -628,6 +706,7 @@ void theme_manager_toggle_dark_mode() {
     const char* focus_str = get_themed_color("focus", nullptr);
     const char* primary_str = get_themed_color("primary", nullptr);
     const char* secondary_str = get_themed_color("secondary", nullptr);
+    const char* tertiary_str = get_themed_color("tertiary", nullptr);
     const char* border_str = get_themed_color("border", nullptr);
 
     if (!screen_bg_str || !card_bg_str || !card_alt_str || !text_str) {
@@ -652,12 +731,17 @@ void theme_manager_toggle_dark_mode() {
     // Default to card_alt if border token not available
     lv_color_t border_color = border_str ? theme_manager_parse_hex_color(border_str) : card_alt;
 
+    // Compute knob color: brighter of secondary vs tertiary
+    lv_color_t tertiary_color =
+        tertiary_str ? theme_manager_parse_hex_color(tertiary_str) : secondary_color;
+    lv_color_t knob_color = brighter_color(secondary_color, tertiary_color);
+
     spdlog::debug("[Theme] New colors: screen={}, card={}, card_alt={}, text={}", screen_bg_str,
                   card_bg_str, card_alt_str, text_str);
 
     // Update helix theme styles in-place (triggers lv_obj_report_style_change)
     theme_core_update_colors(new_use_dark_mode, screen_bg, card_bg, card_alt, text_color,
-                             focus_color, primary_color, secondary_color, border_color);
+                             focus_color, primary_color, secondary_color, border_color, knob_color);
 
     // Force style refresh on entire widget tree for local/inline styles
     theme_manager_refresh_widget_tree(lv_screen_active());

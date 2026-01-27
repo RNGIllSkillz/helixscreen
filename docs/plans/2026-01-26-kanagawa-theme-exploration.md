@@ -119,12 +119,31 @@ Tasks:
 - ✅ Dark Mode toggle switch styling fixed (was looking for wrong child element)
 - ✅ Removed unused `get_contrasting_text_color()` and debug logging from ui_text.cpp
 
+#### Session 2026-01-27 Changes
+
+**Theme System Enhancements:**
+- Added `button_radius` and `card_radius` XML constants from theme JSON `border_radius`
+- Added `border_width` to theme system - buttons now get borders from theme
+- Added `knob_color` computation: brighter of secondary vs tertiary for slider/switch handles
+- Updated `theme_core_init`, `theme_core_update_colors`, `theme_core_preview_colors` with new params
+- Preview buttons/cards now use `#button_radius` and `#card_radius` instead of `#border_radius`
+
+**ChatGPT Theme:**
+- Deleted chatgpt-classic (was redundant)
+- Updated ChatGPT with real current colors:
+  - Dark: primary=#2E2E2E (neutral), secondary=#3C46FF (blue), tertiary=#0285FF, border=#505050
+  - Light: primary=#FFFEFF (neutral), secondary=#3C46FF (blue), tertiary=#0285FF, border=#DAD9DA
+  - border_radius=28 (pill buttons), shadow_intensity=30
+
+**Known Issue:**
+- Knob color logic (brighter of secondary/tertiary) not quite working - knobs still gray
+- Need to debug why the computed color isn't being applied
+
 #### QA Progress
 - [x] ayu - DONE
 - [x] catppuccin - DONE (both dark and light)
-- [ ] catppuccin - dark DONE, light TODO
-- [ ] chatgpt-classic
-- [ ] chatgpt
+- [x] chatgpt - Colors updated, buttons have borders, needs knob fix
+- [x] chatgpt-classic - DELETED (consolidated into chatgpt)
 - [ ] dracula (dark only)
 - [ ] everforest
 - [ ] gruvbox
