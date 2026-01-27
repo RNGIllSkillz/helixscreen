@@ -124,7 +124,7 @@
               style_pad_gap="#space_xs" scrollable="false">
         <bind_flag_if_eq subject="dryer_active" flag="hidden" ref_value="0"/>
         <!-- Divider -->
-        <divider_horizontal opacity="38"/>
+        <divider_horizontal/>
         <!-- Temperature and time status -->
         <lv_obj width="100%"
                 height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" flex_flow="row"

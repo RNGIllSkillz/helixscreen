@@ -55,6 +55,6 @@
       </lv_obj>
     </lv_obj>
     <!-- Divider at bottom -->
-    <divider_horizontal opacity="30" style_margin_top="#space_xs"/>
+    <divider_horizontal style_margin_top="#space_xs"/>
   </view>
 </component>

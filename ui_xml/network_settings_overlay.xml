@@ -50,7 +50,7 @@
             </ui_switch>
           </lv_obj>
           <!-- Divider line -->
-          <divider_horizontal opacity="80"/>
+          <divider_horizontal/>
           <!-- WiFi Status Container - only ONE child visible at a time -->
           <lv_obj name="wifi_status_container"
                   width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0"
@@ -119,7 +119,7 @@
             <text_body text="Ethernet" style_text_color="#text"/>
           </lv_obj>
           <!-- Divider line -->
-          <divider_horizontal opacity="80"/>
+          <divider_horizontal/>
           <!-- Ethernet Status Container - only ONE child visible at a time -->
           <lv_obj name="eth_status_container"
                   width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0"
@@ -183,7 +183,7 @@
         </lv_button>
       </lv_obj>
       <!-- Vertical Divider -->
-      <divider_vertical opacity="100"/>
+      <divider_vertical/>
       <!-- ================================================================== -->
       <!-- RIGHT COLUMN (60%) - Available networks list -->
       <!-- ================================================================== -->

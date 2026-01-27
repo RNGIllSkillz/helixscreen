@@ -199,7 +199,7 @@
           </lv_obj>
 
           <!-- Vertical divider -->
-          <divider_vertical name="status_divider" height="80%" opacity="128"/>
+          <divider_vertical name="status_divider" height="80%"/>
 
           <!-- Network status - icon on top, label below (centered) -->
           <!-- Icons switch based on home_network_icon_state: 0=disconnected, 1-4=wifi strength, 5=ethernet -->
@@ -270,7 +270,7 @@
           </lv_obj>
 
           <!-- E-stop divider (ONLY visible when printing) -->
-          <divider_vertical name="estop_divider" height="80%" opacity="128" hidden="true">
+          <divider_vertical name="estop_divider" height="80%" hidden="true">
             <bind_flag_if_eq subject="estop_visible" flag="hidden" ref_value="0"/>
           </divider_vertical>
 
@@ -290,7 +290,7 @@
           </lv_obj>
 
           <!-- Firmware restart divider (ONLY visible when klippy SHUTDOWN) -->
-          <divider_vertical name="firmware_restart_divider" height="80%" opacity="128" hidden="true">
+          <divider_vertical name="firmware_restart_divider" height="80%" hidden="true">
             <bind_flag_if_not_eq subject="klippy_state" flag="hidden" ref_value="2"/>
           </divider_vertical>
 

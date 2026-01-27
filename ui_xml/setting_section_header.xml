@@ -57,6 +57,6 @@
       </lv_button>
     </lv_obj>
     <!-- Subtle divider line below title -->
-    <divider_horizontal opacity="30" style_margin_top="#space_xs"/>
+    <divider_horizontal style_margin_top="#space_xs"/>
   </view>
 </component>

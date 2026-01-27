@@ -8,9 +8,8 @@
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
-#include "settings_manager.h"
-
 #include "lvgl/src/xml/lv_xml.h"
+#include "settings_manager.h"
 
 #include <spdlog/spdlog.h>
 

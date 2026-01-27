@@ -62,7 +62,7 @@
           </lv_obj>
           <text_body name="preview_sample_body" width="100%" text="Body text supports longer guidance while staying readable." long_mode="wrap"/>
           <text_small name="preview_sample_small" text="Small labels help keep controls calm and focused." style_text_color="#text_muted"/>
-          <divider_horizontal opacity="30"/>
+          <divider_horizontal/>
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
                   style_border_width="0" style_flex_cross_place="center" scrollable="false">
@@ -140,7 +140,7 @@
                      style_bg_color="#danger">
             <text_button text="Danger"/>
           </lv_button>
-          <divider_horizontal opacity="20"/>
+          <divider_horizontal/>
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
                   style_border_width="0" style_flex_cross_place="center" scrollable="false">
