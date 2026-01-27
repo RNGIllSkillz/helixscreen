@@ -321,8 +321,12 @@ class DisplayManager {
     // Display sleep state
     bool m_display_sleeping = false;
     bool m_display_dimmed = false;
+    bool m_wake_requested = false; // Set by input wrapper when touch detected while sleeping
     int m_dim_timeout_sec = 300;
     int m_dim_brightness_percent = 30;
+
+    // Original pointer read callback (before sleep-aware wrapper)
+    lv_indev_read_cb_t m_original_pointer_read_cb = nullptr;
 
     // Resize handler state
     std::vector<ResizeCallback> m_resize_callbacks;
@@ -354,4 +358,20 @@ class DisplayManager {
      * @brief Timer callback to re-enable input after wake
      */
     static void reenable_input_cb(lv_timer_t* timer);
+
+    /**
+     * @brief Sleep-aware input wrapper callback
+     *
+     * Wraps original read callback to absorb touches when sleeping.
+     * Sets m_wake_requested flag and returns RELEASED state, preventing
+     * UI events from firing while the display wakes.
+     */
+    static void sleep_aware_read_cb(lv_indev_t* indev, lv_indev_data_t* data);
+
+    /**
+     * @brief Install sleep-aware wrapper on pointer input device
+     *
+     * Called during init() to wrap the backend's read callback.
+     */
+    void install_sleep_aware_input_wrapper();
 };

@@ -116,9 +116,10 @@ bool DisplayManager::init(const Config& config) {
 #endif
     }
 
-    // Configure scroll behavior
+    // Configure scroll behavior and sleep-aware wrapper
     if (m_pointer) {
         configure_scroll(config.scroll_throw, config.scroll_limit);
+        install_sleep_aware_input_wrapper();
     }
 
     // Create keyboard input device (optional)
@@ -297,8 +298,10 @@ void DisplayManager::check_display_sleep() {
     bool activity_detected = (inactive_ms < 500);
 
     if (m_display_sleeping) {
-        // Currently sleeping - wake on any touch
-        if (activity_detected) {
+        // Currently sleeping - wake only when input wrapper requests it
+        // (touch is absorbed by sleep_aware_read_cb which sets m_wake_requested)
+        if (m_wake_requested) {
+            m_wake_requested = false;
             wake_display();
         }
     } else if (m_display_dimmed) {
@@ -485,6 +488,47 @@ void DisplayManager::reenable_input_cb(lv_timer_t* timer) {
     lv_timer_delete(timer);
 
     spdlog::debug("[DisplayManager] Input re-enabled after wake");
+}
+
+// ============================================================================
+// Sleep-Aware Input Wrapper
+// ============================================================================
+
+void DisplayManager::sleep_aware_read_cb(lv_indev_t* indev, lv_indev_data_t* data) {
+    auto* dm = DisplayManager::instance();
+    if (!dm) {
+        return;
+    }
+
+    // Call original callback first (may be evdev, libinput, or calibrated wrapper)
+    if (dm->m_original_pointer_read_cb) {
+        dm->m_original_pointer_read_cb(indev, data);
+    }
+
+    // If sleeping and touch detected, absorb the touch and request wake
+    if (dm->m_display_sleeping && data->state == LV_INDEV_STATE_PRESSED) {
+        dm->m_wake_requested = true;
+        data->state = LV_INDEV_STATE_RELEASED; // Absorb - LVGL sees no press
+        spdlog::debug("[DisplayManager] Touch absorbed while sleeping, wake requested");
+    }
+}
+
+void DisplayManager::install_sleep_aware_input_wrapper() {
+    if (!m_pointer) {
+        return;
+    }
+
+    // Save original read callback
+    m_original_pointer_read_cb = lv_indev_get_read_cb(m_pointer);
+    if (!m_original_pointer_read_cb) {
+        spdlog::warn("[DisplayManager] No read callback on pointer device, sleep-aware wrapper not "
+                     "installed");
+        return;
+    }
+
+    // Install our wrapper
+    lv_indev_set_read_cb(m_pointer, sleep_aware_read_cb);
+    spdlog::info("[DisplayManager] Sleep-aware input wrapper installed");
 }
 
 // ============================================================================
