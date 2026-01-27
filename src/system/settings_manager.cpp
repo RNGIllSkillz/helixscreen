@@ -3,9 +3,10 @@
 
 #include "settings_manager.h"
 
+#include "ui_toast_manager.h"
+
 #include "config.h"
 #include "display_manager.h"
-#include "ui_toast_manager.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "runtime_config.h"
@@ -321,8 +322,8 @@ void SettingsManager::set_display_sleep_sec(int seconds) {
         if (dim_sec > 0 && seconds < dim_sec) {
             spdlog::info("[SettingsManager] Clamping sleep {}s to dim {}s", seconds, dim_sec);
             seconds = dim_sec;
-            ToastManager::instance().show(ToastSeverity::INFO, "Sleep adjusted to match dim timeout",
-                                          2000);
+            ToastManager::instance().show(ToastSeverity::INFO,
+                                          "Sleep adjusted to match dim timeout", 2000);
         }
     }
 
