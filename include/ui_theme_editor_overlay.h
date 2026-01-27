@@ -114,6 +114,7 @@ class ThemeEditorOverlay : public OverlayBase {
     void setup_callbacks();
     void update_swatch_colors();
     void update_property_sliders();
+    void update_slider_value_label(const char* row_name, int value);
     void mark_dirty();
     void clear_dirty();
 

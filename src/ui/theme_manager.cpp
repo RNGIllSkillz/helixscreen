@@ -1243,23 +1243,34 @@ void theme_manager_refresh_preview_elements(lv_obj_t* root, const helix::ThemeDa
             }
         }
 
-        // Update action buttons in editor
+        // Update action buttons in editor - colors AND border properties
         lv_obj_t* btn_reset = lv_obj_find_by_name(editor_overlay, "btn_reset");
         if (btn_reset) {
             lv_obj_set_style_bg_color(btn_reset, card_bg, LV_PART_MAIN);
             lv_obj_set_style_border_color(btn_reset, border, LV_PART_MAIN);
+            lv_obj_set_style_radius(btn_reset, border_radius, LV_PART_MAIN);
+            lv_obj_set_style_border_width(btn_reset, border_width, LV_PART_MAIN);
+            lv_obj_set_style_border_opa(btn_reset, border_opacity, LV_PART_MAIN);
         }
         lv_obj_t* btn_save_as = lv_obj_find_by_name(editor_overlay, "btn_save_as");
         if (btn_save_as) {
             lv_obj_set_style_bg_color(btn_save_as, card_bg, LV_PART_MAIN);
             lv_obj_set_style_border_color(btn_save_as, border, LV_PART_MAIN);
+            lv_obj_set_style_radius(btn_save_as, border_radius, LV_PART_MAIN);
+            lv_obj_set_style_border_width(btn_save_as, border_width, LV_PART_MAIN);
+            lv_obj_set_style_border_opa(btn_save_as, border_opacity, LV_PART_MAIN);
         }
         lv_obj_t* btn_save = lv_obj_find_by_name(editor_overlay, "btn_save");
         if (btn_save) {
             lv_obj_set_style_bg_color(btn_save, primary, LV_PART_MAIN);
+            lv_obj_set_style_border_color(btn_save, border, LV_PART_MAIN);
+            lv_obj_set_style_radius(btn_save, border_radius, LV_PART_MAIN);
+            lv_obj_set_style_border_width(btn_save, border_width, LV_PART_MAIN);
+            lv_obj_set_style_border_opa(btn_save, border_opacity, LV_PART_MAIN);
         }
 
         // Update sliders in editor (border_radius, border_width, etc.)
+        // Use knob_color (more saturated of primary/tertiary) for consistency with other sliders
         const char* slider_names[] = {"row_border_radius", "row_border_width", "row_border_opacity",
                                       "row_shadow_intensity"};
         for (const char* row_name : slider_names) {
@@ -1268,10 +1279,35 @@ void theme_manager_refresh_preview_elements(lv_obj_t* root, const helix::ThemeDa
                 lv_obj_t* slider = lv_obj_find_by_name(row, "slider");
                 if (slider) {
                     lv_obj_set_style_bg_color(slider, border, LV_PART_MAIN);
-                    lv_obj_set_style_bg_color(slider, primary, LV_PART_INDICATOR);
-                    lv_obj_set_style_bg_color(slider, secondary, LV_PART_KNOB);
+                    lv_obj_set_style_bg_color(slider, secondary, LV_PART_INDICATOR);
+                    lv_obj_set_style_bg_color(slider, knob_color, LV_PART_KNOB);
                 }
             }
+        }
+    }
+
+    // ========================================================================
+    // SAMPLE MODAL DIALOG - Update if visible (from preview "Open" button)
+    // ========================================================================
+    // The sample modal is created via modal_dialog component which uses ui_dialog.
+    // It gets border_radius from XML constants at creation, so we update it here.
+    lv_obj_t* modal_dialog = lv_obj_find_by_name(root, "modal_dialog");
+    if (modal_dialog) {
+        lv_obj_set_style_bg_color(modal_dialog, card_alt, LV_PART_MAIN);
+        lv_obj_set_style_radius(modal_dialog, border_radius, LV_PART_MAIN);
+
+        // Update icon colors in the sample modal
+        lv_obj_t* icon_info = lv_obj_find_by_name(modal_dialog, "icon_info");
+        if (icon_info) {
+            lv_obj_set_style_text_color(icon_info, accent_color, LV_PART_MAIN);
+        }
+        lv_obj_t* icon_warning = lv_obj_find_by_name(modal_dialog, "icon_warning");
+        if (icon_warning) {
+            lv_obj_set_style_text_color(icon_warning, warning, LV_PART_MAIN);
+        }
+        lv_obj_t* icon_error = lv_obj_find_by_name(modal_dialog, "icon_error");
+        if (icon_error) {
+            lv_obj_set_style_text_color(icon_error, danger, LV_PART_MAIN);
         }
     }
 

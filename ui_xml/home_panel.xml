@@ -50,8 +50,7 @@
             <bind_flag_if_eq subject="printer_connection_state" flag="hidden" ref_value="2"/>
           </icon>
           <!-- Shutdown overlay - shown when klippy is SHUTDOWN (state 2) -->
-          <icon name="shutdown_overlay"
-                src="alert_octagon" size="xl" align="center" color="#warning" hidden="true">
+          <icon name="shutdown_overlay" src="alert_octagon" size="xl" align="center" color="#warning" hidden="true">
             <bind_flag_if_not_eq subject="klippy_state" flag="hidden" ref_value="2"/>
           </icon>
         </lv_obj>
@@ -62,8 +61,8 @@
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0">
           <bind_flag_if_eq subject="printer_info_visible" flag="hidden" ref_value="0"/>
           <text_small width="100%"
-                      height="content" bind_text="printer_type_text" style_text_color="#text"
-                      style_text_align="center" stroke_width="1" stroke_color="#app_bg" stroke_opa="180"/>
+                      height="content" bind_text="printer_type_text" style_text_color="#text" style_text_align="center"
+                      stroke_width="1" stroke_color="#app_bg" stroke_opa="180"/>
         </lv_obj>
       </lv_obj>
 
@@ -281,9 +280,9 @@
             <bind_flag_if_eq subject="estop_visible" flag="hidden" ref_value="0"/>
             <!-- Circular button: radius=24 is half of button_height_small (48px) -->
             <lv_button name="estop_button_home"
-                       width="#button_height_sm" height="#button_height_sm" style_radius="24"
-                       style_bg_color="#danger" style_border_width="2" style_border_color="#text"
-                       style_shadow_width="0" style_pad_all="0" align="center">
+                       width="#button_height_sm" height="#button_height_sm" style_radius="24" style_bg_color="#danger"
+                       style_border_width="2" style_border_color="#text" style_shadow_width="0" style_pad_all="0"
+                       align="center">
               <icon src="alert_octagon" size="sm" color="#text" align="center"/>
               <event_cb trigger="clicked" callback="emergency_stop_clicked"/>
             </lv_button>
@@ -301,9 +300,9 @@
             <bind_flag_if_not_eq subject="klippy_state" flag="hidden" ref_value="2"/>
             <!-- Circular button: uses primary to indicate "safe" recovery action -->
             <lv_button name="firmware_restart_button_home"
-                       width="#button_height_sm" height="#button_height_sm" style_radius="24"
-                       style_bg_color="#primary" style_border_width="2" style_border_color="#text"
-                       style_shadow_width="0" style_pad_all="0" align="center">
+                       width="#button_height_sm" height="#button_height_sm" style_radius="24" style_bg_color="#primary"
+                       style_border_width="2" style_border_color="#text" style_shadow_width="0" style_pad_all="0"
+                       align="center">
               <icon src="refresh" size="sm" color="#text" align="center"/>
               <event_cb trigger="clicked" callback="firmware_restart_clicked"/>
             </lv_button>
@@ -342,7 +341,7 @@
             <bind_flag_if_eq subject="printer_has_led" flag="hidden" ref_value="0"/>
             <bind_state_if_not_eq subject="printer_connection_state" state="disabled" ref_value="2"/>
             <!-- Dynamic icon - source and color set by C++ based on LED brightness/color -->
-            <icon name="light_icon" src="lightbulb_outline" size="#icon_size_card" align="center" color="#theme_gray"/>
+            <icon name="light_icon" src="lightbulb_outline" size="#icon_size_card" align="center" color="#border"/>
             <event_cb trigger="clicked" callback="light_toggle_cb"/>
           </lv_button>
 

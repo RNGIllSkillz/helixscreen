@@ -70,6 +70,7 @@
 #include "ui_status_bar.h"
 #include "ui_switch.h"
 #include "ui_temp_display.h"
+#include "ui_theme_editor_overlay.h"
 #include "ui_toast.h"
 #include "ui_utils.h"
 #include "ui_wizard.h"
@@ -1214,6 +1215,26 @@ void Application::create_overlays() {
         auto& display_settings = helix::settings::get_display_settings_overlay();
         display_settings.show_theme_preview(m_screen);
         spdlog::info("[Application] Opened theme preview overlay via CLI");
+    }
+
+    if (m_args.overlays.theme_edit) {
+        // Push theme preview first, then theme editor on top
+        auto& display_settings = helix::settings::get_display_settings_overlay();
+        display_settings.show_theme_preview(m_screen);
+
+        // Now push theme editor overlay on top
+        auto& theme_editor = get_theme_editor_overlay();
+        theme_editor.register_callbacks();
+        theme_editor.init_subjects();
+        lv_obj_t* editor_panel = theme_editor.create(m_screen);
+        if (editor_panel) {
+            // Load current theme for editing
+            std::string current_theme = SettingsManager::instance().get_theme_name();
+            theme_editor.set_editing_dark_mode(SettingsManager::instance().get_dark_mode());
+            theme_editor.load_theme(current_theme);
+            ui_nav_push_overlay(editor_panel);
+            spdlog::info("[Application] Opened theme editor overlay via CLI");
+        }
     }
 
     // Handle --select-file flag

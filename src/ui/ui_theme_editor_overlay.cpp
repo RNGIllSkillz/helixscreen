@@ -162,8 +162,10 @@ void ThemeEditorOverlay::register_callbacks() {
 void ThemeEditorOverlay::on_activate() {
     OverlayBase::on_activate();
 
-    // Initialize theme preset dropdown with discovered themes
-    init_theme_preset_dropdown();
+    // Load the current theme for editing
+    // (Theme selection happens in the preview overlay's dropdown, not here)
+    std::string theme_name = SettingsManager::instance().get_theme_name();
+    load_theme(theme_name);
 
     spdlog::debug("[{}] Activated", get_name());
 }
@@ -232,6 +234,10 @@ void ThemeEditorOverlay::load_theme(const std::string& filename) {
 
     // Update property sliders
     update_property_sliders();
+
+    // Apply editing theme colors to editor UI elements (sliders, buttons, etc.)
+    // This ensures consistent styling from the start, not just after user interaction
+    theme_manager_preview(editing_theme_);
 
     spdlog::info("[{}] Loaded theme '{}' for editing", get_name(), loaded.name);
 }
@@ -303,6 +309,20 @@ void ThemeEditorOverlay::update_property_sliders() {
                   get_name(), editing_theme_.properties.border_radius,
                   editing_theme_.properties.border_width, editing_theme_.properties.border_opacity,
                   editing_theme_.properties.shadow_intensity);
+}
+
+void ThemeEditorOverlay::update_slider_value_label(const char* row_name, int value) {
+    if (!overlay_root_) {
+        return;
+    }
+
+    lv_obj_t* row = lv_obj_find_by_name(overlay_root_, row_name);
+    lv_obj_t* label = row ? lv_obj_find_by_name(row, "value_label") : nullptr;
+    if (label) {
+        char buf[16];
+        std::snprintf(buf, sizeof(buf), "%d", value);
+        lv_label_set_text(label, buf);
+    }
 }
 
 void ThemeEditorOverlay::mark_dirty() {
@@ -513,6 +533,7 @@ void ThemeEditorOverlay::handle_border_radius_changed(int value) {
     editing_theme_.properties.border_radius = value;
     mark_dirty();
     theme_manager_preview(editing_theme_);
+    update_slider_value_label("row_border_radius", value);
     spdlog::debug("[{}] Border radius changed to {}", get_name(), value);
 }
 
@@ -520,6 +541,7 @@ void ThemeEditorOverlay::handle_border_width_changed(int value) {
     editing_theme_.properties.border_width = value;
     mark_dirty();
     theme_manager_preview(editing_theme_);
+    update_slider_value_label("row_border_width", value);
     spdlog::debug("[{}] Border width changed to {}", get_name(), value);
 }
 
@@ -527,6 +549,7 @@ void ThemeEditorOverlay::handle_border_opacity_changed(int value) {
     editing_theme_.properties.border_opacity = value;
     mark_dirty();
     theme_manager_preview(editing_theme_);
+    update_slider_value_label("row_border_opacity", value);
     spdlog::debug("[{}] Border opacity changed to {}", get_name(), value);
 }
 
@@ -534,6 +557,7 @@ void ThemeEditorOverlay::handle_shadow_intensity_changed(int value) {
     editing_theme_.properties.shadow_intensity = value;
     mark_dirty();
     theme_manager_preview(editing_theme_);
+    update_slider_value_label("row_shadow_intensity", value);
     spdlog::debug("[{}] Shadow intensity changed to {}", get_name(), value);
 }
 

@@ -849,6 +849,14 @@ void DisplaySettingsOverlay::apply_preview_palette_to_screen_popups() {
 
     // Apply to screen-level popups (modals, dropdown lists)
     theme_apply_palette_to_screen_dropdowns(*palette);
+
+    // Apply border_radius to sample modal dialog (if visible)
+    // The modal_dialog component uses ui_dialog which reads border_radius at creation,
+    // so we need to override it here for preview
+    lv_obj_t* modal_dialog = lv_obj_find_by_name(lv_screen_active(), "modal_dialog");
+    if (modal_dialog) {
+        lv_obj_set_style_radius(modal_dialog, theme.properties.border_radius, LV_PART_MAIN);
+    }
 }
 
 void DisplaySettingsOverlay::show_theme_preview(lv_obj_t* parent_screen) {
