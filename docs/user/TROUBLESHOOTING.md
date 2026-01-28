@@ -317,6 +317,30 @@ Use the `display_rotate` config option in helixconfig.json:
 
 ---
 
+### Touch is offset from visual elements
+
+**Symptoms:**
+- Have to tap above/below where buttons appear
+- Touch accuracy varies across the screen
+
+**Solutions:**
+
+**Run touch calibration:**
+1. Go to **Settings** (gear icon in sidebar)
+2. Tap **Touch Calibration**
+3. Tap the crosshairs that appear accurately
+4. Calibration saves automatically
+
+**If calibration option doesn't appear:**
+- Only shows on actual touchscreen hardware, not desktop simulator
+- Check that touch device is detected: `ls /dev/input/event*`
+
+**If still offset after calibration:**
+- Ensure display rotation matches touch rotation in config
+- Check `display_rotate` setting in helixconfig.json matches actual rotation
+
+---
+
 ## Print Issues
 
 ### Files not appearing
@@ -566,6 +590,31 @@ Standard deviation should be < 0.01mm.
 1. High CPU usage
 2. Memory pressure
 3. Excessive logging
+4. Running in debug/test mode in production
+5. Too many G-code files loading thumbnails
+
+**Quick fixes:**
+1. **Disable animations:** Settings → Display → toggle Animations off
+2. **Check Hardware Health:** Settings → Hardware Health - resolve any detected issues
+3. **Reduce log verbosity:** If you added `-vv` or `-vvv` to the service, remove it
+
+**Diagnose via SSH:**
+```bash
+# Check CPU and memory
+top -b -n 1 | head -20
+
+# Check if swapping (very slow)
+free -h
+
+# Check HelixScreen memory usage specifically
+ps aux | grep helix-screen
+```
+
+**Common causes:**
+- Running in debug/test mode in production
+- Other processes using CPU (check `top`)
+- Low memory causing swap usage
+- Too many G-code files loading thumbnails
 
 **Solutions:**
 

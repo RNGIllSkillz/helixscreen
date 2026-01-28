@@ -82,6 +82,8 @@ rm /tmp/helixscreen.tar.gz
 
 After installation, the setup wizard will guide you through initial configuration.
 
+> **Upgrading from an older version?** If HelixScreen keeps showing the setup wizard after an update, see [UPGRADING.md](UPGRADING.md) for how to fix configuration issues.
+
 ---
 
 ## Prerequisites

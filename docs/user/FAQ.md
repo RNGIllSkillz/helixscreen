@@ -182,6 +182,38 @@ Buttons are disabled when:
 - **Printing:** Some operations locked during active print
 - **Temperature too low:** Extrusion requires hot nozzle
 
+### How do I calibrate my touchscreen?
+
+If taps register in the wrong location:
+1. Go to **Settings** (gear icon)
+2. Tap **Touch Calibration**
+3. Tap the crosshairs that appear on screen
+4. Calibration saves automatically when complete
+
+Note: This option only appears on touchscreen displays, not in the desktop simulator.
+
+### How do I change the theme or colors?
+
+1. Go to **Settings** → **Display** → **Theme**
+2. Browse available themes and see a live preview
+3. Toggle dark/light mode to see how each theme looks
+4. Tap **Apply** to save (restart required for full effect)
+5. Tap **Edit** to customize colors in the theme editor
+
+### My print is stringing - how do I adjust retraction?
+
+During a print, tap **Tune** to open the tune overlay:
+- Lower **Speed** slightly (try 90-95%)
+- Adjust **Fan** speed (higher can help with stringing)
+
+For pressure advance tuning, go to **Settings** → **Advanced** and look for retraction settings. Note: Not all printers support pressure advance.
+
+### How do I check why the UI is slow?
+
+1. Go to **Settings** → **Hardware Health** to check for hardware issues
+2. Disable animations: **Settings** → **Display** → toggle **Animations** off
+3. Check CPU/memory via SSH: `top` or `htop`
+
 ### How do I take a screenshot?
 
 **On the device:** Currently requires SSH access and a script.
