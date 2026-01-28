@@ -76,6 +76,7 @@ MDI_ICONS+=",0xF0169"    # code-braces
 MDI_ICONS+=",0xF0174"    # code-tags
 MDI_ICONS+=",0xF018D"    # console
 MDI_ICONS+=",0xF01B4"    # delete (trash)
+MDI_ICONS+=",0xF01BC"    # database
 MDI_ICONS+=",0xF01D9"    # dots-vertical (advanced)
 MDI_ICONS+=",0xF01DA"    # download
 MDI_ICONS+=",0xF01FA"    # engine (motor)

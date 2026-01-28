@@ -3,7 +3,8 @@
 
 #include "ui_panel_settings.h"
 
-#include "ui_ams_settings_overlay.h"
+#include "ui_ams_device_operations_overlay.h"
+#include "ui_ams_spoolman_overlay.h"
 #include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
 #include "ui_modal.h"
@@ -292,8 +293,13 @@ void SettingsPanel::init_subjects() {
 
     lv_xml_register_event_cb(nullptr, "on_ams_settings_clicked", on_ams_settings_clicked);
 
-    // Note: AMS Settings overlay callbacks are handled by AmsSettingsOverlay
-    // See ui_ams_settings_overlay.h
+    // Note: AMS Settings now goes directly to Device Operations overlay
+    // See ui_ams_device_operations_overlay.h
+
+    lv_xml_register_event_cb(nullptr, "on_spoolman_settings_clicked", on_spoolman_settings_clicked);
+
+    // Note: Spoolman overlay for weight sync settings
+    // See ui_ams_spoolman_overlay.h
 
     lv_xml_register_event_cb(nullptr, "on_macro_buttons_clicked", on_macro_buttons_clicked);
 
@@ -717,9 +723,28 @@ void SettingsPanel::handle_filament_sensors_clicked() {
 }
 
 void SettingsPanel::handle_ams_settings_clicked() {
-    spdlog::debug("[{}] AMS Settings clicked - delegating to AmsSettingsOverlay", get_name());
+    spdlog::debug("[{}] AMS Settings clicked - opening Device Operations", get_name());
 
-    auto& overlay = helix::ui::get_ams_settings_overlay();
+    auto& overlay = helix::ui::get_ams_device_operations_overlay();
+    if (!overlay.are_subjects_initialized()) {
+        overlay.init_subjects();
+        overlay.register_callbacks();
+    }
+    overlay.show(parent_screen_);
+}
+
+void SettingsPanel::handle_spoolman_settings_clicked() {
+    spdlog::debug("[{}] Spoolman Settings clicked - opening Spoolman overlay", get_name());
+
+    auto& overlay = helix::ui::get_ams_spoolman_overlay();
+    if (!overlay.are_subjects_initialized()) {
+        overlay.init_subjects();
+        overlay.register_callbacks();
+    }
+    MoonrakerClient* client = get_moonraker_client();
+    if (client) {
+        overlay.set_client(client);
+    }
     overlay.show(parent_screen_);
 }
 
@@ -946,6 +971,12 @@ void SettingsPanel::on_filament_sensors_clicked(lv_event_t* /*e*/) {
 void SettingsPanel::on_ams_settings_clicked(lv_event_t* /*e*/) {
     LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_ams_settings_clicked");
     get_global_settings_panel().handle_ams_settings_clicked();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void SettingsPanel::on_spoolman_settings_clicked(lv_event_t* /*e*/) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_spoolman_settings_clicked");
+    get_global_settings_panel().handle_spoolman_settings_clicked();
     LVGL_SAFE_EVENT_CB_END();
 }
 

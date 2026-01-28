@@ -3,8 +3,8 @@
 
 #include "ui_panel_ams.h"
 
+#include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_dryer_card.h"
-#include "ui_ams_settings_overlay.h"
 #include "ui_ams_slot.h"
 #include "ui_ams_slot_edit_popup.h"
 #include "ui_endless_spool_arrows.h"
@@ -128,8 +128,8 @@ static void ensure_ams_widgets_registered() {
     // Register dryer card callbacks BEFORE XML parsing (callbacks must exist when parser sees them)
     helix::ui::AmsDryerCard::register_callbacks_static();
 
-    // Register AMS settings overlay callbacks BEFORE XML parsing
-    helix::ui::get_ams_settings_overlay().register_callbacks();
+    // Register AMS device operations overlay callbacks BEFORE XML parsing
+    helix::ui::get_ams_device_operations_overlay().register_callbacks();
 
     // Context menu callbacks registered by helix::ui::AmsContextMenu class
     // Spoolman picker callbacks registered by helix::ui::AmsSpoolmanPicker class
@@ -139,14 +139,8 @@ static void ensure_ams_widgets_registered() {
     // there)
     lv_xml_register_component_from_file("A:ui_xml/ams_dryer_card.xml");
     lv_xml_register_component_from_file("A:ui_xml/dryer_presets_modal.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_settings_nav_row.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_settings_panel.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_settings_tool_mapping.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_settings_endless_spool.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_settings_maintenance.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_settings_behavior.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_settings_spoolman.xml");
-    lv_xml_register_component_from_file("A:ui_xml/ams_settings_device_actions.xml");
+    // NOTE: Old AMS settings panels removed - Device Operations overlay is registered in
+    // xml_registration.cpp
     lv_xml_register_component_from_file("A:ui_xml/ams_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml");
     lv_xml_register_component_from_file("A:ui_xml/ams_slot_edit_popup.xml");
@@ -200,9 +194,9 @@ static void on_settings_clicked_xml(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[AmsPanel] on_settings_clicked");
     LV_UNUSED(e);
 
-    spdlog::info("[AmsPanel] Opening AMS Settings overlay");
+    spdlog::info("[AmsPanel] Opening AMS Device Operations overlay");
 
-    auto& overlay = helix::ui::get_ams_settings_overlay();
+    auto& overlay = helix::ui::get_ams_device_operations_overlay();
     if (!overlay.are_subjects_initialized()) {
         overlay.init_subjects();
         overlay.register_callbacks();

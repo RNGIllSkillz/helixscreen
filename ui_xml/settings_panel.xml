@@ -41,8 +41,16 @@
             width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false">
       <bind_flag_if_eq subject="ams_slot_count" flag="hidden" ref_value="0"/>
       <setting_action_row name="row_ams_settings"
-                          label="AMS Settings" icon="filament" description="Tool mapping, endless spool, maintenance"
+                          label="AMS Settings" icon="filament" description="Quick actions, calibration, speed"
                           callback="on_ams_settings_clicked"/>
+    </lv_obj>
+    <!-- Spoolman Settings (hidden if Spoolman not available) -->
+    <lv_obj name="container_spoolman_settings"
+            width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false">
+      <bind_flag_if_eq subject="printer_has_spoolman" flag="hidden" ref_value="0"/>
+      <setting_action_row name="row_spoolman_settings"
+                          label="Spoolman" icon="database" description="Weight sync settings"
+                          callback="on_spoolman_settings_clicked"/>
     </lv_obj>
     <!-- LED Light Toggle (hidden if no LED capability) -->
     <lv_obj name="container_led_light"
