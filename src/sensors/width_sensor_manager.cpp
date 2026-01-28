@@ -94,6 +94,15 @@ void WidthSensorManager::discover(const std::vector<std::string>& klipper_object
         }
     }
 
+    // Remove stale entries to prevent unbounded memory growth
+    for (auto it = states_.begin(); it != states_.end();) {
+        if (!it->second.available) {
+            it = states_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     // Update sensor count subject
     if (subjects_initialized_) {
         lv_subject_set_int(&sensor_count_, static_cast<int>(sensors_.size()));
@@ -383,11 +392,10 @@ void WidthSensorManager::reset_for_testing() {
     states_.clear();
     sync_mode_ = true;
 
+    // Reset subject state for clean test isolation
     if (subjects_initialized_) {
-        lv_subject_set_int(&diameter_, -1);
-        lv_subject_set_int(&sensor_count_, 0);
-        snprintf(diameter_text_buf_, sizeof(diameter_text_buf_), "--");
-        lv_subject_copy_string(&diameter_text_, diameter_text_buf_);
+        subjects_.deinit_all();
+        subjects_initialized_ = false;
     }
 
     spdlog::debug("[WidthSensorManager] Reset for testing");

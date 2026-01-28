@@ -92,6 +92,15 @@ void ColorSensorManager::discover(const std::vector<std::string>& device_ids) {
         }
     }
 
+    // Remove stale entries to prevent unbounded memory growth
+    for (auto it = states_.begin(); it != states_.end();) {
+        if (!it->second.available) {
+            it = states_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     // Update sensor count subject
     if (subjects_initialized_) {
         lv_subject_set_int(&sensor_count_, static_cast<int>(sensors_.size()));
@@ -381,13 +390,10 @@ void ColorSensorManager::reset_for_testing() {
     states_.clear();
     sync_mode_ = true;
 
+    // Reset subject state for clean test isolation
     if (subjects_initialized_) {
-        // Reset color hex subject
-        std::memset(color_hex_buf_.data(), 0, color_hex_buf_.size());
-        lv_subject_copy_string(&color_hex_, color_hex_buf_.data());
-
-        lv_subject_set_int(&td_value_, -1);
-        lv_subject_set_int(&sensor_count_, 0);
+        subjects_.deinit_all();
+        subjects_initialized_ = false;
     }
 
     spdlog::debug("[ColorSensorManager] Reset for testing");

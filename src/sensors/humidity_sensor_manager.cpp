@@ -94,6 +94,15 @@ void HumiditySensorManager::discover(const std::vector<std::string>& klipper_obj
         }
     }
 
+    // Remove stale entries to prevent unbounded memory growth
+    for (auto it = states_.begin(); it != states_.end();) {
+        if (!it->second.available) {
+            it = states_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     // Update sensor count subject
     if (subjects_initialized_) {
         lv_subject_set_int(&sensor_count_, static_cast<int>(sensors_.size()));
@@ -391,13 +400,10 @@ void HumiditySensorManager::reset_for_testing() {
     states_.clear();
     sync_mode_ = true;
 
+    // Reset subject state for clean test isolation
     if (subjects_initialized_) {
-        lv_subject_set_int(&chamber_humidity_, -1);
-        lv_subject_set_int(&chamber_pressure_, -1);
-        lv_subject_set_int(&dryer_humidity_, -1);
-        lv_subject_set_int(&sensor_count_, 0);
-        snprintf(chamber_humidity_text_buf_, sizeof(chamber_humidity_text_buf_), "--");
-        lv_subject_copy_string(&chamber_humidity_text_, chamber_humidity_text_buf_);
+        subjects_.deinit_all();
+        subjects_initialized_ = false;
     }
 
     spdlog::debug("[HumiditySensorManager] Reset for testing");

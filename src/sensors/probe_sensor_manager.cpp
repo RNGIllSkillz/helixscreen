@@ -94,6 +94,15 @@ void ProbeSensorManager::discover(const std::vector<std::string>& klipper_object
         }
     }
 
+    // Remove stale entries to prevent unbounded memory growth
+    for (auto it = states_.begin(); it != states_.end();) {
+        if (!it->second.available) {
+            it = states_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     // Update sensor count subject
     if (subjects_initialized_) {
         lv_subject_set_int(&sensor_count_, static_cast<int>(sensors_.size()));
@@ -404,11 +413,10 @@ void ProbeSensorManager::reset_for_testing() {
     states_.clear();
     sync_mode_ = true;
 
+    // Reset subject state for clean test isolation
     if (subjects_initialized_) {
-        lv_subject_set_int(&probe_triggered_, -1);
-        lv_subject_set_int(&probe_last_z_, -1);
-        lv_subject_set_int(&probe_z_offset_, -1);
-        lv_subject_set_int(&sensor_count_, 0);
+        subjects_.deinit_all();
+        subjects_initialized_ = false;
     }
 
     spdlog::debug("[ProbeSensorManager] Reset for testing");
