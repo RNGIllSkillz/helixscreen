@@ -177,9 +177,9 @@ Settings
 
 ## Progress
 
-- [ ] Phase 1: Main AMS Panel Enhancements
-- [ ] Phase 2: Device Operations Panel (partial - overlay created, needs navigation)
-- [ ] Phase 3: Cleanup
+- [x] Phase 1: Main AMS Panel Enhancements (deferred - visual features like tool badges and arrows not prioritized)
+- [x] Phase 2: Device Operations Panel (consolidated device operations into overlay)
+- [x] Phase 3: Cleanup (removed 19 old files, wired Spoolman to Settings, updated navigation)
 
 ## Success Criteria
 
