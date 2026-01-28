@@ -78,10 +78,10 @@
 - [x] **IMPLEMENT**: Refactor variants (text/muted/primary/secondary/tertiary/success/warning/danger/info), use shared styles
 - [x] **REVIEW**: Code review of ui_icon changes (fixed: NULL handling, style accumulation, SECONDARY reachable)
 
-### Section 2.3: Spinner & Severity Styles in theme_core
-- [ ] **TEST**: Write failing tests for spinner_style and severity style getters
-- [ ] **IMPLEMENT**: Add spinner_style_, severity_info/success/warning/danger_style_
-- [ ] **REVIEW**: Code review of spinner/severity styles
+### Section 2.3: Spinner & Severity Styles in theme_core ✅ COMPLETE
+- [x] **TEST**: Write failing tests for spinner_style and severity style getters
+- [x] **IMPLEMENT**: Add spinner_style_, severity_info/success/warning/danger_style_
+- [x] **REVIEW**: Code review of spinner/severity styles
 
 ### Section 2.4: ui_spinner Shared Style
 - [ ] **TEST**: Write failing test that spinner arc color updates when theme changes

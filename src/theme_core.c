@@ -46,7 +46,14 @@ typedef struct {
     lv_style_t icon_warning_style;   // Icon for warning state (amber)
     lv_style_t icon_danger_style;    // Icon for danger state (red)
     lv_style_t icon_info_style;      // Icon for info state (blue)
-    bool is_dark_mode;               // Track theme mode for context
+    // Spinner style (Phase 2.3)
+    lv_style_t spinner_style; // Spinner arc color (primary)
+    // Severity styles (Phase 2.3) - for severity_card border colors
+    lv_style_t severity_info_style;
+    lv_style_t severity_success_style;
+    lv_style_t severity_warning_style;
+    lv_style_t severity_danger_style;
+    bool is_dark_mode; // Track theme mode for context
 } helix_theme_t;
 
 // Static theme instance (singleton pattern matching LVGL's approach)
@@ -262,6 +269,12 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
         lv_style_reset(&helix_theme_instance->icon_warning_style);
         lv_style_reset(&helix_theme_instance->icon_danger_style);
         lv_style_reset(&helix_theme_instance->icon_info_style);
+        // Reset spinner and severity styles (Phase 2.3)
+        lv_style_reset(&helix_theme_instance->spinner_style);
+        lv_style_reset(&helix_theme_instance->severity_info_style);
+        lv_style_reset(&helix_theme_instance->severity_success_style);
+        lv_style_reset(&helix_theme_instance->severity_warning_style);
+        lv_style_reset(&helix_theme_instance->severity_danger_style);
         free(helix_theme_instance);
         helix_theme_instance = NULL;
     }
@@ -487,6 +500,28 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
     lv_style_init(&helix_theme_instance->icon_info_style);
     lv_style_set_text_color(&helix_theme_instance->icon_info_style, lv_color_hex(0x42A5F5));
 
+    // Initialize spinner style (Phase 2.3)
+    // Spinner uses arc_color for the indicator arc (uses primary_color)
+    lv_style_init(&helix_theme_instance->spinner_style);
+    lv_style_set_arc_color(&helix_theme_instance->spinner_style, primary_color);
+
+    // Initialize severity styles (Phase 2.3)
+    // Severity styles use border_color for severity_card borders
+    // Using same colors as icon semantic colors for consistency
+    lv_style_init(&helix_theme_instance->severity_info_style);
+    lv_style_set_border_color(&helix_theme_instance->severity_info_style, lv_color_hex(0x42A5F5));
+
+    lv_style_init(&helix_theme_instance->severity_success_style);
+    lv_style_set_border_color(&helix_theme_instance->severity_success_style,
+                              lv_color_hex(0x4CAF50));
+
+    lv_style_init(&helix_theme_instance->severity_warning_style);
+    lv_style_set_border_color(&helix_theme_instance->severity_warning_style,
+                              lv_color_hex(0xFFA726));
+
+    lv_style_init(&helix_theme_instance->severity_danger_style);
+    lv_style_set_border_color(&helix_theme_instance->severity_danger_style, lv_color_hex(0xEF5350));
+
     // CRITICAL: Now we need to patch the default theme's color fields
     // This is necessary because LVGL's default theme bakes colors into pre-computed
     // styles during init. We must update both the theme color fields AND the styles.
@@ -614,6 +649,10 @@ void theme_core_update_colors(bool is_dark, lv_color_t screen_bg, lv_color_t car
     lv_style_set_text_color(&helix_theme_instance->icon_tertiary_style, text_subtle_color);
     // Semantic icon colors (success/warning/danger/info) are not updated here
     // They use static semantic colors; Task 3 will add proper severity color infrastructure
+
+    // Update spinner style (Phase 2.3) - uses primary_color
+    lv_style_set_arc_color(&helix_theme_instance->spinner_style, primary_color);
+    // Note: severity styles use static semantic colors, no update needed here
 
     // Update LVGL default theme's internal styles
     // This is the same private API access pattern used in theme_core_init
@@ -800,6 +839,15 @@ void theme_core_preview_colors(bool is_dark, const char* colors[16], int32_t bor
     lv_style_set_text_color(&helix_theme_instance->icon_danger_style, danger);
     lv_style_set_text_color(&helix_theme_instance->icon_info_style, info);
 
+    // Update spinner style (Phase 2.3) - uses accent/primary color
+    lv_style_set_arc_color(&helix_theme_instance->spinner_style, accent_color);
+
+    // Update severity styles (Phase 2.3) - use palette semantic colors
+    lv_style_set_border_color(&helix_theme_instance->severity_info_style, info);
+    lv_style_set_border_color(&helix_theme_instance->severity_success_style, success);
+    lv_style_set_border_color(&helix_theme_instance->severity_warning_style, warning);
+    lv_style_set_border_color(&helix_theme_instance->severity_danger_style, danger);
+
     // Update default theme internal styles (private API access)
     typedef struct {
         lv_style_t scr;
@@ -938,4 +986,47 @@ lv_style_t* theme_core_get_icon_info_style(void) {
         return NULL;
     }
     return &helix_theme_instance->icon_info_style;
+}
+
+// ============================================================================
+// Spinner Style Getter (Phase 2.3)
+// ============================================================================
+
+lv_style_t* theme_core_get_spinner_style(void) {
+    if (!helix_theme_instance) {
+        return NULL;
+    }
+    return &helix_theme_instance->spinner_style;
+}
+
+// ============================================================================
+// Severity Style Getters (Phase 2.3)
+// ============================================================================
+
+lv_style_t* theme_core_get_severity_info_style(void) {
+    if (!helix_theme_instance) {
+        return NULL;
+    }
+    return &helix_theme_instance->severity_info_style;
+}
+
+lv_style_t* theme_core_get_severity_success_style(void) {
+    if (!helix_theme_instance) {
+        return NULL;
+    }
+    return &helix_theme_instance->severity_success_style;
+}
+
+lv_style_t* theme_core_get_severity_warning_style(void) {
+    if (!helix_theme_instance) {
+        return NULL;
+    }
+    return &helix_theme_instance->severity_warning_style;
+}
+
+lv_style_t* theme_core_get_severity_danger_style(void) {
+    if (!helix_theme_instance) {
+        return NULL;
+    }
+    return &helix_theme_instance->severity_danger_style;
 }

@@ -268,6 +268,50 @@ lv_style_t* theme_core_get_icon_danger_style(void);
  */
 lv_style_t* theme_core_get_icon_info_style(void);
 
+// ============================================================================
+// Spinner Style Getters (Phase 2.3)
+// ============================================================================
+
+/**
+ * @brief Get the shared spinner style
+ *
+ * Returns a pointer to the persistent spinner style using primary_color for arc.
+ * The style updates in-place when theme_core_update_colors() is called.
+ *
+ * @return Pointer to spinner style, or NULL if theme not initialized
+ */
+lv_style_t* theme_core_get_spinner_style(void);
+
+// ============================================================================
+// Severity Style Getters (Phase 2.3)
+// ============================================================================
+// Severity styles are for severity_card border colors. Each severity level
+// (info, success, warning, danger) has its own style with border_color set.
+
+/**
+ * @brief Get the shared severity info style
+ * @return Pointer to severity info style, or NULL if theme not initialized
+ */
+lv_style_t* theme_core_get_severity_info_style(void);
+
+/**
+ * @brief Get the shared severity success style
+ * @return Pointer to severity success style, or NULL if theme not initialized
+ */
+lv_style_t* theme_core_get_severity_success_style(void);
+
+/**
+ * @brief Get the shared severity warning style
+ * @return Pointer to severity warning style, or NULL if theme not initialized
+ */
+lv_style_t* theme_core_get_severity_warning_style(void);
+
+/**
+ * @brief Get the shared severity danger style
+ * @return Pointer to severity danger style, or NULL if theme not initialized
+ */
+lv_style_t* theme_core_get_severity_danger_style(void);
+
 #ifdef __cplusplus
 }
 #endif
