@@ -31,9 +31,12 @@ typedef struct {
     lv_style_t slider_knob_style;        // Slider knob with shadow
     lv_style_t slider_disabled_style;    // Slider disabled state (50% opacity)
     lv_style_t dropdown_selected_style;  // Dropdown selected item highlight
-    lv_color_t
-        dropdown_accent_color; // Accent color for dropdown selection (stored for apply callback)
-    bool is_dark_mode;         // Track theme mode for context
+    lv_style_t card_style;               // Shared card style (bg_color, border, radius)
+    lv_style_t dialog_style;             // Shared dialog style (surface_control bg)
+    lv_style_t text_primary_style;       // Shared primary text style (text_color)
+    lv_style_t text_muted_style;         // Shared muted text style (text_muted_color)
+    lv_style_t text_subtle_style;        // Shared subtle text style (text_subtle_color)
+    bool is_dark_mode;                   // Track theme mode for context
 } helix_theme_t;
 
 // Static theme instance (singleton pattern matching LVGL's approach)
@@ -208,7 +211,8 @@ static void helix_theme_apply(lv_theme_t* theme, lv_obj_t* obj) {
 }
 
 lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
-                            lv_color_t secondary_color, lv_color_t text_primary_color, bool is_dark,
+                            lv_color_t secondary_color, lv_color_t text_primary_color,
+                            lv_color_t text_muted_color, lv_color_t text_subtle_color, bool is_dark,
                             const lv_font_t* base_font, lv_color_t screen_bg, lv_color_t card_bg,
                             lv_color_t surface_control, lv_color_t focus_color,
                             lv_color_t border_color, int32_t border_radius, int32_t border_width,
@@ -233,6 +237,11 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
         lv_style_reset(&helix_theme_instance->slider_knob_style);
         lv_style_reset(&helix_theme_instance->slider_disabled_style);
         lv_style_reset(&helix_theme_instance->dropdown_selected_style);
+        lv_style_reset(&helix_theme_instance->card_style);
+        lv_style_reset(&helix_theme_instance->dialog_style);
+        lv_style_reset(&helix_theme_instance->text_primary_style);
+        lv_style_reset(&helix_theme_instance->text_muted_style);
+        lv_style_reset(&helix_theme_instance->text_subtle_style);
         free(helix_theme_instance);
         helix_theme_instance = NULL;
     }
@@ -389,6 +398,33 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
     // Store accent color for use in apply callback (local style override)
     helix_theme_instance->dropdown_accent_color = accent_color;
 
+    // Initialize shared card style - for ui_card and similar widgets
+    lv_style_init(&helix_theme_instance->card_style);
+    lv_style_set_bg_color(&helix_theme_instance->card_style, card_bg);
+    lv_style_set_bg_opa(&helix_theme_instance->card_style, LV_OPA_COVER);
+    lv_style_set_border_color(&helix_theme_instance->card_style, border_color);
+    lv_style_set_border_width(&helix_theme_instance->card_style, 1);
+    lv_style_set_border_opa(&helix_theme_instance->card_style, LV_OPA_40);
+    lv_style_set_radius(&helix_theme_instance->card_style, border_radius);
+
+    // Initialize shared dialog style - for ui_dialog and modal backgrounds
+    lv_style_init(&helix_theme_instance->dialog_style);
+    lv_style_set_bg_color(&helix_theme_instance->dialog_style, surface_control);
+    lv_style_set_bg_opa(&helix_theme_instance->dialog_style, LV_OPA_COVER);
+    lv_style_set_radius(&helix_theme_instance->dialog_style, border_radius);
+
+    // Initialize shared primary text style - for text labels
+    lv_style_init(&helix_theme_instance->text_primary_style);
+    lv_style_set_text_color(&helix_theme_instance->text_primary_style, text_primary_color);
+
+    // Initialize shared muted text style - for secondary/muted text
+    lv_style_init(&helix_theme_instance->text_muted_style);
+    lv_style_set_text_color(&helix_theme_instance->text_muted_style, text_muted_color);
+
+    // Initialize shared subtle text style - even more muted than text_muted
+    lv_style_init(&helix_theme_instance->text_subtle_style);
+    lv_style_set_text_color(&helix_theme_instance->text_subtle_style, text_subtle_color);
+
     // CRITICAL: Now we need to patch the default theme's color fields
     // This is necessary because LVGL's default theme bakes colors into pre-computed
     // styles during init. We must update both the theme color fields AND the styles.
@@ -448,6 +484,7 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
 
 void theme_core_update_colors(bool is_dark, lv_color_t screen_bg, lv_color_t card_bg,
                               lv_color_t surface_control, lv_color_t text_primary_color,
+                              lv_color_t text_muted_color, lv_color_t text_subtle_color,
                               lv_color_t focus_color, lv_color_t primary_color,
                               lv_color_t secondary_color, lv_color_t border_color,
                               int32_t border_opacity, lv_color_t knob_color,
@@ -493,6 +530,18 @@ void theme_core_update_colors(bool is_dark, lv_color_t screen_bg, lv_color_t car
     // Update dropdown selected item style - uses accent_color (more saturated of primary/secondary)
     lv_style_set_bg_color(&helix_theme_instance->dropdown_selected_style, accent_color);
     helix_theme_instance->dropdown_accent_color = accent_color;
+
+    // Update shared card style
+    lv_style_set_bg_color(&helix_theme_instance->card_style, card_bg);
+    lv_style_set_border_color(&helix_theme_instance->card_style, border_color);
+
+    // Update shared dialog style
+    lv_style_set_bg_color(&helix_theme_instance->dialog_style, surface_control);
+
+    // Update shared text styles
+    lv_style_set_text_color(&helix_theme_instance->text_primary_style, text_primary_color);
+    lv_style_set_text_color(&helix_theme_instance->text_muted_style, text_muted_color);
+    lv_style_set_text_color(&helix_theme_instance->text_subtle_style, text_subtle_color);
 
     // Update LVGL default theme's internal styles
     // This is the same private API access pattern used in theme_core_init
@@ -643,6 +692,24 @@ void theme_core_preview_colors(bool is_dark, const char* colors[16], int32_t bor
     lv_style_set_bg_color(&helix_theme_instance->dropdown_selected_style, dropdown_accent);
     helix_theme_instance->dropdown_accent_color = dropdown_accent;
 
+    // Update shared card style
+    lv_style_set_bg_color(&helix_theme_instance->card_style, card_bg);
+    lv_style_set_border_color(&helix_theme_instance->card_style, border_approx);
+    lv_style_set_radius(&helix_theme_instance->card_style, border_radius);
+
+    // Update shared dialog style
+    lv_style_set_bg_color(&helix_theme_instance->dialog_style, card_alt);
+    lv_style_set_radius(&helix_theme_instance->dialog_style, border_radius);
+
+    // Update shared text styles
+    // text_subtle (index 4) serves as approximate muted text in legacy palette
+    lv_color_t text_muted = lv_color_hex(strtoul(colors[4] + 1, NULL, 16));
+    // For subtle, use the same as muted in preview mode (actual themes will differ)
+    lv_color_t text_subtle = text_muted;
+    lv_style_set_text_color(&helix_theme_instance->text_primary_style, text_primary);
+    lv_style_set_text_color(&helix_theme_instance->text_muted_style, text_muted);
+    lv_style_set_text_color(&helix_theme_instance->text_subtle_style, text_subtle);
+
     // Update default theme internal styles (private API access)
     typedef struct {
         lv_style_t scr;
@@ -679,4 +746,39 @@ void theme_core_preview_colors(bool is_dark, const char* colors[16], int32_t bor
 
     // Trigger style refresh
     lv_obj_report_style_change(NULL);
+}
+
+lv_style_t* theme_core_get_card_style(void) {
+    if (!helix_theme_instance) {
+        return NULL;
+    }
+    return &helix_theme_instance->card_style;
+}
+
+lv_style_t* theme_core_get_dialog_style(void) {
+    if (!helix_theme_instance) {
+        return NULL;
+    }
+    return &helix_theme_instance->dialog_style;
+}
+
+lv_style_t* theme_core_get_text_style(void) {
+    if (!helix_theme_instance) {
+        return NULL;
+    }
+    return &helix_theme_instance->text_primary_style;
+}
+
+lv_style_t* theme_core_get_text_muted_style(void) {
+    if (!helix_theme_instance) {
+        return NULL;
+    }
+    return &helix_theme_instance->text_muted_style;
+}
+
+lv_style_t* theme_core_get_text_subtle_style(void) {
+    if (!helix_theme_instance) {
+        return NULL;
+    }
+    return &helix_theme_instance->text_subtle_style;
 }

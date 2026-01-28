@@ -52,7 +52,8 @@ extern "C" {
  * @endcode
  */
 lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
-                            lv_color_t secondary_color, lv_color_t text_primary_color, bool is_dark,
+                            lv_color_t secondary_color, lv_color_t text_primary_color,
+                            lv_color_t text_muted_color, lv_color_t text_subtle_color, bool is_dark,
                             const lv_font_t* base_font, lv_color_t screen_bg, lv_color_t card_bg,
                             lv_color_t surface_control, lv_color_t focus_color,
                             lv_color_t border_color, int32_t border_radius, int32_t border_width,
@@ -82,6 +83,7 @@ lv_theme_t* theme_core_init(lv_display_t* display, lv_color_t primary_color,
  */
 void theme_core_update_colors(bool is_dark, lv_color_t screen_bg, lv_color_t card_bg,
                               lv_color_t surface_control, lv_color_t text_primary_color,
+                              lv_color_t text_muted_color, lv_color_t text_subtle_color,
                               lv_color_t focus_color, lv_color_t primary_color,
                               lv_color_t secondary_color, lv_color_t border_color,
                               int32_t border_opacity, lv_color_t knob_color,
@@ -99,6 +101,72 @@ void theme_core_update_colors(bool is_dark, lv_color_t screen_bg, lv_color_t car
  */
 void theme_core_preview_colors(bool is_dark, const char* colors[16], int32_t border_radius,
                                int32_t border_opacity);
+
+/**
+ * @brief Get the shared card style
+ *
+ * Returns a pointer to the persistent card style that includes:
+ * - bg_color: card_bg token
+ * - bg_opa: LV_OPA_COVER
+ * - border_color, border_width, border_opa
+ * - radius: from border_radius parameter
+ *
+ * The style updates in-place when theme_core_update_colors() is called.
+ *
+ * @return Pointer to card style, or NULL if theme not initialized
+ */
+lv_style_t* theme_core_get_card_style(void);
+
+/**
+ * @brief Get the shared dialog style
+ *
+ * Returns a pointer to the persistent dialog style that includes:
+ * - bg_color: surface_control/card_alt token
+ * - bg_opa: LV_OPA_COVER
+ * - radius: from border_radius parameter
+ *
+ * The style updates in-place when theme_core_update_colors() is called.
+ *
+ * @return Pointer to dialog style, or NULL if theme not initialized
+ */
+lv_style_t* theme_core_get_dialog_style(void);
+
+/**
+ * @brief Get the shared primary text style
+ *
+ * Returns a pointer to the persistent text style that includes:
+ * - text_color: text_primary_color token
+ *
+ * The style updates in-place when theme_core_update_colors() is called.
+ *
+ * @return Pointer to text style, or NULL if theme not initialized
+ */
+lv_style_t* theme_core_get_text_style(void);
+
+/**
+ * @brief Get the shared muted text style
+ *
+ * Returns a pointer to the persistent muted text style that includes:
+ * - text_color: text_primary_color with reduced opacity
+ * - text_opa: ~70% for muted appearance
+ *
+ * The style updates in-place when theme_core_update_colors() is called.
+ *
+ * @return Pointer to muted text style, or NULL if theme not initialized
+ */
+lv_style_t* theme_core_get_text_muted_style(void);
+
+/**
+ * @brief Get the shared subtle text style
+ *
+ * Returns a pointer to the persistent subtle text style that includes:
+ * - text_color: text_subtle_color (even more muted than text_muted)
+ *
+ * The style updates in-place when theme_core_update_colors() is called.
+ *
+ * @return Pointer to subtle text style, or NULL if theme not initialized
+ */
+lv_style_t* theme_core_get_text_subtle_style(void);
 
 #ifdef __cplusplus
 }

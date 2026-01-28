@@ -10,6 +10,7 @@
 #include "lvgl/src/xml/lv_xml_widget.h"
 #include "lvgl/src/xml/parsers/lv_xml_label_parser.h"
 #include "lvgl/src/xml/parsers/lv_xml_obj_parser.h"
+#include "theme_core.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -18,7 +19,15 @@
 #include <cstring>
 
 /**
- * Helper function to apply semantic font and color to a label
+ * Enum for text style types used by semantic text widgets
+ */
+enum class TextStyleType {
+    PRIMARY, // Primary text color (text_body, text_button)
+    MUTED    // Muted text color (text_heading, text_small, text_xs)
+};
+
+/**
+ * Helper function to apply semantic font to a label
  *
  * IMPORTANT: This function will CRASH the application if a font is not found.
  * This is intentional - silent font fallbacks cause visual bugs that are
@@ -26,10 +35,8 @@
  *
  * @param label Label widget to style
  * @param font_const_name Name of font constant in globals.xml (e.g., "font_heading")
- * @param color_const_name Name of color constant in globals.xml (e.g., "text_muted")
  */
-static void apply_semantic_style(lv_obj_t* label, const char* font_const_name,
-                                 const char* color_const_name) {
+static void apply_semantic_font(lv_obj_t* label, const char* font_const_name) {
     // Apply font - FAIL FAST if font is not available
     const char* font_name = lv_xml_get_const(NULL, font_const_name);
     if (!font_name) {
@@ -62,16 +69,35 @@ static void apply_semantic_style(lv_obj_t* label, const char* font_const_name,
     // Debug: log the actual font being applied
     spdlog::trace("[ui_text] Applied font '{}' (from '{}') - line_height={}px", font_name,
                   font_const_name, lv_font_get_line_height(font));
+}
 
-    // Apply color from theme constant (not hardcoded - parsed from globals.xml)
-    const char* color_str = lv_xml_get_const(NULL, color_const_name);
-    if (color_str && color_str[0] == '#') {
-        uint32_t hex = static_cast<uint32_t>(strtoul(color_str + 1, NULL, 16));
-        lv_color_t color = lv_color_hex(hex); // theme color parsed from XML
-        lv_obj_set_style_text_color(label, color, 0);
+/**
+ * Helper function to apply shared text style for reactive theming
+ *
+ * Adds the appropriate shared text style from theme_core so text color
+ * updates automatically when the theme changes.
+ *
+ * @param label Label widget to style
+ * @param style_type Which text style to apply (PRIMARY or MUTED)
+ */
+static void apply_shared_text_style(lv_obj_t* label, TextStyleType style_type) {
+    lv_style_t* text_style = nullptr;
+
+    switch (style_type) {
+    case TextStyleType::PRIMARY:
+        text_style = theme_core_get_text_style();
+        break;
+    case TextStyleType::MUTED:
+        text_style = theme_core_get_text_muted_style();
+        break;
+    }
+
+    if (text_style) {
+        lv_obj_add_style(label, text_style, LV_PART_MAIN);
+        spdlog::trace("[ui_text] Applied shared {} text style",
+                      style_type == TextStyleType::PRIMARY ? "primary" : "muted");
     } else {
-        spdlog::warn("[ui_text] Color constant '{}' not found or invalid in globals.xml",
-                     color_const_name);
+        spdlog::warn("[ui_text] Shared text style not available - theme not initialized?");
     }
 }
 
@@ -143,69 +169,39 @@ static void ui_text_apply(lv_xml_parser_state_t* state, const char** attrs) {
 }
 
 /**
- * Apply callback for text_button - recalculates contrast AFTER parent is styled
+ * Helper to create a semantic text label with specified font and shared text style
  *
- * This is called after XML attributes are applied to both the button and its children,
- * so the parent's bg_color is now available for luminance calculation.
- */
-static void ui_text_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
-    // First apply standard label properties
-    lv_xml_label_apply(state, attrs);
-
-    lv_obj_t* label = static_cast<lv_obj_t*>(lv_xml_state_get_item(state));
-    lv_obj_t* parent = lv_obj_get_parent(label);
-
-    if (!parent) {
-        return;
-    }
-
-    // Get parent's background color (now that XML attrs have been applied)
-    lv_color_t bg_color = lv_obj_get_style_bg_color(parent, LV_PART_MAIN);
-    lv_opa_t bg_opa = lv_obj_get_style_bg_opa(parent, LV_PART_MAIN);
-    uint8_t lum = lv_color_luminance(bg_color);
-
-    // Only apply auto-contrast if parent has a visible background
-    if (bg_opa > LV_OPA_50) {
-        // text_light = from light mode palette (dark text for light backgrounds)
-        // text_dark = from dark mode palette (light text for dark backgrounds)
-        const char* color_const = (lum > 140) ? "text_light" : "text_dark";
-        const char* color_str = lv_xml_get_const(NULL, color_const);
-
-        if (color_str && color_str[0] == '#') {
-            uint32_t hex = static_cast<uint32_t>(strtoul(color_str + 1, NULL, 16));
-            lv_obj_set_style_text_color(label, lv_color_hex(hex), 0);
-        }
-    }
-}
-
-/**
- * Helper to create a semantic text label with specified font and color
+ * @param state XML parser state
+ * @param attrs XML attributes (unused)
+ * @param font_const Font constant name in globals.xml
+ * @param style_type Which shared text style to apply (PRIMARY or MUTED)
  */
 static lv_obj_t* create_semantic_label(lv_xml_parser_state_t* state, const char** attrs,
-                                       const char* font_const, const char* color_const) {
+                                       const char* font_const, TextStyleType style_type) {
     LV_UNUSED(attrs);
     lv_obj_t* parent = static_cast<lv_obj_t*>(lv_xml_state_get_parent(state));
     lv_obj_t* label = lv_label_create(parent);
-    apply_semantic_style(label, font_const, color_const);
+    apply_semantic_font(label, font_const);
+    apply_shared_text_style(label, style_type);
     return label;
 }
 
-// XML create callbacks - each variant just specifies font/color constants
+// XML create callbacks - each variant specifies font constant and style type
 
 static void* ui_text_heading_create(lv_xml_parser_state_t* state, const char** attrs) {
-    return create_semantic_label(state, attrs, "font_heading", "text_muted");
+    return create_semantic_label(state, attrs, "font_heading", TextStyleType::MUTED);
 }
 
 static void* ui_text_body_create(lv_xml_parser_state_t* state, const char** attrs) {
-    return create_semantic_label(state, attrs, "font_body", "text");
+    return create_semantic_label(state, attrs, "font_body", TextStyleType::PRIMARY);
 }
 
 static void* ui_text_small_create(lv_xml_parser_state_t* state, const char** attrs) {
-    return create_semantic_label(state, attrs, "font_small", "text_muted");
+    return create_semantic_label(state, attrs, "font_small", TextStyleType::MUTED);
 }
 
 static void* ui_text_xs_create(lv_xml_parser_state_t* state, const char** attrs) {
-    return create_semantic_label(state, attrs, "font_xs", "text_muted");
+    return create_semantic_label(state, attrs, "font_xs", TextStyleType::MUTED);
 }
 
 /**
@@ -215,17 +211,12 @@ static void* ui_text_xs_create(lv_xml_parser_state_t* state, const char** attrs)
  * in ui_text_button_apply() after parent's bg_color is available.
  */
 static void* ui_text_button_create(lv_xml_parser_state_t* state, const char** attrs) {
-    LV_UNUSED(attrs);
-    lv_obj_t* parent = static_cast<lv_obj_t*>(lv_xml_state_get_parent(state));
-    lv_obj_t* label = lv_label_create(parent);
-
-    // Apply font
-    const char* font_name = lv_xml_get_const(NULL, "font_body");
-    if (font_name) {
-        const lv_font_t* font = lv_xml_get_font(NULL, font_name);
-        if (font) {
-            lv_obj_set_style_text_font(label, font, 0);
-        }
+    lv_obj_t* label = create_semantic_label(state, attrs, "font_body", TextStyleType::PRIMARY);
+    if (label) {
+        // Center the label within its parent (the button)
+        lv_obj_set_align(label, LV_ALIGN_CENTER);
+        // Also set text alignment for multi-line button labels
+        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     }
 
     // Default text color - will be overridden in apply if parent has colored bg

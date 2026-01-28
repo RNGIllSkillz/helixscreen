@@ -7,6 +7,7 @@
 #include "lvgl/src/xml/lv_xml_parser.h"
 #include "lvgl/src/xml/lv_xml_widget.h"
 #include "lvgl/src/xml/parsers/lv_xml_obj_parser.h"
+#include "theme_core.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -28,33 +29,30 @@ static void* ui_card_xml_create(lv_xml_parser_state_t* state, const char** attrs
         return NULL;
     }
 
-    // Apply theme-aware defaults (can be overridden by XML attrs in apply handler)
-    // 1. Background color (theme-aware: light/dark via theme_manager_get_color)
-    lv_color_t bg_color = theme_manager_get_color("card_bg");
-    lv_obj_set_style_bg_color(obj, bg_color, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_MAIN);
+    // Apply shared card style (bg_color, bg_opa, border, radius - all reactive to theme changes)
+    lv_style_t* card_style = theme_core_get_card_style();
+    if (card_style) {
+        // Remove any existing LV_PART_MAIN styles (from LVGL theme) so our shared style takes
+        // effect
+        lv_obj_remove_style(obj, nullptr, LV_PART_MAIN);
+        lv_obj_add_style(obj, card_style, LV_PART_MAIN);
+    } else {
+        spdlog::warn("[Card] card_style is NULL - theme not initialized?");
+    }
 
-    // 2. Disabled state: 50% opacity for visual feedback
+    // Disabled state: 50% opacity for visual feedback
     lv_obj_set_style_opa(obj, LV_OPA_50, LV_PART_MAIN | LV_STATE_DISABLED);
 
-    // 3. Border: theme-aware width, color, and opacity
-    lv_obj_set_style_border_width(obj, theme_manager_get_spacing("border_width"), LV_PART_MAIN);
-    lv_obj_set_style_border_color(obj, theme_manager_get_color("border"), LV_PART_MAIN);
-    lv_obj_set_style_border_opa(obj, theme_manager_get_spacing("border_opacity"), LV_PART_MAIN);
-
-    // 4. Disable scrolling (cards are fixed containers, not scroll areas)
+    // Disable scrolling (cards are fixed containers, not scroll areas)
     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
 
-    // 5. Shadow: 0 (no shadow)
+    // Shadow: 0 (no shadow by default - can be overridden in XML)
     lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN);
 
-    // 6. Padding: theme-aware via space_md
-    lv_obj_set_style_pad_all(obj, theme_manager_get_spacing("space_md"), LV_PART_MAIN);
-    lv_obj_set_style_pad_gap(obj, theme_manager_get_spacing("space_md"), LV_PART_MAIN);
-
-    // 7. Border radius: theme-aware via card_radius token
-    int32_t radius = theme_manager_get_spacing("card_radius");
-    lv_obj_set_style_radius(obj, radius, LV_PART_MAIN);
+    // Padding: responsive via space_md token
+    int32_t padding = theme_manager_get_spacing("space_md");
+    lv_obj_set_style_pad_all(obj, padding, LV_PART_MAIN);
+    lv_obj_set_style_pad_gap(obj, padding, LV_PART_MAIN);
 
     spdlog::trace("[Card] Created ui_card with theme-aware defaults");
     return (void*)obj;

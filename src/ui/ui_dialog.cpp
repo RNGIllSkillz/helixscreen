@@ -3,19 +3,18 @@
 
 #include "ui_dialog.h"
 
-#include "lvgl/lvgl.h"
-#include "lvgl/src/xml/lv_xml.h"
 #include "lvgl/src/xml/lv_xml_parser.h"
-#include "lvgl/src/xml/lv_xml_style.h"
 #include "lvgl/src/xml/lv_xml_widget.h"
 #include "lvgl/src/xml/parsers/lv_xml_obj_parser.h"
-#include "theme_manager.h"
+#include "theme_core.h"
 
 #include <spdlog/spdlog.h>
 
 /**
  * XML create handler for ui_dialog
  * Creates an lv_obj widget when <ui_dialog> is encountered in XML
+ * and applies theme-aware defaults. Defaults are set here (not in apply)
+ * because create is called exactly once, while apply may be called multiple times.
  */
 static void* ui_dialog_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
     LV_UNUSED(attrs);
@@ -28,34 +27,19 @@ static void* ui_dialog_xml_create(lv_xml_parser_state_t* state, const char** att
         return NULL;
     }
 
-    spdlog::trace("[Dialog] Created base lv_obj");
-    return (void*)obj;
-}
-
-/**
- * XML apply handler for ui_dialog
- * Applies theme defaults + XML attributes to the dialog widget
- */
-static void ui_dialog_xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
-    void* item = lv_xml_state_get_item(state);
-    lv_obj_t* obj = (lv_obj_t*)item;
-
-    if (!obj) {
-        spdlog::error("[Dialog] NULL object in xml_apply");
-        return;
+    // Apply shared dialog style (bg_color, bg_opa, radius - all reactive to theme changes)
+    lv_style_t* dialog_style = theme_core_get_dialog_style();
+    if (dialog_style) {
+        // Remove any existing LV_PART_MAIN styles (from LVGL theme) so our shared style takes
+        // effect
+        lv_obj_remove_style(obj, nullptr, LV_PART_MAIN);
+        lv_obj_add_style(obj, dialog_style, LV_PART_MAIN);
+    } else {
+        spdlog::warn("[Dialog] dialog_style is NULL - theme not initialized?");
     }
 
-    // Apply theme grey as background (matches lv_button styling from helix_theme)
-    lv_color_t bg_color = theme_manager_get_color("card_alt");
-    lv_obj_set_style_bg_color(obj, bg_color, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, LV_PART_MAIN);
-
-    // Border radius from theme (read from globals.xml)
-    const char* border_radius_str = lv_xml_get_const(NULL, "border_radius");
-    if (border_radius_str) {
-        int32_t border_radius = atoi(border_radius_str);
-        lv_obj_set_style_radius(obj, border_radius, LV_PART_MAIN);
-    }
+    // Disabled state: 50% opacity for visual feedback
+    lv_obj_set_style_opa(obj, LV_OPA_50, LV_PART_MAIN | LV_STATE_DISABLED);
 
     // No padding by default (dividers/buttons go edge-to-edge)
     lv_obj_set_style_pad_all(obj, 0, LV_PART_MAIN);
@@ -69,14 +53,12 @@ static void ui_dialog_xml_apply(lv_xml_parser_state_t* state, const char** attrs
     // Clip children to rounded corners (for full-bleed buttons at bottom)
     lv_obj_set_style_clip_corner(obj, true, LV_PART_MAIN);
 
-    spdlog::trace("[Dialog] Applied LVGL button grey background (0x{:06X})",
-                  lv_color_to_u32(bg_color) & 0xFFFFFF);
-
-    // Now apply standard lv_obj properties from XML (highest priority)
-    lv_xml_obj_apply(state, attrs);
+    spdlog::trace("[Dialog] Created ui_dialog with theme-aware defaults");
+    return (void*)obj;
 }
 
 void ui_dialog_register(void) {
-    lv_xml_register_widget("ui_dialog", ui_dialog_xml_create, ui_dialog_xml_apply);
+    // Use standard lv_xml_obj_apply for XML attr processing - defaults are in create handler
+    lv_xml_register_widget("ui_dialog", ui_dialog_xml_create, lv_xml_obj_apply);
     spdlog::trace("[Dialog] Registered <ui_dialog> widget with LVGL XML system");
 }
