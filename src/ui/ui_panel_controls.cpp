@@ -606,7 +606,7 @@ void ControlsPanel::populate_secondary_fans() {
             // "A" in circle indicates "auto-controlled by system"
             lv_label_set_text(indicator, ui_icon::lookup_codepoint("alpha_a_circle"));
         }
-        lv_obj_set_style_text_color(indicator, theme_manager_get_color("text_muted"), 0);
+        lv_obj_set_style_text_color(indicator, theme_manager_get_color("secondary"), 0);
         lv_obj_set_style_text_font(indicator, &mdi_icons_16, 0);
 
         secondary_count++;

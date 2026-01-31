@@ -67,8 +67,22 @@ void update_button_text_contrast(lv_obj_t* btn) {
         return;
     }
 
-    lv_color_t bg = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
-    lv_color_t text_color = theme_core_get_contrast_text_color(bg);
+    // For ghost buttons (transparent bg), use normal text color instead of auto-contrast
+    // Auto-contrast only makes sense when there's a visible background to contrast against
+    lv_opa_t bg_opa = lv_obj_get_style_bg_opa(btn, LV_PART_MAIN);
+    lv_color_t text_color;
+
+    if (bg_opa < LV_OPA_50) {
+        // Ghost/transparent button - use theme text color
+        text_color = theme_manager_get_color("text");
+        spdlog::trace("[ui_button] ghost button (opa={}), using text color", bg_opa);
+    } else {
+        // Solid button - calculate contrast against background
+        lv_color_t bg = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
+        text_color = theme_core_get_contrast_text_color(bg);
+        spdlog::trace("[ui_button] text contrast: bg=0x{:06X} text=0x{:06X}",
+                      lv_color_to_u32(bg) & 0xFFFFFF, lv_color_to_u32(text_color) & 0xFFFFFF);
+    }
 
     // Apply to label if present
     if (data->label) {
@@ -79,9 +93,6 @@ void update_button_text_contrast(lv_obj_t* btn) {
     if (data->icon) {
         lv_obj_set_style_text_color(data->icon, text_color, LV_PART_MAIN);
     }
-
-    spdlog::trace("[ui_button] text contrast: bg=0x{:06X} text=0x{:06X}",
-                  lv_color_to_u32(bg) & 0xFFFFFF, lv_color_to_u32(text_color) & 0xFFFFFF);
 }
 
 /**
