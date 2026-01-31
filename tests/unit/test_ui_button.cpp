@@ -671,3 +671,75 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: text-only button still works",
 
     lv_obj_delete(btn);
 }
+
+// ============================================================================
+// User Data Safety Tests
+// ============================================================================
+// These tests verify the magic number defense against user_data being overwritten
+// by Modal::wire_button or similar code that repurposes user_data for Modal*.
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ui_button: deleting button with valid user_data does not crash",
+                 "[ui-button][safety]") {
+    // Normal button creation and deletion should work
+    const char* attrs[] = {"text", "Test", nullptr};
+    lv_obj_t* btn = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ui_button", attrs));
+    REQUIRE(btn != nullptr);
+
+    // Verify user_data is set (indicates UiButtonData was allocated)
+    void* data = lv_obj_get_user_data(btn);
+    REQUIRE(data != nullptr);
+
+    // Delete should free the UiButtonData without crashing
+    lv_obj_delete(btn);
+
+    // If we get here, no crash occurred
+    SUCCEED("Button with valid user_data deleted successfully");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ui_button: deleting button with overwritten user_data does not crash",
+                 "[ui-button][safety]") {
+    // This simulates what Modal::wire_button does: overwrite user_data
+    const char* attrs[] = {"text", "Test", nullptr};
+    lv_obj_t* btn = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ui_button", attrs));
+    REQUIRE(btn != nullptr);
+
+    // Overwrite user_data with a distinctive pattern (simulates Modal::wire_button)
+    // Use a non-null pointer that's clearly not a UiButtonData
+    static int fake_modal = 0xDEADBEEF;
+    lv_obj_set_user_data(btn, &fake_modal);
+
+    // Verify user_data was overwritten
+    void* data = lv_obj_get_user_data(btn);
+    REQUIRE(data == &fake_modal);
+
+    // Delete should NOT try to free the overwritten pointer (magic check should fail)
+    // This would crash with malloc_zone_error if the magic check wasn't working
+    lv_obj_delete(btn);
+
+    // If we get here, the magic number check prevented the crash
+    SUCCEED("Button with overwritten user_data deleted successfully (magic check worked)");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ui_button: style change on button with overwritten user_data does not crash",
+                 "[ui-button][safety]") {
+    // Verify update_button_text_contrast handles overwritten user_data
+    const char* attrs[] = {"text", "Test", nullptr};
+    lv_obj_t* btn = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ui_button", attrs));
+    REQUIRE(btn != nullptr);
+
+    // Overwrite user_data with a distinctive pattern (simulates Modal::wire_button)
+    // Use a non-null pointer that's clearly not a UiButtonData
+    static int fake_modal = 0xDEADBEEF;
+    lv_obj_set_user_data(btn, &fake_modal);
+
+    // Trigger a style change on just this button - this would crash if
+    // update_button_text_contrast tried to dereference the overwritten user_data
+    lv_obj_send_event(btn, LV_EVENT_STYLE_CHANGED, nullptr);
+
+    // If we get here, update_button_text_contrast correctly detected the overwritten data
+    lv_obj_delete(btn);
+    SUCCEED("Style change on button with overwritten user_data handled safely");
+}

@@ -22,7 +22,12 @@
 namespace {
 
 // User data stored on button to track icon/label positions
+// NOTE: Magic number required because Modal::wire_button overwrites user_data
+// with a Modal* pointer. Without this check, button_delete_cb would try to
+// delete a Modal* as if it were UiButtonData*, causing a crash on shutdown.
 struct UiButtonData {
+    static constexpr uint32_t MAGIC = 0x42544E31; // "BTN1"
+    uint32_t magic{MAGIC};
     lv_obj_t* icon;     // Icon widget (or nullptr if none)
     lv_obj_t* label;    // Label widget (always present)
     bool icon_on_right; // true if icon is after text
@@ -49,8 +54,9 @@ static const lv_font_t* get_button_icon_font() {
  */
 void update_button_text_contrast(lv_obj_t* btn) {
     // Get user data to find icon and label
+    // Check magic to ensure user_data hasn't been overwritten (e.g., by Modal::wire_button)
     UiButtonData* data = static_cast<UiButtonData*>(lv_obj_get_user_data(btn));
-    if (!data || !data->label) {
+    if (!data || data->magic != UiButtonData::MAGIC || !data->label) {
         spdlog::debug("[ui_button] No button data or label found");
         return;
     }
@@ -94,7 +100,9 @@ void button_style_changed_cb(lv_event_t* e) {
 void button_delete_cb(lv_event_t* e) {
     lv_obj_t* btn = lv_event_get_target_obj(e);
     UiButtonData* data = static_cast<UiButtonData*>(lv_obj_get_user_data(btn));
-    if (data) {
+    // Only delete if magic matches - user_data may have been overwritten
+    // by Modal::wire_button with a Modal* pointer
+    if (data && data->magic == UiButtonData::MAGIC) {
         delete data;
         lv_obj_set_user_data(btn, nullptr);
     }
@@ -210,7 +218,10 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
     bool icon_on_right = (icon_pos_str && strcmp(icon_pos_str, "right") == 0);
 
     // Allocate user data to track icon/label
-    UiButtonData* data = new UiButtonData{nullptr, nullptr, icon_on_right};
+    UiButtonData* data = new UiButtonData{.magic = UiButtonData::MAGIC,
+                                          .icon = nullptr,
+                                          .label = nullptr,
+                                          .icon_on_right = icon_on_right};
 
     bool has_icon = (icon_name && strlen(icon_name) > 0);
     bool has_text = (text && strlen(text) > 0);
