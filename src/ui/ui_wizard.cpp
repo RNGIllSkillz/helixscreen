@@ -82,6 +82,9 @@ static bool probe_step_skipped = false;
 // Track if input shaper step (10) is being skipped - no accelerometer
 static bool input_shaper_step_skipped = false;
 
+// Track if we've calculated the actual step total (happens after connection step)
+static bool skips_precalculated = false;
+
 // Forward declarations
 static void on_back_clicked(lv_event_t* e);
 static void on_next_clicked(lv_event_t* e);
@@ -343,6 +346,7 @@ void ui_wizard_navigate_to_step(int step) {
         filament_step_skipped = false;
         probe_step_skipped = false;
         input_shaper_step_skipped = false;
+        skips_precalculated = false;
 
         // Auto-skip touch calibration step if not needed
         if (get_wizard_touch_calibration_step()->should_skip()) {
@@ -407,8 +411,13 @@ void ui_wizard_navigate_to_step(int step) {
     }
 
     // Update progress text with display values
+    // Only show total once we've connected and know what hardware exists
     char progress_buf[32];
-    snprintf(progress_buf, sizeof(progress_buf), "Step %d of %d", display_step, display_total);
+    if (skips_precalculated) {
+        snprintf(progress_buf, sizeof(progress_buf), "Step %d of %d", display_step, display_total);
+    } else {
+        snprintf(progress_buf, sizeof(progress_buf), "Step %d", display_step);
+    }
     lv_subject_copy_string(&wizard_progress, progress_buf);
 
     // Load screen content (uses internal step number)
@@ -419,8 +428,8 @@ void ui_wizard_navigate_to_step(int step) {
         lv_obj_update_layout(wizard_container);
     }
 
-    spdlog::debug("[Wizard] Updated to step {}/{} (internal: {}), button: {}", display_step,
-                  display_total, step, is_last_step ? "Finish" : "Next");
+    spdlog::debug("[Wizard] Updated to '{}' (internal: {}), button: {}", progress_buf, step,
+                  is_last_step ? "Finish" : "Next");
 }
 
 void ui_wizard_set_title(const char* title) {
@@ -489,6 +498,9 @@ static void ui_wizard_precalculate_skips() {
                         (probe_step_skipped ? 1 : 0) + (input_shaper_step_skipped ? 1 : 0);
     spdlog::info("[Wizard] Pre-calculated skips: {} steps will be skipped, {} total steps",
                  total_skipped, 12 - total_skipped);
+
+    // Mark that we now know the true step count
+    skips_precalculated = true;
 }
 
 // ============================================================================
