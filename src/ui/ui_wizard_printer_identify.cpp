@@ -457,22 +457,14 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Find and set up the roller with printer types (dynamically built from database)
-    lv_obj_t* roller = lv_obj_find_by_name(screen_root_, "printer_type_roller");
-    if (roller) {
-        const std::string& roller_options = PrinterDetector::get_roller_options();
-        lv_roller_set_options(roller, roller_options.c_str(), LV_ROLLER_MODE_NORMAL);
-
-        // Set to the saved selection
-        int selected = lv_subject_get_int(&printer_type_selected_);
-        lv_roller_set_selected(roller, static_cast<uint32_t>(selected), LV_ANIM_OFF);
-
-        // Attach change handler with 'this' as user_data
-        lv_obj_add_event_cb(roller, on_printer_type_changed_static, LV_EVENT_VALUE_CHANGED, this);
-        spdlog::debug("[{}] Roller configured with {} options (dynamic from database)", get_name(),
+    // Find and set up the scrollable printer type list
+    printer_type_list_ = lv_obj_find_by_name(screen_root_, "printer_type_list");
+    if (printer_type_list_) {
+        populate_printer_type_list();
+        spdlog::debug("[{}] Printer type list populated with {} items", get_name(),
                       PrinterDetector::get_roller_names().size());
     } else {
-        spdlog::warn("[{}] Roller not found in XML", get_name());
+        spdlog::warn("[{}] Printer type list not found in XML", get_name());
     }
 
     // Find and set up the name textarea
@@ -559,6 +551,7 @@ void WizardPrinterIdentifyStep::cleanup() {
     // Reset UI references (wizard framework handles deletion)
     screen_root_ = nullptr;
     printer_preview_image_ = nullptr;
+    printer_type_list_ = nullptr;
 
     // Reset connection_test_passed to enabled (1) for other wizard steps
     lv_subject_set_int(&connection_test_passed, 1);
@@ -572,4 +565,126 @@ void WizardPrinterIdentifyStep::cleanup() {
 
 bool WizardPrinterIdentifyStep::is_validated() const {
     return printer_identify_validated_;
+}
+
+// ============================================================================
+// Printer Type List Helpers
+// ============================================================================
+
+void WizardPrinterIdentifyStep::populate_printer_type_list() {
+    if (!printer_type_list_) {
+        return;
+    }
+
+    // Clear any existing children
+    lv_obj_clean(printer_type_list_);
+
+    // Get printer names from database
+    const auto& names = PrinterDetector::get_roller_names();
+    int selected = lv_subject_get_int(&printer_type_selected_);
+
+    for (size_t i = 0; i < names.size(); ++i) {
+        // Create button for each printer type
+        lv_obj_t* btn = lv_obj_create(printer_type_list_);
+        lv_obj_set_width(btn, lv_pct(100));
+        lv_obj_set_height(btn, LV_SIZE_CONTENT);
+        lv_obj_set_style_pad_all(btn, theme_manager_get_spacing("space_md"), LV_PART_MAIN);
+        lv_obj_set_style_radius(btn, theme_manager_get_spacing("border_radius"), LV_PART_MAIN);
+        lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
+
+        // Style based on selection state
+        if (static_cast<int>(i) == selected) {
+            lv_obj_set_style_bg_color(btn, theme_manager_get_color("primary"), LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
+        } else {
+            lv_obj_set_style_bg_color(btn, theme_manager_get_color("elevated_bg"), LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
+        }
+
+        // Create label inside button
+        lv_obj_t* label = lv_label_create(btn);
+        lv_label_set_text(label, names[i].c_str());
+        lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), LV_PART_MAIN);
+
+        // Set text color based on selection
+        if (static_cast<int>(i) == selected) {
+            // Use contrast color for selected item
+            lv_color_t primary = theme_manager_get_color("primary");
+            uint8_t lum = lv_color_luminance(primary);
+            lv_color_t text_color = (lum > 140) ? lv_color_black() : lv_color_white();
+            lv_obj_set_style_text_color(label, text_color, LV_PART_MAIN);
+        } else {
+            lv_obj_set_style_text_color(label, theme_manager_get_color("text"), LV_PART_MAIN);
+        }
+
+        // Store index in user_data and attach click handler
+        lv_obj_set_user_data(btn, reinterpret_cast<void*>(i));
+        lv_obj_add_event_cb(btn, on_printer_type_item_clicked, LV_EVENT_CLICKED, this);
+    }
+
+    // Scroll to selected item
+    if (selected >= 0 && selected < static_cast<int>(names.size())) {
+        lv_obj_t* selected_btn = lv_obj_get_child(printer_type_list_, selected);
+        if (selected_btn) {
+            lv_obj_scroll_to_view(selected_btn, LV_ANIM_OFF);
+        }
+    }
+}
+
+void WizardPrinterIdentifyStep::update_list_selection(int selected_index) {
+    if (!printer_type_list_) {
+        return;
+    }
+
+    uint32_t child_count = lv_obj_get_child_count(printer_type_list_);
+    for (uint32_t i = 0; i < child_count; ++i) {
+        lv_obj_t* btn = lv_obj_get_child(printer_type_list_, static_cast<int32_t>(i));
+        if (!btn)
+            continue;
+
+        lv_obj_t* label = lv_obj_get_child(btn, 0);
+        bool is_selected = (static_cast<int>(i) == selected_index);
+
+        if (is_selected) {
+            lv_obj_set_style_bg_color(btn, theme_manager_get_color("primary"), LV_PART_MAIN);
+            if (label) {
+                lv_color_t primary = theme_manager_get_color("primary");
+                uint8_t lum = lv_color_luminance(primary);
+                lv_color_t text_color = (lum > 140) ? lv_color_black() : lv_color_white();
+                lv_obj_set_style_text_color(label, text_color, LV_PART_MAIN);
+            }
+        } else {
+            lv_obj_set_style_bg_color(btn, theme_manager_get_color("elevated_bg"), LV_PART_MAIN);
+            if (label) {
+                lv_obj_set_style_text_color(label, theme_manager_get_color("text"), LV_PART_MAIN);
+            }
+        }
+    }
+}
+
+void WizardPrinterIdentifyStep::on_printer_type_item_clicked(lv_event_t* e) {
+    auto* self = static_cast<WizardPrinterIdentifyStep*>(lv_event_get_user_data(e));
+    if (!self)
+        return;
+
+    lv_obj_t* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
+    int index = static_cast<int>(reinterpret_cast<uintptr_t>(lv_obj_get_user_data(btn)));
+
+    const auto& names = PrinterDetector::get_roller_names();
+    if (index >= 0 && index < static_cast<int>(names.size())) {
+        spdlog::debug("[{}] Type selected: index {} ({})", self->get_name(), index, names[index]);
+
+        // Update subject
+        lv_subject_set_int(&self->printer_type_selected_, index);
+
+        // Update visual selection
+        self->update_list_selection(index);
+
+        // Update printer preview image
+        if (self->printer_preview_image_) {
+            std::string image_path = PrinterImages::get_validated_image_path(index);
+            lv_image_set_src(self->printer_preview_image_, image_path.c_str());
+            spdlog::debug("[{}] Preview image updated: {}", self->get_name(), image_path);
+        }
+    }
 }

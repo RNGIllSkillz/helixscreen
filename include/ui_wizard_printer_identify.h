@@ -131,6 +131,9 @@ class WizardPrinterIdentifyStep {
     // Printer preview image widget
     lv_obj_t* printer_preview_image_ = nullptr;
 
+    // Printer type list container
+    lv_obj_t* printer_type_list_ = nullptr;
+
     // Subjects (3 total)
     lv_subject_t printer_name_;
     lv_subject_t printer_type_selected_;
@@ -149,6 +152,11 @@ class WizardPrinterIdentifyStep {
     // Event handler implementations
     void handle_printer_name_changed(lv_event_t* e);
     void handle_printer_type_changed(lv_event_t* e);
+
+    // Printer type list helpers
+    void populate_printer_type_list();
+    void update_list_selection(int selected_index);
+    static void on_printer_type_item_clicked(lv_event_t* e);
 
     // Static trampolines for LVGL callbacks
     static void on_printer_name_changed_static(lv_event_t* e);
