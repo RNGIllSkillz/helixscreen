@@ -620,11 +620,16 @@ void BedMeshPanel::on_mesh_update_internal(const BedMeshProfile& mesh) {
         }
     }
 
-    // Convert mesh indices to coordinates
-    float min_x = (min_col - (mesh.x_count - 1) / 2.0f) * 50.0f;
-    float min_y = ((mesh.y_count - 1 - min_row) - (mesh.y_count - 1) / 2.0f) * 50.0f;
-    float max_x = (max_col - (mesh.x_count - 1) / 2.0f) * 50.0f;
-    float max_y = ((mesh.y_count - 1 - max_row) - (mesh.y_count - 1) / 2.0f) * 50.0f;
+    // Convert mesh indices to actual printer coordinates using mesh_min/mesh_max
+    // Klipper's probed_matrix: row 0 = mesh_min[1], row N-1 = mesh_max[1]
+    float x_step =
+        (mesh.x_count > 1) ? (mesh.mesh_max[0] - mesh.mesh_min[0]) / (mesh.x_count - 1) : 0.0f;
+    float y_step =
+        (mesh.y_count > 1) ? (mesh.mesh_max[1] - mesh.mesh_min[1]) / (mesh.y_count - 1) : 0.0f;
+    float min_x = mesh.mesh_min[0] + min_col * x_step;
+    float min_y = mesh.mesh_min[1] + min_row * y_step;
+    float max_x = mesh.mesh_min[0] + max_col * x_step;
+    float max_y = mesh.mesh_min[1] + max_row * y_step;
 
     // Update max label and value
     std::snprintf(max_label_buf_, sizeof(max_label_buf_), "Max [%.1f, %.1f]", max_x, max_y);

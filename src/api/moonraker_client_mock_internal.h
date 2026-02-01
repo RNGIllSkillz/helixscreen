@@ -20,6 +20,26 @@
 
 namespace mock_internal {
 
+// ============================================================================
+// Mock Printer Configuration Constants
+// ============================================================================
+
+// Bed dimensions (mm)
+constexpr double MOCK_BED_X_MIN = 0.0;
+constexpr double MOCK_BED_X_MAX = 250.0;
+constexpr double MOCK_BED_Y_MIN = 0.0;
+constexpr double MOCK_BED_Y_MAX = 250.0;
+constexpr double MOCK_BED_Z_MAX = 300.0;
+
+// Probe margins - typical probes can't reach bed edges
+constexpr double MOCK_PROBE_MARGIN = 15.0;
+
+// Derived mesh bounds (bed size minus probe margins)
+constexpr double MOCK_MESH_X_MIN = MOCK_BED_X_MIN + MOCK_PROBE_MARGIN;
+constexpr double MOCK_MESH_X_MAX = MOCK_BED_X_MAX - MOCK_PROBE_MARGIN;
+constexpr double MOCK_MESH_Y_MIN = MOCK_BED_Y_MIN + MOCK_PROBE_MARGIN;
+constexpr double MOCK_MESH_Y_MAX = MOCK_BED_Y_MAX - MOCK_PROBE_MARGIN;
+
 /**
  * @brief Type for method handler functions
  *

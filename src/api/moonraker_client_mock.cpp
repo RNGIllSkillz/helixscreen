@@ -684,12 +684,13 @@ void MoonrakerClientMock::parse_incoming_bed_mesh(const json& bed_mesh) {
 }
 
 void MoonrakerClientMock::generate_mock_bed_mesh() {
-    // Configure mesh profile
+    // Configure mesh profile using centralized mock printer constants
+    // Mesh bounds are bed size minus probe margins (probes can't reach edges)
     active_bed_mesh_.name = "default";
-    active_bed_mesh_.mesh_min[0] = 0.0f;
-    active_bed_mesh_.mesh_min[1] = 0.0f;
-    active_bed_mesh_.mesh_max[0] = 200.0f;
-    active_bed_mesh_.mesh_max[1] = 200.0f;
+    active_bed_mesh_.mesh_min[0] = static_cast<float>(mock_internal::MOCK_MESH_X_MIN);
+    active_bed_mesh_.mesh_min[1] = static_cast<float>(mock_internal::MOCK_MESH_Y_MIN);
+    active_bed_mesh_.mesh_max[0] = static_cast<float>(mock_internal::MOCK_MESH_X_MAX);
+    active_bed_mesh_.mesh_max[1] = static_cast<float>(mock_internal::MOCK_MESH_Y_MAX);
     active_bed_mesh_.x_count = 7;
     active_bed_mesh_.y_count = 7;
     active_bed_mesh_.algo = "lagrange";
@@ -731,11 +732,11 @@ void MoonrakerClientMock::generate_mock_bed_mesh_with_variation() {
     // Generate a new mesh with the same structure but slightly different values
     // This simulates re-probing the bed and getting slightly different results
 
-    // Keep existing configuration
-    active_bed_mesh_.mesh_min[0] = 0.0f;
-    active_bed_mesh_.mesh_min[1] = 0.0f;
-    active_bed_mesh_.mesh_max[0] = 200.0f;
-    active_bed_mesh_.mesh_max[1] = 200.0f;
+    // Keep existing configuration using centralized mock printer constants
+    active_bed_mesh_.mesh_min[0] = static_cast<float>(mock_internal::MOCK_MESH_X_MIN);
+    active_bed_mesh_.mesh_min[1] = static_cast<float>(mock_internal::MOCK_MESH_Y_MIN);
+    active_bed_mesh_.mesh_max[0] = static_cast<float>(mock_internal::MOCK_MESH_X_MAX);
+    active_bed_mesh_.mesh_max[1] = static_cast<float>(mock_internal::MOCK_MESH_Y_MAX);
     active_bed_mesh_.x_count = 7;
     active_bed_mesh_.y_count = 7;
     active_bed_mesh_.algo = "lagrange";
