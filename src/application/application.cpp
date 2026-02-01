@@ -1726,6 +1726,15 @@ void Application::handle_keyboard_shortcuts() {
         }
     }
     n_key_was_pressed = n_key_pressed;
+
+    // D key to toggle dark/light mode (with debounce)
+    static bool d_key_was_pressed = false;
+    bool d_key_pressed = keyboard_state[SDL_SCANCODE_D] != 0;
+    if (d_key_pressed && !d_key_was_pressed) {
+        spdlog::info("[Application] D key - toggling dark/light mode");
+        theme_manager_toggle_dark_mode();
+    }
+    d_key_was_pressed = d_key_pressed;
 #endif
 }
 

@@ -52,6 +52,9 @@
           <!-- WiFi IP address (shown when connected) -->
           <text_small name="wifi_ip"
                       width="100%" bind_text="wifi_ip" style_text_align="center" style_pad_top="#space_xs"/>
+          <!-- WiFi MAC address (shown when connected) -->
+          <text_small name="wifi_mac"
+                      width="100%" bind_text="wifi_mac" style_text_align="center" style_pad_top="#space_xs"/>
         </ui_card>
         <!-- Ethernet Status Card -->
         <ui_card width="100%"
@@ -60,6 +63,8 @@
           <text_heading text="Ethernet" style_pad_bottom="#space_sm"/>
           <!-- Ethernet Status label -->
           <text_small name="ethernet_status" width="100%" bind_text="ethernet_status" style_text_align="left"/>
+          <!-- Ethernet MAC address -->
+          <text_small name="ethernet_mac" width="100%" bind_text="ethernet_mac" style_text_align="left"/>
         </ui_card>
       </lv_obj>
       <!-- RIGHT COLUMN: Network List (60%) -->

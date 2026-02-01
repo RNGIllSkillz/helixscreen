@@ -108,7 +108,9 @@ struct WifiWizardNetworkItemData {
 WizardWifiStep::WizardWifiStep() {
     std::memset(wifi_status_buffer_, 0, sizeof(wifi_status_buffer_));
     std::memset(wifi_ip_buffer_, 0, sizeof(wifi_ip_buffer_));
+    std::memset(wifi_mac_buffer_, 0, sizeof(wifi_mac_buffer_));
     std::memset(ethernet_status_buffer_, 0, sizeof(ethernet_status_buffer_));
+    std::memset(ethernet_mac_buffer_, 0, sizeof(ethernet_mac_buffer_));
     std::memset(wifi_password_modal_ssid_buffer_, 0, sizeof(wifi_password_modal_ssid_buffer_));
     std::memset(current_ssid_, 0, sizeof(current_ssid_));
 
@@ -151,8 +153,11 @@ WizardWifiStep::WizardWifiStep(WizardWifiStep&& other) noexcept
       current_network_is_secured_(other.current_network_is_secured_),
       subjects_initialized_(other.subjects_initialized_) {
     std::memcpy(wifi_status_buffer_, other.wifi_status_buffer_, sizeof(wifi_status_buffer_));
+    std::memcpy(wifi_ip_buffer_, other.wifi_ip_buffer_, sizeof(wifi_ip_buffer_));
+    std::memcpy(wifi_mac_buffer_, other.wifi_mac_buffer_, sizeof(wifi_mac_buffer_));
     std::memcpy(ethernet_status_buffer_, other.ethernet_status_buffer_,
                 sizeof(ethernet_status_buffer_));
+    std::memcpy(ethernet_mac_buffer_, other.ethernet_mac_buffer_, sizeof(ethernet_mac_buffer_));
     std::memcpy(wifi_password_modal_ssid_buffer_, other.wifi_password_modal_ssid_buffer_,
                 sizeof(wifi_password_modal_ssid_buffer_));
     std::memcpy(current_ssid_, other.current_ssid_, sizeof(current_ssid_));
@@ -181,8 +186,11 @@ WizardWifiStep& WizardWifiStep::operator=(WizardWifiStep&& other) noexcept {
         subjects_initialized_ = other.subjects_initialized_;
 
         std::memcpy(wifi_status_buffer_, other.wifi_status_buffer_, sizeof(wifi_status_buffer_));
+        std::memcpy(wifi_ip_buffer_, other.wifi_ip_buffer_, sizeof(wifi_ip_buffer_));
+        std::memcpy(wifi_mac_buffer_, other.wifi_mac_buffer_, sizeof(wifi_mac_buffer_));
         std::memcpy(ethernet_status_buffer_, other.ethernet_status_buffer_,
                     sizeof(ethernet_status_buffer_));
+        std::memcpy(ethernet_mac_buffer_, other.ethernet_mac_buffer_, sizeof(ethernet_mac_buffer_));
         std::memcpy(wifi_password_modal_ssid_buffer_, other.wifi_password_modal_ssid_buffer_,
                     sizeof(wifi_password_modal_ssid_buffer_));
         std::memcpy(current_ssid_, other.current_ssid_, sizeof(current_ssid_));
@@ -242,12 +250,25 @@ void WizardWifiStep::update_wifi_status(const char* status) {
 void WizardWifiStep::update_wifi_ip(const char* ip) {
     spdlog::debug("[{}] Updating WiFi IP: {}", get_name(), ip ? ip : "(none)");
     lv_subject_copy_string(&wifi_ip_, ip ? ip : "");
+
+    // Update WiFi MAC when we have an IP (connected)
+    if (ip && ip[0] != '\0' && wifi_manager_) {
+        std::string mac = wifi_manager_->get_mac_address();
+        if (!mac.empty()) {
+            char mac_buf[32];
+            snprintf(mac_buf, sizeof(mac_buf), "MAC: %s", mac.c_str());
+            lv_subject_copy_string(&wifi_mac_, mac_buf);
+        }
+    } else {
+        lv_subject_copy_string(&wifi_mac_, "");
+    }
 }
 
 void WizardWifiStep::update_ethernet_status() {
     if (!ethernet_manager_) {
         LOG_WARN_INTERNAL("Ethernet manager not initialized");
         lv_subject_copy_string(&ethernet_status_, "Unknown");
+        lv_subject_copy_string(&ethernet_mac_, "");
         return;
     }
 
@@ -261,6 +282,15 @@ void WizardWifiStep::update_ethernet_status() {
     } else {
         lv_subject_copy_string(&ethernet_status_, info.status.c_str());
         spdlog::debug("[{}] Ethernet status: {}", get_name(), info.status);
+    }
+
+    // Always show MAC address if available
+    if (!info.mac_address.empty()) {
+        char mac_buf[32];
+        snprintf(mac_buf, sizeof(mac_buf), "MAC: %s", info.mac_address.c_str());
+        lv_subject_copy_string(&ethernet_mac_, mac_buf);
+    } else {
+        lv_subject_copy_string(&ethernet_mac_, "");
     }
 }
 
@@ -727,8 +757,10 @@ void WizardWifiStep::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(wifi_status_, wifi_status_buffer_, get_status_text("disabled"),
                               "wifi_status", subjects_);
     UI_MANAGED_SUBJECT_STRING(wifi_ip_, wifi_ip_buffer_, "", "wifi_ip", subjects_);
+    UI_MANAGED_SUBJECT_STRING(wifi_mac_, wifi_mac_buffer_, "", "wifi_mac", subjects_);
     UI_MANAGED_SUBJECT_STRING(ethernet_status_, ethernet_status_buffer_, "Checking...",
                               "ethernet_status", subjects_);
+    UI_MANAGED_SUBJECT_STRING(ethernet_mac_, ethernet_mac_buffer_, "", "ethernet_mac", subjects_);
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());

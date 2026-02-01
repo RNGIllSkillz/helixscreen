@@ -48,9 +48,10 @@ void configure_pressed(lv_style_t* s, const ThemePalette& p) {
 }
 
 void configure_focused(lv_style_t* s, const ThemePalette& p) {
+    // Focus ring sits directly on top of the border (same width from theme, no padding)
     lv_style_set_outline_color(s, p.focus);
-    lv_style_set_outline_width(s, 2);
-    lv_style_set_outline_pad(s, 2);
+    lv_style_set_outline_width(s, p.border_width);
+    lv_style_set_outline_pad(s, 0);
     lv_style_set_outline_opa(s, LV_OPA_COVER);
 }
 

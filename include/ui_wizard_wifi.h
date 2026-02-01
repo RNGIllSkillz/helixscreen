@@ -141,7 +141,9 @@ class WizardWifiStep {
     lv_subject_t wifi_enabled_;
     lv_subject_t wifi_status_;
     lv_subject_t wifi_ip_;
+    lv_subject_t wifi_mac_;
     lv_subject_t ethernet_status_;
+    lv_subject_t ethernet_mac_;
     lv_subject_t wifi_scanning_;
     lv_subject_t wifi_password_modal_ssid_;
     lv_subject_t wifi_connecting_;
@@ -150,7 +152,9 @@ class WizardWifiStep {
     // String buffers (must be persistent)
     char wifi_status_buffer_[64];
     char wifi_ip_buffer_[32];
+    char wifi_mac_buffer_[24];
     char ethernet_status_buffer_[64];
+    char ethernet_mac_buffer_[24];
     char wifi_password_modal_ssid_buffer_[64];
 
     // WiFiManager and EthernetManager (shared_ptr for async safety)
