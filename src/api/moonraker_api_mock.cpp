@@ -658,9 +658,9 @@ void MoonrakerAPIMock::start_bed_mesh_calibrate(BedMeshProgressCallback on_progr
             lv_timer_delete(t);
 
             // Send BED_MESH_CALIBRATE to client mock to regenerate mesh data
-            // Use a temporary profile name that will be renamed by the save dialog
+            // Match real API: no PROFILE= parameter, mesh goes to "default" profile
             c->api->execute_gcode(
-                "BED_MESH_CALIBRATE PROFILE=_calibrating",
+                "BED_MESH_CALIBRATE",
                 [c]() {
                     spdlog::debug("[MoonrakerAPIMock] Mesh regenerated");
                     if (c->on_complete) {
