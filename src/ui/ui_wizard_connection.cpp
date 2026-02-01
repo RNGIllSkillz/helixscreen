@@ -21,6 +21,7 @@
 #include "printer_discovery.h"
 #include "runtime_config.h"
 #include "static_panel_registry.h"
+#include "theme_manager.h"
 #include "wizard_config_paths.h"
 #include "wizard_validation.h"
 
@@ -243,24 +244,19 @@ void WizardConnectionStep::handle_test_connection_clicked() {
 
     // Validate inputs
     if (!ip || strlen(ip) == 0) {
-        lv_subject_copy_string(&connection_status_icon_, "");
-        lv_subject_copy_string(&connection_status_text_, "Please enter an IP address or hostname");
+        set_status(nullptr, StatusVariant::None, "Please enter an IP address or hostname");
         spdlog::warn("[{}] Empty IP address", get_name());
         return;
     }
 
     if (!is_valid_ip_or_hostname(ip)) {
-        const char* error_icon = lv_xml_get_const(nullptr, "icon_xmark_circle");
-        lv_subject_copy_string(&connection_status_icon_, error_icon ? error_icon : "");
-        lv_subject_copy_string(&connection_status_text_, "Invalid IP address or hostname");
+        set_status("icon_xmark_circle", StatusVariant::Danger, "Invalid IP address or hostname");
         spdlog::warn("[{}] Invalid IP/hostname: {}", get_name(), ip);
         return;
     }
 
     if (!is_valid_port(port_str)) {
-        const char* error_icon = lv_xml_get_const(nullptr, "icon_xmark_circle");
-        lv_subject_copy_string(&connection_status_icon_, error_icon ? error_icon : "");
-        lv_subject_copy_string(&connection_status_text_, "Invalid port (must be 1-65535)");
+        set_status("icon_xmark_circle", StatusVariant::Danger, "Invalid port (must be 1-65535)");
         spdlog::warn("[{}] Invalid port: {}", get_name(), port_str);
         return;
     }
@@ -268,9 +264,8 @@ void WizardConnectionStep::handle_test_connection_clicked() {
     // Get MoonrakerClient instance
     MoonrakerClient* client = get_moonraker_client();
     if (!client) {
-        const char* error_icon = lv_xml_get_const(nullptr, "icon_xmark_circle");
-        lv_subject_copy_string(&connection_status_icon_, error_icon ? error_icon : "");
-        lv_subject_copy_string(&connection_status_text_, "Error: Moonraker client not initialized");
+        set_status("icon_xmark_circle", StatusVariant::Danger,
+                   "Error: Moonraker client not initialized");
         lv_subject_set_int(&connection_testing_, 0);
         LOG_ERROR_INTERNAL("[{}] MoonrakerClient is nullptr", get_name());
         return;
@@ -291,9 +286,7 @@ void WizardConnectionStep::handle_test_connection_clicked() {
 
     // Set UI to testing state
     lv_subject_set_int(&connection_testing_, 1);
-    const char* testing_icon = lv_xml_get_const(nullptr, "icon_question_circle");
-    lv_subject_copy_string(&connection_status_icon_, testing_icon ? testing_icon : "");
-    lv_subject_copy_string(&connection_status_text_, "Testing connection...");
+    set_status("icon_question_circle", StatusVariant::None, "Testing connection...");
 
     spdlog::debug("[{}] Starting connection test to {}:{}", get_name(), ip, port_str);
 
@@ -331,9 +324,7 @@ void WizardConnectionStep::handle_test_connection_clicked() {
 
     if (result != 0) {
         spdlog::error("[{}] Failed to initiate connection: {}", get_name(), result);
-        const char* error_icon = lv_xml_get_const(nullptr, "icon_xmark_circle");
-        lv_subject_copy_string(&connection_status_icon_, error_icon ? error_icon : "");
-        lv_subject_copy_string(&connection_status_text_, "Error starting connection test");
+        set_status("icon_xmark_circle", StatusVariant::Danger, "Error starting connection test");
         lv_subject_set_int(&connection_testing_, 0);
     }
 
@@ -378,9 +369,7 @@ void WizardConnectionStep::on_connection_success() {
 
             // Show "discovering" status - spinner shows via XML binding
             lv_subject_set_int(&self->connection_discovering_, 1);
-            lv_subject_copy_string(&self->connection_status_icon_, "");
-            lv_subject_copy_string(&self->connection_status_text_,
-                                   "Connected! Discovering printer...");
+            self->set_status(nullptr, StatusVariant::None, "Connected! Discovering printer...");
             lv_subject_set_int(&self->connection_testing_, 0);
 
             // Set HTTP base URL so discovery can make HTTP calls
@@ -438,12 +427,8 @@ void WizardConnectionStep::on_connection_success() {
 
                                 // NOW enable Next button - discovery is complete
                                 lv_subject_set_int(&self2->connection_discovering_, 0);
-                                const char* check_icon =
-                                    lv_xml_get_const(nullptr, "icon_check_circle");
-                                lv_subject_copy_string(&self2->connection_status_icon_,
-                                                       check_icon ? check_icon : "");
-                                lv_subject_copy_string(&self2->connection_status_text_,
-                                                       "Connection successful!");
+                                self2->set_status("icon_check_circle", StatusVariant::Success,
+                                                  "Connection successful!");
                                 self2->connection_validated_ = true;
                                 lv_subject_set_int(&connection_test_passed, 1);
                             },
@@ -473,15 +458,8 @@ void WizardConnectionStep::on_connection_success() {
 
                                 // Reset discovering state and show error
                                 lv_subject_set_int(&self2->connection_discovering_, 0);
-                                const char* warn_icon =
-                                    lv_xml_get_const(nullptr, "icon_triangle_exclamation");
-                                lv_subject_copy_string(&self2->connection_status_icon_,
-                                                       warn_icon ? warn_icon : "");
-
-                                // Show user-friendly message (most common cause is Klippy not
-                                // connected)
-                                lv_subject_copy_string(
-                                    &self2->connection_status_text_,
+                                self2->set_status(
+                                    "icon_triangle_exclamation", StatusVariant::Warning,
                                     "Moonraker connected, but Klipper is not running. "
                                     "Start Klipper and retry.");
 
@@ -495,10 +473,8 @@ void WizardConnectionStep::on_connection_success() {
             } else {
                 // No client available - still show success but warn
                 lv_subject_set_int(&self->connection_discovering_, 0);
-                const char* check_icon = lv_xml_get_const(nullptr, "icon_check_circle");
-                lv_subject_copy_string(&self->connection_status_icon_,
-                                       check_icon ? check_icon : "");
-                lv_subject_copy_string(&self->connection_status_text_, "Connected (no discovery)");
+                self->set_status("icon_check_circle", StatusVariant::Success,
+                                 "Connected (no discovery)");
                 self->connection_validated_ = true;
                 lv_subject_set_int(&connection_test_passed, 1);
             }
@@ -528,11 +504,8 @@ void WizardConnectionStep::on_connection_failure() {
             if (testing_state == 1) {
                 spdlog::error("[Wizard Connection] Connection failed");
 
-                const char* error_icon = lv_xml_get_const(nullptr, "icon_xmark_circle");
-                lv_subject_copy_string(&self->connection_status_icon_,
-                                       error_icon ? error_icon : "");
-                lv_subject_copy_string(&self->connection_status_text_,
-                                       "Connection failed. Check IP/port and try again.");
+                self->set_status("icon_xmark_circle", StatusVariant::Danger,
+                                 "Connection failed. Check IP/port and try again.");
                 lv_subject_set_int(&self->connection_testing_, 0);
                 self->connection_validated_ = false;
                 lv_subject_set_int(&connection_test_passed, 0);
@@ -616,9 +589,7 @@ void WizardConnectionStep::attempt_auto_probe() {
     }
 
     // Show subtle probing indicator
-    const char* probe_icon = lv_xml_get_const(nullptr, "icon_question_circle");
-    lv_subject_copy_string(&connection_status_icon_, probe_icon ? probe_icon : "");
-    lv_subject_copy_string(&connection_status_text_, "Testing connection...");
+    set_status("icon_question_circle", StatusVariant::None, "Testing connection...");
 
     // Set testing state (reuses existing subject for button disable)
     lv_subject_set_int(&connection_testing_, 1);
@@ -656,8 +627,7 @@ void WizardConnectionStep::attempt_auto_probe() {
         auto_probe_state_.store(AutoProbeState::FAILED);
         lv_subject_set_int(&connection_testing_, 0);
         // Silent failure - clear status
-        lv_subject_copy_string(&connection_status_icon_, "");
-        lv_subject_copy_string(&connection_status_text_, "");
+        set_status(nullptr, StatusVariant::None, "");
     }
 }
 
@@ -728,8 +698,7 @@ void WizardConnectionStep::on_auto_probe_success() {
 
             // Show "discovering" status - spinner shows via XML binding
             lv_subject_set_int(&self->connection_discovering_, 1);
-            lv_subject_copy_string(&self->connection_status_icon_, "");
-            lv_subject_copy_string(&self->connection_status_text_, "Connected, discovering...");
+            self->set_status(nullptr, StatusVariant::None, "Connected, discovering...");
 
             // Clear testing state
             lv_subject_set_int(&self->connection_testing_, 0);
@@ -782,12 +751,8 @@ void WizardConnectionStep::on_auto_probe_success() {
 
                                 // NOW enable Next button - discovery is complete
                                 lv_subject_set_int(&self2->connection_discovering_, 0);
-                                const char* check_icon =
-                                    lv_xml_get_const(nullptr, "icon_check_circle");
-                                lv_subject_copy_string(&self2->connection_status_icon_,
-                                                       check_icon ? check_icon : "");
-                                lv_subject_copy_string(&self2->connection_status_text_,
-                                                       "Connection successful!");
+                                self2->set_status("icon_check_circle", StatusVariant::Success,
+                                                  "Connection successful!");
                                 self2->connection_validated_ = true;
                                 lv_subject_set_int(&connection_test_passed, 1);
                             },
@@ -818,15 +783,8 @@ void WizardConnectionStep::on_auto_probe_success() {
 
                                 // Reset discovering state and show error
                                 lv_subject_set_int(&self2->connection_discovering_, 0);
-                                const char* warn_icon =
-                                    lv_xml_get_const(nullptr, "icon_triangle_exclamation");
-                                lv_subject_copy_string(&self2->connection_status_icon_,
-                                                       warn_icon ? warn_icon : "");
-
-                                // Show user-friendly message (most common cause is Klippy not
-                                // connected)
-                                lv_subject_copy_string(
-                                    &self2->connection_status_text_,
+                                self2->set_status(
+                                    "icon_triangle_exclamation", StatusVariant::Warning,
                                     "Moonraker connected, but Klipper is not running. "
                                     "Start Klipper and retry.");
 
@@ -840,10 +798,8 @@ void WizardConnectionStep::on_auto_probe_success() {
             } else {
                 // No client - still show success
                 lv_subject_set_int(&self->connection_discovering_, 0);
-                const char* check_icon = lv_xml_get_const(nullptr, "icon_check_circle");
-                lv_subject_copy_string(&self->connection_status_icon_,
-                                       check_icon ? check_icon : "");
-                lv_subject_copy_string(&self->connection_status_text_, "Connection successful!");
+                self->set_status("icon_check_circle", StatusVariant::Success,
+                                 "Connection successful!");
                 self->connection_validated_ = true;
                 lv_subject_set_int(&connection_test_passed, 1);
             }
@@ -875,8 +831,7 @@ void WizardConnectionStep::on_auto_probe_failure() {
             }
 
             // Silent failure - just clear status, don't show error
-            lv_subject_copy_string(&self->connection_status_icon_, "");
-            lv_subject_copy_string(&self->connection_status_text_, "");
+            self->set_status(nullptr, StatusVariant::None, "");
             lv_subject_set_int(&self->connection_testing_, 0);
 
             // Leave fields empty - user will enter manually
@@ -903,11 +858,7 @@ void WizardConnectionStep::handle_ip_input_changed() {
     }
 
     // Clear any previous status message
-    const char* current_status = lv_subject_get_string(&connection_status_text_);
-    if (current_status && strlen(current_status) > 0) {
-        lv_subject_copy_string(&connection_status_icon_, "");
-        lv_subject_copy_string(&connection_status_text_, "");
-    }
+    set_status(nullptr, StatusVariant::None, "");
 
     // Clear validation state
     connection_validated_ = false;
@@ -931,11 +882,7 @@ void WizardConnectionStep::handle_port_input_changed() {
     }
 
     // Clear any previous status message
-    const char* current_status = lv_subject_get_string(&connection_status_text_);
-    if (current_status && strlen(current_status) > 0) {
-        lv_subject_copy_string(&connection_status_icon_, "");
-        lv_subject_copy_string(&connection_status_text_, "");
-    }
+    set_status(nullptr, StatusVariant::None, "");
 
     // Clear validation state
     connection_validated_ = false;
@@ -1083,9 +1030,8 @@ void WizardConnectionStep::cleanup() {
     // Reset auto-probe state (but NOT auto_probe_attempted_ - that persists)
     auto_probe_state_.store(AutoProbeState::IDLE);
 
-    // Clear status
-    lv_subject_copy_string(&connection_status_icon_, "");
-    lv_subject_copy_string(&connection_status_text_, "");
+    // Clear status (must be before screen_root_ is cleared)
+    set_status(nullptr, StatusVariant::None, "");
 
     // Reset UI references (wizard framework handles deletion)
     screen_root_ = nullptr;
@@ -1180,11 +1126,54 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
         lv_subject_set_int(&connection_test_passed, 0);
 
         // Clear previous status
-        lv_subject_copy_string(&self->connection_status_icon_, "");
-        lv_subject_copy_string(&self->connection_status_text_, "");
+        self->set_status(nullptr, StatusVariant::None, "");
 
         spdlog::info("[Wizard Connection] Selected printer: {} at {}:{}", printer.name,
                      printer.ip_address, printer.port);
+    }
+}
+
+// ============================================================================
+// Status Helper
+// ============================================================================
+
+void WizardConnectionStep::set_status(const char* icon_name, StatusVariant variant,
+                                      const char* text) {
+    if (!screen_root_) {
+        return;
+    }
+
+    // Find and update icon
+    lv_obj_t* icon_label = lv_obj_find_by_name(screen_root_, "connection_status_icon");
+    if (icon_label) {
+        // Get icon codepoint
+        const char* icon_text = icon_name ? lv_xml_get_const(nullptr, icon_name) : "";
+        lv_label_set_text(icon_label, icon_text ? icon_text : "");
+
+        // Set color based on variant
+        lv_color_t color;
+        switch (variant) {
+        case StatusVariant::Success:
+            color = theme_manager_get_color("success");
+            break;
+        case StatusVariant::Warning:
+            color = theme_manager_get_color("warning");
+            break;
+        case StatusVariant::Danger:
+            color = theme_manager_get_color("danger");
+            break;
+        case StatusVariant::None:
+        default:
+            color = theme_manager_get_color("text_muted");
+            break;
+        }
+        lv_obj_set_style_text_color(icon_label, color, LV_PART_MAIN);
+    }
+
+    // Find and update text
+    lv_obj_t* text_label = lv_obj_find_by_name(screen_root_, "connection_status_text");
+    if (text_label) {
+        lv_label_set_text(text_label, text ? text : "");
     }
 }
 

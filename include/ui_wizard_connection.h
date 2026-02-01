@@ -217,6 +217,10 @@ class WizardConnectionStep {
     void on_connection_success();
     void on_connection_failure();
 
+    // Helper to set status icon and text imperatively with appropriate colors
+    enum class StatusVariant { None, Success, Warning, Danger };
+    void set_status(const char* icon_name, StatusVariant variant, const char* text);
+
     // Auto-probe methods for localhost detection
     bool should_auto_probe() const;
     void attempt_auto_probe();
