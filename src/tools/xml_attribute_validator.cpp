@@ -57,6 +57,20 @@ std::unordered_set<std::string> extract_attributes_from_parser(const std::string
         spdlog::trace("[xml_validator] {} - found SET_STYLE_IF attr: {}", widget_name, attr);
     }
 
+    // Pattern 4: strcmp calls - strcmp(name, "attr_name") == 0 or strcmp(attrs[i], "attr_name") ==
+    // 0 Captures the second string argument as an attribute name
+    std::regex strcmp_regex(
+        R"regex(strcmp\s*\(\s*\w+(?:\[\w+\])?\s*,\s*"([^"]+)"\s*\)\s*==\s*0)regex");
+    auto strcmp_begin =
+        std::sregex_iterator(file_content.begin(), file_content.end(), strcmp_regex);
+    auto strcmp_end = std::sregex_iterator();
+
+    for (auto it = strcmp_begin; it != strcmp_end; ++it) {
+        std::string attr = (*it)[1].str();
+        attrs.insert(attr);
+        spdlog::trace("[xml_validator] {} - found strcmp attr: {}", widget_name, attr);
+    }
+
     spdlog::debug("[xml_validator] Extracted {} attributes from {}", attrs.size(), widget_name);
     return attrs;
 }

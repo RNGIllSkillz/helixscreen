@@ -3,10 +3,12 @@
 
 #include "test_fixtures.h"
 
+#include "ui_button.h"
 #include "ui_card.h"
 #include "ui_icon.h"
 #include "ui_temp_display.h"
 #include "ui_text.h"
+#include "ui_text_input.h"
 
 #include "spdlog/spdlog.h"
 
@@ -121,6 +123,8 @@ XMLTestFixture::XMLTestFixture() : LVGLTestFixture() {
         // 4. Register custom widgets (must be done before loading components that use them)
         ui_icon_register_widget(); // icon component
         ui_text_init();            // text_heading, text_body, text_small, text_xs
+        ui_text_input_init();      // text_input (textarea with bind_text support)
+        ui_button_init();          // ui_button with bind_icon support
         ui_card_register();        // ui_card
         ui_temp_display_init();    // temp_display
 

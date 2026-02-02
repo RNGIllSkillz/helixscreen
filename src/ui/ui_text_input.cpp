@@ -153,7 +153,13 @@ static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs
         const char* name = attrs[i];
         const char* value = attrs[i + 1];
 
-        if (lv_streq("bind_text", name)) {
+        if (lv_streq("placeholder", name)) {
+            // Shorthand for placeholder_text (more intuitive attribute name)
+            lv_textarea_set_placeholder_text(textarea, value);
+        } else if (lv_streq("max_length", name)) {
+            // Set maximum character length
+            lv_textarea_set_max_length(textarea, lv_xml_atoi(value));
+        } else if (lv_streq("bind_text", name)) {
             lv_subject_t* subject = lv_xml_get_subject(&state->scope, value);
             if (subject == nullptr) {
                 spdlog::warn("[text_input] Subject '{}' not found for bind_text", value);
@@ -200,7 +206,7 @@ static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs
 
 void ui_text_input_init() {
     lv_xml_register_widget("text_input", ui_text_input_create, ui_text_input_apply);
-    spdlog::debug("[ui_text_input] Registered <text_input> widget with bind_text support");
+    spdlog::info("[ui_text_input] Registered <text_input> widget");
 }
 
 KeyboardHint ui_text_input_get_keyboard_hint(lv_obj_t* textarea) {

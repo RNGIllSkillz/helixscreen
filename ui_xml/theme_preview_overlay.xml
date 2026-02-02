@@ -12,7 +12,7 @@
         action_button_2_callback="on_edit_colors_clicked" action_button_2_bg_color="#secondary">
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_pad_gap="#space_md"
-            scrollable="true" scroll_dir="ver">
+            scrollable="true">
       <!-- Theme Selection Controls -->
       <lv_obj name="theme_controls_row"
               width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md"
@@ -76,7 +76,7 @@
           </lv_obj>
           <text_small name="preview_label_input" text="Input"/>
           <lv_textarea name="preview_text_input"
-                       width="100%" height="#input_height" placeholder="Type to preview input field..." one_line="true"/>
+                       width="100%" height="#input_height" placeholder_text="Type to preview input field..." one_line="true"/>
           <text_small name="preview_label_intensity" text="Intensity"/>
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_pad_top="#space_sm" style_pad_bottom="#space_sm"

@@ -44,7 +44,7 @@
     <lv_obj name="spool_list"
             width="100%" height="content" style_max_height="#list_max_height" style_pad_all="0"
             style_pad_gap="#space_xs" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start"
-            scrollable="true" scroll_direction="y" overflow="scroll">
+            scrollable="true">
       <bind_flag_if_not_eq subject="ams_picker_state" flag="hidden" ref_value="2"/>
       <!-- Spool items populated dynamically by C++ -->
     </lv_obj>

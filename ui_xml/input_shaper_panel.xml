@@ -9,7 +9,7 @@
     <!-- Content Area -->
     <lv_obj name="panel_content"
             width="100%" flex_grow="1" style_pad_all="#space_lg" style_pad_gap="#space_md" scrollable="true"
-            scroll_dir="ver" flex_flow="column">
+            flex_flow="column">
       <!-- ============================================================ -->
       <!-- STATE: IDLE - Clean, compact calibration interface -->
       <!-- ============================================================ -->

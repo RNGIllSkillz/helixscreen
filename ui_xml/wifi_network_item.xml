@@ -41,7 +41,7 @@
     </lv_obj>
     <!-- SSID and security type column (center) -->
     <lv_obj flex_grow="1"
-            style_pad_all="0" radius="0" style_pad_gap="#space_xs" scrollable="false" clickable="false" flex_flow="row"
+            style_pad_all="0" style_radius="0" style_pad_gap="#space_xs" scrollable="false" clickable="false" flex_flow="row"
             style_flex_main_place="space_between" style_flex_cross_place="center">
       <!-- Network SSID - uses responsive font_body from theme -->
       <text_body name="ssid_label" clickable="false"/>

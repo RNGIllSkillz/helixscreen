@@ -7,11 +7,11 @@
         extends="lv_obj" width="#overlay_panel_width" height="100%" align="right_mid" flex_flow="column"
         style_pad_all="0" style_bg_opa="255" style_bg_color="#card_bg" style_radius="0" style_border_width="0">
     <!-- Header bar with back button and title -->
-    <header_bar name="header" title="Print History" show_back="true"/>
+    <header_bar name="header" title="Print History"/>
     <!-- Filter/Search Row -->
     <lv_obj name="filter_row"
             width="100%" height="content" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
-            style_flex_gap_column="#space_md" style_pad_left="#space_md" style_pad_right="#space_md"
+            style_pad_column="#space_md" style_pad_left="#space_md" style_pad_right="#space_md"
             style_pad_top="#space_sm" style_pad_bottom="#space_sm">
       <!-- Search box - fills remaining space -->
       <lv_textarea name="search_box"
@@ -32,13 +32,13 @@
     <lv_obj name="list_content"
             width="100%" height="content" flex_grow="1" flex_flow="column" style_pad_top="#space_sm"
             style_pad_bottom="#space_md" style_pad_left="#space_md" style_pad_right="#space_md"
-            style_flex_gap_row="#space_sm" scrollable="true" scroll_dir="ver">
+            style_pad_row="#space_sm" scrollable="true">
       <!-- ================================================================== -->
       <!-- STATE: LOADING (state=0) -->
       <!-- ================================================================== -->
       <lv_obj name="loading_state"
               width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center" style_flex_gap_row="#space_md" style_pad_all="#space_xl">
+              style_flex_cross_place="center" style_pad_row="#space_md" style_pad_all="#space_xl">
         <bind_flag_if_not_eq subject="history_list_panel_state" flag="hidden" ref_value="0"/>
         <!-- Loading spinner -->
         <lv_spinner name="loading_spinner" width="48" height="48"/>
@@ -49,7 +49,7 @@
       <!-- ================================================================== -->
       <lv_obj name="empty_state"
               width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center" style_flex_gap_row="#space_md" style_pad_all="#space_xl">
+              style_flex_cross_place="center" style_pad_row="#space_md" style_pad_all="#space_xl">
         <bind_flag_if_not_eq subject="history_list_panel_state" flag="hidden" ref_value="1"/>
         <!-- Empty state icon (clock/history icon F0150) -->
         <lv_label name="empty_icon" text="󰅐" style_text_font="mdi_icons_48" style_text_color="#text_muted"/>
@@ -63,7 +63,7 @@
       <!-- ================================================================== -->
       <!-- clickable="false" ensures clicks pass through to row children -->
       <lv_obj name="list_rows"
-              width="100%" height="content" flex_flow="column" style_flex_gap_row="#space_sm" style_pad_all="0"
+              width="100%" height="content" flex_flow="column" style_pad_row="#space_sm" style_pad_all="0"
               clickable="false">
         <bind_flag_if_not_eq subject="history_list_panel_state" flag="hidden" ref_value="2"/>
       </lv_obj>

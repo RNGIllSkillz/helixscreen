@@ -8,7 +8,7 @@
         extends="overlay_panel" width="#overlay_panel_width_full" title="Device Operations" bg_color="#screen_bg">
     <!-- Content Area (scrollable) -->
     <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="true" scroll_dir="ver" flex_flow="column"
+            width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="true" flex_flow="column"
             style_pad_gap="#space_md">
 
       <!-- ================================================================== -->

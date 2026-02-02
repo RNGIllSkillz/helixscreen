@@ -20,7 +20,7 @@
                   text="Enter a name for your custom theme:" style_text_align="center" style_text_color="#text_muted"/>
       <!-- Theme name input -->
       <lv_textarea name="theme_name_input"
-                   width="100%" height="#input_height" placeholder="My Custom Theme" max_length="32" one_line="true"
+                   width="100%" height="#input_height" placeholder_text="My Custom Theme" one_line="true"
                    style_pad_all="#space_md" style_text_font="#font_body"
                    style_margin_top="#space_sm"/>
       <!-- Status message (hidden by default) -->

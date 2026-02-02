@@ -27,7 +27,7 @@
             style_flex_cross_place="start">
       <!-- LEFT COLUMN: WiFi and Ethernet Cards (40%) -->
       <lv_obj height="100%"
-              flex_grow="4" scrollable="true" scroll_dir="VER" style_pad_all="0" style_pad_gap="#space_md"
+              flex_grow="4" scrollable="true" style_pad_all="0" style_pad_gap="#space_md"
               flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start">
         <!-- WiFi Card -->
         <ui_card width="100%"
@@ -70,7 +70,7 @@
       <!-- RIGHT COLUMN: Network List (60%) -->
       <!-- State-driven styling: automatically dims to 50% opacity when disabled -->
       <ui_card name="network_list_container"
-               height="100%" flex_grow="6" flex_flow="column" scrollable="true" scroll_dir="VER" scroll_elastic="false"
+               height="100%" flex_grow="6" flex_flow="column" scrollable="true" scroll_elastic="false"
                style_clip_corner="true" style_flex_main_place="start" style_flex_cross_place="start">
         <!-- Reactive state binding: set disabled state when wifi_enabled == 0 -->
         <bind_state_if_eq subject="wifi_enabled" state="disabled" ref_value="0"/>

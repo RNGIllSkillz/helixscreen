@@ -25,7 +25,7 @@
       <lv_obj name="language_list"
               width="100%" flex_grow="1" style_pad_all="#space_xs" style_pad_gap="#space_xs"
               style_bg_color="#screen_bg" style_bg_opa="255" style_radius="#border_radius"
-              scrollable="true" scroll_dir="ver" flex_flow="column">
+              scrollable="true" flex_flow="column">
 
         <!-- English -->
         <lv_obj name="lang_item_en" width="100%" height="content"

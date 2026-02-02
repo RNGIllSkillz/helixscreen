@@ -55,6 +55,7 @@ static const std::unordered_set<std::string> XML_BUILTIN_ATTRS = {"xmlns", "vers
 
 // Common attributes that all widgets inherit from lv_obj
 // These are extracted from lv_xml_obj.c but we define them here as a fallback
+// NOTE: scroll_dir is NOT supported by LVGL XML parser - do not include it
 static const std::unordered_set<std::string> COMMON_LV_OBJ_ATTRS = {"name",
                                                                     "x",
                                                                     "y",
@@ -66,7 +67,6 @@ static const std::unordered_set<std::string> COMMON_LV_OBJ_ATTRS = {"name",
                                                                     "click_focusable",
                                                                     "checkable",
                                                                     "scrollable",
-                                                                    "scroll_dir",
                                                                     "scroll_snap_x",
                                                                     "scroll_snap_y",
                                                                     "flex_grow",
@@ -77,6 +77,9 @@ static const std::unordered_set<std::string> COMMON_LV_OBJ_ATTRS = {"name",
                                                                     "grid_cell_column_span",
                                                                     "grid_cell_x_align",
                                                                     "grid_cell_y_align"};
+
+// Part suffixes used in LVGL style selectors (e.g., style_arc_width_indicator -> style_arc_width)
+static const std::vector<std::string> PART_SUFFIXES = {"_main", "_indicator", "_knob"};
 
 /**
  * @brief Read entire file content into a string.
@@ -165,6 +168,19 @@ static void XMLCALL start_element(void* data, const char* name, const char** att
             size_t colon_pos = attr_name.find(':');
             if (colon_pos != std::string::npos) {
                 normalized_attr = attr_name.substr(0, colon_pos);
+            }
+        }
+
+        // Handle part-specific style suffixes: style_arc_opa_main -> style_arc_opa
+        // LVGL uses _main, _indicator, _knob suffixes for part-specific styles
+        if (normalized_attr.substr(0, 6) == "style_") {
+            for (const auto& suffix : PART_SUFFIXES) {
+                if (normalized_attr.size() > suffix.size() &&
+                    normalized_attr.substr(normalized_attr.size() - suffix.size()) == suffix) {
+                    normalized_attr =
+                        normalized_attr.substr(0, normalized_attr.size() - suffix.size());
+                    break;
+                }
             }
         }
 

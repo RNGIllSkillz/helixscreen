@@ -52,7 +52,7 @@
       <text_small width="100%" text="Enter a name to save this profile" style_text_align="center"/>
       <!-- Profile name input -->
       <lv_textarea name="calibrate_profile_name_input"
-                   width="100%" height="#input_height" placeholder="Profile name (e.g., default)" max_length="32"
+                   width="100%" height="#input_height" placeholder_text="Profile name (e.g., default)"
                    one_line="true" style_pad_all="#space_md"
                    style_text_font="#font_body" style_margin_top="#space_xs"/>
     </lv_obj>
@@ -97,7 +97,7 @@
       <bind_flag_if_not_eq subject="bed_mesh_calibrate_state" flag="hidden" ref_value="2"/>
       <!-- Don't Save button -->
       <ui_button name="btn_dont_save"
-                 height="100%" flex_grow="1" style_radius="0" text="Don't Save" text_color="#text_muted">
+                 height="100%" flex_grow="1" style_radius="0" text="Don't Save">
         <event_cb trigger="clicked" callback="on_bed_mesh_calibrate_cancel"/>
       </ui_button>
       <!-- Vertical divider -->

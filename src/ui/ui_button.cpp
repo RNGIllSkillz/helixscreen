@@ -56,13 +56,13 @@ void update_button_text_contrast(lv_obj_t* btn) {
     // Check magic to ensure user_data hasn't been overwritten (e.g., by Modal::wire_button)
     UiButtonData* data = static_cast<UiButtonData*>(lv_obj_get_user_data(btn));
     if (!data || data->magic != UiButtonData::MAGIC) {
-        spdlog::debug("[ui_button] No button data found");
+        // Normal for buttons whose user_data was repurposed (e.g., Modal::wire_button)
         return;
     }
 
     // Need at least one of icon or label to update
     if (!data->label && !data->icon) {
-        spdlog::debug("[ui_button] No label or icon to update");
+        // Normal during creation sequence - label/icon not yet attached
         return;
     }
 
@@ -330,6 +330,63 @@ void* ui_button_create(lv_xml_parser_state_t* state, const char** attrs) {
 }
 
 /**
+ * @brief Observer callback for bind_icon subject changes
+ *
+ * Updates the icon label text when the bound string subject changes.
+ * The icon label is stored in user_data, and the button is in user_data of observer.
+ *
+ * @param observer The LVGL observer
+ * @param subject The subject that changed (string subject with icon name)
+ */
+void icon_subject_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    lv_obj_t* icon = static_cast<lv_obj_t*>(lv_observer_get_target_obj(observer));
+    lv_obj_t* btn = static_cast<lv_obj_t*>(lv_observer_get_user_data(observer));
+
+    if (!icon || !lv_obj_is_valid(icon)) {
+        return;
+    }
+
+    const char* icon_value = lv_subject_get_string(subject);
+    if (!icon_value || strlen(icon_value) == 0) {
+        spdlog::trace("[ui_button] bind_icon: empty icon value, keeping current");
+        return;
+    }
+
+    // Check if value is already a UTF-8 codepoint (starts with high byte 0xF0+)
+    // MDI icons are in the Unicode Private Use Area, encoded as 4-byte UTF-8
+    // starting with 0xF3 (U+F0000..U+FFFFF range)
+    const unsigned char first_byte = static_cast<unsigned char>(icon_value[0]);
+    if (first_byte >= 0xF0) {
+        // Value is already a codepoint - use directly
+        lv_label_set_text(icon, icon_value);
+        spdlog::trace("[ui_button] bind_icon: updated to codepoint");
+    } else {
+        // Value is an icon name - look up the codepoint
+        const char* codepoint = ui_icon::lookup_codepoint(icon_value);
+        if (!codepoint) {
+            // Try stripping legacy prefix
+            const char* stripped = ui_icon::strip_legacy_prefix(icon_value);
+            if (stripped != icon_value) {
+                codepoint = ui_icon::lookup_codepoint(stripped);
+            }
+        }
+
+        if (codepoint) {
+            lv_label_set_text(icon, codepoint);
+            spdlog::trace("[ui_button] bind_icon: updated to '{}'", icon_value);
+        } else {
+            spdlog::warn("[ui_button] Icon '{}' not found during bind_icon update", icon_value);
+            return;
+        }
+    }
+
+    // Re-apply text contrast if we have the button reference
+    if (btn && lv_obj_is_valid(btn)) {
+        update_button_text_contrast(btn);
+    }
+}
+
+/**
  * @brief XML apply callback for <ui_button> widget
  *
  * Delegates to standard object parser for base properties (align, hidden, etc.)
@@ -368,6 +425,73 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
             spdlog::trace("[ui_button] Bound label to subject '{}'", bind_text);
         } else {
             spdlog::warn("[ui_button] Subject '{}' not found for bind_text", bind_text);
+        }
+    }
+
+    // Handle bind_icon - bind the internal icon to a string subject
+    const char* bind_icon = lv_xml_get_value_of(attrs, "bind_icon");
+    if (bind_icon && data && data->magic == UiButtonData::MAGIC) {
+        lv_subject_t* subject = lv_xml_get_subject(&state->scope, bind_icon);
+        if (subject) {
+            // If button has no icon yet, create one now
+            if (!data->icon) {
+                data->icon = lv_label_create(btn);
+                lv_obj_set_style_text_font(data->icon, get_button_icon_font(), LV_PART_MAIN);
+
+                // Position icon appropriately
+                if (data->label) {
+                    // Icon + text: set up flex layout
+                    lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_ROW);
+                    lv_obj_set_flex_align(btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                                          LV_FLEX_ALIGN_CENTER);
+                    lv_obj_set_style_pad_column(btn, theme_manager_get_spacing("space_xs"),
+                                                LV_PART_MAIN);
+                    // Clear any centering on the label (it was centered when text-only)
+                    lv_obj_set_align(data->label, LV_ALIGN_DEFAULT);
+                    // Position icon before or after text based on icon_on_right
+                    lv_obj_move_to_index(data->icon, data->icon_on_right ? -1 : 0);
+                    spdlog::trace("[ui_button] bind_icon: created icon with flex layout");
+                } else {
+                    // Icon only: center it
+                    lv_obj_center(data->icon);
+                    spdlog::trace("[ui_button] bind_icon: created centered icon-only");
+                }
+            }
+
+            // Get initial icon value from subject and set icon text
+            // Value can be either an icon name ("light") or raw codepoint ("\xF3\xB0\x8C\xB6")
+            const char* icon_value = lv_subject_get_string(subject);
+            if (icon_value && strlen(icon_value) > 0) {
+                const unsigned char first_byte = static_cast<unsigned char>(icon_value[0]);
+                if (first_byte >= 0xF0) {
+                    // Value is already a codepoint - use directly
+                    lv_label_set_text(data->icon, icon_value);
+                } else {
+                    // Value is an icon name - look up the codepoint
+                    const char* codepoint = ui_icon::lookup_codepoint(icon_value);
+                    if (!codepoint) {
+                        // Try stripping legacy prefix
+                        const char* stripped = ui_icon::strip_legacy_prefix(icon_value);
+                        if (stripped != icon_value) {
+                            codepoint = ui_icon::lookup_codepoint(stripped);
+                        }
+                    }
+                    if (codepoint) {
+                        lv_label_set_text(data->icon, codepoint);
+                    } else {
+                        spdlog::warn("[ui_button] Icon '{}' not found for bind_icon", icon_value);
+                    }
+                }
+            }
+
+            // Add observer to update icon when subject changes
+            lv_subject_add_observer_obj(subject, icon_subject_observer_cb, data->icon, btn);
+
+            // Re-apply contrast after adding icon
+            update_button_text_contrast(btn);
+            spdlog::trace("[ui_button] Bound icon to subject '{}'", bind_icon);
+        } else {
+            spdlog::warn("[ui_button] Subject '{}' not found for bind_icon", bind_icon);
         }
     }
 

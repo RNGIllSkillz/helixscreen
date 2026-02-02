@@ -211,7 +211,7 @@
         <!-- Networks List Container (scrollable) -->
         <lv_obj name="networks_list"
                 width="100%" flex_grow="1" style_bg_color="#screen_bg" style_bg_opa="255" style_radius="#border_radius"
-                style_pad_all="0" scrollable="true" scroll_dir="VER" scroll_elastic="false" style_clip_corner="true"
+                style_pad_all="0" scrollable="true" scroll_elastic="false" style_clip_corner="true"
                 flex_flow="column">
           <!-- wifi_network_item components are created here dynamically by C++ -->
           <!-- Placeholder when hardware unavailable (shown when wifi_hardware_available == 0) -->

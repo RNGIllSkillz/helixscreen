@@ -9,7 +9,6 @@
     <prop name="label" type="string" default=""/>
     <prop name="input_name" type="string" default="field_input"/>
     <prop name="placeholder" type="string" default=""/>
-    <prop name="max_length" type="string" default="64"/>
     <prop name="password_mode" type="string" default="false"/>
     <prop name="label_style" type="string" default="body"/>
   </api>
@@ -19,7 +18,7 @@
     <text_body text="$label" style_text_align="left"/>
     <!-- Textarea input with configurable name for C++ lookup -->
     <lv_textarea name="$input_name"
-                 width="100%" height="#input_height" placeholder="$placeholder" max_length="$max_length" one_line="true"
+                 width="100%" height="#input_height" placeholder_text="$placeholder" one_line="true"
                  password_mode="$password_mode" style_pad_all="#space_md"
                  style_text_font="#font_body"/>
   </view>

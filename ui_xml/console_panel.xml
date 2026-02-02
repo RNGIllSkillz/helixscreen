@@ -12,7 +12,7 @@
       <!-- Console output container (scrollable, subtle background) -->
       <lv_obj name="console_container"
               width="100%" flex_grow="1" style_bg_color="#screen_bg" style_bg_opa="255" style_radius="#border_radius"
-              style_pad_all="#space_md" scrollable="true" scroll_dir="ver" flex_flow="column" style_pad_gap="#space_xxs">
+              style_pad_all="#space_md" scrollable="true" flex_flow="column" style_pad_gap="#space_xxs">
         <!-- Console entries populated dynamically by C++ (text_small labels) -->
       </lv_obj>
       <!-- Empty state (shown when no history available) -->

@@ -9,7 +9,7 @@
         extends="overlay_panel" width="#overlay_panel_width_full" title="Sensors" bg_color="#screen_bg">
     <!-- Content Area -->
     <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_lg" scrollable="true" scroll_dir="VER"
+            width="100%" flex_grow="1" style_pad_all="#space_lg" scrollable="true"
             scroll_elastic="false" flex_flow="column" style_pad_gap="#space_lg">
       <!-- ================================================================== -->
       <!-- SWITCH SENSORS SECTION (filament runout/motion sensors) -->

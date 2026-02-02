@@ -21,6 +21,7 @@
  *   <ui_button icon="heat_wave" text="Dryer"/>
  *   <ui_button icon="settings" text=""/>
  *   <ui_button icon="cog" icon_position="right" text="Settings"/>
+ *   <ui_button bind_icon="light_icon_subject" text="Light"/>
  *
  * Attributes:
  * - variant: Button style variant (default: "primary")
@@ -34,8 +35,14 @@
  *
  * - text: Button label text (optional, can be empty for icon-only buttons)
  *
+ * - bind_text: Subject name for dynamic text binding (string subject)
+ *
  * - icon: Icon name from MDI font (optional, e.g., "settings", "heat_wave", "cog")
  *   Icon uses auto-contrast just like text.
+ *
+ * - bind_icon: Subject name for dynamic icon binding (string subject containing icon name)
+ *   The subject value should be an icon name (e.g., "light", "light_off", "play", "pause").
+ *   When the subject changes, the icon updates automatically.
  *
  * - icon_position: Where to place icon relative to text (default: "left")
  *   - "left": Icon before text

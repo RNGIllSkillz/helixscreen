@@ -173,7 +173,7 @@
             <!-- Part cooling hero section -->
             <text_small text="Part Fan" width="100%" style_margin_top="#space_sm"/>
             <lv_slider name="part_fan_slider"
-                       width="80%" height="#space_lg" bind_value="controls_fan_pct" range_min="0" range_max="100"
+                       width="80%" height="#space_lg" bind_value="controls_fan_pct" min_value="0" max_value="100"
                        style_radius="#space_md" style_margin_left="#space_md" style_margin_right="#space_sm">
               <event_cb trigger="value_changed" callback="on_controls_fan_slider"/>
             </lv_slider>

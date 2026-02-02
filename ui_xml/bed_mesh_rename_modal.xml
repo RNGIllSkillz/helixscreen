@@ -24,7 +24,7 @@
       </lv_obj>
       <!-- New name input -->
       <lv_textarea name="rename_new_name_input"
-                   width="100%" height="#input_height" placeholder="New profile name" max_length="32" one_line="true"
+                   width="100%" height="#input_height" placeholder_text="New profile name" one_line="true"
                    style_pad_all="#space_md" style_text_font="#font_body"
                    style_margin_top="#space_sm"/>
       <!-- Status message (hidden by default) -->

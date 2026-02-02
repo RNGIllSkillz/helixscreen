@@ -14,7 +14,7 @@
             flex_flow="column">
       <!-- Spool List (scrollable) - visible when state = SPOOLS (2) -->
       <lv_obj name="spool_list"
-              width="100%" flex_grow="1" style_pad_all="0" scrollable="true" scroll_dir="ver" flex_flow="column"
+              width="100%" flex_grow="1" style_pad_all="0" scrollable="true" flex_flow="column"
               style_pad_gap="#space_sm" hidden="true">
         <bind_flag_if_not_eq subject="spoolman_panel_state" flag="hidden" ref_value="2"/>
       </lv_obj>
