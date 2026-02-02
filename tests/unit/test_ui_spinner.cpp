@@ -9,18 +9,18 @@
  * - Spinner arc color matches shared style from theme_core
  * - Spinner arc color updates reactively when theme changes
  *
- * Phase 2.4: ui_spinner should use theme_core_get_spinner_style() instead of
- * inline styles. This enables automatic theme reactivity via LVGL's style system.
+ * Phase 2.4: ui_spinner should use ThemeManager::instance().get_style(StyleRole::Spinner) instead
+ * of inline styles. This enables automatic theme reactivity via LVGL's style system.
  */
 
 #include "../lvgl_ui_test_fixture.h"
-#include "theme_compat.h"
+#include "theme_manager.h"
 
 #include "../catch_amalgamated.hpp"
 
 // Helper: Create a dark mode test palette with configurable primary color
-static theme_palette_t make_dark_test_palette_with_primary(lv_color_t primary) {
-    theme_palette_t p = {};
+static ThemePalette make_dark_test_palette_with_primary(lv_color_t primary) {
+    ThemePalette p = {};
     p.screen_bg = lv_color_hex(0x121212);
     p.overlay_bg = lv_color_hex(0x1A1A1A);
     p.card_bg = lv_color_hex(0x1E1E1E);
@@ -44,11 +44,8 @@ static theme_palette_t make_dark_test_palette_with_primary(lv_color_t primary) {
 // Reactive Spinner Tests - Phase 2.4
 // ============================================================================
 // These tests verify that spinner widgets update their arc color when the theme
-// changes. The old implementation used inline styles (lv_obj_set_style_arc_color)
-// which don't respond to theme changes.
-//
-// The fix makes ui_spinner use lv_obj_add_style() with the shared spinner style
-// from theme_core, which updates in-place when theme_core_update_colors() is called.
+// changes. The implementation uses shared styles from ThemeManager which
+// update in-place when the theme mode changes.
 // ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: arc color matches shared spinner style",
@@ -62,7 +59,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: arc color matches shared spinne
     lv_color_t spinner_color = lv_obj_get_style_arc_color(spinner, LV_PART_INDICATOR);
 
     // Get expected color from the shared spinner style
-    lv_style_t* spinner_style = theme_core_get_spinner_style();
+    lv_style_t* spinner_style = ThemeManager::instance().get_style(StyleRole::Spinner);
     REQUIRE(spinner_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(spinner_style, LV_STYLE_ARC_COLOR, &value);
@@ -89,8 +86,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: arc color updates on theme chan
 
     // Update theme colors to dark mode with DIFFERENT primary color (orange)
     // Primary color is what drives spinner arc color
-    theme_palette_t palette = make_dark_test_palette_with_primary(lv_color_hex(0xFF5722));
-    theme_core_update_colors(true, &palette, 40);
+    ThemePalette palette = make_dark_test_palette_with_primary(lv_color_hex(0xFF5722));
+    auto& tm = ThemeManager::instance();
+    tm.set_palettes(palette, palette);
+    tm.set_dark_mode(true);
 
     // Force LVGL style refresh cascade
     lv_obj_report_style_change(nullptr);
@@ -116,12 +115,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: style matches shared style afte
     REQUIRE(spinner != nullptr);
 
     // Get the shared spinner style
-    lv_style_t* shared_style = theme_core_get_spinner_style();
+    lv_style_t* shared_style = ThemeManager::instance().get_style(StyleRole::Spinner);
     REQUIRE(shared_style != nullptr);
 
     // Update to dark mode with different primary color (purple)
-    theme_palette_t palette = make_dark_test_palette_with_primary(lv_color_hex(0x9C27B0));
-    theme_core_update_colors(true, &palette, 40);
+    ThemePalette palette = make_dark_test_palette_with_primary(lv_color_hex(0x9C27B0));
+    auto& tm = ThemeManager::instance();
+    tm.set_palettes(palette, palette);
+    tm.set_dark_mode(true);
 
     lv_obj_report_style_change(nullptr);
 
@@ -171,8 +172,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_spinner: multiple spinners update togeth
     REQUIRE(lv_color_eq(before2, before3));
 
     // Update to dark mode with different primary color (cyan)
-    theme_palette_t palette = make_dark_test_palette_with_primary(lv_color_hex(0x00BCD4));
-    theme_core_update_colors(true, &palette, 40);
+    ThemePalette palette = make_dark_test_palette_with_primary(lv_color_hex(0x00BCD4));
+    auto& tm = ThemeManager::instance();
+    tm.set_palettes(palette, palette);
+    tm.set_dark_mode(true);
 
     lv_obj_report_style_change(nullptr);
 

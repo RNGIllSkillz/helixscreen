@@ -157,6 +157,16 @@ class ThemeManager {
         return previewing_;
     }
 
+    /// Get light palette (always available, regardless of current mode)
+    const ThemePalette& light_palette() const {
+        return light_palette_;
+    }
+
+    /// Get dark palette (always available, regardless of current mode)
+    const ThemePalette& dark_palette() const {
+        return dark_palette_;
+    }
+
     // Delete copy/move
     ThemeManager(const ThemeManager&) = delete;
     ThemeManager& operator=(const ThemeManager&) = delete;
@@ -436,6 +446,21 @@ lv_color_t theme_get_knob_color();
  * @return Accent color (more saturated of primary/secondary)
  */
 lv_color_t theme_get_accent_color();
+
+/**
+ * @brief Get contrasting text color for a given background
+ *
+ * Returns appropriate text color to ensure readability on the given background.
+ * Uses the opposite palette's text color:
+ * - Dark background (brightness < 128) -> dark_palette_.text (light colored)
+ * - Light background (brightness >= 128) -> light_palette_.text (dark colored)
+ *
+ * This is theme-aware, unlike the deprecated theme_core_get_contrast_text_color().
+ *
+ * @param bg_color Background color to contrast against
+ * @return Text color from the appropriate palette
+ */
+lv_color_t theme_manager_get_contrast_text(lv_color_t bg_color);
 
 /**
  * @brief Apply palette colors to a single widget based on its type

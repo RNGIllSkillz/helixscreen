@@ -54,8 +54,44 @@ void ThemeManager::init() {
 
     register_style_configs();
 
-    // Apply current palette (set via set_palettes() or default-initialized)
-    // ThemePalette struct has sensible defaults if set_palettes() wasn't called
+    // If palettes weren't explicitly set, apply sensible Nord defaults
+    // This ensures tests and fallback scenarios have readable colors
+    auto is_palette_empty = [](const ThemePalette& p) {
+        // Check if text color is unset (all zeros = black = likely uninitialized)
+        return p.text.red == 0 && p.text.green == 0 && p.text.blue == 0;
+    };
+
+    if (is_palette_empty(dark_palette_)) {
+        // Dark palette: light-colored text for readability on dark backgrounds
+        dark_palette_.text = lv_color_hex(0xECEFF4);       // Nord Snow Storm
+        dark_palette_.text_muted = lv_color_hex(0xD8DEE9); // Nord Snow Storm (darker)
+        dark_palette_.screen_bg = lv_color_hex(0x2E3440);  // Nord Polar Night
+        dark_palette_.card_bg = lv_color_hex(0x3B4252);    // Nord Polar Night lighter
+        dark_palette_.primary = lv_color_hex(0x5E81AC);    // Nord Frost
+        dark_palette_.secondary = lv_color_hex(0x81A1C1);  // Nord Frost lighter
+        dark_palette_.danger = lv_color_hex(0xBF616A);     // Nord Aurora Red
+        dark_palette_.warning = lv_color_hex(0xEBCB8B);    // Nord Aurora Yellow
+        dark_palette_.success = lv_color_hex(0xA3BE8C);    // Nord Aurora Green
+        dark_palette_.info = lv_color_hex(0x88C0D0);       // Nord Frost
+        dark_palette_.border = lv_color_hex(0x4C566A);     // Nord Polar Night lightest
+    }
+
+    if (is_palette_empty(light_palette_)) {
+        // Light palette: dark-colored text for readability on light backgrounds
+        light_palette_.text = lv_color_hex(0x2E3440);       // Nord Polar Night
+        light_palette_.text_muted = lv_color_hex(0x4C566A); // Nord Polar Night (lighter)
+        light_palette_.screen_bg = lv_color_hex(0xECEFF4);  // Nord Snow Storm
+        light_palette_.card_bg = lv_color_hex(0xE5E9F0);    // Nord Snow Storm darker
+        light_palette_.primary = lv_color_hex(0x5E81AC);    // Nord Frost
+        light_palette_.secondary = lv_color_hex(0x81A1C1);  // Nord Frost lighter
+        light_palette_.danger = lv_color_hex(0xBF616A);     // Nord Aurora Red
+        light_palette_.warning = lv_color_hex(0xD08770);    // Nord Aurora Orange
+        light_palette_.success = lv_color_hex(0xA3BE8C);    // Nord Aurora Green
+        light_palette_.info = lv_color_hex(0x88C0D0);       // Nord Frost
+        light_palette_.border = lv_color_hex(0xD8DEE9);     // Nord Snow Storm
+    }
+
+    // Apply current palette
     apply_palette(dark_mode_ ? dark_palette_ : light_palette_);
     initialized_ = true;
 }

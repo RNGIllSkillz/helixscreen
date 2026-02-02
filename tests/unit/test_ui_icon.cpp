@@ -179,20 +179,16 @@ TEST_CASE("strip_legacy_prefix handles empty string", "[ui_icon][legacy][error]"
 // Reactive Icon Tests - Phase 2.2
 // ============================================================================
 // These tests verify that icon widgets update their color when the theme
-// changes. The current implementation uses inline styles (lv_obj_set_style_text_color)
-// which don't respond to theme changes.
-//
-// The fix (Phase 2.2 IMPL) will make ui_icon use lv_obj_add_style() with the
-// shared icon styles from theme_core, which update in-place when
-// theme_core_update_colors() is called.
+// changes. The implementation uses shared styles from ThemeManager which
+// update in-place when the theme mode changes.
 // ============================================================================
 
 #include "../lvgl_ui_test_fixture.h"
-#include "theme_compat.h"
+#include "theme_manager.h"
 
 // Helper: Create a dark mode test palette with distinct colors
-static theme_palette_t make_dark_test_palette() {
-    theme_palette_t p = {};
+static ThemePalette make_dark_test_palette() {
+    ThemePalette p = {};
     p.screen_bg = lv_color_hex(0x121212);
     p.overlay_bg = lv_color_hex(0x1A1A1A);
     p.card_bg = lv_color_hex(0x1E1E1E);
@@ -213,8 +209,8 @@ static theme_palette_t make_dark_test_palette() {
 }
 
 // Helper: Create a dark mode test palette with configurable primary color
-static theme_palette_t make_dark_test_palette_with_primary(lv_color_t primary) {
-    theme_palette_t p = make_dark_test_palette();
+static ThemePalette make_dark_test_palette_with_primary(lv_color_t primary) {
+    ThemePalette p = make_dark_test_palette();
     p.primary = primary;
     return p;
 }
@@ -235,7 +231,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: accepts 'text' variant name (new n
     lv_color_t icon_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
     // Get expected color from the shared style
-    lv_style_t* text_style = theme_core_get_icon_text_style();
+    lv_style_t* text_style = ThemeManager::instance().get_style(StyleRole::IconText);
     REQUIRE(text_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(text_style, LV_STYLE_TEXT_COLOR, &value);
@@ -256,7 +252,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_color_t icon_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
-    lv_style_t* muted_style = theme_core_get_icon_muted_style();
+    lv_style_t* muted_style = ThemeManager::instance().get_style(StyleRole::TextMuted);
     REQUIRE(muted_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(muted_style, LV_STYLE_TEXT_COLOR, &value);
@@ -277,7 +273,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_color_t icon_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
-    lv_style_t* primary_style = theme_core_get_icon_primary_style();
+    lv_style_t* primary_style = ThemeManager::instance().get_style(StyleRole::IconPrimary);
     REQUIRE(primary_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(primary_style, LV_STYLE_TEXT_COLOR, &value);
@@ -296,7 +292,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: accepts 'danger' variant name (new
 
     lv_color_t icon_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
-    lv_style_t* danger_style = theme_core_get_icon_danger_style();
+    lv_style_t* danger_style = ThemeManager::instance().get_style(StyleRole::IconDanger);
     REQUIRE(danger_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(danger_style, LV_STYLE_TEXT_COLOR, &value);
@@ -320,7 +316,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: accepts 'secondary' variant for se
 
     lv_color_t icon_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
-    lv_style_t* secondary_style = theme_core_get_icon_secondary_style();
+    lv_style_t* secondary_style = ThemeManager::instance().get_style(StyleRole::IconSecondary);
     REQUIRE(secondary_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(secondary_style, LV_STYLE_TEXT_COLOR, &value);
@@ -350,8 +346,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: text variant color updates on them
     INFO("Initial icon text color: 0x" << std::hex << before_rgb);
 
     // Update theme colors to dark mode (significantly different colors)
-    theme_palette_t dark_palette = make_dark_test_palette();
-    theme_core_update_colors(true, &dark_palette, 40);
+    ThemePalette dark_palette = make_dark_test_palette();
+    auto& tm = ThemeManager::instance();
+    tm.set_palettes(dark_palette, dark_palette);
+    tm.set_dark_mode(true);
 
     // Force LVGL style refresh cascade
     lv_obj_report_style_change(nullptr);
@@ -378,8 +376,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: muted variant color updates on the
     lv_color_t before = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
     // Update to dark mode
-    theme_palette_t dark_palette = make_dark_test_palette();
-    theme_core_update_colors(true, &dark_palette, 40);
+    ThemePalette dark_palette = make_dark_test_palette();
+    auto& tm = ThemeManager::instance();
+    tm.set_palettes(dark_palette, dark_palette);
+    tm.set_dark_mode(true);
 
     lv_obj_report_style_change(nullptr);
 
@@ -399,8 +399,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: primary variant color updates on t
     lv_color_t before = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
     // Update to dark mode with DIFFERENT primary color
-    theme_palette_t dark_palette = make_dark_test_palette_with_primary(lv_color_hex(0xFF5722));
-    theme_core_update_colors(true, &dark_palette, 40);
+    ThemePalette dark_palette = make_dark_test_palette_with_primary(lv_color_hex(0xFF5722));
+    auto& tm = ThemeManager::instance();
+    tm.set_palettes(dark_palette, dark_palette);
+    tm.set_dark_mode(true);
 
     lv_obj_report_style_change(nullptr);
 
@@ -420,7 +422,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: success variant color matches shar
 
     lv_color_t icon_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
-    lv_style_t* success_style = theme_core_get_icon_success_style();
+    lv_style_t* success_style = ThemeManager::instance().get_style(StyleRole::IconSuccess);
     REQUIRE(success_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(success_style, LV_STYLE_TEXT_COLOR, &value);
@@ -439,7 +441,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: warning variant color matches shar
 
     lv_color_t icon_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
-    lv_style_t* warning_style = theme_core_get_icon_warning_style();
+    lv_style_t* warning_style = ThemeManager::instance().get_style(StyleRole::IconWarning);
     REQUIRE(warning_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(warning_style, LV_STYLE_TEXT_COLOR, &value);
@@ -458,7 +460,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: danger variant color matches share
 
     lv_color_t icon_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
-    lv_style_t* danger_style = theme_core_get_icon_danger_style();
+    lv_style_t* danger_style = ThemeManager::instance().get_style(StyleRole::IconDanger);
     REQUIRE(danger_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(danger_style, LV_STYLE_TEXT_COLOR, &value);
@@ -478,7 +480,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: none variant uses text style",
     lv_color_t icon_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
     // none variant should use text style (same as default)
-    lv_style_t* text_style = theme_core_get_icon_text_style();
+    lv_style_t* text_style = ThemeManager::instance().get_style(StyleRole::IconText);
     REQUIRE(text_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(text_style, LV_STYLE_TEXT_COLOR, &value);
@@ -515,8 +517,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: multiple icons update together on 
     REQUIRE(lv_color_eq(before2, before3));
 
     // Update to dark mode
-    theme_palette_t dark_palette = make_dark_test_palette();
-    theme_core_update_colors(true, &dark_palette, 40);
+    ThemePalette dark_palette = make_dark_test_palette();
+    auto& tm = ThemeManager::instance();
+    tm.set_palettes(dark_palette, dark_palette);
+    tm.set_dark_mode(true);
 
     lv_obj_report_style_change(nullptr);
 
@@ -545,12 +549,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon: style matches shared style after t
     REQUIRE(icon != nullptr);
 
     // Get the shared icon text style
-    lv_style_t* shared_style = theme_core_get_icon_text_style();
+    lv_style_t* shared_style = ThemeManager::instance().get_style(StyleRole::IconText);
     REQUIRE(shared_style != nullptr);
 
     // Update to dark mode
-    theme_palette_t dark_palette = make_dark_test_palette();
-    theme_core_update_colors(true, &dark_palette, 40);
+    ThemePalette dark_palette = make_dark_test_palette();
+    auto& tm = ThemeManager::instance();
+    tm.set_palettes(dark_palette, dark_palette);
+    tm.set_dark_mode(true);
 
     lv_obj_report_style_change(nullptr);
 
@@ -591,7 +597,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon_set_variant: accepts new variant na
     lv_color_t text_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
     // Should match shared text style
-    lv_style_t* text_style = theme_core_get_icon_text_style();
+    lv_style_t* text_style = ThemeManager::instance().get_style(StyleRole::IconText);
     lv_style_value_t value;
     lv_style_get_prop(text_style, LV_STYLE_TEXT_COLOR, &value);
     REQUIRE(lv_color_eq(text_color, value.color));
@@ -601,7 +607,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon_set_variant: accepts new variant na
     lv_color_t muted_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
     // Should match shared muted style
-    lv_style_t* muted_style = theme_core_get_icon_muted_style();
+    lv_style_t* muted_style = ThemeManager::instance().get_style(StyleRole::TextMuted);
     lv_style_get_prop(muted_style, LV_STYLE_TEXT_COLOR, &value);
     REQUIRE(lv_color_eq(muted_color, value.color));
 
@@ -610,7 +616,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_icon_set_variant: accepts new variant na
     lv_color_t danger_color = lv_obj_get_style_text_color(icon, LV_PART_MAIN);
 
     // Should match shared danger style
-    lv_style_t* danger_style = theme_core_get_icon_danger_style();
+    lv_style_t* danger_style = ThemeManager::instance().get_style(StyleRole::IconDanger);
     lv_style_get_prop(danger_style, LV_STYLE_TEXT_COLOR, &value);
     REQUIRE(lv_color_eq(danger_color, value.color));
 

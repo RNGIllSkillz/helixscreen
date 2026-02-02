@@ -6,15 +6,12 @@
  * @brief Unit tests for ui_severity_card.cpp - Reactive severity card widget
  *
  * Tests cover:
- * - Severity card border color matches shared style from theme_core
+ * - Severity card border color matches shared style from ThemeManager
  * - Severity card border color updates reactively when theme changes
- *
- * Phase 2.5: ui_severity_card should use theme_core_get_severity_*_style() instead of
- * inline styles. This enables automatic theme reactivity via LVGL's style system.
  */
 
 #include "../lvgl_ui_test_fixture.h"
-#include "theme_compat.h"
+#include "theme_manager.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -22,16 +19,13 @@
 // Reactive Severity Card Tests - Phase 2.5
 // ============================================================================
 // These tests verify that severity_card widgets update their border color when the
-// theme changes. The old implementation used inline styles (lv_obj_set_style_border_color)
-// which don't respond to theme changes.
-//
-// The fix makes ui_severity_card use lv_obj_add_style() with the shared severity style
-// from theme_core, which updates in-place when theme_core_preview_colors() is called.
+// theme changes. The implementation uses shared styles from ThemeManager which
+// update in-place when the theme mode changes.
 // ============================================================================
 
 // Helper to create a base test palette
-static theme_palette_t make_base_test_palette() {
-    theme_palette_t p = {};
+static ThemePalette make_base_test_palette() {
+    ThemePalette p = {};
     p.screen_bg = lv_color_hex(0x121212);
     p.overlay_bg = lv_color_hex(0x1E1E1E);
     p.card_bg = lv_color_hex(0x2D2D2D);
@@ -52,8 +46,8 @@ static theme_palette_t make_base_test_palette() {
 }
 
 // Helper to create a test palette with a specific warning color
-static theme_palette_t make_test_palette_with_warning(lv_color_t warning_color) {
-    theme_palette_t p = {};
+static ThemePalette make_test_palette_with_warning(lv_color_t warning_color) {
+    ThemePalette p = {};
     p.screen_bg = lv_color_hex(0x121212);
     p.overlay_bg = lv_color_hex(0x1E1E1E);
     p.card_bg = lv_color_hex(0x2D2D2D);
@@ -84,7 +78,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_severity_card: border color matches shar
     lv_color_t card_border_color = lv_obj_get_style_border_color(card, LV_PART_MAIN);
 
     // Get expected color from the shared severity info style
-    lv_style_t* severity_style = theme_core_get_severity_info_style();
+    lv_style_t* severity_style = ThemeManager::instance().get_style(StyleRole::SeverityInfo);
     REQUIRE(severity_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(severity_style, LV_STYLE_BORDER_COLOR, &value);
@@ -109,11 +103,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_severity_card: border color updates on t
     uint32_t before_rgb = lv_color_to_u32(before) & 0x00FFFFFF;
     INFO("Initial severity card border color: 0x" << std::hex << before_rgb);
 
-    // Update theme via theme_core_preview_colors with DIFFERENT warning color
+    // Update theme with DIFFERENT warning color
     // Using bright magenta to ensure visible change
-    theme_palette_t dark_palette = make_test_palette_with_warning(lv_color_hex(0xFF00FF));
-
-    theme_core_preview_colors(true, &dark_palette, 8, 100);
+    ThemePalette dark_palette = make_test_palette_with_warning(lv_color_hex(0xFF00FF));
+    dark_palette.border_radius = 8;
+    dark_palette.border_opacity = 100;
+    auto& tm = ThemeManager::instance();
+    tm.preview_palette(dark_palette);
 
     // Force LVGL style refresh cascade
     lv_obj_report_style_change(nullptr);
@@ -140,15 +136,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(card != nullptr);
 
     // Get the shared danger style (error maps to danger)
-    lv_style_t* shared_style = theme_core_get_severity_danger_style();
+    lv_style_t* shared_style = ThemeManager::instance().get_style(StyleRole::SeverityDanger);
     REQUIRE(shared_style != nullptr);
 
-    // Update theme via theme_core_preview_colors with different danger color
+    // Update theme with different danger color
     // Using hot pink to ensure visible change
-    theme_palette_t dark_palette = make_base_test_palette();
+    ThemePalette dark_palette = make_base_test_palette();
     dark_palette.danger = lv_color_hex(0xFF1493); // HOT PINK
-
-    theme_core_preview_colors(true, &dark_palette, 8, 100);
+    dark_palette.border_radius = 8;
+    dark_palette.border_opacity = 100;
+    auto& tm = ThemeManager::instance();
+    tm.preview_palette(dark_palette);
     lv_obj_report_style_change(nullptr);
 
     // Get the updated color from the shared style
@@ -201,14 +199,16 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_color_t before_error = lv_obj_get_style_border_color(card_error, LV_PART_MAIN);
     lv_color_t before_success = lv_obj_get_style_border_color(card_success, LV_PART_MAIN);
 
-    // Update theme via theme_core_preview_colors with ALL different semantic colors
-    theme_palette_t dark_palette = make_base_test_palette();
+    // Update theme with ALL different semantic colors
+    ThemePalette dark_palette = make_base_test_palette();
     dark_palette.success = lv_color_hex(0x00FF00); // BRIGHT GREEN
     dark_palette.warning = lv_color_hex(0xFFFF00); // BRIGHT YELLOW
     dark_palette.danger = lv_color_hex(0xFF0000);  // PURE RED
     dark_palette.info = lv_color_hex(0x0000FF);    // PURE BLUE
-
-    theme_core_preview_colors(true, &dark_palette, 8, 100);
+    dark_palette.border_radius = 8;
+    dark_palette.border_opacity = 100;
+    auto& tm = ThemeManager::instance();
+    tm.preview_palette(dark_palette);
     lv_obj_report_style_change(nullptr);
 
     // Get colors after theme change

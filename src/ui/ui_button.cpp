@@ -12,7 +12,6 @@
 #include "lvgl/src/xml/lv_xml_utils.h"
 #include "lvgl/src/xml/lv_xml_widget.h"
 #include "lvgl/src/xml/parsers/lv_xml_obj_parser.h"
-#include "theme_compat.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -79,7 +78,7 @@ void update_button_text_contrast(lv_obj_t* btn) {
     } else {
         // Solid button - calculate contrast against background
         lv_color_t bg = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
-        text_color = theme_core_get_contrast_text_color(bg);
+        text_color = theme_manager_get_contrast_text(bg);
         spdlog::trace("[ui_button] text contrast: bg=0x{:06X} text=0x{:06X}",
                       lv_color_to_u32(bg) & 0xFFFFFF, lv_color_to_u32(text_color) & 0xFFFFFF);
     }

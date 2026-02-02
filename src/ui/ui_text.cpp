@@ -10,7 +10,6 @@
 #include "lvgl/src/xml/lv_xml_widget.h"
 #include "lvgl/src/xml/parsers/lv_xml_label_parser.h"
 #include "lvgl/src/xml/parsers/lv_xml_obj_parser.h"
-#include "theme_compat.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -262,12 +261,8 @@ static void ui_text_button_apply(lv_xml_parser_state_t* state, const char** attr
 
     // Only apply auto-contrast if parent has a visible background
     if (bg_opa > LV_OPA_50) {
-        // Use standard luminance formula (matches ui_button)
-        uint8_t lum = lv_color_luminance(bg_color);
-
-        // Use the same theme_core helpers as ui_button for consistency
-        lv_color_t text_color =
-            (lum < 128) ? theme_core_get_text_for_dark_bg() : theme_core_get_text_for_light_bg();
+        // Use theme-aware contrast text (matches ui_button)
+        lv_color_t text_color = theme_manager_get_contrast_text(bg_color);
         lv_obj_set_style_text_color(label, text_color, LV_PART_MAIN);
     }
 }

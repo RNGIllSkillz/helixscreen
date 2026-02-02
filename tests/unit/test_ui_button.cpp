@@ -19,13 +19,13 @@
 #include "ui_button.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "theme_compat.h"
+#include "theme_manager.h"
 
 #include "../catch_amalgamated.hpp"
 
 // Helper: Create a dark mode test palette with configurable primary color
-static theme_palette_t make_dark_test_palette_with_primary(lv_color_t primary) {
-    theme_palette_t p = {};
+static ThemePalette make_dark_test_palette_with_primary(lv_color_t primary) {
+    ThemePalette p = {};
     p.screen_bg = lv_color_hex(0x121212);
     p.overlay_bg = lv_color_hex(0x1A1A1A);
     p.card_bg = lv_color_hex(0x1E1E1E);
@@ -46,8 +46,8 @@ static theme_palette_t make_dark_test_palette_with_primary(lv_color_t primary) {
 }
 
 // Helper: Create a dark mode test palette with configurable primary and surface
-static theme_palette_t make_dark_test_palette_custom(lv_color_t primary, lv_color_t surface) {
-    theme_palette_t p = make_dark_test_palette_with_primary(primary);
+static ThemePalette make_dark_test_palette_custom(lv_color_t primary, lv_color_t surface) {
+    ThemePalette p = make_dark_test_palette_with_primary(primary);
     p.elevated_bg = surface;
     return p;
 }
@@ -87,7 +87,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: defaults to primary variant", "[
     lv_color_t btn_bg = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
 
     // Get expected color from the shared primary button style
-    lv_style_t* primary_style = theme_core_get_button_primary_style();
+    lv_style_t* primary_style = ThemeManager::instance().get_style(StyleRole::ButtonPrimary);
     REQUIRE(primary_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(primary_style, LV_STYLE_BG_COLOR, &value);
@@ -111,7 +111,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: primary variant applies correct 
 
     lv_color_t btn_bg = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
 
-    lv_style_t* primary_style = theme_core_get_button_primary_style();
+    lv_style_t* primary_style = ThemeManager::instance().get_style(StyleRole::ButtonPrimary);
     REQUIRE(primary_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(primary_style, LV_STYLE_BG_COLOR, &value);
@@ -130,7 +130,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: secondary variant applies correc
 
     lv_color_t btn_bg = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
 
-    lv_style_t* secondary_style = theme_core_get_button_secondary_style();
+    lv_style_t* secondary_style = ThemeManager::instance().get_style(StyleRole::ButtonSecondary);
     REQUIRE(secondary_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(secondary_style, LV_STYLE_BG_COLOR, &value);
@@ -149,7 +149,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: danger variant applies correct s
 
     lv_color_t btn_bg = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
 
-    lv_style_t* danger_style = theme_core_get_button_danger_style();
+    lv_style_t* danger_style = ThemeManager::instance().get_style(StyleRole::ButtonDanger);
     REQUIRE(danger_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(danger_style, LV_STYLE_BG_COLOR, &value);
@@ -169,7 +169,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: ghost variant applies correct st
     // Ghost buttons have transparent background
     lv_opa_t btn_bg_opa = lv_obj_get_style_bg_opa(btn, LV_PART_MAIN);
 
-    lv_style_t* ghost_style = theme_core_get_button_ghost_style();
+    lv_style_t* ghost_style = ThemeManager::instance().get_style(StyleRole::ButtonGhost);
     REQUIRE(ghost_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(ghost_style, LV_STYLE_BG_OPA, &value);
@@ -188,7 +188,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: success variant applies correct 
 
     lv_color_t btn_bg = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
 
-    lv_style_t* success_style = theme_core_get_button_success_style();
+    lv_style_t* success_style = ThemeManager::instance().get_style(StyleRole::ButtonSuccess);
     REQUIRE(success_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(success_style, LV_STYLE_BG_COLOR, &value);
@@ -209,7 +209,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: tertiary variant applies correct
 
     lv_color_t btn_bg = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
 
-    lv_style_t* tertiary_style = theme_core_get_button_tertiary_style();
+    lv_style_t* tertiary_style = ThemeManager::instance().get_style(StyleRole::ButtonTertiary);
     REQUIRE(tertiary_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(tertiary_style, LV_STYLE_BG_COLOR, &value);
@@ -230,7 +230,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: warning variant applies correct 
 
     lv_color_t btn_bg = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
 
-    lv_style_t* warning_style = theme_core_get_button_warning_style();
+    lv_style_t* warning_style = ThemeManager::instance().get_style(StyleRole::ButtonWarning);
     REQUIRE(warning_style != nullptr);
     lv_style_value_t value;
     lv_style_res_t res = lv_style_get_prop(warning_style, LV_STYLE_BG_COLOR, &value);
@@ -306,8 +306,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: primary button has light text (d
 
     // If bg is dark (lum < 128), text should be light
     // If bg is light (lum >= 128), text should be dark
-    lv_color_t expected_text_color =
-        (lum < 128) ? theme_core_get_text_for_dark_bg() : theme_core_get_text_for_light_bg();
+    lv_color_t expected_text_color = theme_manager_get_contrast_text(btn_bg);
 
     REQUIRE(lv_color_eq(text_color, expected_text_color));
 
@@ -337,8 +336,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: danger button has light text (da
 
     INFO("Danger button bg: R=" << (int)r << " G=" << (int)g << " B=" << (int)b << " Lum=" << lum);
 
-    lv_color_t expected_text_color =
-        (lum < 128) ? theme_core_get_text_for_dark_bg() : theme_core_get_text_for_light_bg();
+    lv_color_t expected_text_color = theme_manager_get_contrast_text(btn_bg);
 
     REQUIRE(lv_color_eq(text_color, expected_text_color));
 
@@ -365,8 +363,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: ghost button uses appropriate te
     uint8_t b = btn_bg.blue;
     uint32_t lum = (299 * r + 587 * g + 114 * b) / 1000;
 
-    lv_color_t expected_text_color =
-        (lum < 128) ? theme_core_get_text_for_dark_bg() : theme_core_get_text_for_light_bg();
+    lv_color_t expected_text_color = theme_manager_get_contrast_text(btn_bg);
 
     REQUIRE(lv_color_eq(text_color, expected_text_color));
 
@@ -389,8 +386,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: bg color updates on theme change
     INFO("Initial button bg color: 0x" << std::hex << before_rgb);
 
     // Update theme colors with DIFFERENT primary color (orange)
-    theme_palette_t palette = make_dark_test_palette_with_primary(lv_color_hex(0xFF5722));
-    theme_core_update_colors(true, &palette, 40);
+    ThemePalette palette = make_dark_test_palette_with_primary(lv_color_hex(0xFF5722));
+    auto& tm = ThemeManager::instance();
+    tm.set_palettes(palette, palette);
+    tm.set_dark_mode(true);
 
     // Force LVGL style refresh cascade
     lv_obj_report_style_change(nullptr);
@@ -418,8 +417,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: text contrast updates on theme c
 
     // Update theme colors with a significantly different primary color (yellow)
     // that would change the luminance threshold - light bg will need dark text
-    theme_palette_t palette = make_dark_test_palette_with_primary(lv_color_hex(0xFFEB3B));
-    theme_core_update_colors(true, &palette, 40);
+    ThemePalette palette = make_dark_test_palette_with_primary(lv_color_hex(0xFFEB3B));
+    auto& tm = ThemeManager::instance();
+    tm.set_palettes(palette, palette);
+    tm.set_dark_mode(true);
 
     lv_obj_report_style_change(nullptr);
 
@@ -436,8 +437,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: text contrast updates on theme c
 
     INFO("New button bg: R=" << (int)r << " G=" << (int)g << " B=" << (int)b << " Lum=" << lum);
 
-    lv_color_t expected_text_color =
-        (lum < 128) ? theme_core_get_text_for_dark_bg() : theme_core_get_text_for_light_bg();
+    lv_color_t expected_text_color = theme_manager_get_contrast_text(new_btn_bg);
 
     REQUIRE(lv_color_eq(after_text, expected_text_color));
 
@@ -463,9 +463,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: multiple buttons update together
     lv_color_t before2 = lv_obj_get_style_bg_color(btn2, LV_PART_MAIN);
 
     // Update theme with different primary (purple) and surface colors
-    theme_palette_t palette =
+    ThemePalette palette =
         make_dark_test_palette_custom(lv_color_hex(0x9C27B0), lv_color_hex(0x3D3D3D));
-    theme_core_update_colors(true, &palette, 40);
+    auto& tm = ThemeManager::instance();
+    tm.set_palettes(palette, palette);
+    tm.set_dark_mode(true);
 
     lv_obj_report_style_change(nullptr);
 
@@ -580,8 +582,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: icon has auto-contrast color",
     uint8_t b = btn_bg.blue;
     uint32_t lum = (299 * r + 587 * g + 114 * b) / 1000;
 
-    lv_color_t expected_color =
-        (lum < 128) ? theme_core_get_text_for_dark_bg() : theme_core_get_text_for_light_bg();
+    lv_color_t expected_color = theme_manager_get_contrast_text(btn_bg);
 
     // Icon is first child (icon_position defaults to "left")
     lv_obj_t* icon = lv_obj_get_child(btn, 0);
@@ -611,8 +612,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: icon contrast updates on theme c
     REQUIRE(icon != nullptr);
 
     // Update theme colors with a significantly different primary color (yellow)
-    theme_palette_t palette = make_dark_test_palette_with_primary(lv_color_hex(0xFFEB3B));
-    theme_core_update_colors(true, &palette, 40);
+    ThemePalette palette = make_dark_test_palette_with_primary(lv_color_hex(0xFFEB3B));
+    auto& tm = ThemeManager::instance();
+    tm.set_palettes(palette, palette);
+    tm.set_dark_mode(true);
 
     lv_obj_report_style_change(nullptr);
 
@@ -621,13 +624,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ui_button: icon contrast updates on theme c
 
     // Get the button's new bg and verify icon has correct contrast
     lv_color_t new_btn_bg = lv_obj_get_style_bg_color(btn, LV_PART_MAIN);
-    uint8_t r = new_btn_bg.red;
-    uint8_t g = new_btn_bg.green;
-    uint8_t b = new_btn_bg.blue;
-    uint32_t lum = (299 * r + 587 * g + 114 * b) / 1000;
 
-    lv_color_t expected_color =
-        (lum < 128) ? theme_core_get_text_for_dark_bg() : theme_core_get_text_for_light_bg();
+    lv_color_t expected_color = theme_manager_get_contrast_text(new_btn_bg);
 
     REQUIRE(lv_color_eq(after_icon, expected_color));
 

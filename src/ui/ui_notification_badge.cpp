@@ -7,7 +7,6 @@
 #include "lvgl/src/xml/lv_xml_utils.h"
 #include "lvgl/src/xml/lv_xml_widget.h"
 #include "lvgl/src/xml/parsers/lv_xml_obj_parser.h"
-#include "theme_compat.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -48,7 +47,7 @@ void update_badge_text_contrast(lv_obj_t* badge) {
 
     // Get badge background color
     lv_color_t bg = lv_obj_get_style_bg_color(badge, LV_PART_MAIN);
-    lv_color_t text_color = theme_core_get_contrast_text_color(bg);
+    lv_color_t text_color = theme_manager_get_contrast_text(bg);
 
     lv_obj_set_style_text_color(label, text_color, LV_PART_MAIN);
 
