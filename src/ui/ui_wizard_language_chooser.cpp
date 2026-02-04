@@ -5,29 +5,31 @@
 #include "config.h"
 #include "settings_manager.h"
 #include "static_panel_registry.h"
+#include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
 
 #include <cstring>
 #include <memory>
 
+// External subject for enabling/disabling Next button
+extern lv_subject_t connection_test_passed;
+
 // ============================================================================
 // Welcome Translations
 // ============================================================================
 
 // Welcome text in each supported language (cycles during animation)
+// Only Latin script languages - CJK fonts not available in bold/display sizes
 static const char* WELCOME_TRANSLATIONS[] = {
-    "Welcome!",          // en
-    "Willkommen!",       // de
-    "Bienvenue!",        // fr
-    "¡Bienvenido!",      // es
-    "Добро пожаловать!", // ru
-    "Bem-vindo!",        // pt
-    "Benvenuto!",        // it
-    "欢迎！",            // zh
-    "ようこそ！",        // ja
+    "Welcome!",     // en
+    "Willkommen!",  // de
+    "Bienvenue!",   // fr
+    "¡Bienvenido!", // es
+    "Bem-vindo!",   // pt
+    "Benvenuto!",   // it
 };
-static constexpr int WELCOME_COUNT = 9;
+static constexpr int WELCOME_COUNT = 6;
 
 // Language codes for saving to config (matches button order in XML)
 static const char* LANGUAGE_CODES[] = {"en", "de", "fr", "es", "ru", "pt", "it", "zh", "ja"};
@@ -43,6 +45,16 @@ static constexpr int32_t CROSSFADE_DURATION_MS = 150;
 // ============================================================================
 
 static std::unique_ptr<WizardLanguageChooserStep> g_wizard_language_chooser_step;
+
+// Flag to force language step to show (for visual testing)
+static bool g_force_language_step = false;
+
+void force_language_chooser_step(bool force) {
+    g_force_language_step = force;
+    if (force) {
+        spdlog::debug("[WizardLanguageChooser] Force-showing step for visual testing");
+    }
+}
 
 WizardLanguageChooserStep* get_wizard_language_chooser_step() {
     if (!g_wizard_language_chooser_step) {
@@ -144,26 +156,73 @@ void WizardLanguageChooserStep::init_subjects() {
 // Callback Registration
 // ============================================================================
 
+// Helper to update visual selection state of language list items
+static void update_language_list_selection(lv_obj_t* selected_btn) {
+    if (!selected_btn)
+        return;
+
+    // Get the parent list container
+    lv_obj_t* list = lv_obj_get_parent(selected_btn);
+    if (!list)
+        return;
+
+    // Iterate through all children and update their visual state
+    uint32_t child_count = lv_obj_get_child_count(list);
+    for (uint32_t i = 0; i < child_count; ++i) {
+        lv_obj_t* btn = lv_obj_get_child(list, static_cast<int32_t>(i));
+        if (!btn)
+            continue;
+
+        // Get the label inside the button (first child)
+        lv_obj_t* label = lv_obj_get_child(btn, 0);
+        bool is_selected = (btn == selected_btn);
+
+        if (is_selected) {
+            // Selected: primary color background
+            lv_obj_set_style_bg_color(btn, theme_manager_get_color("primary"), LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
+            if (label) {
+                // Contrast text color based on background luminance
+                lv_color_t primary = theme_manager_get_color("primary");
+                uint8_t lum = lv_color_luminance(primary);
+                lv_color_t text_color = (lum > 140) ? lv_color_black() : lv_color_white();
+                lv_obj_set_style_text_color(label, text_color, LV_PART_MAIN);
+            }
+        } else {
+            // Unselected: transparent background
+            lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
+            if (label) {
+                lv_obj_set_style_text_color(label, theme_manager_get_color("text"), LV_PART_MAIN);
+            }
+        }
+    }
+}
+
 static void on_language_selected(lv_event_t* e) {
     // Get the language index from user_data (set in XML via event_cb user_data attribute)
-    intptr_t index = reinterpret_cast<intptr_t>(lv_event_get_user_data(e));
+    // Note: user_data is a string in LVGL 9 XML, not an integer
+    const char* user_data_str = static_cast<const char*>(lv_event_get_user_data(e));
+    if (!user_data_str) {
+        spdlog::warn("[Wizard Language Chooser] No user_data in event");
+        return;
+    }
 
-    if (index < 0 || index >= WELCOME_COUNT) {
+    int index = std::atoi(user_data_str);
+    if (index < 0 || index >= 9) { // 9 languages total
         spdlog::warn("[Wizard Language Chooser] Invalid language index: {}", index);
         return;
     }
 
     spdlog::info("[Wizard Language Chooser] Language selected: {} ({})", LANGUAGE_CODES[index],
-                 WELCOME_TRANSLATIONS[index]);
+                 WELCOME_TRANSLATIONS[index % WELCOME_COUNT]);
 
-    // Save language to config
-    Config* cfg = Config::get_instance();
-    if (cfg) {
-        cfg->set<std::string>("/language", LANGUAGE_CODES[index]);
-        cfg->save();
-        spdlog::debug("[Wizard Language Chooser] Saved language '{}' to config",
-                      LANGUAGE_CODES[index]);
-    }
+    // Update visual selection
+    lv_obj_t* clicked_btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
+    update_language_list_selection(clicked_btn);
+
+    // Apply language immediately via SettingsManager (hot-reload)
+    // This updates the subject, calls lv_translation_set_language(), and persists to config
+    SettingsManager::instance().set_language(LANGUAGE_CODES[index]);
 
     // Update step state
     WizardLanguageChooserStep* step = get_wizard_language_chooser_step();
@@ -171,6 +230,9 @@ static void on_language_selected(lv_event_t* e) {
         step->stop_cycle_timer();
         step->set_language_selected(true);
     }
+
+    // Enable Next button
+    lv_subject_set_int(&connection_test_passed, 1);
 }
 
 void WizardLanguageChooserStep::register_callbacks() {
@@ -333,6 +395,21 @@ bool WizardLanguageChooserStep::is_validated() const {
 // ============================================================================
 
 bool WizardLanguageChooserStep::should_skip() const {
+    // TODO: Language selection is disabled until translation hot-reload is complete.
+    // The infrastructure exists (SettingsManager::set_language calls lv_translation_set_language)
+    // but not all UI strings have translation bindings yet.
+    // Re-enable by removing this block when Phase 4 of i18n is complete.
+    if (!g_force_language_step) {
+        spdlog::debug("[{}] Skipping: language selection feature not yet complete", get_name());
+        return true;
+    }
+
+    // Force show if explicitly requested (for visual testing with --wizard-step 1)
+    if (g_force_language_step) {
+        spdlog::debug("[{}] Force-showing: --wizard-step 1 requested", get_name());
+        return false;
+    }
+
     Config* cfg = Config::get_instance();
     if (!cfg) {
         return false;

@@ -628,7 +628,8 @@ static void ui_wizard_load_screen(int step) {
 
     case 1: // Language Chooser
         spdlog::debug("[Wizard] Creating language chooser screen");
-        lv_subject_set_int(&connection_test_passed, 1);
+        // Disable Next until a language is selected
+        lv_subject_set_int(&connection_test_passed, 0);
         get_wizard_language_chooser_step()->init_subjects();
         get_wizard_language_chooser_step()->register_callbacks();
         get_wizard_language_chooser_step()->create(content);

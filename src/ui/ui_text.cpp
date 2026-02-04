@@ -157,6 +157,9 @@ static void apply_stroke_attrs(lv_obj_t* label, const char** attrs) {
  *
  * Applies standard label properties plus custom stroke attributes.
  * All semantic text widgets use this same apply function.
+ *
+ * NOTE: Translation auto-tagging is handled in lv_xml_label_parser.c -
+ * any text= attribute automatically becomes a translation lookup key.
  */
 static void ui_text_apply(lv_xml_parser_state_t* state, const char** attrs) {
     // Apply label properties (text, long_mode, etc.) and base object properties

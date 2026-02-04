@@ -167,3 +167,13 @@ class WizardLanguageChooserStep {
 
 WizardLanguageChooserStep* get_wizard_language_chooser_step();
 void destroy_wizard_language_chooser_step();
+
+/**
+ * @brief Force-show the language chooser step (for testing)
+ *
+ * When set to true, should_skip() will return false regardless
+ * of whether a language has been configured.
+ *
+ * @param force true to force-show the step, false for normal behavior
+ */
+void force_language_chooser_step(bool force);

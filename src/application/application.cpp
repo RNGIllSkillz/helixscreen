@@ -83,6 +83,7 @@
 #include "ui_utils.h"
 #include "ui_wizard.h"
 #include "ui_wizard_ams_identify.h"
+#include "ui_wizard_language_chooser.h"
 #include "ui_wizard_touch_calibration.h"
 #include "ui_wizard_wifi.h"
 
@@ -1058,6 +1059,11 @@ bool Application::run_wizard() {
     // If step 0 was explicitly requested, force-show touch calibration (for visual testing)
     if (m_args.wizard_step == 0) {
         force_touch_calibration_step(true);
+    }
+
+    // If step 1 was explicitly requested, force-show language chooser (for visual testing)
+    if (m_args.wizard_step == 1) {
+        force_language_chooser_step(true);
     }
 
     ui_wizard_navigate_to_step(initial_step);
