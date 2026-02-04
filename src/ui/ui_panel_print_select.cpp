@@ -1191,11 +1191,13 @@ void PrintSelectPanel::set_api(MoonrakerAPI* api) {
                     ui_async_call(
                         [](void* user_data) {
                             auto* panel = static_cast<PrintSelectPanel*>(user_data);
-                            if (panel) {
-                                spdlog::debug("[{}] Refreshing file list due to external change",
-                                              panel->get_name());
-                                panel->refresh_files();
+                            // Guard against async callback firing after display destruction
+                            if (!panel || !panel->panel_ || !lv_obj_is_valid(panel->panel_)) {
+                                return;
                             }
+                            spdlog::debug("[{}] Refreshing file list due to external change",
+                                          panel->get_name());
+                            panel->refresh_files();
                         },
                         self);
                 }
@@ -1495,6 +1497,11 @@ void PrintSelectPanel::schedule_view_refresh() {
         [](void* user_data) {
             auto* self = static_cast<PrintSelectPanel*>(user_data);
 
+            // Guard against async callback firing after display destruction
+            if (!self->panel_ || !lv_obj_is_valid(self->panel_)) {
+                return;
+            }
+
             // If a timer is already pending, reset it (debounce)
             if (self->refresh_timer_) {
                 lv_timer_reset(self->refresh_timer_);
@@ -1507,8 +1514,8 @@ void PrintSelectPanel::schedule_view_refresh() {
                     auto* panel = static_cast<PrintSelectPanel*>(lv_timer_get_user_data(timer));
                     panel->refresh_timer_ = nullptr; // Clear before callback (timer auto-deletes)
 
-                    // Safety check: if containers are null, panel is likely being/been destroyed.
-                    if (!panel->card_view_container_ && !panel->list_rows_container_) {
+                    // Guard against timer firing after display destruction
+                    if (!panel->panel_ || !lv_obj_is_valid(panel->panel_)) {
                         return;
                     }
 

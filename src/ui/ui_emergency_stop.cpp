@@ -130,7 +130,8 @@ void EmergencyStopOverlay::create() {
                 ui_async_call(
                     [](void*) {
                         auto& inst = EmergencyStopOverlay::instance();
-                        if (inst.recovery_dialog_) {
+                        // Guard against async callback firing after display destruction
+                        if (inst.recovery_dialog_ && lv_obj_is_valid(inst.recovery_dialog_)) {
                             spdlog::info(
                                 "[KlipperRecovery] Klipper is READY, dismissing recovery dialog");
                             inst.dismiss_recovery_dialog();

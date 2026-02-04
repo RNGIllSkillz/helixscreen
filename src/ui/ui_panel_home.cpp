@@ -1070,7 +1070,9 @@ void HomePanel::on_print_thumbnail_path_changed(const char* path) {
     ui_async_call(
         [](void* user_data) {
             auto* self = static_cast<HomePanel*>(user_data);
-            if (!self->print_card_active_thumb_) {
+            // Guard against async callback firing after display destruction
+            if (!self->print_card_active_thumb_ ||
+                !lv_obj_is_valid(self->print_card_active_thumb_)) {
                 return;
             }
 
