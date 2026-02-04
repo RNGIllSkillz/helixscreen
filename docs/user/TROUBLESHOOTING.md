@@ -6,6 +6,8 @@ Solutions to common problems with HelixScreen.
 
 ## Table of Contents
 
+- [Quick Debugging Guide](#quick-debugging-guide)
+- [Startup Issues](#startup-issues)
 - [Connection Issues](#connection-issues)
 - [Display Issues](#display-issues)
 - [Touch Input Issues](#touch-input-issues)
@@ -21,12 +23,137 @@ Solutions to common problems with HelixScreen.
 
 ---
 
+## Quick Debugging Guide
+
+**Before troubleshooting anything, increase log verbosity:**
+
+```bash
+# MainsailOS - edit service temporarily
+sudo systemctl edit --force helixscreen
+# Add these lines:
+[Service]
+ExecStart=
+ExecStart=/opt/helixscreen/bin/helix-launcher.sh -vv
+
+# Then restart
+sudo systemctl daemon-reload
+sudo systemctl restart helixscreen
+
+# Watch logs
+sudo journalctl -u helixscreen -f
+```
+
+**Verbosity levels:**
+- No flag: WARN only (production default)
+- `-v`: INFO - connection events, panel changes
+- `-vv`: DEBUG - detailed state changes, API calls
+- `-vvv`: TRACE - everything including LVGL internals
+
+**Remember to remove `-vv` after debugging** - verbose logging impacts performance.
+
+---
+
+## Startup Issues
+
+### HelixScreen crashes immediately (segfault)
+
+**Symptoms:**
+- Service starts then immediately exits
+- "Segmentation fault" in logs
+- Black screen, no UI appears
+
+**Common causes:**
+
+1. **Missing or corrupt assets**
+   ```bash
+   # Check assets exist
+   ls -la /opt/helixscreen/assets/
+   ls -la /opt/helixscreen/assets/fonts/
+   ls -la /opt/helixscreen/xml/
+   ```
+
+2. **Wrong display backend for your hardware**
+   ```bash
+   # Check what display devices exist
+   ls -la /dev/fb*      # Framebuffer devices
+   ls -la /dev/dri/*    # DRM devices
+
+   # Pi 4 typically uses /dev/dri/card1
+   # Pi 5 may use /dev/dri/card1 or card2
+   # AD5M uses framebuffer /dev/fb0
+   ```
+
+3. **Permission issues**
+   ```bash
+   # Check user is in required groups
+   groups
+   # Should include: video, input, render
+   ```
+
+### "No display device found"
+
+**Symptoms:**
+- Log shows "No suitable DRM device found" or similar
+- Service keeps restarting
+
+**Solutions:**
+
+**Specify the DRM device explicitly:**
+```json
+// /opt/helixscreen/config/helixconfig.json
+{
+  "display": {
+    "drm_device": "/dev/dri/card1"
+  }
+}
+```
+
+**For Pi 5, try different cards:**
+- `card0` = v3d (3D acceleration only, won't work)
+- `card1` = DSI touchscreen
+- `card2` = HDMI via vc4
+
+### Logs are empty or not appearing
+
+**Symptoms:**
+- `journalctl -u helixscreen` shows nothing useful
+- Log file doesn't exist
+
+**Causes:**
+1. Log destination misconfigured
+2. Service not actually running
+3. Crash before logging initializes
+
+**Solutions:**
+
+**Check service status first:**
+```bash
+sudo systemctl status helixscreen
+```
+
+**Force console logging for debugging:**
+```bash
+# Run manually to see all output
+sudo /opt/helixscreen/bin/helix-screen -vvv
+```
+
+**Check log destination in config:**
+```json
+{
+  "log_dest": "auto",
+  "log_level": "info"
+}
+```
+Valid `log_dest` values: `auto`, `journal`, `syslog`, `file`, `console`
+
+---
+
 ## Connection Issues
 
 ### "Cannot connect to Moonraker"
 
 **Symptoms:**
-- Red connection error on home screen
+- Red connection indicator on home screen
 - "Disconnected" status
 - Cannot control printer
 
@@ -46,10 +173,10 @@ If stopped: `sudo systemctl start moonraker`
 
 **Verify the IP address:**
 ```bash
-# On the Pi
+# On the Pi running Klipper
 hostname -I
 ```
-Update helixconfig.json with correct IP.
+Update config with correct IP.
 
 **Test connection manually:**
 ```bash
@@ -80,8 +207,7 @@ sudo ufw allow 7125/tcp
 
 **Solutions:**
 
-**Use Ethernet if possible:**
-Wired connections are more reliable than WiFi.
+**Use Ethernet if possible** - wired connections are more reliable.
 
 **Check WiFi signal strength:**
 ```bash
@@ -98,8 +224,9 @@ To make permanent, add to `/etc/rc.local`:
 iw wlan0 set power_save off
 ```
 
-**Increase Moonraker timeouts** in helixconfig.json:
+**Increase Moonraker timeouts:**
 ```json
+// /opt/helixscreen/config/helixconfig.json
 {
   "printer": {
     "moonraker_connection_timeout_ms": 15000,
@@ -107,6 +234,7 @@ iw wlan0 set power_save off
   }
 }
 ```
+Note: Values are in milliseconds (15000ms = 15 seconds).
 
 ---
 
@@ -124,9 +252,9 @@ iw wlan0 set power_save off
 nmcli device wifi list
 ```
 
-**Check WPA supplicant:**
+**Check NetworkManager is running:**
 ```bash
-sudo systemctl status wpa_supplicant
+sudo systemctl status NetworkManager
 ```
 
 **Manual WiFi connection:**
@@ -137,6 +265,31 @@ sudo nmcli device wifi connect "YourSSID" password "YourPassword"
 **For hidden networks:**
 ```bash
 sudo nmcli device wifi connect "HiddenSSID" password "Password" hidden yes
+```
+
+> **Note:** Older guides may reference `wpa_supplicant` directly, but MainsailOS and most modern systems use NetworkManager. Use `nmcli` commands instead.
+
+---
+
+### SSL/TLS certificate errors
+
+**Symptoms:**
+- Connection fails with certificate errors
+- Works with HTTP but not HTTPS
+
+**Cause:**
+System time is wrong, making SSL certificates appear invalid.
+
+**Solution:**
+```bash
+# Check current time
+date
+
+# Sync time manually
+sudo timedatectl set-ntp true
+
+# Or force sync
+sudo systemctl restart systemd-timesyncd
 ```
 
 ---
@@ -162,9 +315,12 @@ sudo systemctl status helixscreen
 sudo journalctl -u helixscreen -n 50
 ```
 
-**Verify framebuffer exists:**
+**Identify your display hardware:**
 ```bash
+# Framebuffer devices (older displays, AD5M)
 ls -la /dev/fb*
+
+# DRM devices (Pi 4/5, modern displays)
 ls -la /dev/dri/*
 ```
 
@@ -174,11 +330,12 @@ ls -la /dev/dri/*
 groups
 # Should include 'video'
 sudo usermod -aG video $USER
+# Log out and back in for group change to take effect
 ```
 
 **For DRM displays, specify device:**
 ```json
-// helixconfig.json
+// /opt/helixscreen/config/helixconfig.json
 {
   "display": {
     "drm_device": "/dev/dri/card1"
@@ -197,7 +354,8 @@ sudo usermod -aG video $USER
 
 **Solutions:**
 
-**Set correct dimensions:**
+**Set correct dimensions in service environment:**
+
 Edit `/etc/systemd/system/helixscreen.service`:
 ```ini
 Environment="HELIX_SCREEN_WIDTH=800"
@@ -210,6 +368,8 @@ sudo systemctl daemon-reload
 sudo systemctl restart helixscreen
 ```
 
+> **Note:** HelixScreen auto-detects resolution on DRM backends. Manual override is mainly needed for framebuffer displays.
+
 ---
 
 ### Display upside down or rotated
@@ -220,19 +380,24 @@ sudo systemctl restart helixscreen
 
 **Solutions:**
 
-**Rotate in helixconfig.json:**
+**Set rotation in config:**
 ```json
+// /opt/helixscreen/config/helixconfig.json
 {
-  "display_rotate": 180
+  "display": {
+    "rotate": 180
+  }
 }
 ```
 
-Valid values: 0, 90, 180, 270
+Valid values: `0`, `90`, `180`, `270`
 
-**For DSI displays, use /boot/config.txt:**
+**For DSI displays on Pi, you may also need `/boot/config.txt`:**
 ```ini
 lcd_rotate=2
 ```
+
+> **Note:** Old configs may have `"display_rotate": 180` at the root level. This is automatically migrated to the new format on startup.
 
 ---
 
@@ -259,15 +424,16 @@ cat /proc/bus/input/devices | grep -A5 -i touch
 
 **Test touch input:**
 ```bash
+# Install evtest if needed: sudo apt install evtest
 sudo evtest /dev/input/event0
 # Tap screen and watch for events
 ```
 
-**Specify touch device:**
+**Specify touch device in config:**
 ```json
-// helixconfig.json
+// /opt/helixscreen/config/helixconfig.json
 {
-  "display": {
+  "input": {
     "touch_device": "/dev/input/event1"
   }
 }
@@ -278,41 +444,7 @@ sudo evtest /dev/input/event0
 ls -la /dev/input/event*
 # User needs input group
 sudo usermod -aG input $USER
-```
-
----
-
-### Touch offset from visuals
-
-**Symptoms:**
-- Touch registers in wrong location
-- Have to tap above/below intended target
-
-**Causes:**
-- Rotation mismatch between display and touch
-- Uncalibrated touch screen
-
-**Solutions:**
-
-**Ensure rotation matches for display and touch.**
-
-**For libinput calibration (X11 systems only):**
-
-> **Note:** The `xinput` command requires X11. Since HelixScreen runs directly on framebuffer without X11, this approach won't work in production. Use the config file `display_rotate` setting instead.
-
-```bash
-# This only works if you have X11 installed (development/testing)
-xinput list-props "Your Touch Device"
-xinput set-prop "Your Touch Device" "Coordinate Transformation Matrix" 0 1 0 -1 0 1 0 0 1
-```
-
-**For production (no X11):**
-
-Use the `display_rotate` config option in helixconfig.json:
-```json
-{
-  "display_rotate": 90
-}
+# Log out and back in
 ```
 
 ---
@@ -320,24 +452,40 @@ Use the `display_rotate` config option in helixconfig.json:
 ### Touch is offset from visual elements
 
 **Symptoms:**
-- Have to tap above/below where buttons appear
+- Touch registers in wrong location
+- Have to tap above/below intended target
 - Touch accuracy varies across the screen
+
+**Causes:**
+- Rotation mismatch between display and touch
+- Uncalibrated touch screen
 
 **Solutions:**
 
-**Run touch calibration:**
+**1. Ensure rotation is set correctly:**
+
+The `display.rotate` setting affects both display AND touch. Make sure it matches your physical display orientation:
+
+```json
+{
+  "display": {
+    "rotate": 180
+  }
+}
+```
+
+**2. Run touch calibration:**
+
 1. Go to **Settings** (gear icon in sidebar)
 2. Tap **Touch Calibration**
 3. Tap the crosshairs that appear accurately
 4. Calibration saves automatically
 
-**If calibration option doesn't appear:**
-- Only shows on actual touchscreen hardware, not desktop simulator
-- Check that touch device is detected: `ls /dev/input/event*`
+> **Note:** Touch Calibration option only appears on actual touchscreen hardware, not in desktop/SDL mode.
 
-**If still offset after calibration:**
-- Ensure display rotation matches touch rotation in config
-- Check `display_rotate` setting in helixconfig.json matches actual rotation
+**3. If calibration doesn't help:**
+
+The issue may be a display/touch rotation mismatch. Try different `rotate` values (0, 90, 180, 270) until touch aligns with visuals.
 
 ---
 
@@ -351,8 +499,8 @@ Use the `display_rotate` config option in helixconfig.json:
 - Known files missing
 
 **Causes:**
-1. Wrong file path
-2. Moonraker file access issue
+1. Moonraker file access issue
+2. Wrong file path
 3. USB not mounted
 
 **Solutions:**
@@ -396,7 +544,7 @@ curl http://localhost:7125/printer/info | jq '.result.state'
 
 **If "error" state, check Klipper logs:**
 ```bash
-cat ~/printer_data/logs/klippy.log | tail -50
+tail -50 ~/printer_data/logs/klippy.log
 ```
 
 **Restart Klipper:**
@@ -418,7 +566,7 @@ sudo systemctl restart klipper
 
 **Solutions:**
 
-**For emergency, use E-Stop button on home panel.**
+**For emergency, use the E-Stop button** - it appears in the header of most panels while a print is active, as well as on the home screen.
 
 **Check connection status** - if disconnected, wait for reconnection.
 
@@ -446,15 +594,16 @@ curl -X POST http://localhost:7125/printer/print/cancel
 
 **Verify backend is running:**
 ```bash
-# For Happy Hare
-curl http://localhost:7125/printer/objects/query?mmu
-# For AFC-Klipper
-curl http://localhost:7125/printer/objects/query?AFC
+# For Happy Hare - check if mmu object exists
+curl -s http://localhost:7125/printer/objects/list | grep -i mmu
+
+# For AFC-Klipper - check if AFC object exists
+curl -s http://localhost:7125/printer/objects/list | grep -i afc
 ```
 
 **Check Klipper logs:**
 ```bash
-sudo journalctl -u klipper -n 50 | grep -i "mmu\|afc\|ams"
+grep -i "mmu\|afc\|ams" ~/printer_data/logs/klippy.log | tail -20
 ```
 
 **Restart services:**
@@ -544,11 +693,13 @@ sudo journalctl -u moonraker | grep -i spoolman
 
 **Solutions:**
 
-**Verify ADXL connection:**
+**Verify ADXL connection via Klipper console:**
 ```bash
-ACCELEROMETER_QUERY
+# In Mainsail/Fluidd console, or via:
+curl -X POST http://localhost:7125/printer/gcode/script \
+  -d '{"script": "ACCELEROMETER_QUERY"}'
 ```
-Should return acceleration values.
+Should return acceleration values, not an error.
 
 **Check Klipper config** for `[adxl345]` or `[lis2dw12]` section.
 
@@ -571,6 +722,7 @@ screw1_name: front left
 
 **Check probe accuracy:**
 ```bash
+# In Klipper console:
 PROBE_ACCURACY
 ```
 Standard deviation should be < 0.01mm.
@@ -586,53 +738,38 @@ Standard deviation should be < 0.01mm.
 - Choppy scrolling
 - Slow panel transitions
 
-**Causes:**
-1. High CPU usage
-2. Memory pressure
-3. Excessive logging
-4. Running in debug/test mode in production
-5. Too many G-code files loading thumbnails
+**Diagnosis:**
 
-**Quick fixes:**
-1. **Disable animations:** Settings → Display → toggle Animations off
-2. **Check Hardware Health:** Settings → Hardware Health - resolve any detected issues
-3. **Reduce log verbosity:** If you added `-vv` or `-vvv` to the service, remove it
-
-**Diagnose via SSH:**
 ```bash
 # Check CPU and memory
 top -b -n 1 | head -20
 
-# Check if swapping (very slow)
+# Check if swapping (very slow on SD card)
 free -h
 
-# Check HelixScreen memory usage specifically
+# Check HelixScreen memory usage
 ps aux | grep helix-screen
 ```
 
-**Common causes:**
-- Running in debug/test mode in production
-- Other processes using CPU (check `top`)
-- Low memory causing swap usage
-- Too many G-code files loading thumbnails
+**Common causes and fixes:**
 
-**Solutions:**
+| Cause | Fix |
+|-------|-----|
+| Debug mode in production | Remove `-vv`/`-vvv` from service, don't use `--test` |
+| Animations on slow hardware | Settings → Display → disable Animations |
+| Too many G-code files | Large directories with thumbnails use more RAM |
+| Other processes hogging CPU | Check `top` for culprits |
+| Swapping to SD card | Reduce memory usage or add swap to USB |
+| Hardware issues | Settings → Hardware Health - check for problems |
 
-**Check system resources:**
+**To disable verbose logging:**
+
+Edit the service override:
 ```bash
-top
-free -h
-```
-
-**Reduce log level:**
-Remove `-vv` or `-vvv` flags from service if present.
-
-**Disable debug features:**
-Ensure not running with `--test` mode in production.
-
-**Check for runaway processes:**
-```bash
-ps aux | head -20
+sudo systemctl edit --force helixscreen
+# Remove any -vv or -vvv flags
+sudo systemctl daemon-reload
+sudo systemctl restart helixscreen
 ```
 
 ---
@@ -649,10 +786,9 @@ ps aux | head -20
 **Check memory usage:**
 ```bash
 free -h
-cat /proc/meminfo | head -10
 ```
 
-**Reduce Moonraker cache** in moonraker.conf:
+**Reduce Moonraker cache** in `moonraker.conf`:
 ```ini
 [file_manager]
 queue_gcode_uploads: False
@@ -675,27 +811,35 @@ max_job_count: 100
 - Settings not saved
 
 **Causes:**
-- helixconfig.json missing or invalid
-- Permission issues
+- Config file missing, invalid, or not writable
+- `wizard_completed` flag not set
 
 **Solutions:**
 
-**Check config exists:**
+**Check config exists and is valid JSON:**
 ```bash
-ls -la /opt/helixscreen/helixconfig.json
+cat /opt/helixscreen/config/helixconfig.json | jq .
 ```
 
-**Check permissions:**
+If the file is missing or invalid, the wizard will run. After completing the wizard, verify:
 ```bash
-# Should be readable by helixscreen user
-sudo chown root:root /opt/helixscreen/helixconfig.json
-sudo chmod 644 /opt/helixscreen/helixconfig.json
+grep wizard_completed /opt/helixscreen/config/helixconfig.json
+# Should show: "wizard_completed": true
 ```
 
-**Create default config:**
+**Check config directory is writable:**
 ```bash
-sudo cp /opt/helixscreen/helixconfig.json.template /opt/helixscreen/helixconfig.json
+ls -la /opt/helixscreen/config/
+# The helixscreen process needs write access
 ```
+
+**Create fresh config from template:**
+```bash
+sudo cp /opt/helixscreen/config/helixconfig.json.template \
+        /opt/helixscreen/config/helixconfig.json
+```
+
+> **Note:** Copying the template creates a valid config but with `wizard_completed: false`, so the wizard will still run once to configure your printer.
 
 ---
 
@@ -707,10 +851,11 @@ sudo cp /opt/helixscreen/helixconfig.json.template /opt/helixscreen/helixconfig.
 
 **Solutions:**
 
-**Check file is writable:**
+**Check config directory is writable:**
 ```bash
-ls -la /opt/helixscreen/helixconfig.json
-# Should have write permission
+# Test write access
+sudo -u root touch /opt/helixscreen/config/test && rm /opt/helixscreen/config/test
+echo "Write OK"
 ```
 
 **Check disk space:**
@@ -718,11 +863,17 @@ ls -la /opt/helixscreen/helixconfig.json
 df -h
 ```
 
-**Try manual edit:**
+**Check for filesystem errors:**
 ```bash
-sudo nano /opt/helixscreen/helixconfig.json
+dmesg | grep -i "read.only\|error\|fault"
+```
+
+**Try manual edit to verify:**
+```bash
+sudo nano /opt/helixscreen/config/helixconfig.json
 # Make change, save, restart
 sudo systemctl restart helixscreen
+# Check if change persisted
 ```
 
 ---
@@ -736,12 +887,12 @@ sudo systemctl restart helixscreen
 **Solutions:**
 
 **Re-run wizard:**
-1. Delete config: `sudo rm /opt/helixscreen/helixconfig.json`
+1. Delete config: `sudo rm /opt/helixscreen/config/helixconfig.json`
 2. Restart: `sudo systemctl restart helixscreen`
 3. Manually select correct printer in wizard
 
 **Manual configuration:**
-Edit helixconfig.json to set correct printer type and features.
+Edit `/opt/helixscreen/config/helixconfig.json` to set correct printer type and features.
 
 ---
 
@@ -829,6 +980,9 @@ ssh root@192.168.1.67
 
 # BusyBox tar doesn't support -z flag
 gunzip -c archive.tar.gz | tar xf -
+
+# Alternative: use rsync if available
+rsync -avz localfile root@<printer-ip>:/path/
 ```
 
 ### ForgeX not installed
@@ -866,8 +1020,8 @@ When reporting issues, gather this information:
 ### System Information
 
 ```bash
-# HelixScreen version (shown in first line of --help output)
-/opt/helixscreen/bin/helix-screen --help | head -1
+# HelixScreen version
+/opt/helixscreen/bin/helix-screen --version
 
 # OS version
 cat /etc/os-release
@@ -906,8 +1060,8 @@ tail -f /tmp/helixscreen.log
 ### Configuration
 
 ```bash
-# Current config (sanitize API keys!)
-cat /opt/helixscreen/helixconfig.json
+# Current config (sanitize API keys before sharing!)
+cat /opt/helixscreen/config/helixconfig.json
 ```
 
 ### Display Information
@@ -939,7 +1093,7 @@ cat /proc/bus/input/devices
 If you can't find a solution, open a GitHub issue with:
 
 **Required Information:**
-- HelixScreen version
+- HelixScreen version (`helix-screen --version`)
 - Hardware (Pi model, display type)
 - What you expected to happen
 - What actually happened
@@ -948,7 +1102,7 @@ If you can't find a solution, open a GitHub issue with:
 **Helpful Additions:**
 - Relevant log output (use code blocks)
 - Screenshots if visual issue
-- helixconfig.json (remove sensitive data)
+- Config file (remove API keys/sensitive data)
 
 **Example Issue Format:**
 
@@ -970,7 +1124,7 @@ Shows "Connection failed" error
 
 ## Steps to Reproduce
 1. Change WiFi network
-2. Update helixconfig.json with new IP
+2. Update config with new IP
 3. Restart helixscreen service
 4. See error
 
@@ -982,8 +1136,10 @@ Shows "Connection failed" error
 ## Configuration
 ```json
 {
-  "moonraker_host": "192.168.1.100",
-  "moonraker_port": 7125
+  "printer": {
+    "moonraker_host": "192.168.1.100",
+    "moonraker_port": 7125
+  }
 }
 ```
 ```
