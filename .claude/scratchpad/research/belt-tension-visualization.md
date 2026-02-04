@@ -204,6 +204,66 @@ void test_belt_resonance(const std::string& axis_spec,  // "1,1" or "1,-1"
 
 ---
 
+## CSV Data Format (from Klipper)
+
+Raw accelerometer CSV files have:
+```
+#time,accel_x,accel_y,accel_z
+0.000000,0.123,0.456,9.801
+0.000100,0.125,0.458,9.803
+...
+```
+
+Files are written to `/tmp/raw_data_axis_*.csv`
+
+---
+
+## Klippain Shake&Tune Algorithm (Reference)
+
+From [belts_computation.py](https://github.com/Frix-x/klippain-shaketune):
+
+### Data Processing Pipeline
+
+1. **Load CSV data:** `np.loadtxt(logname, comments='#', delimiter=',', skiprows=1)`
+   - Returns array of `[time, x, y, z]` tuples
+
+2. **Compute PSD:** Uses Klipper's `shaper_calibrate` module
+   - `calibration_data = process_accelerometer_data_compat(shaper_calibrate, data)`
+   - Produces `freq_bins` and power spectral density (PSD)
+
+3. **Interpolate to common frequency range:**
+   - `common_freqs = np.linspace(0, max_freq, 500)` (500 points)
+   - `interp_psd = np.interp(common_freqs, freqs, psd)`
+
+4. **Peak detection:**
+   - Threshold: 10% of max PSD value
+   - Window size: 20, vicinity: 15 (for filtering local maxima)
+
+5. **Similarity calculation:**
+   - Pearson correlation coefficient: `np.corrcoef(signal1.psd, signal2.psd)[0, 1]`
+   - Multiplied by 100 for percentage
+
+6. **MHI (Mechanical Health Indicator):**
+   - Based on: similarity, number of peaks, unpaired peaks
+   - Penalty for >2 paired peaks
+   - Penalty for any unpaired peaks (weighted by amplitude)
+
+### Belt Naming Convention
+
+- `signal1_belt = measurements[0]['name'].split('_')[1]`
+- "A" corresponds to `axis 1,-1`
+- "B" corresponds to `axis 1,1`
+
+### Key Constants
+
+```python
+PEAKS_DETECTION_THRESHOLD = 0.1  # 10% of max
+DC_MAX_PEAKS = 2                 # Ideal number of peaks
+DC_MAX_UNPAIRED_PEAKS_ALLOWED = 0
+```
+
+---
+
 ## Next Steps
 
 1. [x] Research complete
