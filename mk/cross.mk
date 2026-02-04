@@ -526,7 +526,7 @@ deploy-pi:
 	$(call deploy-common,$(PI_SSH_TARGET),$(PI_DEPLOY_DIR),build/pi/bin)
 	@echo "$(GREEN)✓ Deployed to $(PI_HOST):$(PI_DEPLOY_DIR)$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(PI_HOST)...$(RESET)"
-	ssh $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && setsid ./config/helix-launcher.sh </dev/null >/dev/null 2>&1 &"
+	ssh $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && setsid ./scripts/helix-launcher.sh </dev/null >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted in background$(RESET)"
 	@echo "$(DIM)Logs: ssh $(PI_SSH_TARGET) 'journalctl -t helix-screen -f'$(RESET)"
 
@@ -536,7 +536,7 @@ deploy-pi-fg:
 	@test -f build/pi/bin/helix-splash || { echo "$(RED)Error: build/pi/bin/helix-splash not found. Run 'make pi-docker' first.$(RESET)"; exit 1; }
 	$(call deploy-common,$(PI_SSH_TARGET),$(PI_DEPLOY_DIR),build/pi/bin)
 	@echo "$(CYAN)Starting helix-screen on $(PI_HOST) (foreground, debug mode)...$(RESET)"
-	ssh -t $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && ./config/helix-launcher.sh --debug --log-dest=console"
+	ssh -t $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && ./scripts/helix-launcher.sh --debug --log-dest=console"
 
 # Deploy and run in foreground without debug logging (production mode)
 deploy-pi-quiet:
@@ -544,7 +544,7 @@ deploy-pi-quiet:
 	@test -f build/pi/bin/helix-splash || { echo "$(RED)Error: build/pi/bin/helix-splash not found. Run 'make pi-docker' first.$(RESET)"; exit 1; }
 	$(call deploy-common,$(PI_SSH_TARGET),$(PI_DEPLOY_DIR),build/pi/bin)
 	@echo "$(CYAN)Starting helix-screen on $(PI_HOST) (foreground)...$(RESET)"
-	ssh -t $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && ./config/helix-launcher.sh"
+	ssh -t $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && ./scripts/helix-launcher.sh"
 
 # Convenience: SSH into the Pi
 pi-ssh:
@@ -636,7 +636,7 @@ deploy-ad5m:
 		fi'
 	@echo "$(GREEN)✓ Deployed to $(AD5M_HOST):$(AD5M_DEPLOY_DIR)$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(AD5M_HOST)...$(RESET)"
-	ssh $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && ./config/helix-launcher.sh >/dev/null 2>&1 &"
+	ssh $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && ./scripts/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted in background$(RESET)"
 	@echo "$(DIM)Logs: ssh $(AD5M_SSH_TARGET) 'tail -f /var/log/messages | grep helix'$(RESET)"
 
@@ -690,7 +690,7 @@ deploy-ad5m-legacy:
 		fi'
 	@echo "$(GREEN)✓ Deployed to $(AD5M_HOST):$(AD5M_DEPLOY_DIR)$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(AD5M_HOST)...$(RESET)"
-	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./config/helix-launcher.sh >/dev/null 2>&1 &"
+	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./scripts/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted in background$(RESET)"
 	@echo "$(DIM)Logs: ssh $(AD5M_SSH_TARGET) 'tail -f /var/log/messages | grep helix'$(RESET)"
 
@@ -700,7 +700,7 @@ deploy-ad5m-fg:
 	@test -f build/ad5m/bin/helix-splash || { echo "$(RED)Error: build/ad5m/bin/helix-splash not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
 	$(call deploy-common,$(AD5M_SSH_TARGET),$(AD5M_DEPLOY_DIR),build/ad5m/bin)
 	@echo "$(CYAN)Starting helix-screen on $(AD5M_HOST) (foreground, verbose)...$(RESET)"
-	ssh -t $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && ./config/helix-launcher.sh --debug"
+	ssh -t $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && ./scripts/helix-launcher.sh --debug"
 
 # Deploy binaries only (fast, for quick iteration)
 deploy-ad5m-bin:
@@ -711,7 +711,7 @@ deploy-ad5m-bin:
 	@if [ -f build/ad5m/bin/helix-watchdog ]; then scp -O build/ad5m/bin/helix-watchdog $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/; fi
 	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(AD5M_HOST)...$(RESET)"
-	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./config/helix-launcher.sh >/dev/null 2>&1 &"
+	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./scripts/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
 
 # Convenience: SSH into the AD5M
@@ -783,7 +783,7 @@ deploy-k1:
 	fi
 	@echo "$(GREEN)✓ Deployed to $(K1_HOST):$(K1_DEPLOY_DIR)$(RESET)"
 	@echo "$(CYAN)Starting helix-screen on $(K1_HOST)...$(RESET)"
-	ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./config/helix-launcher.sh >/dev/null 2>&1 &"
+	ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./scripts/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen started in background$(RESET)"
 	@echo "$(DIM)Logs: ssh $(K1_SSH_TARGET) 'tail -f /var/log/messages | grep helix'$(RESET)"
 
@@ -794,7 +794,7 @@ deploy-k1-fg:
 	@echo "$(YELLOW)NOTE: K1 deployment is UNTESTED - please report issues$(RESET)"
 	$(call deploy-common,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/k1/bin)
 	@echo "$(CYAN)Starting helix-screen on $(K1_HOST) (foreground, verbose)...$(RESET)"
-	ssh -t $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./config/helix-launcher.sh --debug"
+	ssh -t $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./scripts/helix-launcher.sh --debug"
 
 # Deploy binaries only (fast, for quick iteration)
 deploy-k1-bin:
@@ -808,7 +808,7 @@ deploy-k1-bin:
 	fi
 	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(K1_HOST)...$(RESET)"
-	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(K1_DEPLOY_DIR) && ./config/helix-launcher.sh >/dev/null 2>&1 &"
+	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(K1_DEPLOY_DIR) && ./scripts/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
 
 # Convenience: SSH into the K1

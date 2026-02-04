@@ -13,6 +13,20 @@ _HELIX_COMMON_SOURCED=1
 # Default configuration (can be overridden before sourcing)
 : "${GITHUB_REPO:=prestonbrown/helixscreen}"
 : "${INSTALL_DIR:=/opt/helixscreen}"
+: "${SERVICE_NAME:=helixscreen}"
+
+# Well-known paths (used by uninstall, clean, stop_service)
+# AD5M: /opt/helixscreen or /root/printer_software/helixscreen
+# K1: /usr/data/helixscreen
+# Pi: /opt/helixscreen
+HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen"
+
+# Init script locations vary by platform/firmware
+# AD5M Klipper Mod: S80, AD5M Forge-X: S90, K1: S99
+HELIX_INIT_SCRIPTS="/etc/init.d/S80helixscreen /etc/init.d/S90helixscreen /etc/init.d/S99helixscreen"
+
+# HelixScreen process names (order matters: watchdog first to prevent crash dialog)
+HELIX_PROCESSES="helix-watchdog helix-screen helix-splash"
 
 # Track what we've done for cleanup
 CLEANUP_TMP=false
@@ -98,5 +112,48 @@ error_handler() {
 cleanup_on_success() {
     if [ -d "$TMP_DIR" ]; then
         rm -rf "$TMP_DIR"
+    fi
+}
+
+# Kill process(es) by name, using killall or pidof fallback
+# Works on both GNU systems and BusyBox (AD5M/K1)
+# Args: process_name [process_name2 ...]
+# Returns: 0 if any process was killed, 1 if none found
+kill_process_by_name() {
+    local killed_any=false
+
+    for proc in "$@"; do
+        if command -v killall >/dev/null 2>&1; then
+            if killall -0 "$proc" 2>/dev/null; then
+                $SUDO killall "$proc" 2>/dev/null || true
+                killed_any=true
+            fi
+        elif command -v pidof >/dev/null 2>&1; then
+            local pids
+            pids=$(pidof "$proc" 2>/dev/null)
+            if [ -n "$pids" ]; then
+                for pid in $pids; do
+                    $SUDO kill "$pid" 2>/dev/null || true
+                done
+                killed_any=true
+            fi
+        fi
+    done
+
+    [ "$killed_any" = true ]
+}
+
+# Print post-install commands for the user
+# Reads: INIT_SYSTEM, SERVICE_NAME, INIT_SCRIPT_DEST
+print_post_install_commands() {
+    echo "Useful commands:"
+    if [ "$INIT_SYSTEM" = "systemd" ]; then
+        echo "  systemctl status ${SERVICE_NAME}    # Check status"
+        echo "  journalctl -u ${SERVICE_NAME} -f    # View logs"
+        echo "  systemctl restart ${SERVICE_NAME}   # Restart"
+    else
+        echo "  ${INIT_SCRIPT_DEST} status   # Check status"
+        echo "  cat /tmp/helixscreen.log            # View logs"
+        echo "  ${INIT_SCRIPT_DEST} restart  # Restart"
     fi
 }

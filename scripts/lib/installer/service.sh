@@ -10,8 +10,7 @@
 [ -n "${_HELIX_SERVICE_SOURCED:-}" ] && return 0
 _HELIX_SERVICE_SOURCED=1
 
-# Default service name
-: "${SERVICE_NAME:=helixscreen}"
+# SERVICE_NAME is defined in common.sh
 
 # Install service (dispatcher)
 # Calls install_service_systemd or install_service_sysv based on INIT_SYSTEM
@@ -154,17 +153,14 @@ stop_service() {
             $SUDO "$INIT_SCRIPT_DEST" stop 2>/dev/null || true
         fi
         # Also check all possible locations (for updates/uninstalls)
-        for init_script in /etc/init.d/S80helixscreen /etc/init.d/S90helixscreen /etc/init.d/S99helixscreen; do
+        for init_script in $HELIX_INIT_SCRIPTS; do
             if [ -x "$init_script" ]; then
                 log_info "Stopping HelixScreen at $init_script..."
                 $SUDO "$init_script" stop 2>/dev/null || true
             fi
         done
         # Also try to kill by name (watchdog first to prevent crash dialog flash)
-        if command -v killall >/dev/null 2>&1; then
-            $SUDO killall helix-watchdog 2>/dev/null || true
-            $SUDO killall helix-screen 2>/dev/null || true
-            $SUDO killall helix-splash 2>/dev/null || true
-        fi
+        # shellcheck disable=SC2086
+        kill_process_by_name $HELIX_PROCESSES
     fi
 }

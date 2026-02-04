@@ -95,9 +95,10 @@ mkdir -p "$OUTPUT_DIR"
 package_platform() {
     local platform=$1
     local build_dir="${PROJECT_DIR}/build/${platform}"
-    local pkg_name="helixscreen-${platform}-${VERSION}"
-    local pkg_dir="${OUTPUT_DIR}/${pkg_name}"
-    local tarball="${OUTPUT_DIR}/${pkg_name}.tar.gz"
+    # Use simple filename for GitHub releases/latest/download URL pattern
+    # Version is tracked in the VERSION file inside the tarball and git tag
+    local pkg_dir="${OUTPUT_DIR}/helixscreen"
+    local tarball="${OUTPUT_DIR}/helixscreen-${platform}.tar.gz"
 
     log_info "Packaging ${platform}..."
 
@@ -153,11 +154,13 @@ package_platform() {
         fi
     fi
 
+    # Copy launcher script to bin/ (lives in scripts/ in repo)
+    cp "${PROJECT_DIR}/scripts/helix-launcher.sh" "$pkg_dir/bin/"
+    chmod +x "$pkg_dir/bin/helix-launcher.sh"
+
     # Copy config files
     cp "${PROJECT_DIR}/config/helixscreen.init" "$pkg_dir/config/"
     cp "${PROJECT_DIR}/config/helixscreen.service" "$pkg_dir/config/"
-    cp "${PROJECT_DIR}/config/helix-launcher.sh" "$pkg_dir/config/"
-    chmod +x "$pkg_dir/config/helix-launcher.sh"
     cp "${PROJECT_DIR}/config/helixconfig.json.template" "$pkg_dir/config/" 2>/dev/null || true
     cp "${PROJECT_DIR}/config/printer_database.json" "$pkg_dir/config/" 2>/dev/null || true
     cp "${PROJECT_DIR}/config/printing_tips.json" "$pkg_dir/config/" 2>/dev/null || true

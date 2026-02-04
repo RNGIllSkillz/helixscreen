@@ -19,10 +19,10 @@
 NAME="helixscreen"
 DESC="HelixScreen 3D Printer Touch UI"
 DAEMON_DIR="/opt/helixscreen"  # Updated by installer for different firmware
-DAEMON="${DAEMON_DIR}/helix-screen"
-SPLASH="${DAEMON_DIR}/helix-splash"
-WATCHDOG="${DAEMON_DIR}/helix-watchdog"
-LAUNCHER="${DAEMON_DIR}/config/helix-launcher.sh"
+DAEMON="${DAEMON_DIR}/bin/helix-screen"
+SPLASH="${DAEMON_DIR}/bin/helix-splash"
+WATCHDOG="${DAEMON_DIR}/bin/helix-watchdog"
+LAUNCHER="${DAEMON_DIR}/bin/helix-launcher.sh"
 PIDFILE="/var/run/${NAME}.pid"
 LOGFILE="/tmp/helixscreen.log"
 

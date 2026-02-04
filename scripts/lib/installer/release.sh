@@ -10,6 +10,29 @@
 [ -n "${_HELIX_RELEASE_SOURCED:-}" ] && return 0
 _HELIX_RELEASE_SOURCED=1
 
+# Validate a tarball is a valid gzip archive and not truncated
+# Args: tarball_path, context (e.g., "Downloaded" or "Local")
+# Exits on failure
+validate_tarball() {
+    local tarball=$1
+    local context=${2:-""}
+
+    # Verify it's a valid gzip file
+    if ! gunzip -t "$tarball" 2>/dev/null; then
+        log_error "${context}file is not a valid gzip archive."
+        [ -n "$context" ] && log_error "The ${context}may have been corrupted or incomplete."
+        exit 1
+    fi
+
+    # Verify file isn't truncated (releases should be >1MB)
+    local size_kb
+    size_kb=$(du -k "$tarball" 2>/dev/null | cut -f1)
+    if [ "${size_kb:-0}" -lt 1024 ]; then
+        log_error "${context}file too small (${size_kb}KB). File may be incomplete."
+        exit 1
+    fi
+}
+
 # Check if we can download from HTTPS URLs
 # BusyBox wget on AD5M doesn't support HTTPS
 check_https_capability() {
@@ -63,13 +86,17 @@ show_manual_install_instructions() {
     echo ""
     echo "  3. Copy to this device (note: AD5M needs -O flag):"
     if [ "$platform" = "ad5m" ]; then
-        echo "     ${CYAN}scp -O helixscreen-${platform}.tar.gz root@<this-ip>:/tmp/${NC}"
+        # AD5M /tmp is a tiny tmpfs (~54MB), use /data/ instead
+        echo "     ${CYAN}scp -O helixscreen-${platform}.tar.gz root@<this-ip>:/data/${NC}"
+        echo ""
+        echo "  4. Run the installer with the local file:"
+        echo "     ${CYAN}sh /data/install-bundled.sh --local /data/helixscreen-${platform}.tar.gz${NC}"
     else
         echo "     ${CYAN}scp helixscreen-${platform}.tar.gz root@<this-ip>:/tmp/${NC}"
+        echo ""
+        echo "  4. Run the installer with the local file:"
+        echo "     ${CYAN}sh /tmp/install-bundled.sh --local /tmp/helixscreen-${platform}.tar.gz${NC}"
     fi
-    echo ""
-    echo "  4. Run the installer with the local file:"
-    echo "     ${CYAN}sh /tmp/install-bundled.sh --local /tmp/helixscreen-${platform}.tar.gz${NC}"
     echo ""
     exit 1
 }
@@ -144,20 +171,7 @@ download_release() {
         exit 1
     fi
 
-    # Verify it's a valid gzip file
-    if ! gunzip -t "$dest" 2>/dev/null; then
-        log_error "Downloaded file is not a valid gzip archive."
-        log_error "The download may have been corrupted or incomplete."
-        exit 1
-    fi
-
-    # Verify download isn't truncated (releases should be >1MB)
-    local size_kb
-    size_kb=$(du -k "$dest" 2>/dev/null | cut -f1)
-    if [ "${size_kb:-0}" -lt 1024 ]; then
-        log_error "Downloaded file too small (${size_kb}KB). Download may be incomplete."
-        exit 1
-    fi
+    validate_tarball "$dest" "Downloaded "
 
     local size
     size=$(ls -lh "$dest" | awk '{print $5}')
@@ -167,32 +181,26 @@ download_release() {
 # Use a local tarball instead of downloading
 use_local_tarball() {
     local src=$1
-    local dest="${TMP_DIR}/helixscreen.tar.gz"
 
     log_info "Using local tarball: $src"
 
+    validate_tarball "$src" "Local "
+
+    # Point TMP_DIR tarball location to the source file directly
+    # This avoids copying large files on space-constrained systems
     mkdir -p "$TMP_DIR"
     CLEANUP_TMP=true
 
-    # Copy to temp location (in case source is on different filesystem)
-    cp "$src" "$dest"
-
-    # Verify it's a valid gzip file
-    if ! gunzip -t "$dest" 2>/dev/null; then
-        log_error "Local file is not a valid gzip archive."
-        exit 1
-    fi
-
-    # Verify download isn't truncated (releases should be >1MB)
-    local size_kb
-    size_kb=$(du -k "$dest" 2>/dev/null | cut -f1)
-    if [ "${size_kb:-0}" -lt 1024 ]; then
-        log_error "Local file too small (${size_kb}KB). File may be incomplete."
-        exit 1
+    # Create symlink or use directly based on what the extraction expects
+    # The extract_release function looks for ${TMP_DIR}/helixscreen.tar.gz
+    local dest="${TMP_DIR}/helixscreen.tar.gz"
+    if [ "$src" != "$dest" ]; then
+        # Use symlink if possible, otherwise copy
+        ln -sf "$src" "$dest" 2>/dev/null || cp "$src" "$dest"
     fi
 
     local size
-    size=$(ls -lh "$dest" | awk '{print $5}')
+    size=$(ls -lh "$src" | awk '{print $5}')
     log_success "Using local tarball (${size})"
 }
 
@@ -242,9 +250,9 @@ extract_release() {
     fi
 
     # Verify extraction succeeded
-    if [ ! -f "${INSTALL_DIR}/helix-screen" ]; then
+    if [ ! -f "${INSTALL_DIR}/bin/helix-screen" ]; then
         log_error "Extraction failed - helix-screen binary not found."
-        log_error "Expected: ${INSTALL_DIR}/helix-screen"
+        log_error "Expected: ${INSTALL_DIR}/bin/helix-screen"
         exit 1
     fi
 

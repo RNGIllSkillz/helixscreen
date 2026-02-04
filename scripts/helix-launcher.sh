@@ -64,19 +64,18 @@ done
 # Use $0 instead of BASH_SOURCE for POSIX compatibility
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Support installed, deployed, and development layouts
+# Support installed and development layouts
+# Installed: launcher is in bin/ alongside binaries
+# Development: launcher is in scripts/, binaries in build/bin/
 if [ -x "${SCRIPT_DIR}/helix-screen" ]; then
-    # Installed: binaries in same directory as script
+    # Installed: binaries in same directory as launcher (bin/)
     BIN_DIR="${SCRIPT_DIR}"
-elif [ -x "${SCRIPT_DIR}/../helix-screen" ]; then
-    # Deployed: binaries in parent directory (rsync deployment layout)
-    BIN_DIR="${SCRIPT_DIR}/.."
 elif [ -x "${SCRIPT_DIR}/../build/bin/helix-screen" ]; then
-    # Development: binaries in build/bin relative to config/
+    # Development: launcher in scripts/, binaries in build/bin/
     BIN_DIR="${SCRIPT_DIR}/../build/bin"
 else
     echo "Error: Cannot find helix-screen binary" >&2
-    echo "Looked in: ${SCRIPT_DIR}, ${SCRIPT_DIR}/.., and ${SCRIPT_DIR}/../build/bin" >&2
+    echo "Looked in: ${SCRIPT_DIR} and ${SCRIPT_DIR}/../build/bin" >&2
     exit 1
 fi
 

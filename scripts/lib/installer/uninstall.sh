@@ -28,8 +28,7 @@ uninstall() {
         $SUDO systemctl daemon-reload
     else
         # Stop and remove SysV init scripts (check all possible locations)
-        # AD5M: S80/S90, K1: S99
-        for init_script in /etc/init.d/S80helixscreen /etc/init.d/S90helixscreen /etc/init.d/S99helixscreen; do
+        for init_script in $HELIX_INIT_SCRIPTS; do
             if [ -f "$init_script" ]; then
                 log_info "Stopping and removing $init_script..."
                 $SUDO "$init_script" stop 2>/dev/null || true
@@ -39,17 +38,8 @@ uninstall() {
     fi
 
     # Kill any remaining processes (watchdog first to prevent crash dialog flash)
-    if command -v killall >/dev/null 2>&1; then
-        $SUDO killall helix-watchdog 2>/dev/null || true
-        $SUDO killall helix-screen 2>/dev/null || true
-        $SUDO killall helix-splash 2>/dev/null || true
-    elif command -v pidof >/dev/null 2>&1; then
-        for proc in helix-watchdog helix-screen helix-splash; do
-            for pid in $(pidof "$proc" 2>/dev/null); do
-                $SUDO kill "$pid" 2>/dev/null || true
-            done
-        done
-    fi
+    # shellcheck disable=SC2086
+    kill_process_by_name $HELIX_PROCESSES
 
     # Clean up PID files and log file
     $SUDO rm -f /var/run/helixscreen.pid 2>/dev/null || true
@@ -57,10 +47,8 @@ uninstall() {
     $SUDO rm -f /tmp/helixscreen.log 2>/dev/null || true
 
     # Remove installation (check all possible locations)
-    # AD5M: /opt/helixscreen, /root/printer_software/helixscreen
-    # K1: /usr/data/helixscreen
     local removed_dir=""
-    for install_dir in "/root/printer_software/helixscreen" "/opt/helixscreen" "/usr/data/helixscreen"; do
+    for install_dir in $HELIX_INSTALL_DIRS; do
         if [ -d "$install_dir" ]; then
             $SUDO rm -rf "$install_dir"
             log_success "Removed ${install_dir}"
@@ -197,9 +185,7 @@ clean_old_installation() {
     stop_service
 
     # Remove installation directories (check all possible locations)
-    # AD5M: /opt/helixscreen, /root/printer_software/helixscreen
-    # K1: /usr/data/helixscreen
-    for install_dir in "/root/printer_software/helixscreen" "/opt/helixscreen" "/usr/data/helixscreen"; do
+    for install_dir in $HELIX_INSTALL_DIRS; do
         if [ -d "$install_dir" ]; then
             log_info "Removing $install_dir..."
             $SUDO rm -rf "$install_dir"
@@ -222,8 +208,7 @@ clean_old_installation() {
     done
 
     # Remove init scripts (check all possible locations)
-    # AD5M: S80/S90, K1: S99
-    for init_script in /etc/init.d/S80helixscreen /etc/init.d/S90helixscreen /etc/init.d/S99helixscreen; do
+    for init_script in $HELIX_INIT_SCRIPTS; do
         if [ -f "$init_script" ]; then
             log_info "Removing init script: $init_script"
             $SUDO rm -f "$init_script"

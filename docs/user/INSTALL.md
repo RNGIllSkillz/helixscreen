@@ -173,6 +173,21 @@ sudo cp config/helixscreen.service /etc/systemd/system/
 sudo systemctl daemon-reload
 ```
 
+The package structure is:
+```
+helixscreen/
+├── bin/                    # Executables
+│   ├── helix-screen        # Main UI binary
+│   ├── helix-splash        # Splash screen binary
+│   ├── helix-watchdog      # Process supervisor
+│   └── helix-launcher.sh   # Launch script
+├── config/                 # Service config files
+│   ├── helixscreen.init    # SysV init script
+│   └── helixscreen.service # systemd unit file
+├── ui_xml/                 # UI layout definitions
+└── assets/                 # Fonts, images, themes
+```
+
 This will:
 1. Copy files to `/opt/helixscreen/`
 2. Install the systemd service
@@ -224,14 +239,15 @@ Or download manually from: https://github.com/prestonbrown/helixscreen/releases/
 
 ```bash
 # AD5M requires -O flag for scp (BusyBox lacks sftp-server)
-scp -O helixscreen-ad5m.tar.gz install-bundled.sh root@<printer-ip>:/tmp/
+# Note: Use /data/ not /tmp/ - AD5M's /tmp is a tiny tmpfs (~54MB)
+scp -O helixscreen-ad5m.tar.gz install-bundled.sh root@<printer-ip>:/data/
 ```
 
 **Step 3: Run the installer**
 
 ```bash
 ssh root@<printer-ip>
-sh /tmp/install-bundled.sh --local /tmp/helixscreen-ad5m.tar.gz
+sh /data/install-bundled.sh --local /data/helixscreen-ad5m.tar.gz
 ```
 
 The install script automatically detects your firmware (Forge-X or Klipper Mod) and installs to the correct location.
@@ -260,14 +276,15 @@ The install script automatically detects your firmware (Forge-X or Klipper Mod) 
 wget https://github.com/prestonbrown/helixscreen/releases/latest/download/helixscreen-ad5m.tar.gz
 
 # Copy to printer (AD5M requires scp -O for legacy protocol)
-scp -O helixscreen-ad5m.tar.gz root@<printer-ip>:/tmp/
+# Note: Use /data/ not /tmp/ - AD5M's /tmp is a tiny tmpfs (~54MB)
+scp -O helixscreen-ad5m.tar.gz root@<printer-ip>:/data/
 
 # SSH into printer
 ssh root@<printer-ip>
 
 # Extract to /opt (Forge-X location)
 cd /opt
-gunzip -c /tmp/helixscreen.tar.gz | tar xf -
+gunzip -c /data/helixscreen-ad5m.tar.gz | tar xf -
 
 # Stop GuppyScreen
 /opt/config/mod/.root/S80guppyscreen stop 2>/dev/null || true
@@ -281,7 +298,7 @@ chmod +x /etc/init.d/S90helixscreen
 /etc/init.d/S90helixscreen start
 
 # Clean up
-rm /tmp/helixscreen.tar.gz
+rm /data/helixscreen-ad5m.tar.gz
 ```
 
 </details>
@@ -535,10 +552,10 @@ On the touchscreen: **Settings > About** shows the current version.
 Or via SSH, check the help output:
 ```bash
 # Path varies by platform:
-#   Pi: /opt/helixscreen/helix-screen
-#   K1: /usr/data/helixscreen/helix-screen
-#   AD5M Klipper Mod: /root/printer_software/helixscreen/helix-screen
-/opt/helixscreen/helix-screen --help | head -1
+#   Pi: /opt/helixscreen/bin/helix-screen
+#   K1: /usr/data/helixscreen/bin/helix-screen
+#   AD5M Klipper Mod: /root/printer_software/helixscreen/bin/helix-screen
+/opt/helixscreen/bin/helix-screen --help | head -1
 ```
 
 ### Update from Mainsail/Fluidd Web UI (Pi Only)

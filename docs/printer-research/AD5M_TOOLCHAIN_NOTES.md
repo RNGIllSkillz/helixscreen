@@ -175,7 +175,7 @@ ssh root@192.168.1.67 "cp /opt/helixscreen/config/helixscreen.init /etc/init.d/S
 ssh root@192.168.1.67 "/etc/init.d/S90helixscreen start"
 
 # Test on AD5M
-ssh root@192.168.1.67 "/opt/helixscreen/helix-screen --help"
+ssh root@192.168.1.67 "/opt/helixscreen/bin/helix-screen --help"
 ```
 
 ---

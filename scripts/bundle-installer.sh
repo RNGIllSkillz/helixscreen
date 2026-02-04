@@ -304,16 +304,7 @@ main() {
     echo ""
     echo "HelixScreen ${version} installed to ${INSTALL_DIR}"
     echo ""
-    echo "Useful commands:"
-    if [ "$INIT_SYSTEM" = "systemd" ]; then
-        echo "  systemctl status ${SERVICE_NAME}    # Check status"
-        echo "  journalctl -u ${SERVICE_NAME} -f    # View logs"
-        echo "  systemctl restart ${SERVICE_NAME}   # Restart"
-    else
-        echo "  ${INIT_SCRIPT_DEST} status   # Check status"
-        echo "  cat /tmp/helixscreen.log            # View logs"
-        echo "  ${INIT_SCRIPT_DEST} restart  # Restart"
-    fi
+    print_post_install_commands
     echo ""
 
     if [ "$platform" = "ad5m" ] || [ "$platform" = "k1" ]; then

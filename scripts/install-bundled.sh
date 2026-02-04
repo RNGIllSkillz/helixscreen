@@ -39,6 +39,20 @@ SERVICE_NAME="helixscreen"
 # Default configuration (can be overridden before sourcing)
 : "${GITHUB_REPO:=prestonbrown/helixscreen}"
 : "${INSTALL_DIR:=/opt/helixscreen}"
+: "${SERVICE_NAME:=helixscreen}"
+
+# Well-known paths (used by uninstall, clean, stop_service)
+# AD5M: /opt/helixscreen or /root/printer_software/helixscreen
+# K1: /usr/data/helixscreen
+# Pi: /opt/helixscreen
+HELIX_INSTALL_DIRS="/root/printer_software/helixscreen /opt/helixscreen /usr/data/helixscreen"
+
+# Init script locations vary by platform/firmware
+# AD5M Klipper Mod: S80, AD5M Forge-X: S90, K1: S99
+HELIX_INIT_SCRIPTS="/etc/init.d/S80helixscreen /etc/init.d/S90helixscreen /etc/init.d/S99helixscreen"
+
+# HelixScreen process names (order matters: watchdog first to prevent crash dialog)
+HELIX_PROCESSES="helix-watchdog helix-screen helix-splash"
 
 # Track what we've done for cleanup
 CLEANUP_TMP=false
@@ -124,6 +138,49 @@ error_handler() {
 cleanup_on_success() {
     if [ -d "$TMP_DIR" ]; then
         rm -rf "$TMP_DIR"
+    fi
+}
+
+# Kill process(es) by name, using killall or pidof fallback
+# Works on both GNU systems and BusyBox (AD5M/K1)
+# Args: process_name [process_name2 ...]
+# Returns: 0 if any process was killed, 1 if none found
+kill_process_by_name() {
+    local killed_any=false
+
+    for proc in "$@"; do
+        if command -v killall >/dev/null 2>&1; then
+            if killall -0 "$proc" 2>/dev/null; then
+                $SUDO killall "$proc" 2>/dev/null || true
+                killed_any=true
+            fi
+        elif command -v pidof >/dev/null 2>&1; then
+            local pids
+            pids=$(pidof "$proc" 2>/dev/null)
+            if [ -n "$pids" ]; then
+                for pid in $pids; do
+                    $SUDO kill "$pid" 2>/dev/null || true
+                done
+                killed_any=true
+            fi
+        fi
+    done
+
+    [ "$killed_any" = true ]
+}
+
+# Print post-install commands for the user
+# Reads: INIT_SYSTEM, SERVICE_NAME, INIT_SCRIPT_DEST
+print_post_install_commands() {
+    echo "Useful commands:"
+    if [ "$INIT_SYSTEM" = "systemd" ]; then
+        echo "  systemctl status ${SERVICE_NAME}    # Check status"
+        echo "  journalctl -u ${SERVICE_NAME} -f    # View logs"
+        echo "  systemctl restart ${SERVICE_NAME}   # Restart"
+    else
+        echo "  ${INIT_SCRIPT_DEST} status   # Check status"
+        echo "  cat /tmp/helixscreen.log            # View logs"
+        echo "  ${INIT_SCRIPT_DEST} restart  # Restart"
     fi
 }
 
@@ -688,17 +745,7 @@ stop_competing_uis() {
     # ffstartup-arm is the startup manager that launches firmwareExe (the stock Qt UI)
     if [ -f /opt/PROGRAM/ffstartup-arm ]; then
         log_info "Stopping stock FlashForge UI..."
-        if command -v killall >/dev/null 2>&1; then
-            $SUDO killall firmwareExe 2>/dev/null || true
-            $SUDO killall ffstartup-arm 2>/dev/null || true
-        elif command -v pidof >/dev/null 2>&1; then
-            for pid in $(pidof firmwareExe 2>/dev/null); do
-                $SUDO kill "$pid" 2>/dev/null || true
-            done
-            for pid in $(pidof ffstartup-arm 2>/dev/null); do
-                $SUDO kill "$pid" 2>/dev/null || true
-            done
-        fi
+        kill_process_by_name firmwareExe ffstartup-arm || true  # Don't fail if processes not running
         found_any=true
     fi
 
@@ -709,15 +756,8 @@ stop_competing_uis() {
         $SUDO /etc/init.d/S40xorg stop 2>/dev/null || true
         # Disable Xorg init script (non-destructive, reversible)
         $SUDO chmod -x /etc/init.d/S40xorg 2>/dev/null || true
-        # Kill any remaining Xorg processes (BusyBox compatible - no pkill)
-        if command -v killall >/dev/null 2>&1; then
-            $SUDO killall Xorg 2>/dev/null || true
-            $SUDO killall X 2>/dev/null || true
-        elif command -v pidof >/dev/null 2>&1; then
-            for pid in $(pidof Xorg 2>/dev/null) $(pidof X 2>/dev/null); do
-                $SUDO kill "$pid" 2>/dev/null || true
-            done
-        fi
+        # Kill any remaining Xorg processes
+        kill_process_by_name Xorg X || true  # Don't fail if processes not running
         found_any=true
     fi
 
@@ -759,21 +799,9 @@ stop_competing_uis() {
         done
 
         # Kill any remaining processes by name
-        if command -v killall >/dev/null 2>&1; then
-            if killall -0 "$ui" 2>/dev/null; then
-                log_info "Killing remaining $ui processes..."
-                $SUDO killall "$ui" 2>/dev/null || true
-                found_any=true
-            fi
-        elif command -v pidof >/dev/null 2>&1; then
-            pids=$(pidof "$ui" 2>/dev/null)
-            if [ -n "$pids" ]; then
-                log_info "Killing remaining $ui processes..."
-                for pid in $pids; do
-                    $SUDO kill "$pid" 2>/dev/null || true
-                done
-                found_any=true
-            fi
+        if kill_process_by_name "$ui"; then
+            log_info "Killed remaining $ui processes"
+            found_any=true
         fi
     done
 
@@ -799,6 +827,29 @@ stop_competing_uis() {
 # ============================================
 
 #
+# Validate a tarball is a valid gzip archive and not truncated
+# Args: tarball_path, context (e.g., "Downloaded" or "Local")
+# Exits on failure
+validate_tarball() {
+    local tarball=$1
+    local context=${2:-""}
+
+    # Verify it's a valid gzip file
+    if ! gunzip -t "$tarball" 2>/dev/null; then
+        log_error "${context}file is not a valid gzip archive."
+        [ -n "$context" ] && log_error "The ${context}may have been corrupted or incomplete."
+        exit 1
+    fi
+
+    # Verify file isn't truncated (releases should be >1MB)
+    local size_kb
+    size_kb=$(du -k "$tarball" 2>/dev/null | cut -f1)
+    if [ "${size_kb:-0}" -lt 1024 ]; then
+        log_error "${context}file too small (${size_kb}KB). File may be incomplete."
+        exit 1
+    fi
+}
+
 # Check if we can download from HTTPS URLs
 # BusyBox wget on AD5M doesn't support HTTPS
 check_https_capability() {
@@ -852,13 +903,17 @@ show_manual_install_instructions() {
     echo ""
     echo "  3. Copy to this device (note: AD5M needs -O flag):"
     if [ "$platform" = "ad5m" ]; then
-        echo "     ${CYAN}scp -O helixscreen-${platform}.tar.gz root@<this-ip>:/tmp/${NC}"
+        # AD5M /tmp is a tiny tmpfs (~54MB), use /data/ instead
+        echo "     ${CYAN}scp -O helixscreen-${platform}.tar.gz root@<this-ip>:/data/${NC}"
+        echo ""
+        echo "  4. Run the installer with the local file:"
+        echo "     ${CYAN}sh /data/install-bundled.sh --local /data/helixscreen-${platform}.tar.gz${NC}"
     else
         echo "     ${CYAN}scp helixscreen-${platform}.tar.gz root@<this-ip>:/tmp/${NC}"
+        echo ""
+        echo "  4. Run the installer with the local file:"
+        echo "     ${CYAN}sh /tmp/install-bundled.sh --local /tmp/helixscreen-${platform}.tar.gz${NC}"
     fi
-    echo ""
-    echo "  4. Run the installer with the local file:"
-    echo "     ${CYAN}sh /tmp/install-bundled.sh --local /tmp/helixscreen-${platform}.tar.gz${NC}"
     echo ""
     exit 1
 }
@@ -933,20 +988,7 @@ download_release() {
         exit 1
     fi
 
-    # Verify it's a valid gzip file
-    if ! gunzip -t "$dest" 2>/dev/null; then
-        log_error "Downloaded file is not a valid gzip archive."
-        log_error "The download may have been corrupted or incomplete."
-        exit 1
-    fi
-
-    # Verify download isn't truncated (releases should be >1MB)
-    local size_kb
-    size_kb=$(du -k "$dest" 2>/dev/null | cut -f1)
-    if [ "${size_kb:-0}" -lt 1024 ]; then
-        log_error "Downloaded file too small (${size_kb}KB). Download may be incomplete."
-        exit 1
-    fi
+    validate_tarball "$dest" "Downloaded "
 
     local size
     size=$(ls -lh "$dest" | awk '{print $5}')
@@ -956,32 +998,26 @@ download_release() {
 # Use a local tarball instead of downloading
 use_local_tarball() {
     local src=$1
-    local dest="${TMP_DIR}/helixscreen.tar.gz"
 
     log_info "Using local tarball: $src"
 
+    validate_tarball "$src" "Local "
+
+    # Point TMP_DIR tarball location to the source file directly
+    # This avoids copying large files on space-constrained systems
     mkdir -p "$TMP_DIR"
     CLEANUP_TMP=true
 
-    # Copy to temp location (in case source is on different filesystem)
-    cp "$src" "$dest"
-
-    # Verify it's a valid gzip file
-    if ! gunzip -t "$dest" 2>/dev/null; then
-        log_error "Local file is not a valid gzip archive."
-        exit 1
-    fi
-
-    # Verify download isn't truncated (releases should be >1MB)
-    local size_kb
-    size_kb=$(du -k "$dest" 2>/dev/null | cut -f1)
-    if [ "${size_kb:-0}" -lt 1024 ]; then
-        log_error "Local file too small (${size_kb}KB). File may be incomplete."
-        exit 1
+    # Create symlink or use directly based on what the extraction expects
+    # The extract_release function looks for ${TMP_DIR}/helixscreen.tar.gz
+    local dest="${TMP_DIR}/helixscreen.tar.gz"
+    if [ "$src" != "$dest" ]; then
+        # Use symlink if possible, otherwise copy
+        ln -sf "$src" "$dest" 2>/dev/null || cp "$src" "$dest"
     fi
 
     local size
-    size=$(ls -lh "$dest" | awk '{print $5}')
+    size=$(ls -lh "$src" | awk '{print $5}')
     log_success "Using local tarball (${size})"
 }
 
@@ -1031,9 +1067,9 @@ extract_release() {
     fi
 
     # Verify extraction succeeded
-    if [ ! -f "${INSTALL_DIR}/helix-screen" ]; then
+    if [ ! -f "${INSTALL_DIR}/bin/helix-screen" ]; then
         log_error "Extraction failed - helix-screen binary not found."
-        log_error "Expected: ${INSTALL_DIR}/helix-screen"
+        log_error "Expected: ${INSTALL_DIR}/bin/helix-screen"
         exit 1
     fi
 
@@ -1052,8 +1088,7 @@ extract_release() {
 # ============================================
 
 #
-# Default service name
-: "${SERVICE_NAME:=helixscreen}"
+# SERVICE_NAME is defined in common.sh
 # Install service (dispatcher)
 # Calls install_service_systemd or install_service_sysv based on INIT_SYSTEM
 install_service() {
@@ -1195,18 +1230,15 @@ stop_service() {
             $SUDO "$INIT_SCRIPT_DEST" stop 2>/dev/null || true
         fi
         # Also check all possible locations (for updates/uninstalls)
-        for init_script in /etc/init.d/S80helixscreen /etc/init.d/S90helixscreen /etc/init.d/S99helixscreen; do
+        for init_script in $HELIX_INIT_SCRIPTS; do
             if [ -x "$init_script" ]; then
                 log_info "Stopping HelixScreen at $init_script..."
                 $SUDO "$init_script" stop 2>/dev/null || true
             fi
         done
         # Also try to kill by name (watchdog first to prevent crash dialog flash)
-        if command -v killall >/dev/null 2>&1; then
-            $SUDO killall helix-watchdog 2>/dev/null || true
-            $SUDO killall helix-screen 2>/dev/null || true
-            $SUDO killall helix-splash 2>/dev/null || true
-        fi
+        # shellcheck disable=SC2086
+        kill_process_by_name $HELIX_PROCESSES
     fi
 }
 
@@ -1385,8 +1417,7 @@ uninstall() {
         $SUDO systemctl daemon-reload
     else
         # Stop and remove SysV init scripts (check all possible locations)
-        # AD5M: S80/S90, K1: S99
-        for init_script in /etc/init.d/S80helixscreen /etc/init.d/S90helixscreen /etc/init.d/S99helixscreen; do
+        for init_script in $HELIX_INIT_SCRIPTS; do
             if [ -f "$init_script" ]; then
                 log_info "Stopping and removing $init_script..."
                 $SUDO "$init_script" stop 2>/dev/null || true
@@ -1396,17 +1427,8 @@ uninstall() {
     fi
 
     # Kill any remaining processes (watchdog first to prevent crash dialog flash)
-    if command -v killall >/dev/null 2>&1; then
-        $SUDO killall helix-watchdog 2>/dev/null || true
-        $SUDO killall helix-screen 2>/dev/null || true
-        $SUDO killall helix-splash 2>/dev/null || true
-    elif command -v pidof >/dev/null 2>&1; then
-        for proc in helix-watchdog helix-screen helix-splash; do
-            for pid in $(pidof "$proc" 2>/dev/null); do
-                $SUDO kill "$pid" 2>/dev/null || true
-            done
-        done
-    fi
+    # shellcheck disable=SC2086
+    kill_process_by_name $HELIX_PROCESSES
 
     # Clean up PID files and log file
     $SUDO rm -f /var/run/helixscreen.pid 2>/dev/null || true
@@ -1414,10 +1436,8 @@ uninstall() {
     $SUDO rm -f /tmp/helixscreen.log 2>/dev/null || true
 
     # Remove installation (check all possible locations)
-    # AD5M: /opt/helixscreen, /root/printer_software/helixscreen
-    # K1: /usr/data/helixscreen
     local removed_dir=""
-    for install_dir in "/root/printer_software/helixscreen" "/opt/helixscreen" "/usr/data/helixscreen"; do
+    for install_dir in $HELIX_INSTALL_DIRS; do
         if [ -d "$install_dir" ]; then
             $SUDO rm -rf "$install_dir"
             log_success "Removed ${install_dir}"
@@ -1554,9 +1574,7 @@ clean_old_installation() {
     stop_service
 
     # Remove installation directories (check all possible locations)
-    # AD5M: /opt/helixscreen, /root/printer_software/helixscreen
-    # K1: /usr/data/helixscreen
-    for install_dir in "/root/printer_software/helixscreen" "/opt/helixscreen" "/usr/data/helixscreen"; do
+    for install_dir in $HELIX_INSTALL_DIRS; do
         if [ -d "$install_dir" ]; then
             log_info "Removing $install_dir..."
             $SUDO rm -rf "$install_dir"
@@ -1579,8 +1597,7 @@ clean_old_installation() {
     done
 
     # Remove init scripts (check all possible locations)
-    # AD5M: S80/S90, K1: S99
-    for init_script in /etc/init.d/S80helixscreen /etc/init.d/S90helixscreen /etc/init.d/S99helixscreen; do
+    for init_script in $HELIX_INIT_SCRIPTS; do
         if [ -f "$init_script" ]; then
             log_info "Removing init script: $init_script"
             $SUDO rm -f "$init_script"
@@ -1794,16 +1811,7 @@ main() {
     echo ""
     echo "HelixScreen ${version} installed to ${INSTALL_DIR}"
     echo ""
-    echo "Useful commands:"
-    if [ "$INIT_SYSTEM" = "systemd" ]; then
-        echo "  systemctl status ${SERVICE_NAME}    # Check status"
-        echo "  journalctl -u ${SERVICE_NAME} -f    # View logs"
-        echo "  systemctl restart ${SERVICE_NAME}   # Restart"
-    else
-        echo "  ${INIT_SCRIPT_DEST} status   # Check status"
-        echo "  cat /tmp/helixscreen.log            # View logs"
-        echo "  ${INIT_SCRIPT_DEST} restart  # Restart"
-    fi
+    print_post_install_commands
     echo ""
 
     if [ "$platform" = "ad5m" ] || [ "$platform" = "k1" ]; then

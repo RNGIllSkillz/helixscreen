@@ -24,17 +24,7 @@ stop_competing_uis() {
     # ffstartup-arm is the startup manager that launches firmwareExe (the stock Qt UI)
     if [ -f /opt/PROGRAM/ffstartup-arm ]; then
         log_info "Stopping stock FlashForge UI..."
-        if command -v killall >/dev/null 2>&1; then
-            $SUDO killall firmwareExe 2>/dev/null || true
-            $SUDO killall ffstartup-arm 2>/dev/null || true
-        elif command -v pidof >/dev/null 2>&1; then
-            for pid in $(pidof firmwareExe 2>/dev/null); do
-                $SUDO kill "$pid" 2>/dev/null || true
-            done
-            for pid in $(pidof ffstartup-arm 2>/dev/null); do
-                $SUDO kill "$pid" 2>/dev/null || true
-            done
-        fi
+        kill_process_by_name firmwareExe ffstartup-arm || true  # Don't fail if processes not running
         found_any=true
     fi
 
@@ -45,15 +35,8 @@ stop_competing_uis() {
         $SUDO /etc/init.d/S40xorg stop 2>/dev/null || true
         # Disable Xorg init script (non-destructive, reversible)
         $SUDO chmod -x /etc/init.d/S40xorg 2>/dev/null || true
-        # Kill any remaining Xorg processes (BusyBox compatible - no pkill)
-        if command -v killall >/dev/null 2>&1; then
-            $SUDO killall Xorg 2>/dev/null || true
-            $SUDO killall X 2>/dev/null || true
-        elif command -v pidof >/dev/null 2>&1; then
-            for pid in $(pidof Xorg 2>/dev/null) $(pidof X 2>/dev/null); do
-                $SUDO kill "$pid" 2>/dev/null || true
-            done
-        fi
+        # Kill any remaining Xorg processes
+        kill_process_by_name Xorg X || true  # Don't fail if processes not running
         found_any=true
     fi
 
@@ -95,21 +78,9 @@ stop_competing_uis() {
         done
 
         # Kill any remaining processes by name
-        if command -v killall >/dev/null 2>&1; then
-            if killall -0 "$ui" 2>/dev/null; then
-                log_info "Killing remaining $ui processes..."
-                $SUDO killall "$ui" 2>/dev/null || true
-                found_any=true
-            fi
-        elif command -v pidof >/dev/null 2>&1; then
-            pids=$(pidof "$ui" 2>/dev/null)
-            if [ -n "$pids" ]; then
-                log_info "Killing remaining $ui processes..."
-                for pid in $pids; do
-                    $SUDO kill "$pid" 2>/dev/null || true
-                done
-                found_any=true
-            fi
+        if kill_process_by_name "$ui"; then
+            log_info "Killed remaining $ui processes"
+            found_any=true
         fi
     done
 
