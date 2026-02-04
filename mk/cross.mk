@@ -36,6 +36,7 @@ ifeq ($(PLATFORM_TARGET),pi)
     ENABLE_SDL := no
     ENABLE_TINYGL_3D := yes
     ENABLE_EVDEV := yes
+    HELIX_HAS_SYSTEMD := yes
     BUILD_SUBDIR := pi
     # Strip binary for size - embedded targets don't need debug symbols
     STRIP_BINARY := yes
