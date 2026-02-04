@@ -20,6 +20,7 @@
 #include "display_manager.h"
 #include "environment_config.h"
 #include "hardware_validator.h"
+#include "keyboard_shortcuts.h"
 #include "moonraker_manager.h"
 #include "panel_factory.h"
 #include "print_history_manager.h"
@@ -1682,65 +1683,60 @@ int Application::main_loop() {
 
 void Application::handle_keyboard_shortcuts() {
 #ifdef HELIX_DISPLAY_SDL
-    SDL_Keymod modifiers = SDL_GetModState();
+    // Static shortcut registry - initialized once
+    static helix::input::KeyboardShortcuts shortcuts;
+    static bool shortcuts_initialized = false;
+
+    if (!shortcuts_initialized) {
+        // Cmd+Q / Win+Q to quit
+        shortcuts.register_combo(KMOD_GUI, SDL_SCANCODE_Q, []() {
+            spdlog::info("[Application] Cmd+Q/Win+Q pressed - exiting");
+            app_request_quit();
+        });
+
+        // M key - toggle memory stats
+        shortcuts.register_key(SDL_SCANCODE_M, []() { MemoryStatsOverlay::instance().toggle(); });
+
+        // D key - toggle dark/light mode
+        shortcuts.register_key(SDL_SCANCODE_D, []() {
+            spdlog::info("[Application] D key - toggling dark/light mode");
+            theme_manager_toggle_dark_mode();
+        });
+
+        // F key - toggle filament runout simulation (needs m_moonraker)
+        shortcuts.register_key_if(
+            SDL_SCANCODE_F,
+            [this]() {
+                spdlog::info("[Application] F key - toggling filament runout simulation");
+                m_moonraker->client()->toggle_filament_runout_simulation();
+            },
+            [this]() { return m_moonraker && m_moonraker->client(); });
+
+        // P key - test action prompt (test mode only)
+        shortcuts.register_key_if(
+            SDL_SCANCODE_P,
+            [this]() {
+                spdlog::info("[Application] P key - triggering test action prompt");
+                m_action_prompt_manager->trigger_test_prompt();
+            },
+            [this]() { return get_runtime_config()->is_test_mode() && m_action_prompt_manager; });
+
+        // N key - test action notification (test mode only)
+        shortcuts.register_key_if(
+            SDL_SCANCODE_N,
+            [this]() {
+                spdlog::info("[Application] N key - triggering test action notification");
+                m_action_prompt_manager->trigger_test_notify();
+            },
+            [this]() { return get_runtime_config()->is_test_mode() && m_action_prompt_manager; });
+
+        shortcuts_initialized = true;
+    }
+
+    // Process shortcuts with SDL key state
     const Uint8* keyboard_state = SDL_GetKeyboardState(nullptr);
-
-    // Cmd+Q / Win+Q to quit
-    if ((modifiers & KMOD_GUI) && keyboard_state[SDL_SCANCODE_Q]) {
-        spdlog::info("[Application] Cmd+Q/Win+Q pressed - exiting");
-        app_request_quit();
-    }
-
-    // M key toggle for memory stats (with debounce)
-    static bool m_key_was_pressed = false;
-    bool m_key_pressed = keyboard_state[SDL_SCANCODE_M] != 0;
-    if (m_key_pressed && !m_key_was_pressed) {
-        MemoryStatsOverlay::instance().toggle();
-    }
-    m_key_was_pressed = m_key_pressed;
-
-    // F key toggle for filament runout simulation (test mode only, with debounce)
-    // Uses base class virtual method - no-op on real client, toggles on mock
-    static bool f_key_was_pressed = false;
-    bool f_key_pressed = keyboard_state[SDL_SCANCODE_F] != 0;
-    if (f_key_pressed && !f_key_was_pressed) {
-        if (m_moonraker && m_moonraker->client()) {
-            spdlog::info("[Application] F key - toggling filament runout simulation");
-            m_moonraker->client()->toggle_filament_runout_simulation();
-        }
-    }
-    f_key_was_pressed = f_key_pressed;
-
-    // P key to trigger test action prompt (test mode only, with debounce)
-    static bool p_key_was_pressed = false;
-    bool p_key_pressed = keyboard_state[SDL_SCANCODE_P] != 0;
-    if (p_key_pressed && !p_key_was_pressed) {
-        if (get_runtime_config()->is_test_mode() && m_action_prompt_manager) {
-            spdlog::info("[Application] P key - triggering test action prompt");
-            m_action_prompt_manager->trigger_test_prompt();
-        }
-    }
-    p_key_was_pressed = p_key_pressed;
-
-    // N key to trigger test action notification (test mode only, with debounce)
-    static bool n_key_was_pressed = false;
-    bool n_key_pressed = keyboard_state[SDL_SCANCODE_N] != 0;
-    if (n_key_pressed && !n_key_was_pressed) {
-        if (get_runtime_config()->is_test_mode() && m_action_prompt_manager) {
-            spdlog::info("[Application] N key - triggering test action notification");
-            m_action_prompt_manager->trigger_test_notify();
-        }
-    }
-    n_key_was_pressed = n_key_pressed;
-
-    // D key to toggle dark/light mode (with debounce)
-    static bool d_key_was_pressed = false;
-    bool d_key_pressed = keyboard_state[SDL_SCANCODE_D] != 0;
-    if (d_key_pressed && !d_key_was_pressed) {
-        spdlog::info("[Application] D key - toggling dark/light mode");
-        theme_manager_toggle_dark_mode();
-    }
-    d_key_was_pressed = d_key_pressed;
+    shortcuts.process([keyboard_state](int scancode) { return keyboard_state[scancode] != 0; },
+                      SDL_GetModState());
 #endif
 }
 
