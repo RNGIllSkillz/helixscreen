@@ -126,6 +126,8 @@ class WizardSummaryStep {
     lv_subject_t filament_sensor_visible_;
     lv_subject_t ams_type_;
     lv_subject_t ams_visible_;
+    lv_subject_t input_shaper_;
+    lv_subject_t input_shaper_visible_;
 
     // String buffers (must be persistent for subject lifetimes)
     char printer_name_buffer_[128];
@@ -139,6 +141,7 @@ class WizardSummaryStep {
     char led_strip_buffer_[128];
     char filament_sensor_buffer_[128];
     char ams_type_buffer_[64];
+    char input_shaper_buffer_[128];
 
     // Track initialization
     bool subjects_initialized_ = false;

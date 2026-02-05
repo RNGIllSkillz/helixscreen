@@ -20,7 +20,9 @@
  *
  * - No accelerometer detected: Skip entirely (input shaper can be configured later
  *   in Settings → Advanced → Input Shaper)
- * - Accelerometer detected: Show wizard step for calibration or user can skip
+ * - Accelerometer detected: Show wizard step for calibration
+ * - Footer shows "Skip" button (via wizard_show_skip subject) to allow skipping
+ * - After successful calibration, footer changes to "Next"
  *
  * ## Subject Bindings:
  *
@@ -29,9 +31,8 @@
  *
  * ## Validation:
  *
- * Step is validated when either:
- * - Calibration completed successfully
- * - User explicitly skipped calibration ("Skip for now" button)
+ * Step is validated when calibration completed successfully.
+ * User can also skip via the footer "Skip" button without completing calibration.
  */
 
 namespace helix {

@@ -19,6 +19,9 @@
 
 using helix::calibration::InputShaperCalibrator;
 
+// External wizard subjects (defined in ui_wizard.cpp)
+extern lv_subject_t wizard_show_skip;
+
 // ============================================================================
 // Global Instance
 // ============================================================================
@@ -191,6 +194,8 @@ static void safe_set_complete(std::weak_ptr<std::atomic<bool>> alive_weak) {
             lv_subject_copy_string(step->get_status_subject(), "Calibration complete!");
             lv_subject_set_int(step->get_progress_subject(), 100);
             step->set_calibration_complete(true);
+            // Switch footer from "Skip" to "Next"
+            lv_subject_set_int(&wizard_show_skip, 0);
         }
     });
 }
@@ -209,11 +214,8 @@ static void safe_reenable_buttons(std::weak_ptr<std::atomic<bool>> alive_weak) {
             lv_obj_t* screen = step->get_screen_root();
             if (screen) {
                 lv_obj_t* start_btn = lv_obj_find_by_name(screen, "start_calibration_btn");
-                lv_obj_t* skip_btn = lv_obj_find_by_name(screen, "skip_calibration_btn");
                 if (start_btn)
                     lv_obj_clear_state(start_btn, LV_STATE_DISABLED);
-                if (skip_btn)
-                    lv_obj_clear_state(skip_btn, LV_STATE_DISABLED);
             }
         }
     });
@@ -228,15 +230,12 @@ static void on_start_calibration_clicked(lv_event_t* e) {
         return;
     }
 
-    // Disable buttons during calibration
+    // Disable button during calibration
     lv_obj_t* screen = step->get_screen_root();
     if (screen) {
         lv_obj_t* start_btn = lv_obj_find_by_name(screen, "start_calibration_btn");
-        lv_obj_t* skip_btn = lv_obj_find_by_name(screen, "skip_calibration_btn");
         if (start_btn)
             lv_obj_add_state(start_btn, LV_STATE_DISABLED);
-        if (skip_btn)
-            lv_obj_add_state(skip_btn, LV_STATE_DISABLED);
     }
 
     // Update status (already on UI thread, so direct call is safe)
@@ -315,26 +314,10 @@ static void on_start_calibration_clicked(lv_event_t* e) {
     }
 }
 
-static void on_skip_calibration_clicked(lv_event_t* e) {
-    (void)e;
-    spdlog::debug("[Wizard Input Shaper] Skip calibration clicked");
-    WizardInputShaperStep* step = get_wizard_input_shaper_step();
-    if (step) {
-        // Cancel any in-progress calibration
-        InputShaperCalibrator* cal = step->get_calibrator();
-        if (cal) {
-            cal->cancel();
-        }
-        step->set_user_skipped(true);
-        lv_subject_copy_string(step->get_status_subject(), "Skipped - configure later in Settings");
-    }
-}
-
 void WizardInputShaperStep::register_callbacks() {
     spdlog::debug("[{}] Registering callbacks", get_name());
 
     lv_xml_register_event_cb(nullptr, "on_start_is_calibration", on_start_calibration_clicked);
-    lv_xml_register_event_cb(nullptr, "on_skip_is_calibration", on_skip_calibration_clicked);
 }
 
 // ============================================================================
@@ -358,6 +341,9 @@ lv_obj_t* WizardInputShaperStep::create(lv_obj_t* parent) {
         return nullptr;
     }
 
+    // Show "Skip" in footer (user can skip calibration)
+    lv_subject_set_int(&wizard_show_skip, 1);
+
     spdlog::debug("[{}] Screen created successfully", get_name());
     return screen_root_;
 }
@@ -378,6 +364,9 @@ void WizardInputShaperStep::cleanup() {
     if (calibrator_) {
         calibrator_->cancel();
     }
+
+    // Reset footer button to "Next"
+    lv_subject_set_int(&wizard_show_skip, 0);
 
     // Reset UI references
     // Note: Do NOT call lv_obj_del() here - the wizard framework handles

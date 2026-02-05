@@ -5,6 +5,7 @@
 
 #include "ui_subject_registry.h"
 #include "ui_wizard.h"
+#include "ui_wizard_input_shaper.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
@@ -54,6 +55,7 @@ WizardSummaryStep::WizardSummaryStep() {
     std::memset(led_strip_buffer_, 0, sizeof(led_strip_buffer_));
     std::memset(filament_sensor_buffer_, 0, sizeof(filament_sensor_buffer_));
     std::memset(ams_type_buffer_, 0, sizeof(ams_type_buffer_));
+    std::memset(input_shaper_buffer_, 0, sizeof(input_shaper_buffer_));
 
     spdlog::debug("[{}] Instance created", get_name());
 }
@@ -77,7 +79,9 @@ WizardSummaryStep::WizardSummaryStep(WizardSummaryStep&& other) noexcept
       led_strip_(other.led_strip_), led_strip_visible_(other.led_strip_visible_),
       filament_sensor_(other.filament_sensor_),
       filament_sensor_visible_(other.filament_sensor_visible_), ams_type_(other.ams_type_),
-      ams_visible_(other.ams_visible_), subjects_initialized_(other.subjects_initialized_) {
+      ams_visible_(other.ams_visible_), input_shaper_(other.input_shaper_),
+      input_shaper_visible_(other.input_shaper_visible_),
+      subjects_initialized_(other.subjects_initialized_) {
     // Move buffers
     std::memcpy(printer_name_buffer_, other.printer_name_buffer_, sizeof(printer_name_buffer_));
     std::memcpy(printer_type_buffer_, other.printer_type_buffer_, sizeof(printer_type_buffer_));
@@ -92,6 +96,7 @@ WizardSummaryStep::WizardSummaryStep(WizardSummaryStep&& other) noexcept
     std::memcpy(filament_sensor_buffer_, other.filament_sensor_buffer_,
                 sizeof(filament_sensor_buffer_));
     std::memcpy(ams_type_buffer_, other.ams_type_buffer_, sizeof(ams_type_buffer_));
+    std::memcpy(input_shaper_buffer_, other.input_shaper_buffer_, sizeof(input_shaper_buffer_));
 
     // Null out other
     other.screen_root_ = nullptr;
@@ -117,6 +122,8 @@ WizardSummaryStep& WizardSummaryStep::operator=(WizardSummaryStep&& other) noexc
         filament_sensor_visible_ = other.filament_sensor_visible_;
         ams_type_ = other.ams_type_;
         ams_visible_ = other.ams_visible_;
+        input_shaper_ = other.input_shaper_;
+        input_shaper_visible_ = other.input_shaper_visible_;
         subjects_initialized_ = other.subjects_initialized_;
 
         // Move buffers
@@ -133,6 +140,7 @@ WizardSummaryStep& WizardSummaryStep::operator=(WizardSummaryStep&& other) noexc
         std::memcpy(filament_sensor_buffer_, other.filament_sensor_buffer_,
                     sizeof(filament_sensor_buffer_));
         std::memcpy(ams_type_buffer_, other.ams_type_buffer_, sizeof(ams_type_buffer_));
+        std::memcpy(input_shaper_buffer_, other.input_shaper_buffer_, sizeof(input_shaper_buffer_));
 
         // Null out other
         other.screen_root_ = nullptr;
@@ -310,6 +318,25 @@ void WizardSummaryStep::init_subjects() {
     UI_SUBJECT_INIT_AND_REGISTER_STRING(ams_type_, ams_type_buffer_, ams_type_str.c_str(),
                                         "summary_ams_type");
     UI_SUBJECT_INIT_AND_REGISTER_INT(ams_visible_, ams_visible, "summary_ams_visible");
+
+    // Input Shaping / Accelerometer
+    std::string input_shaper_str = "Not available";
+    int input_shaper_visible = 0;
+
+    WizardInputShaperStep* is_step = get_wizard_input_shaper_step();
+    if (is_step && is_step->has_accelerometer()) {
+        input_shaper_visible = 1;
+        if (is_step->is_calibration_complete()) {
+            input_shaper_str = "Calibrated";
+        } else {
+            input_shaper_str = "Accelerometer detected (not calibrated)";
+        }
+    }
+
+    UI_SUBJECT_INIT_AND_REGISTER_STRING(input_shaper_, input_shaper_buffer_,
+                                        input_shaper_str.c_str(), "summary_input_shaper");
+    UI_SUBJECT_INIT_AND_REGISTER_INT(input_shaper_visible_, input_shaper_visible,
+                                     "summary_input_shaper_visible");
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized with config values", get_name());

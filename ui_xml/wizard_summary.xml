@@ -102,6 +102,14 @@
           <text_body name="summary_ams_type_label" bind_text="summary_ams_type"/>
           <bind_flag_if_eq subject="summary_ams_visible" flag="hidden" ref_value="0"/>
         </lv_obj>
+        <!-- Input Shaping / Accelerometer (conditionally visible) -->
+        <lv_obj name="input_shaper_row"
+                width="100%" height="content" style_pad_all="0" style_pad_top="#space_xs" flex_flow="column"
+                style_pad_gap="0">
+          <text_small text="Input Shaping" translation_tag="Input Shaping"/>
+          <text_body name="summary_input_shaper_label" bind_text="summary_input_shaper"/>
+          <bind_flag_if_eq subject="summary_input_shaper_visible" flag="hidden" ref_value="0"/>
+        </lv_obj>
       </lv_obj>
     </ui_card>
   </view>
