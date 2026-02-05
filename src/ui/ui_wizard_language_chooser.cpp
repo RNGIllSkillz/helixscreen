@@ -376,8 +376,19 @@ lv_obj_t* WizardLanguageChooserStep::create(lv_obj_t* parent) {
 void WizardLanguageChooserStep::cleanup() {
     spdlog::debug("[{}] Cleaning up resources", get_name());
 
-    // Stop the cycling timer
+    // Stop the cycling timer - prevents new crossfade animations from starting
     cycle_timer_.reset();
+
+    // Cancel any running crossfade animations BEFORE widgets are deleted
+    // Without this, a mid-animation cleanup would leave the animation timer
+    // referencing a deleted widget, causing a crash in lv_obj_refresh_style
+    if (screen_root_) {
+        lv_obj_t* welcome_header = lv_obj_find_by_name(screen_root_, "welcome_header");
+        if (welcome_header) {
+            // Delete all animations on this widget (NULL = any exec_cb)
+            lv_anim_delete(welcome_header, nullptr);
+        }
+    }
 
     // Reset UI references
     // Note: Do NOT call lv_obj_del() here - the wizard framework handles

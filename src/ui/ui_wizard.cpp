@@ -225,6 +225,24 @@ void ui_wizard_deinit_subjects() {
     if (!wizard_subjects_initialized) {
         return;
     }
+
+    // Cleanup current wizard screen BEFORE deleting container
+    // This ensures step-specific resources are released properly
+    ui_wizard_cleanup_current_screen();
+
+    // Delete wizard container BEFORE deinitializing subjects
+    // This triggers proper widget cleanup: DELETE callbacks fire
+    // and remove observers from subjects while subjects are still valid.
+    // Without this, shutdown while on a wizard page would leave widgets
+    // with observers pointing to deinitialized subjects, causing crashes
+    // in lv_deinit() when those widgets are deleted.
+    if (wizard_container && lv_is_initialized()) {
+        spdlog::debug("[Wizard] Deleting wizard container during deinit");
+        lv_obj_del(wizard_container);
+        wizard_container = nullptr;
+        current_screen_step = -1;
+    }
+
     // Use SubjectManager for RAII cleanup - handles all registered subjects
     wizard_subjects_.deinit_all();
     wizard_subjects_initialized = false;
