@@ -933,9 +933,11 @@ get_latest_version() {
     log_info "Fetching latest version from GitHub..."
 
     if command -v curl >/dev/null 2>&1; then
-        version=$(curl -sSL --connect-timeout 10 "$url" 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+        # Use basic sed regex (no -E flag) for BusyBox compatibility
+        version=$(curl -sSL --connect-timeout 10 "$url" 2>/dev/null | grep '"tag_name"' | sed 's/.*"\([^"][^"]*\)".*/\1/')
     elif command -v wget >/dev/null 2>&1; then
-        version=$(wget -qO- --timeout=10 "$url" 2>/dev/null | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+        # Use basic sed regex (no -E flag) for BusyBox compatibility
+        version=$(wget -qO- --timeout=10 "$url" 2>/dev/null | grep '"tag_name"' | sed 's/.*"\([^"][^"]*\)".*/\1/')
     fi
 
     if [ -z "$version" ]; then
@@ -1620,8 +1622,9 @@ clean_old_installation() {
 # Main orchestration
 # ============================================
 
-# Set up error trap
-trap 'error_handler $LINENO' ERR
+# Set up error trap (ERR is bash-specific, skip on POSIX shells like dash/ash)
+# shellcheck disable=SC3047
+trap 'error_handler $LINENO' ERR 2>/dev/null || true
 
 # Print usage
 usage() {

@@ -113,8 +113,9 @@ HEADER
 # Main orchestration
 # ============================================
 
-# Set up error trap
-trap 'error_handler $LINENO' ERR
+# Set up error trap (ERR is bash-specific, skip on POSIX shells like dash/ash)
+# shellcheck disable=SC3047
+trap 'error_handler $LINENO' ERR 2>/dev/null || true
 
 # Print usage
 usage() {
