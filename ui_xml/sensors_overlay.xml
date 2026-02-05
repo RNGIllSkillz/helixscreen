@@ -164,6 +164,29 @@
       </lv_obj>
 
       <!-- ================================================================== -->
+      <!-- TEMPERATURE SENSORS SECTION -->
+      <!-- ================================================================== -->
+      <lv_obj name="temp_sensors_section"
+              width="100%" height="content" style_bg_color="#screen_bg" style_bg_opa="255" style_radius="#border_radius"
+              style_pad_all="#space_lg" scrollable="false" flex_flow="column" style_pad_gap="#space_md">
+        <bind_flag_if_eq subject="temp_sensor_count" flag="hidden" ref_value="0"/>
+        <!-- Section Header -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
+                style_pad_gap="#space_sm">
+          <icon src="thermometer" size="sm" variant="secondary"/>
+          <text_body text="Temperature Sensors" translation_tag="Temperature Sensors" flex_grow="1"/>
+          <text_small name="temp_sensor_count_label" text="(0)" translation_tag="(0)"/>
+        </lv_obj>
+        <!-- Description -->
+        <text_small width="100%" text="MCU, host, and auxiliary temperature monitoring" translation_tag="MCU, host, and auxiliary temperature monitoring" style_text_align="left"/>
+        <!-- Sensor List Container -->
+        <lv_obj name="temp_sensors_list"
+                width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="column"
+                style_pad_gap="#space_xs"/>
+      </lv_obj>
+
+      <!-- ================================================================== -->
       <!-- NO SENSORS PLACEHOLDER -->
       <!-- ================================================================== -->
       <!-- Note: This is rarely shown since individual sections auto-hide when empty.

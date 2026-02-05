@@ -41,6 +41,7 @@ struct WidthSensorConfig;
 struct HumiditySensorConfig;
 struct AccelSensorConfig;
 struct ColorSensorConfig;
+struct TemperatureSensorConfig;
 } // namespace helix::sensors
 
 namespace helix::settings {
@@ -247,6 +248,16 @@ class SensorSettingsOverlay : public OverlayBase {
      * @brief Update color sensor count label
      */
     void update_color_sensor_count();
+
+    /**
+     * @brief Populate temperature sensor list from TemperatureSensorManager
+     */
+    void populate_temperature_sensors();
+
+    /**
+     * @brief Update temperature sensor count label
+     */
+    void update_temperature_sensor_count();
 
     /**
      * @brief Populate all sensor lists
