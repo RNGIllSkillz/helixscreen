@@ -6,6 +6,7 @@
 #include "ui_utils.h"
 
 #include "helix_timing.h"
+#include "prerendered_images.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -18,43 +19,22 @@ namespace helix {
 namespace {
 
 /**
- * @brief Get the path to the pre-rendered splash image for the given screen size
+ * @brief Try to find a prerendered image at the deployed path or the build path
  *
- * Pre-rendered images are EXACT pixel sizes matching splash screen calculations:
- *   - tiny (480x320):   240x240 logo (50% of 480)
- *   - small (800x480):  400x400 logo (50% of 800) - AD5M
- *   - medium (1024x600): 614x614 logo (60% of 1024)
- *   - large (1280x720): 768x768 logo (60% of 1280)
- *
- * @param screen_width Display width in pixels
- * @return Path to pre-rendered .bin file, or empty string if none found
+ * On embedded devices, images are at assets/images/prerendered/ (deployed).
+ * On desktop dev, images are at build/assets/images/prerendered/.
+ * Returns LVGL path with A: prefix, or empty string if not found.
  */
-std::string get_prerendered_splash_path(int screen_width) {
-    // Select size category based on screen width
-    const char* size_name = nullptr;
-    if (screen_width <= 480) {
-        size_name = "tiny";
-    } else if (screen_width <= 800) {
-        size_name = "small";
-    } else if (screen_width <= 1024) {
-        size_name = "medium";
-    } else {
-        size_name = "large";
+std::string find_prerendered(const std::string& relative_path) {
+    // Try deployed path first (embedded)
+    if (std::filesystem::exists(relative_path)) {
+        return "A:" + relative_path;
     }
-
-    // Build path to pre-rendered image
-    std::string path = "build/assets/images/prerendered/splash-logo-";
-    path += size_name;
-    path += ".bin"; // Must be .bin for LVGL's bin decoder
-
-    // Check if file exists (without A: prefix for filesystem check)
-    if (std::filesystem::exists(path)) {
-        spdlog::debug("[Splash Screen] Found pre-rendered image: {}", path);
-        return "A:" + path; // Add LVGL filesystem prefix
+    // Try build path (desktop development)
+    std::string build_path = "build/" + relative_path;
+    if (std::filesystem::exists(build_path)) {
+        return "A:" + build_path;
     }
-
-    spdlog::debug("[Splash Screen] No pre-rendered image for size '{}', will use PNG fallback",
-                  size_name);
     return "";
 }
 
@@ -72,62 +52,87 @@ void show_splash_screen(int screen_width, int screen_height) {
     // Disable scrollbars on screen
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Create centered container for logo (disable scrolling)
-    lv_obj_t* container = lv_obj_create(screen);
-    lv_obj_set_size(container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
-    lv_obj_clear_flag(container, LV_OBJ_FLAG_SCROLLABLE);         // Disable scrollbars
-    lv_obj_set_style_opa(container, LV_OPA_TRANSP, LV_PART_MAIN); // Start invisible for fade-in
-    lv_obj_center(container);
+    // Try full-screen 3D splash first (theme-aware dark/light variant)
+    bool dark_mode = theme_manager_is_dark_mode();
+    const char* size_name = get_splash_3d_size_name(screen_width, screen_height);
+    const char* mode_name = dark_mode ? "dark" : "light";
 
-    // Create image widget for logo
-    lv_obj_t* logo = lv_image_create(container);
+    std::string splash_3d_path = find_prerendered(
+        std::string("assets/images/prerendered/splash-3d-") + mode_name + "-" + size_name + ".bin");
 
-    // Try to use pre-rendered image first (instant display, no PNG decode overhead)
-    std::string prerendered_path = get_prerendered_splash_path(screen_width);
-    bool using_prerendered = !prerendered_path.empty();
+    // Fallback: try base "tiny" if tiny_alt not found
+    if (splash_3d_path.empty() && std::string(size_name) == "tiny_alt") {
+        size_name = "tiny";
+        splash_3d_path = find_prerendered(std::string("assets/images/prerendered/splash-3d-") +
+                                          mode_name + "-tiny.bin");
+    }
 
-    if (using_prerendered) {
-        // Pre-rendered image: already at exact pixel size, NO scaling needed!
-        lv_image_set_src(logo, prerendered_path.c_str());
-        spdlog::info("[Splash Screen] Using pre-rendered splash (instant display)");
+    // The widget we'll animate and clean up
+    lv_obj_t* splash_widget = nullptr;
+
+    if (!splash_3d_path.empty()) {
+        // Full-screen 3D splash: image IS the entire screen, no container needed
+        lv_obj_t* img = lv_image_create(screen);
+        lv_obj_set_style_bg_opa(img, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(img, 0, LV_PART_MAIN);
+        lv_image_set_src(img, splash_3d_path.c_str());
+        lv_obj_center(img);
+        lv_obj_set_style_opa(img, LV_OPA_TRANSP, LV_PART_MAIN); // Start invisible for fade-in
+        splash_widget = img;
+        spdlog::info("[Splash Screen] Using 3D splash ({}, {})", mode_name, size_name);
     } else {
-        // Fallback to PNG with runtime scaling (slower, but works for any screen size)
-        const char* png_path = "A:assets/images/helixscreen-logo.png";
-        lv_image_set_src(logo, png_path);
+        // Fallback: centered logo in container
+        lv_obj_t* container = lv_obj_create(screen);
+        lv_obj_set_size(container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
+        lv_obj_clear_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_style_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_center(container);
 
-        // Get actual image dimensions for scaling
-        lv_image_header_t header;
-        lv_result_t res = lv_image_decoder_get_info(png_path, &header);
+        lv_obj_t* logo = lv_image_create(container);
 
-        if (res == LV_RESULT_OK) {
-            // Scale logo to fill more of the screen (60% of screen width)
-            lv_coord_t target_size = (screen_width * 3) / 5; // 60% of screen width
-            if (screen_height < 500) {                       // Tiny screen
-                target_size = screen_width / 2;              // 50% on tiny screens
-            }
-
-            // Calculate scale: (target_size * 256) / actual_width
-            // LVGL uses 1/256 scale units (256 = 100%, 128 = 50%, etc.)
-            uint32_t width = header.w;  // Copy bit-field to local var for logging
-            uint32_t height = header.h; // Copy bit-field to local var for logging
-            uint32_t scale = (static_cast<uint32_t>(target_size) * 256U) / width;
-            lv_image_set_scale(logo, static_cast<uint16_t>(scale));
-
-            spdlog::info("[Splash Screen] PNG fallback: {}x{} scaled to {} (scale factor: {})",
-                         width, height, target_size, scale);
+        // Try pre-rendered centered logo
+        std::string prerendered_path = find_prerendered(
+            std::string("assets/images/prerendered/splash-logo-") + size_name + ".bin");
+        if (!prerendered_path.empty()) {
+            lv_image_set_src(logo, prerendered_path.c_str());
+            spdlog::info("[Splash Screen] Using pre-rendered splash (instant display)");
         } else {
-            spdlog::warn("[Splash Screen] Could not get logo dimensions, using default scale");
-            lv_image_set_scale(logo, 128); // 50% scale as fallback
+            // PNG fallback with runtime scaling
+            const char* png_path = "A:assets/images/helixscreen-logo.png";
+            lv_image_set_src(logo, png_path);
+
+            lv_image_header_t header;
+            lv_result_t res = lv_image_decoder_get_info(png_path, &header);
+
+            if (res == LV_RESULT_OK) {
+                lv_coord_t target_size = (screen_width * 3) / 5; // 60%
+                if (screen_height < 500) {
+                    target_size = screen_width / 2; // 50% on tiny screens
+                }
+
+                uint32_t width = header.w;
+                uint32_t height = header.h;
+                uint32_t scale = (static_cast<uint32_t>(target_size) * 256U) / width;
+                lv_image_set_scale(logo, static_cast<uint16_t>(scale));
+
+                spdlog::info("[Splash Screen] PNG fallback: {}x{} scaled to {} (scale factor: {})",
+                             width, height, target_size, scale);
+            } else {
+                spdlog::warn("[Splash Screen] Could not get logo dimensions, using default scale");
+                lv_image_set_scale(logo, 128);
+            }
         }
+
+        splash_widget = container;
     }
 
     // Create fade-in animation (0.5 seconds)
     lv_anim_t anim;
     lv_anim_init(&anim);
-    lv_anim_set_var(&anim, container);
+    lv_anim_set_var(&anim, splash_widget);
     lv_anim_set_values(&anim, LV_OPA_TRANSP, LV_OPA_COVER);
     lv_anim_set_duration(&anim, 500); // 500ms = 0.5 seconds
     lv_anim_set_path_cb(&anim, lv_anim_path_ease_in);
@@ -148,7 +153,7 @@ void show_splash_screen(int screen_width, int screen_height) {
     }
 
     // Clean up splash screen (guard against early shutdown)
-    lv_obj_safe_delete(container);
+    lv_obj_safe_delete(splash_widget);
 
     spdlog::debug("[Splash Screen] complete");
 }

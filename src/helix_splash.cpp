@@ -90,8 +90,53 @@ static int read_config_brightness(int default_value = 100) {
     return default_value;
 }
 
-// Dark theme background color (matches app theme)
-static constexpr uint32_t BG_COLOR_DARK = 0x121212;
+// Background colors for each mode
+static constexpr uint32_t BG_COLOR_DARK = 0x121212;    // App theme dark background
+static constexpr uint32_t BG_COLOR_3D_DARK = 0x2D2D2D; // 3D splash dark (sampled from image edges)
+static constexpr uint32_t BG_COLOR_3D_LIGHT =
+    0xDBDBDF; // 3D splash light (sampled from image edges)
+
+// Read dark_mode setting from config file (same parsing approach as brightness)
+// Returns configured value or default_value on failure
+static bool read_config_dark_mode(bool default_value = true) {
+    const char* paths[] = {"config/helixconfig.json", "helixconfig.json",
+                           "/opt/helixscreen/helixconfig.json"};
+
+    for (const char* path : paths) {
+        std::ifstream file(path);
+        if (!file.is_open()) {
+            continue;
+        }
+
+        std::string content((std::istreambuf_iterator<char>(file)),
+                            std::istreambuf_iterator<char>());
+
+        // Simple regex to find "dark_mode": true/false
+        std::regex dark_mode_regex(R"("dark_mode"\s*:\s*(true|false))");
+        std::smatch match;
+        if (std::regex_search(content, match, dark_mode_regex) && match.size() > 1) {
+            bool result = (match[1].str() == "true");
+            fprintf(stderr, "helix-splash: dark_mode=%s (from %s)\n", result ? "true" : "false",
+                    path);
+            return result;
+        }
+    }
+
+    return default_value;
+}
+
+// Get size name for a screen width (matches prerendered_images.cpp logic)
+static const char* get_splash_3d_size_name(int screen_width, int screen_height) {
+    if (screen_width < 600) {
+        // Distinguish K1 (480x400) from generic tiny (480x320)
+        return (screen_height >= 380) ? "tiny_alt" : "tiny";
+    }
+    if (screen_width < 900)
+        return "small";
+    if (screen_width < 1100)
+        return "medium";
+    return "large";
+}
 
 /**
  * @brief Parse command line arguments
@@ -120,12 +165,56 @@ static void fade_anim_cb(void* obj, int32_t value) {
 
 /**
  * @brief Create and configure the splash screen UI
+ *
+ * Tries 3D full-screen splash first (dark/light based on config),
+ * falls back to pre-rendered logo, then to PNG with runtime scaling.
  */
-static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width) {
-    // Set dark background
+static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width, int height, bool dark_mode) {
+    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Try full-screen 3D splash first
+    const char* size_name = get_splash_3d_size_name(width, height);
+    const char* mode_name = dark_mode ? "dark" : "light";
+
+    // Build path to 3D splash image
+    char splash_3d_path[128];
+    snprintf(splash_3d_path, sizeof(splash_3d_path),
+             "assets/images/prerendered/splash-3d-%s-%s.bin", mode_name, size_name);
+
+    struct stat st;
+    bool use_3d = (stat(splash_3d_path, &st) == 0);
+
+    // Fallback: try base "tiny" if tiny_alt not found
+    if (!use_3d && strcmp(size_name, "tiny_alt") == 0) {
+        snprintf(splash_3d_path, sizeof(splash_3d_path),
+                 "assets/images/prerendered/splash-3d-%s-tiny.bin", mode_name);
+        use_3d = (stat(splash_3d_path, &st) == 0);
+    }
+
+    if (use_3d) {
+        // Full-screen 3D splash: image IS the entire screen, no container needed
+        uint32_t bg_color = dark_mode ? BG_COLOR_3D_DARK : BG_COLOR_3D_LIGHT;
+        lv_obj_set_style_bg_color(screen, lv_color_hex(bg_color), 0);
+        lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
+
+        lv_obj_t* img = lv_image_create(screen);
+        lv_obj_set_style_bg_opa(img, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(img, 0, LV_PART_MAIN);
+
+        char lvgl_path[140];
+        snprintf(lvgl_path, sizeof(lvgl_path), "A:%s", splash_3d_path);
+        lv_image_set_src(img, lvgl_path);
+        lv_obj_center(img);
+
+        // Show immediately (no fade on embedded — too slow)
+        lv_obj_set_style_opa(img, LV_OPA_COVER, LV_PART_MAIN);
+        fprintf(stderr, "helix-splash: Using 3D splash (%s, %s)\n", mode_name, size_name);
+        return img;
+    }
+
+    // Fallback: original centered logo approach
     lv_obj_set_style_bg_color(screen, lv_color_hex(BG_COLOR_DARK), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
-    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
     // Create container for logo (will be animated)
     lv_obj_t* container = lv_obj_create(screen);
@@ -144,11 +233,8 @@ static lv_obj_t* create_splash_ui(lv_obj_t* screen, int width) {
     lv_obj_set_style_bg_opa(logo, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(logo, 0, LV_PART_MAIN);
 
-    // Check for pre-rendered image first (AD5M = 800x480 = "small" category)
-    // Pre-rendered = exact 400x400 pixels, no decode/scale needed → 60+ FPS
-    // PNG fallback = decode + scale each frame → 2-3 FPS on Cortex-A7
+    // Check for pre-rendered logo image (centered, not full-screen)
     const char* prerendered_path = "assets/images/prerendered/splash-logo-small.bin";
-    struct stat st;
     bool use_prerendered = (stat(prerendered_path, &st) == 0);
 
     if (use_prerendered) {
@@ -243,10 +329,15 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    // Read dark mode preference from config (before framebuffer clear so we use the right color)
+    bool dark_mode = read_config_dark_mode(true);
+
     // Clear framebuffer to remove any pre-existing content (Linux console text)
     // This must happen AFTER create_display (which opens the framebuffer)
     // but BEFORE we render the splash UI
-    if (backend->clear_framebuffer(BG_COLOR_DARK | 0xFF000000)) {
+    // Use 3D splash bg color if available, otherwise dark theme bg
+    uint32_t clear_color = dark_mode ? BG_COLOR_3D_DARK : BG_COLOR_3D_LIGHT;
+    if (backend->clear_framebuffer(clear_color | 0xFF000000)) {
         fprintf(stderr, "helix-splash: Framebuffer cleared\n");
     }
 
@@ -261,8 +352,8 @@ int main(int argc, char** argv) {
 
     // Create splash UI
     lv_obj_t* screen = lv_screen_active();
-    lv_obj_t* container = create_splash_ui(screen, width);
-    (void)container; // Used by animation, no need to track
+    lv_obj_t* splash_widget = create_splash_ui(screen, width, height, dark_mode);
+    (void)splash_widget; // Used by animation, no need to track
 
     // Main loop - run until signaled to quit
     // Exit signals: SIGTERM, SIGINT (shutdown), SIGUSR1 (main app ready)
@@ -273,11 +364,11 @@ int main(int argc, char** argv) {
 
     // Clear framebuffer to background color before exit
     // This prevents visual artifacts during handoff to helix-screen
-    lv_obj_clean(screen);                                              // Remove all children
-    lv_obj_set_style_bg_color(screen, lv_color_hex(BG_COLOR_DARK), 0); // Ensure bg color
-    lv_obj_invalidate(screen);                                         // Mark for redraw
-    lv_timer_handler();                                                // Render the clear
-    lv_refr_now(nullptr);                                              // Force immediate refresh
+    lv_obj_clean(screen);                                            // Remove all children
+    lv_obj_set_style_bg_color(screen, lv_color_hex(clear_color), 0); // Match splash bg
+    lv_obj_invalidate(screen);                                       // Mark for redraw
+    lv_timer_handler();                                              // Render the clear
+    lv_refr_now(nullptr);                                            // Force immediate refresh
 
     // Cleanup is handled automatically by destructors
     return 0;

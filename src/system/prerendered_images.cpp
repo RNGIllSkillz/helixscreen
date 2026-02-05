@@ -25,6 +25,51 @@ const char* get_splash_size_name(int screen_width) {
     }
 }
 
+const char* get_splash_3d_size_name(int screen_width, int screen_height) {
+    if (screen_width < 600) {
+        // Distinguish K1 (480x400) from generic tiny (480x320)
+        return (screen_height >= 380) ? "tiny_alt" : "tiny";
+    } else if (screen_width < 900) {
+        return "small"; // 800x480 class (AD5M)
+    } else if (screen_width < 1100) {
+        return "medium"; // 1024x600 class
+    } else {
+        return "large"; // 1280x720+ class
+    }
+}
+
+std::string get_prerendered_splash_3d_path(int screen_width, int screen_height, bool dark_mode) {
+    const char* size_name = get_splash_3d_size_name(screen_width, screen_height);
+    const char* mode_name = dark_mode ? "dark" : "light";
+
+    // Path relative to install directory
+    std::string path = "assets/images/prerendered/splash-3d-";
+    path += mode_name;
+    path += "-";
+    path += size_name;
+    path += ".bin";
+
+    if (prerendered_exists(path)) {
+        spdlog::debug("[Prerendered] Using 3D splash: {}", path);
+        return "A:" + path;
+    }
+
+    // Fallback: try base "tiny" if tiny_alt not found (backward compat)
+    if (std::string(size_name) == "tiny_alt") {
+        path = "assets/images/prerendered/splash-3d-";
+        path += mode_name;
+        path += "-tiny.bin";
+        if (prerendered_exists(path)) {
+            spdlog::debug("[Prerendered] Using 3D splash (tiny fallback): {}", path);
+            return "A:" + path;
+        }
+    }
+
+    spdlog::debug("[Prerendered] 3D splash not found for {} {} ({}x{}), falling back", mode_name,
+                  size_name, screen_width, screen_height);
+    return "";
+}
+
 std::string get_prerendered_splash_path(int screen_width) {
     const char* size_name = get_splash_size_name(screen_width);
 

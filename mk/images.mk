@@ -149,13 +149,52 @@ clean-printer-images:
 list-printer-images:
 	$(Q)./$(REGEN_PRINTER_IMAGES_SCRIPT) --list
 
-# Generate ALL pre-rendered images (splash + printers + placeholders)
+# =============================================================================
+# 3D Splash Image Generation (full-screen composited)
+# =============================================================================
+# Generates full-screen 3D splash images (dark + light modes) at all sizes.
+# These are composited images: logo centered on bg-colored canvas at screen res.
+GEN_SPLASH_3D_SCRIPT := scripts/gen_splash_3d.py
+SPLASH_3D_PYTHON := $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
+
+# Generate 3D splash images for all sizes and modes
+.PHONY: gen-splash-3d
+gen-splash-3d:
+	$(ECHO) "$(CYAN)Generating 3D splash images (all sizes, dark+light)...$(RESET)"
+	$(Q)mkdir -p $(PRERENDERED_DIR)
+	$(Q)$(SPLASH_3D_PYTHON) $(GEN_SPLASH_3D_SCRIPT) --output-dir $(PRERENDERED_DIR)
+	$(ECHO) "$(GREEN)✓ 3D splash images generated$(RESET)"
+
+# Generate 3D splash images for AD5M only (800x480)
+.PHONY: gen-splash-3d-ad5m
+gen-splash-3d-ad5m:
+	$(ECHO) "$(CYAN)Generating 3D splash images for AD5M (800x480)...$(RESET)"
+	$(Q)mkdir -p $(PRERENDERED_DIR)
+	$(Q)$(SPLASH_3D_PYTHON) $(GEN_SPLASH_3D_SCRIPT) --output-dir $(PRERENDERED_DIR) --sizes small
+	$(ECHO) "$(GREEN)✓ AD5M 3D splash images generated$(RESET)"
+
+# Generate 3D splash images for K1 only (480x400)
+.PHONY: gen-splash-3d-k1
+gen-splash-3d-k1:
+	$(ECHO) "$(CYAN)Generating 3D splash images for K1 (480x400)...$(RESET)"
+	$(Q)mkdir -p $(PRERENDERED_DIR)
+	$(Q)$(SPLASH_3D_PYTHON) $(GEN_SPLASH_3D_SCRIPT) --output-dir $(PRERENDERED_DIR) --sizes tiny_alt
+	$(ECHO) "$(GREEN)✓ K1 3D splash images generated$(RESET)"
+
+# Clean 3D splash images
+.PHONY: clean-splash-3d
+clean-splash-3d:
+	$(ECHO) "$(CYAN)Cleaning 3D splash images...$(RESET)"
+	$(Q)rm -f $(PRERENDERED_DIR)/splash-3d-*.bin 2>/dev/null || true
+	$(ECHO) "$(GREEN)✓ Cleaned 3D splash images$(RESET)"
+
+# Generate ALL pre-rendered images (splash + 3D splash + printers + placeholders)
 .PHONY: gen-all-images
-gen-all-images: gen-images gen-printer-images gen-placeholder-images
+gen-all-images: gen-images gen-splash-3d gen-printer-images gen-placeholder-images
 
 # Clean ALL pre-rendered images
 .PHONY: clean-all-images
-clean-all-images: clean-images clean-printer-images clean-placeholder-images
+clean-all-images: clean-images clean-splash-3d clean-printer-images clean-placeholder-images
 
 # =============================================================================
 # Help
@@ -172,6 +211,9 @@ help-images:
 	@echo "    gen-images-pi      - Generate splash for Pi (all sizes)"
 	@echo "    clean-images       - Remove splash .bin files"
 	@echo "    list-images        - Show splash targets"
+	@echo "    gen-splash-3d      - Generate 3D splash (all sizes, dark+light)"
+	@echo "    gen-splash-3d-ad5m - Generate 3D splash for AD5M only"
+	@echo "    clean-splash-3d    - Remove 3D splash .bin files"
 	@echo ""
 	@echo "  Placeholder thumbnails:"
 	@echo "    gen-placeholder-images   - Generate placeholder .bin files"

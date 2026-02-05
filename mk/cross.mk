@@ -478,6 +478,10 @@ define deploy-common
 		echo "$(DIM)Generating placeholder images...$(RESET)"; \
 		$(MAKE) gen-placeholder-images; \
 	fi
+	@if [ ! -f build/assets/images/prerendered/splash-3d-dark-small.bin ]; then \
+		echo "$(DIM)Generating 3D splash images...$(RESET)"; \
+		$(MAKE) gen-splash-3d; \
+	fi
 	@# Stop running processes and prepare directory
 	ssh $(1) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(2)"
 	ssh $(1) "rm -f $(2)/*.xml 2>/dev/null || true"
@@ -597,6 +601,10 @@ deploy-ad5m:
 		echo "$(DIM)Generating pre-rendered printer images...$(RESET)"; \
 		$(MAKE) gen-printer-images; \
 	fi
+	@if [ ! -f build/assets/images/prerendered/splash-3d-dark-small.bin ]; then \
+		echo "$(DIM)Generating 3D splash images...$(RESET)"; \
+		$(MAKE) gen-splash-3d-ad5m; \
+	fi
 	@# Stop running processes and prepare directory
 	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(AD5M_DEPLOY_DIR)"
 	@# Transfer binaries via cat/ssh (AD5M has no scp sftp-server)
@@ -653,6 +661,10 @@ deploy-ad5m-legacy:
 	@if [ ! -d build/assets/images/printers/prerendered ]; then \
 		echo "$(CYAN)Generating pre-rendered printer images...$(RESET)"; \
 		$(MAKE) gen-printer-images; \
+	fi
+	@if [ ! -f build/assets/images/prerendered/splash-3d-dark-small.bin ]; then \
+		echo "$(CYAN)Generating 3D splash images for AD5M...$(RESET)"; \
+		$(MAKE) gen-splash-3d-ad5m; \
 	fi
 	@echo "$(CYAN)Deploying HelixScreen to $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)...$(RESET)"
 	@echo "  Binaries: helix-screen, helix-splash, helix-watchdog"
@@ -760,6 +772,10 @@ deploy-k1:
 	@if [ ! -d build/assets/images/printers/prerendered ]; then \
 		echo "$(DIM)Generating pre-rendered printer images...$(RESET)"; \
 		$(MAKE) gen-printer-images; \
+	fi
+	@if [ ! -f build/assets/images/prerendered/splash-3d-dark-tiny_alt.bin ]; then \
+		echo "$(DIM)Generating 3D splash images for K1...$(RESET)"; \
+		$(MAKE) gen-splash-3d-k1; \
 	fi
 	@# Stop running processes and prepare directory
 	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(K1_DEPLOY_DIR)"
@@ -931,7 +947,7 @@ release-clean:
 # Aliases for package-* (matches scripts/package.sh naming)
 # These trigger the full build + package workflow
 .PHONY: package-ad5m package-pi package-all package-clean
-package-ad5m: ad5m-docker gen-images-ad5m gen-printer-images release-ad5m
-package-pi: pi-docker gen-images gen-printer-images release-pi
+package-ad5m: ad5m-docker gen-images-ad5m gen-splash-3d-ad5m gen-printer-images release-ad5m
+package-pi: pi-docker gen-images gen-splash-3d gen-printer-images release-pi
 package-all: package-ad5m package-pi
 package-clean: release-clean
