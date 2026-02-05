@@ -154,6 +154,50 @@ stop_splash() {
     fi
 }
 
+# Wait for Moonraker to be ready (ForgeX only)
+# On memory-constrained systems like AD5M (107MB RAM), starting helix-screen
+# while moonraker is still initializing causes severe swap thrashing.
+# By waiting here with only the lightweight splash running, moonraker can
+# start without competition, dramatically improving boot time.
+wait_for_moonraker() {
+    # Only wait on ForgeX - it has the memory constraints
+    # Other systems (Klipper Mod on Pi) have plenty of RAM
+    if [ ! -d "$FORGEX_CHROOT" ]; then
+        return 0
+    fi
+
+    # Check if moonraker is even configured to run
+    # ForgeX can disable moonraker via variables.cfg
+    local moonraker_disabled
+    moonraker_disabled=$(/usr/sbin/chroot "$FORGEX_CHROOT" /bin/sh -c \
+        '/opt/config/mod/.shell/commands/zconf.sh /opt/config/mod_data/variables.cfg --get "disable_moonraker" "0"' 2>/dev/null)
+    if [ "$moonraker_disabled" = "1" ]; then
+        echo "Moonraker disabled, skipping wait"
+        return 0
+    fi
+
+    echo "Waiting for Moonraker (reduces memory pressure)..."
+    local timeout=120  # 2 minutes max - moonraker can be slow on first boot
+    local waited=0
+    while [ $waited -lt $timeout ]; do
+        # Check if moonraker is responding
+        # Use wget since curl isn't available on BusyBox base system
+        if wget -q -O /dev/null --timeout=1 http://localhost:7125/server/info 2>/dev/null; then
+            echo "Moonraker ready after ${waited}s"
+            return 0
+        fi
+        sleep 1
+        waited=$((waited + 1))
+        # Progress indicator every 10 seconds
+        if [ $((waited % 10)) -eq 0 ]; then
+            echo "  Still waiting for Moonraker... (${waited}s)"
+        fi
+    done
+
+    echo "Warning: Moonraker not ready after ${timeout}s, starting anyway"
+    return 1
+}
+
 start() {
     echo "Starting $DESC..."
 
@@ -191,33 +235,29 @@ start() {
         echo "Splash screen disabled (HELIX_NO_SPLASH=1)"
     fi
 
-    # Use launcher script if available (handles watchdog)
-    # Pass early splash PID so watchdog doesn't start another splash
-    if [ -x "$LAUNCHER" ]; then
-        SPLASH_ENV=""
-        if [ -n "$EARLY_SPLASH_PID" ]; then
-            SPLASH_ENV="HELIX_SPLASH_PID=$EARLY_SPLASH_PID"
+    # Fork the moonraker wait + helix-screen launch into background
+    # This lets S90 exit so S99 can run and actually start moonraker
+    # Without this, we'd deadlock: S90 waits for moonraker, S99 starts moonraker but can't run until S90 finishes
+    (
+        # Wait for Moonraker before starting the main UI
+        # This lets moonraker initialize without memory competition from helix-screen
+        if [ "${HELIX_NO_MOONRAKER_WAIT:-0}" != "1" ]; then
+            wait_for_moonraker
         fi
-        if command -v start-stop-daemon >/dev/null 2>&1; then
-            start-stop-daemon -S -b -m -p "$PIDFILE" -x /bin/sh -- -c "cd $DAEMON_DIR && $SPLASH_ENV exec $LAUNCHER"
+
+        # Use launcher script if available (handles watchdog)
+        # Pass early splash PID so watchdog doesn't start another splash
+        if [ -x "$LAUNCHER" ]; then
+            if [ -n "$EARLY_SPLASH_PID" ]; then
+                export HELIX_SPLASH_PID="$EARLY_SPLASH_PID"
+            fi
+            cd "$DAEMON_DIR" && exec $LAUNCHER
         else
-            # Use sh -c for consistent environment variable handling
-            /bin/sh -c "cd $DAEMON_DIR && $SPLASH_ENV exec $LAUNCHER" >> "$LOGFILE" 2>&1 &
-            echo $! > "$PIDFILE"
+            # Fallback: start daemon directly
+            cd "$DAEMON_DIR" && exec "$DAEMON" --splash-pid="$EARLY_SPLASH_PID"
         fi
-    else
-        # Fallback: start splash and daemon directly
-        SPLASH_ARGS=$(start_splash)
-        # BusyBox start-stop-daemon doesn't preserve working directory,
-        # so we use sh -c with cd to ensure the daemon runs from the correct directory
-        # (required for ui_xml/ and assets/ paths to resolve correctly)
-        if command -v start-stop-daemon >/dev/null 2>&1; then
-            start-stop-daemon -S -b -m -p "$PIDFILE" -x /bin/sh -- -c "cd $DAEMON_DIR && exec $DAEMON $SPLASH_ARGS"
-        else
-            (cd "$DAEMON_DIR" && "$DAEMON" $SPLASH_ARGS >> "$LOGFILE" 2>&1) &
-            echo $! > "$PIDFILE"
-        fi
-    fi
+    ) >> "$LOGFILE" 2>&1 &
+    echo $! > "$PIDFILE"
 
     # Wait briefly and check if started
     sleep 2
