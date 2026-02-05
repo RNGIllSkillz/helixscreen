@@ -175,8 +175,7 @@ void WizardConnectionStep::init_subjects() {
                                         connection_port_buffer_, "connection_port");
     UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_status_icon_, connection_status_icon_buffer_, "",
                                         "connection_status_icon");
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_status_text_, connection_status_text_buffer_,
-                                        "Connection must be tested successfully to continue",
+    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_status_text_, connection_status_text_buffer_, "",
                                         "connection_status_text");
     UI_SUBJECT_INIT_AND_REGISTER_INT(connection_testing_, 0, "connection_testing");
     UI_SUBJECT_INIT_AND_REGISTER_INT(connection_discovering_, 0, "connection_discovering");
@@ -627,8 +626,9 @@ void WizardConnectionStep::attempt_auto_probe() {
         spdlog::debug("[{}] Auto-probe: Failed to initiate connection", get_name());
         auto_probe_state_.store(AutoProbeState::FAILED);
         lv_subject_set_int(&connection_testing_, 0);
-        // Silent failure - clear status
-        set_status(nullptr, StatusVariant::None, "");
+        // Silent failure - reset to help text
+        set_status(nullptr, StatusVariant::None,
+                   "Connection must be tested successfully to continue");
     }
 }
 
@@ -831,8 +831,9 @@ void WizardConnectionStep::on_auto_probe_failure() {
                 return;
             }
 
-            // Silent failure - just clear status, don't show error
-            self->set_status(nullptr, StatusVariant::None, "");
+            // Silent failure - reset to help text
+            self->set_status(nullptr, StatusVariant::None,
+                             "Connection must be tested successfully to continue");
             lv_subject_set_int(&self->connection_testing_, 0);
 
             // Leave fields empty - user will enter manually
@@ -858,8 +859,8 @@ void WizardConnectionStep::handle_ip_input_changed() {
         lv_subject_set_int(&connection_testing_, 0);
     }
 
-    // Clear any previous status message
-    set_status(nullptr, StatusVariant::None, "");
+    // Reset to help text (user needs to test again after changing input)
+    set_status(nullptr, StatusVariant::None, "Connection must be tested successfully to continue");
 
     // Clear validation state
     connection_validated_ = false;
@@ -882,8 +883,8 @@ void WizardConnectionStep::handle_port_input_changed() {
         lv_subject_set_int(&connection_testing_, 0);
     }
 
-    // Clear any previous status message
-    set_status(nullptr, StatusVariant::None, "");
+    // Reset to help text (user needs to test again after changing input)
+    set_status(nullptr, StatusVariant::None, "Connection must be tested successfully to continue");
 
     // Clear validation state
     connection_validated_ = false;
@@ -990,6 +991,9 @@ lv_obj_t* WizardConnectionStep::create(lv_obj_t* parent) {
     mdns_discovery_->start_discovery([this](const std::vector<DiscoveredPrinter>& printers) {
         on_printers_discovered(printers);
     });
+
+    // Set initial help text (bind_text only fires on changes, not initial value)
+    set_status(nullptr, StatusVariant::None, "Connection must be tested successfully to continue");
 
     spdlog::debug("[{}] Screen created successfully", get_name());
     return screen_root_;
@@ -1126,8 +1130,9 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
         self->connection_validated_ = false;
         lv_subject_set_int(&connection_test_passed, 0);
 
-        // Clear previous status
-        self->set_status(nullptr, StatusVariant::None, "");
+        // Reset to help text (user still needs to test)
+        self->set_status(nullptr, StatusVariant::None,
+                         "Connection must be tested successfully to continue");
 
         spdlog::info("[Wizard Connection] Selected printer: {} at {}:{}", printer.name,
                      printer.ip_address, printer.port);
