@@ -485,11 +485,12 @@ define deploy-common
 		$(MAKE) gen-splash-3d; \
 	fi
 	@# Stop running processes and prepare directory
-	ssh $(1) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(2)"
+	ssh $(1) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(2)/bin"
 	ssh $(1) "rm -f $(2)/*.xml 2>/dev/null || true"
-	@# Sync binaries
-	rsync -avz --progress $(3)/helix-screen $(3)/helix-splash $(1):$(2)/
-	@if [ -f $(3)/helix-watchdog ]; then rsync -avz $(3)/helix-watchdog $(1):$(2)/; fi
+	@# Sync binaries and launcher to bin/
+	rsync -avz --progress $(3)/helix-screen $(3)/helix-splash $(1):$(2)/bin/
+	@if [ -f $(3)/helix-watchdog ]; then rsync -avz $(3)/helix-watchdog $(1):$(2)/bin/; fi
+	rsync -avz scripts/helix-launcher.sh $(1):$(2)/bin/
 	@# Sync assets (--delete removes stale files)
 	rsync $(DEPLOY_RSYNC_FLAGS) $(DEPLOY_ASSET_EXCLUDES) $(DEPLOY_ASSET_DIRS) $(1):$(2)/
 	@# Sync pre-rendered images
@@ -533,7 +534,7 @@ deploy-pi:
 	$(call deploy-common,$(PI_SSH_TARGET),$(PI_DEPLOY_DIR),build/pi/bin)
 	@echo "$(GREEN)✓ Deployed to $(PI_HOST):$(PI_DEPLOY_DIR)$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(PI_HOST)...$(RESET)"
-	ssh $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && setsid ./scripts/helix-launcher.sh </dev/null >/dev/null 2>&1 &"
+	ssh $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && setsid ./bin/helix-launcher.sh </dev/null >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted in background$(RESET)"
 	@echo "$(DIM)Logs: ssh $(PI_SSH_TARGET) 'journalctl -t helix-screen -f'$(RESET)"
 
@@ -543,7 +544,7 @@ deploy-pi-fg:
 	@test -f build/pi/bin/helix-splash || { echo "$(RED)Error: build/pi/bin/helix-splash not found. Run 'make pi-docker' first.$(RESET)"; exit 1; }
 	$(call deploy-common,$(PI_SSH_TARGET),$(PI_DEPLOY_DIR),build/pi/bin)
 	@echo "$(CYAN)Starting helix-screen on $(PI_HOST) (foreground, debug mode)...$(RESET)"
-	ssh -t $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && ./scripts/helix-launcher.sh --debug --log-dest=console"
+	ssh -t $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && ./bin/helix-launcher.sh --debug --log-dest=console"
 
 # Deploy and run in foreground without debug logging (production mode)
 deploy-pi-quiet:
@@ -551,7 +552,7 @@ deploy-pi-quiet:
 	@test -f build/pi/bin/helix-splash || { echo "$(RED)Error: build/pi/bin/helix-splash not found. Run 'make pi-docker' first.$(RESET)"; exit 1; }
 	$(call deploy-common,$(PI_SSH_TARGET),$(PI_DEPLOY_DIR),build/pi/bin)
 	@echo "$(CYAN)Starting helix-screen on $(PI_HOST) (foreground)...$(RESET)"
-	ssh -t $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && ./scripts/helix-launcher.sh"
+	ssh -t $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && ./bin/helix-launcher.sh"
 
 # Convenience: SSH into the Pi
 pi-ssh:
@@ -608,14 +609,15 @@ deploy-ad5m:
 		$(MAKE) gen-splash-3d-ad5m; \
 	fi
 	@# Stop running processes and prepare directory
-	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(AD5M_DEPLOY_DIR)"
+	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(AD5M_DEPLOY_DIR)/bin"
 	@# Transfer binaries via cat/ssh (AD5M has no scp sftp-server)
 	@echo "$(DIM)Transferring binaries...$(RESET)"
-	cat build/ad5m/bin/helix-screen | ssh $(AD5M_SSH_TARGET) "cat > $(AD5M_DEPLOY_DIR)/helix-screen && chmod +x $(AD5M_DEPLOY_DIR)/helix-screen"
-	cat build/ad5m/bin/helix-splash | ssh $(AD5M_SSH_TARGET) "cat > $(AD5M_DEPLOY_DIR)/helix-splash && chmod +x $(AD5M_DEPLOY_DIR)/helix-splash"
+	cat build/ad5m/bin/helix-screen | ssh $(AD5M_SSH_TARGET) "cat > $(AD5M_DEPLOY_DIR)/bin/helix-screen && chmod +x $(AD5M_DEPLOY_DIR)/bin/helix-screen"
+	cat build/ad5m/bin/helix-splash | ssh $(AD5M_SSH_TARGET) "cat > $(AD5M_DEPLOY_DIR)/bin/helix-splash && chmod +x $(AD5M_DEPLOY_DIR)/bin/helix-splash"
 	@if [ -f build/ad5m/bin/helix-watchdog ]; then \
-		cat build/ad5m/bin/helix-watchdog | ssh $(AD5M_SSH_TARGET) "cat > $(AD5M_DEPLOY_DIR)/helix-watchdog && chmod +x $(AD5M_DEPLOY_DIR)/helix-watchdog"; \
+		cat build/ad5m/bin/helix-watchdog | ssh $(AD5M_SSH_TARGET) "cat > $(AD5M_DEPLOY_DIR)/bin/helix-watchdog && chmod +x $(AD5M_DEPLOY_DIR)/bin/helix-watchdog"; \
 	fi
+	cat scripts/helix-launcher.sh | ssh $(AD5M_SSH_TARGET) "cat > $(AD5M_DEPLOY_DIR)/bin/helix-launcher.sh && chmod +x $(AD5M_DEPLOY_DIR)/bin/helix-launcher.sh"
 	@# Transfer assets via tar (uses shared DEPLOY_TAR_EXCLUDES and DEPLOY_ASSET_DIRS)
 	@echo "$(DIM)Transferring assets...$(RESET)"
 	COPYFILE_DISABLE=1 tar -cf - $(DEPLOY_TAR_EXCLUDES) $(DEPLOY_ASSET_DIRS) | ssh $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && tar -xf -"
@@ -647,7 +649,7 @@ deploy-ad5m:
 		fi'
 	@echo "$(GREEN)✓ Deployed to $(AD5M_HOST):$(AD5M_DEPLOY_DIR)$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(AD5M_HOST)...$(RESET)"
-	ssh $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && ./scripts/helix-launcher.sh >/dev/null 2>&1 &"
+	ssh $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted in background$(RESET)"
 	@echo "$(DIM)Logs: ssh $(AD5M_SSH_TARGET) 'tail -f /var/log/messages | grep helix'$(RESET)"
 
@@ -671,9 +673,10 @@ deploy-ad5m-legacy:
 	@echo "$(CYAN)Deploying HelixScreen to $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)...$(RESET)"
 	@echo "  Binaries: helix-screen, helix-splash, helix-watchdog"
 	@echo "  Assets: ui_xml/, assets/ (excl. test files), config/"
-	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(AD5M_DEPLOY_DIR)"
-	scp -O build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/
-	@if [ -f build/ad5m/bin/helix-watchdog ]; then scp -O build/ad5m/bin/helix-watchdog $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/; fi
+	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(AD5M_DEPLOY_DIR)/bin"
+	scp -O build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/bin/
+	@if [ -f build/ad5m/bin/helix-watchdog ]; then scp -O build/ad5m/bin/helix-watchdog $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/bin/; fi
+	scp -O scripts/helix-launcher.sh $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/bin/
 	@echo "$(DIM)Transferring assets (excluding test files)...$(RESET)"
 	COPYFILE_DISABLE=1 tar -cf - --exclude='test_gcodes' --exclude='gcode' --exclude='.DS_Store' --exclude='.claude-recall' --exclude='._*' ui_xml assets config | ssh $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && tar -xf -"
 	@if [ -d build/assets/images/prerendered ] && ls build/assets/images/prerendered/*.bin >/dev/null 2>&1; then \
@@ -705,7 +708,7 @@ deploy-ad5m-legacy:
 		fi'
 	@echo "$(GREEN)✓ Deployed to $(AD5M_HOST):$(AD5M_DEPLOY_DIR)$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(AD5M_HOST)...$(RESET)"
-	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./scripts/helix-launcher.sh >/dev/null 2>&1 &"
+	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted in background$(RESET)"
 	@echo "$(DIM)Logs: ssh $(AD5M_SSH_TARGET) 'tail -f /var/log/messages | grep helix'$(RESET)"
 
@@ -715,18 +718,18 @@ deploy-ad5m-fg:
 	@test -f build/ad5m/bin/helix-splash || { echo "$(RED)Error: build/ad5m/bin/helix-splash not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
 	$(call deploy-common,$(AD5M_SSH_TARGET),$(AD5M_DEPLOY_DIR),build/ad5m/bin)
 	@echo "$(CYAN)Starting helix-screen on $(AD5M_HOST) (foreground, verbose)...$(RESET)"
-	ssh -t $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && ./scripts/helix-launcher.sh --debug"
+	ssh -t $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR) && ./bin/helix-launcher.sh --debug"
 
 # Deploy binaries only (fast, for quick iteration)
 deploy-ad5m-bin:
 	@test -f build/ad5m/bin/helix-screen || { echo "$(RED)Error: build/ad5m/bin/helix-screen not found. Run 'make remote-ad5m' first.$(RESET)"; exit 1; }
-	@echo "$(CYAN)Deploying binaries only to $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)...$(RESET)"
-	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true"
-	scp -O build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/
-	@if [ -f build/ad5m/bin/helix-watchdog ]; then scp -O build/ad5m/bin/helix-watchdog $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/; fi
+	@echo "$(CYAN)Deploying binaries only to $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/bin...$(RESET)"
+	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(AD5M_DEPLOY_DIR)/bin"
+	scp -O build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/bin/
+	@if [ -f build/ad5m/bin/helix-watchdog ]; then scp -O build/ad5m/bin/helix-watchdog $(AD5M_SSH_TARGET):$(AD5M_DEPLOY_DIR)/bin/; fi
 	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(AD5M_HOST)...$(RESET)"
-	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./scripts/helix-launcher.sh >/dev/null 2>&1 &"
+	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
 
 # Convenience: SSH into the AD5M
@@ -780,14 +783,15 @@ deploy-k1:
 		$(MAKE) gen-splash-3d-k1; \
 	fi
 	@# Stop running processes and prepare directory
-	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(K1_DEPLOY_DIR)"
+	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(K1_DEPLOY_DIR)/bin"
 	@# Transfer binaries via cat/ssh
 	@echo "$(DIM)Transferring binaries...$(RESET)"
-	cat build/k1/bin/helix-screen | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/helix-screen && chmod +x $(K1_DEPLOY_DIR)/helix-screen"
-	cat build/k1/bin/helix-splash | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/helix-splash && chmod +x $(K1_DEPLOY_DIR)/helix-splash"
+	cat build/k1/bin/helix-screen | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-screen && chmod +x $(K1_DEPLOY_DIR)/bin/helix-screen"
+	cat build/k1/bin/helix-splash | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-splash && chmod +x $(K1_DEPLOY_DIR)/bin/helix-splash"
 	@if [ -f build/k1/bin/helix-watchdog ]; then \
-		cat build/k1/bin/helix-watchdog | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/helix-watchdog && chmod +x $(K1_DEPLOY_DIR)/helix-watchdog"; \
+		cat build/k1/bin/helix-watchdog | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-watchdog && chmod +x $(K1_DEPLOY_DIR)/bin/helix-watchdog"; \
 	fi
+	cat scripts/helix-launcher.sh | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-launcher.sh && chmod +x $(K1_DEPLOY_DIR)/bin/helix-launcher.sh"
 	@# Transfer assets via tar
 	@echo "$(DIM)Transferring assets...$(RESET)"
 	COPYFILE_DISABLE=1 tar -cf - $(DEPLOY_TAR_EXCLUDES) $(DEPLOY_ASSET_DIRS) | ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && tar -xf -"
@@ -802,7 +806,7 @@ deploy-k1:
 	fi
 	@echo "$(GREEN)✓ Deployed to $(K1_HOST):$(K1_DEPLOY_DIR)$(RESET)"
 	@echo "$(CYAN)Starting helix-screen on $(K1_HOST)...$(RESET)"
-	ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./scripts/helix-launcher.sh >/dev/null 2>&1 &"
+	ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen started in background$(RESET)"
 	@echo "$(DIM)Logs: ssh $(K1_SSH_TARGET) 'tail -f /var/log/messages | grep helix'$(RESET)"
 
@@ -813,21 +817,21 @@ deploy-k1-fg:
 	@echo "$(YELLOW)NOTE: K1 deployment is UNTESTED - please report issues$(RESET)"
 	$(call deploy-common,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/k1/bin)
 	@echo "$(CYAN)Starting helix-screen on $(K1_HOST) (foreground, verbose)...$(RESET)"
-	ssh -t $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./scripts/helix-launcher.sh --debug"
+	ssh -t $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./bin/helix-launcher.sh --debug"
 
 # Deploy binaries only (fast, for quick iteration)
 deploy-k1-bin:
 	@test -f build/k1/bin/helix-screen || { echo "$(RED)Error: build/k1/bin/helix-screen not found. Run 'make k1-docker' first.$(RESET)"; exit 1; }
-	@echo "$(CYAN)Deploying binaries only to $(K1_SSH_TARGET):$(K1_DEPLOY_DIR)...$(RESET)"
-	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true"
-	cat build/k1/bin/helix-screen | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/helix-screen && chmod +x $(K1_DEPLOY_DIR)/helix-screen"
-	cat build/k1/bin/helix-splash | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/helix-splash && chmod +x $(K1_DEPLOY_DIR)/helix-splash"
+	@echo "$(CYAN)Deploying binaries only to $(K1_SSH_TARGET):$(K1_DEPLOY_DIR)/bin...$(RESET)"
+	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(K1_DEPLOY_DIR)/bin"
+	cat build/k1/bin/helix-screen | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-screen && chmod +x $(K1_DEPLOY_DIR)/bin/helix-screen"
+	cat build/k1/bin/helix-splash | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-splash && chmod +x $(K1_DEPLOY_DIR)/bin/helix-splash"
 	@if [ -f build/k1/bin/helix-watchdog ]; then \
-		cat build/k1/bin/helix-watchdog | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/helix-watchdog && chmod +x $(K1_DEPLOY_DIR)/helix-watchdog"; \
+		cat build/k1/bin/helix-watchdog | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-watchdog && chmod +x $(K1_DEPLOY_DIR)/bin/helix-watchdog"; \
 	fi
 	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
 	@echo "$(CYAN)Restarting helix-screen on $(K1_HOST)...$(RESET)"
-	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(K1_DEPLOY_DIR) && ./scripts/helix-launcher.sh >/dev/null 2>&1 &"
+	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(K1_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
 
 # Convenience: SSH into the K1
@@ -854,9 +858,13 @@ RELEASE_ASSETS := assets/fonts assets/images
 # Package Pi release
 release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash
 	@echo "$(CYAN)$(BOLD)Packaging Pi release v$(VERSION)...$(RESET)"
-	@mkdir -p $(RELEASE_DIR)/helixscreen
-	@cp build/pi/bin/helix-screen build/pi/bin/helix-splash $(RELEASE_DIR)/helixscreen/
+	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
+	@cp build/pi/bin/helix-screen build/pi/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
+	@if [ -f build/pi/bin/helix-watchdog ]; then cp build/pi/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
+	@cp scripts/helix-launcher.sh $(RELEASE_DIR)/helixscreen/bin/
 	@cp -r ui_xml config $(RELEASE_DIR)/helixscreen/
+	@# Remove any personal config — release ships template only (installer copies it on first run)
+	@rm -f $(RELEASE_DIR)/helixscreen/config/helixconfig.json $(RELEASE_DIR)/helixscreen/config/helixconfig-test.json
 	@mkdir -p $(RELEASE_DIR)/helixscreen/scripts
 	@cp scripts/uninstall.sh $(RELEASE_DIR)/helixscreen/scripts/
 	@mkdir -p $(RELEASE_DIR)/helixscreen/assets
@@ -873,6 +881,7 @@ release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
+	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	@cd $(RELEASE_DIR) && COPYFILE_DISABLE=1 tar -czvf helixscreen-pi-$(VERSION).tar.gz helixscreen
 	@rm -rf $(RELEASE_DIR)/helixscreen
 	@echo "$(GREEN)✓ Created $(RELEASE_DIR)/helixscreen-pi-$(VERSION).tar.gz$(RESET)"
@@ -883,8 +892,10 @@ release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash
 # Includes pre-configured helixconfig.json for Adventurer 5M Pro (skips setup wizard)
 release-ad5m: | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
 	@echo "$(CYAN)$(BOLD)Packaging AD5M release v$(VERSION)...$(RESET)"
-	@mkdir -p $(RELEASE_DIR)/helixscreen
-	@cp build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash $(RELEASE_DIR)/helixscreen/
+	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
+	@cp build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
+	@if [ -f build/ad5m/bin/helix-watchdog ]; then cp build/ad5m/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
+	@cp scripts/helix-launcher.sh $(RELEASE_DIR)/helixscreen/bin/
 	@cp -r ui_xml config $(RELEASE_DIR)/helixscreen/
 	@# Copy AD5M Pro default config as config/helixconfig.json (skips wizard on first run)
 	@cp config/presets/adventurer-5m-pro.json $(RELEASE_DIR)/helixscreen/config/helixconfig.json
@@ -905,6 +916,7 @@ release-ad5m: | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
+	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	@cd $(RELEASE_DIR) && COPYFILE_DISABLE=1 tar -czvf helixscreen-ad5m-$(VERSION).tar.gz helixscreen
 	@rm -rf $(RELEASE_DIR)/helixscreen
 	@echo "$(GREEN)✓ Created $(RELEASE_DIR)/helixscreen-ad5m-$(VERSION).tar.gz$(RESET)"
@@ -913,9 +925,13 @@ release-ad5m: | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
 # Package K1 release
 release-k1: | build/k1/bin/helix-screen build/k1/bin/helix-splash
 	@echo "$(CYAN)$(BOLD)Packaging K1 release v$(VERSION)...$(RESET)"
-	@mkdir -p $(RELEASE_DIR)/helixscreen
-	@cp build/k1/bin/helix-screen build/k1/bin/helix-splash $(RELEASE_DIR)/helixscreen/
+	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
+	@cp build/k1/bin/helix-screen build/k1/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
+	@if [ -f build/k1/bin/helix-watchdog ]; then cp build/k1/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
+	@cp scripts/helix-launcher.sh $(RELEASE_DIR)/helixscreen/bin/
 	@cp -r ui_xml config $(RELEASE_DIR)/helixscreen/
+	@# Remove any personal config — release ships template only (installer copies it on first run)
+	@rm -f $(RELEASE_DIR)/helixscreen/config/helixconfig.json $(RELEASE_DIR)/helixscreen/config/helixconfig-test.json
 	@mkdir -p $(RELEASE_DIR)/helixscreen/scripts
 	@cp scripts/uninstall.sh $(RELEASE_DIR)/helixscreen/scripts/
 	@mkdir -p $(RELEASE_DIR)/helixscreen/assets
@@ -931,6 +947,7 @@ release-k1: | build/k1/bin/helix-screen build/k1/bin/helix-splash
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
+	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	@cd $(RELEASE_DIR) && COPYFILE_DISABLE=1 tar -czvf helixscreen-k1-$(VERSION).tar.gz helixscreen
 	@rm -rf $(RELEASE_DIR)/helixscreen
 	@echo "$(GREEN)✓ Created $(RELEASE_DIR)/helixscreen-k1-$(VERSION).tar.gz$(RESET)"
