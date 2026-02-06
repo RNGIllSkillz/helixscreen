@@ -19,6 +19,8 @@ Solutions to common problems with HelixScreen.
 - [Configuration Issues](#configuration-issues)
 - [Adventurer 5M Issues](#adventurer-5m-issues)
 - [Gathering Diagnostic Information](#gathering-diagnostic-information)
+  - [Enabling Debug Logging](#enabling-debug-logging)
+  - [Collecting Logs](#collecting-logs)
 - [Getting Help](#getting-help)
 
 ---
@@ -1012,7 +1014,86 @@ reboot
 
 ## Gathering Diagnostic Information
 
-When reporting issues, gather this information:
+When reporting issues, gather this information. **Most importantly, enable debug logging first** so the logs contain enough detail to diagnose the problem.
+
+### Enabling Debug Logging
+
+By default, HelixScreen only logs warnings and errors. To capture useful diagnostic information, you need to temporarily enable debug-level logging (`-vv`), reproduce the problem, then collect the logs.
+
+**Verbosity levels:**
+| Flag | Level | What it captures |
+|------|-------|-----------------|
+| *(none)* | WARN | Errors and warnings only (production default) |
+| `-v` | INFO | Connection events, panel changes, milestones |
+| `-vv` | DEBUG | State changes, API calls, component init (**use this for bug reports**) |
+| `-vvv` | TRACE | Everything including LVGL internals (very verbose, rarely needed) |
+
+#### MainsailOS / Raspberry Pi (systemd)
+
+**Option A: Temporary override (recommended)**
+```bash
+# Create a service override that adds debug logging
+sudo systemctl edit --force helixscreen
+```
+
+Add these lines (replace the path with your actual install location):
+```ini
+[Service]
+ExecStart=
+ExecStart=/home/biqu/helixscreen/bin/helix-launcher.sh --debug
+```
+
+Then restart:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart helixscreen
+```
+
+**Option B: One-shot manual run**
+
+Stop the service and run manually with console output:
+```bash
+sudo systemctl stop helixscreen
+cd ~/helixscreen   # or /opt/helixscreen
+sudo ./bin/helix-launcher.sh --debug --log-dest=console
+# Reproduce the issue, then Ctrl+C to stop
+```
+
+**Option C: Environment variable**
+
+Add to the service file:
+```ini
+[Service]
+Environment="HELIX_DEBUG=1"
+```
+
+#### Adventurer 5M / Forge-X (SysV init)
+
+```bash
+# Stop the running service
+/etc/init.d/S90helixscreen stop   # or S80helixscreen for Klipper Mod
+
+# Run manually with debug output
+cd /opt/helixscreen
+./bin/helix-launcher.sh --debug --log-dest=console 2>&1 | tee /tmp/helix-debug.log
+# Reproduce the issue, then Ctrl+C to stop
+
+# Restart the service normally when done
+/etc/init.d/S90helixscreen start
+```
+
+#### After collecting logs
+
+**Remove the debug override** to restore normal performance:
+
+```bash
+# MainsailOS: remove the override
+sudo systemctl revert helixscreen   # or: sudo rm /etc/systemd/system/helixscreen.service.d/override.conf
+sudo systemctl daemon-reload
+sudo systemctl restart helixscreen
+```
+
+> **Important:** Debug logging increases CPU usage and log volume. Don't leave it enabled in production.
 
 ### System Information
 
@@ -1028,29 +1109,32 @@ cat /proc/cpuinfo | grep Model
 free -h
 ```
 
-### Recent Logs
+### Collecting Logs
 
 **MainsailOS (systemd):**
 ```bash
-# HelixScreen logs (last 100 lines)
-sudo journalctl -u helixscreen -n 100 --no-pager
+# Recent logs (last 200 lines, with timestamps)
+sudo journalctl -u helixscreen -n 200 --no-pager -o short-iso
 
-# With timestamps
-sudo journalctl -u helixscreen -n 100 --no-pager -o short-iso
+# Logs since last restart
+sudo journalctl -u helixscreen --since "$(systemctl show helixscreen --property=ActiveEnterTimestamp --value)" --no-pager
 
-# Errors only
+# Errors only (useful for a quick summary)
 sudo journalctl -u helixscreen -p err --no-pager
+
+# Follow live (while reproducing the issue)
+sudo journalctl -u helixscreen -f
 ```
 
 **Adventurer 5M (SysV init):**
 ```bash
-# HelixScreen logs
+# Full log file
 cat /tmp/helixscreen.log
 
-# Last 100 lines
-tail -100 /tmp/helixscreen.log
+# Last 200 lines
+tail -200 /tmp/helixscreen.log
 
-# Follow live
+# Follow live (while reproducing the issue)
 tail -f /tmp/helixscreen.log
 ```
 
@@ -1098,7 +1182,7 @@ If you can't find a solution, open a GitHub issue with:
 - Steps to reproduce
 
 **Helpful Additions:**
-- Relevant log output (use code blocks)
+- Debug log output ([enable debug logging first](#enabling-debug-logging), then reproduce the issue)
 - Screenshots if visual issue
 - Config file (remove API keys/sensitive data)
 
