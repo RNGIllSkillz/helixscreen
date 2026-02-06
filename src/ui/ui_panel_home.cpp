@@ -1179,6 +1179,13 @@ void HomePanel::check_and_show_idle_runout_modal() {
         return;
     }
 
+    // Verify actual sensor state — callers may trigger this from stale subject values
+    // during discovery races, so always re-check the authoritative sensor state
+    if (!fsm.has_any_runout()) {
+        spdlog::debug("[{}] No actual runout detected - skipping modal", get_name());
+        return;
+    }
+
     // Check suppression logic (AMS without bypass, wizard active, etc.)
     if (!get_runtime_config()->should_show_runout_modal()) {
         spdlog::debug("[{}] Runout modal suppressed by runtime config", get_name());
