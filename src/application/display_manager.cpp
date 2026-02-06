@@ -13,6 +13,10 @@
 
 #include "display_manager.h"
 
+#ifdef HELIX_DISPLAY_FBDEV
+#include "display_backend_fbdev.h"
+#endif
+
 #include "ui_fatal_error.h"
 #include "ui_update_queue.h"
 
@@ -533,6 +537,16 @@ helix::TouchCalibration DisplayManager::get_current_calibration() const {
 
     // Return invalid calibration for non-fbdev backends
     return helix::TouchCalibration{};
+}
+
+bool DisplayManager::needs_touch_calibration() const {
+#ifdef HELIX_DISPLAY_FBDEV
+    if (m_backend && m_backend->type() == DisplayBackendType::FBDEV) {
+        auto* fbdev = static_cast<DisplayBackendFbdev*>(m_backend.get());
+        return fbdev->needs_touch_calibration();
+    }
+#endif
+    return false;
 }
 
 // ============================================================================

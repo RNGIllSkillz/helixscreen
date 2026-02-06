@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <string>
+
 namespace helix {
 
 struct Point {
@@ -52,5 +54,22 @@ bool is_calibration_valid(const TouchCalibration& cal);
 
 /// Maximum reasonable coefficient value for validation
 constexpr float MAX_CALIBRATION_COEFFICIENT = 1000.0f;
+
+/**
+ * @brief Check if a sysfs phys path indicates a USB-connected input device
+ *
+ * USB HID touchscreens (HDMI displays like BTT 5") report mapped coordinates
+ * natively and do not need affine calibration. Only resistive/platform
+ * touchscreens (sun4i_ts on AD5M, etc.) need the calibration wizard.
+ *
+ * USB devices have physical paths like "usb-0000:01:00.0-1.3/input0".
+ * Platform devices have empty phys or paths like "sun4i_ts" without "usb".
+ *
+ * @param phys The sysfs phys string from /sys/class/input/eventN/device/phys
+ * @return true if the device is USB-connected
+ */
+inline bool is_usb_input_phys(const std::string& phys) {
+    return phys.find("usb") != std::string::npos;
+}
 
 } // namespace helix

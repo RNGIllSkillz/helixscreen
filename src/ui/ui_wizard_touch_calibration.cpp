@@ -332,6 +332,15 @@ bool WizardTouchCalibrationStep::should_skip() const {
     return true;
 #endif
 
+    // Skip if touch device doesn't need calibration (e.g., USB HID touchscreen)
+    // USB HID touchscreens (HDMI displays) report mapped coordinates natively
+    DisplayManager* dm = DisplayManager::instance();
+    if (dm && !dm->needs_touch_calibration()) {
+        spdlog::debug("[{}] Skipping: touch device doesn't require calibration (USB HID)",
+                      get_name());
+        return true;
+    }
+
     // Skip if already calibrated
     Config* config = Config::get_instance();
     if (config && config->get<bool>("/input/calibration/valid", false)) {

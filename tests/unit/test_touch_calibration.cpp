@@ -348,3 +348,40 @@ TEST_CASE("TouchCalibration: transform with invalid calibration", "[touch-calibr
     REQUIRE(result.x == raw.x);
     REQUIRE(result.y == raw.y);
 }
+
+// ============================================================================
+// USB Input Device Detection Tests
+// ============================================================================
+
+TEST_CASE("TouchCalibration: USB input phys detection", "[touch-calibration][usb-detect]") {
+    SECTION("typical USB HID touchscreen") {
+        // BTT HDMI touchscreens, Waveshare, etc.
+        REQUIRE(is_usb_input_phys("usb-0000:01:00.0-1.3/input0") == true);
+    }
+
+    SECTION("USB with different bus format") {
+        REQUIRE(is_usb_input_phys("usb-3f980000.usb-1.2/input0") == true);
+    }
+
+    SECTION("platform resistive touchscreen (empty phys)") {
+        // AD5M sun4i_ts has empty phys
+        REQUIRE(is_usb_input_phys("") == false);
+    }
+
+    SECTION("platform resistive touchscreen (named phys)") {
+        REQUIRE(is_usb_input_phys("sun4i_ts") == false);
+    }
+
+    SECTION("I2C capacitive touchscreen") {
+        // Goodix/FocalTech over I2C
+        REQUIRE(is_usb_input_phys("i2c-1/1-005d") == false);
+    }
+
+    SECTION("SPI touchscreen") {
+        REQUIRE(is_usb_input_phys("spi0.0/input0") == false);
+    }
+
+    SECTION("USB composite device with touch") {
+        REQUIRE(is_usb_input_phys("usb-xhci-hcd.0-1/input1") == true);
+    }
+}

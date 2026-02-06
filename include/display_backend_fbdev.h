@@ -114,6 +114,19 @@ class DisplayBackendFbdev : public DisplayBackend {
         return calibration_;
     }
 
+    /**
+     * @brief Check if the detected touch device needs calibration
+     *
+     * USB HID touchscreens (HDMI displays) report mapped coordinates natively
+     * and do not need affine calibration. Only resistive touchscreens (e.g.,
+     * sun4i_ts on AD5M) need the calibration wizard.
+     *
+     * @return true if calibration is needed, false for USB HID devices
+     */
+    bool needs_touch_calibration() const {
+        return needs_calibration_;
+    }
+
   private:
     std::string fb_device_ = "/dev/fb0";
     std::string touch_device_; // Empty = auto-detect
@@ -129,6 +142,9 @@ class DisplayBackendFbdev : public DisplayBackend {
 
     /// Calibration context for touch input (member to avoid memory leak)
     CalibrationContext calibration_context_;
+
+    /// Whether the detected touch device needs calibration (false for USB HID)
+    bool needs_calibration_ = true;
 
     /**
      * @brief Auto-detect touch input device

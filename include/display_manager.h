@@ -253,6 +253,16 @@ class DisplayManager {
      */
     helix::TouchCalibration get_current_calibration() const;
 
+    /**
+     * @brief Check if the touch device needs calibration
+     *
+     * USB HID touchscreens (HDMI displays) report mapped coordinates natively
+     * and don't need calibration. Only resistive/platform touchscreens do.
+     *
+     * @return true if calibration wizard should be offered
+     */
+    bool needs_touch_calibration() const;
+
     // ========================================================================
     // Static Timing Functions (portable across platforms)
     // ========================================================================
