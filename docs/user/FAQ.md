@@ -48,8 +48,7 @@ If you test on a printer not listed above, please let us know your results!
 - Other HDMI displays
 - SPI displays (with proper configuration)
 
-Minimum resolution: 480x320
-Recommended: 800x480 or higher
+Recommended: 800x480 or higher. Smaller displays (480x320) will run but may have layout overlap issues — improved small-screen support is planned.
 
 If you test on hardware not listed above, please let us know your results!
 

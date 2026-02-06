@@ -11,6 +11,7 @@
   <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3"></a>
   <a href="https://lvgl.io/"><img src="https://img.shields.io/badge/LVGL-9.4.0-green.svg" alt="LVGL"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey.svg" alt="Platform">
+  <a href="https://github.com/prestonbrown/helixscreen/releases"><img src="https://img.shields.io/github/v/release/prestonbrown/helixscreen?label=version" alt="Version"></a>
 </p>
 
 Stock touchscreen UIs barely scratch the surface of what Klipper can do—and the good stuff (bed mesh visualization, input shaper graphs, multi-material control) lives in your browser. HelixScreen brings it all to your fingertips.
@@ -19,17 +20,19 @@ Built on LVGL 9's modern declarative XML system, HelixScreen delivers a fast, po
 
 ---
 
-> **Status: Beta — Seeking Testers**
+> **First Public Beta Release — v0.9.3**
 >
-> Core features are complete. We're looking for early adopters to help find edge cases.
+> Core features are complete. This is the first public beta — we're looking for early adopters to help find edge cases.
 >
 > **Tested on:** Voron 2.4 (Raspberry Pi 5), FlashForge Adventurer 5M Pro ([Forge-X](https://github.com/DrA1ex/ff5m) firmware)
 >
-> **Ready to help?** See [Installation](#installation). Issues and feedback welcome!
+> **Creality K1:** Binaries are included in the release but have **not been tested at all**. If you have a K1, we'd love your help verifying it works!
+>
+> **Ready to help?** See [Installation](#installation). Found a bug? [Open an issue](https://github.com/prestonbrown/helixscreen/issues). Have an idea? [Request a feature](https://github.com/prestonbrown/helixscreen/issues/new?labels=enhancement).
 
 ---
 
-**Quick Links:** [Features](#features) · [Screenshots](#screenshots) · [Installation](#installation) · [FAQ](#faq) · [Contributing](docs/DEVELOPMENT.md#contributing) · [Roadmap](docs/ROADMAP.md)
+**Quick Links:** [Features](#features) · [Screenshots](#screenshots) · [Installation](#installation) · [FAQ](#faq) · [Contributing](docs/DEVELOPMENT.md#contributing) · [Roadmap](docs/ROADMAP.md) · [Community](#community)
 
 ---
 
@@ -48,7 +51,7 @@ Built on LVGL 9's modern declarative XML system, HelixScreen delivers a fast, po
 | Disk Size | ~50-80MB | ~60-80MB | ~150-200MB |
 | RAM Usage | ~10MB | ~15-20MB | ~50MB |
 | Reactive Binding | Built-in | Manual | Manual |
-| Status | Beta | Unmaintained | Mature (maintenance) |
+| Status | Beta | Inactive | Mature (maintenance) |
 | Language | C++17 | C | Python 3 |
 
 ## Screenshots
@@ -76,7 +79,7 @@ See [docs/GALLERY.md](docs/GALLERY.md) for all screenshots.
 
 **Integrations** — HelixPrint plugin, power devices, print history, timelapse, exclude objects
 
-**System** — First-run wizard, 30 panels, light/dark themes, responsive 480×320 to 1024×600+
+**System** — First-run wizard, 30 panels, light/dark themes, responsive from 800×480 to 1024×600+ (480×320 is a work-in-progress)
 
 ## Installation
 
@@ -124,6 +127,9 @@ HelixScreen uses LVGL 9's declarative XML—change layouts without recompiling. 
 **Which printers are supported?**
 Any Klipper + Moonraker printer. Currently tested on Voron 2.4, Voron 0.2, FlashForge Adventurer 5M Pro, and Doron Velta. The wizard auto-discovers your printer's capabilities.
 
+**What screen sizes are supported?**
+800×480 and up (including 1024×600) work well. Smaller displays like 480×320 are a work-in-progress — they'll run but may have some layout overlap issues.
+
 **What multi-material systems work?**
 AFC (Box Turtle), Happy Hare (ERCF, 3MS, Tradrack), tool changers, and ValgACE.
 
@@ -158,6 +164,16 @@ See [docs/user/TROUBLESHOOTING.md](docs/user/TROUBLESHOOTING.md) for more soluti
 | [LVGL9 XML Guide](docs/LVGL9_XML_GUIDE.md) | XML syntax reference |
 | [Gallery](docs/GALLERY.md) | All screenshots |
 | [Roadmap](docs/ROADMAP.md) | Feature timeline |
+
+## Community
+
+**Discussion:**
+- [FuriousForging Discord](https://discord.gg/Cg4yas4V) — #mods-and-projects ([jump to HelixScreen topic](https://discord.com/channels/1323351124069191691/1444485365376352276))
+- [VORONDesign Discord](https://discord.gg/voron) — #voc_works ([jump to HelixScreen topic](https://discord.com/channels/460117602945990666/1468467369407156346))
+
+I check in on these when I can, but they aren't official support channels — response times will vary. For reliable tracking of bugs and feature requests, use GitHub Issues.
+
+**Bug Reports & Feature Requests:** [GitHub Issues](https://github.com/prestonbrown/helixscreen/issues) — this is the best way to reach me. Please include your printer model and logs (`helix-screen -vv`) when reporting bugs.
 
 ## License
 
