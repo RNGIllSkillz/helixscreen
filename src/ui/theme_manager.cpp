@@ -493,7 +493,7 @@ static lv_theme_t* theme_init_lvgl(lv_display_t* display, const theme_palette_t*
     helix_theme.color_primary = palette->primary;
     helix_theme.color_secondary = palette->secondary;
 
-    spdlog::debug("[Theme] Initialized HelixScreen theme via ThemeManager");
+    spdlog::trace("[Theme] Initialized HelixScreen theme via ThemeManager");
     return &helix_theme;
 }
 
@@ -546,7 +546,7 @@ static void theme_manager_register_color_pairs(lv_xml_component_scope_t* scope, 
         }
     }
 
-    spdlog::debug("[Theme] Auto-registered {} theme-aware color pairs (dark_mode={})", registered,
+    spdlog::trace("[Theme] Auto-registered {} theme-aware color pairs (dark_mode={})", registered,
                   dark_mode);
 }
 
@@ -596,7 +596,7 @@ static void theme_manager_register_static_constants(lv_xml_component_scope_t* sc
         }
     }
 
-    spdlog::debug("[Theme] Registered {} static colors, {} static px, {} static strings",
+    spdlog::trace("[Theme] Registered {} static colors, {} static px, {} static strings",
                   color_count, px_count, string_count);
 }
 
@@ -671,7 +671,7 @@ void theme_manager_register_responsive_spacing(lv_display_t* display) {
         }
     }
 
-    spdlog::debug("[Theme] Responsive spacing: {} ({}px) - auto-registered {} tokens", size_label,
+    spdlog::trace("[Theme] Responsive spacing: {} ({}px) - auto-registered {} tokens", size_label,
                   greater_res, registered);
 
     // ========================================================================
@@ -710,7 +710,7 @@ void theme_manager_register_responsive_spacing(lv_display_t* display) {
     lv_xml_register_const(scope, "overlay_panel_width", overlay_width_str);
     lv_xml_register_const(scope, "overlay_panel_width_full", overlay_width_full_str);
 
-    spdlog::debug(
+    spdlog::trace(
         "[Theme] Layout: nav_width={}px, gap={}px, overlay_width={}px, overlay_width_full={}px",
         nav_width, gap, overlay_width, overlay_width_full);
 }
@@ -767,7 +767,7 @@ void theme_manager_register_responsive_fonts(lv_display_t* display) {
         }
     }
 
-    spdlog::debug("[Theme] Responsive fonts: {} ({}px) - auto-registered {} tokens", size_label,
+    spdlog::trace("[Theme] Responsive fonts: {} ({}px) - auto-registered {} tokens", size_label,
                   greater_res, registered);
 }
 
@@ -1001,7 +1001,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         }
     }
 
-    spdlog::debug("[Theme] Runtime constants set for {} mode", use_dark_mode ? "dark" : "light");
+    spdlog::trace("[Theme] Runtime constants set for {} mode", use_dark_mode ? "dark" : "light");
 
     // Read responsive font based on current breakpoint
     // NOTE: We read the variant directly because base constants are removed to enable
@@ -1038,7 +1038,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         lv_display_set_theme(display, current_theme);
         spdlog::info("[Theme] Initialized HelixScreen theme: {} mode",
                      use_dark_mode ? "dark" : "light");
-        spdlog::debug("[Theme] Colors: primary={}, screen={}, card={}", mode_palette.primary,
+        spdlog::trace("[Theme] Colors: primary={}, screen={}, card={}", mode_palette.primary,
                       mode_palette.screen_bg, mode_palette.card_bg);
     } else {
         spdlog::error("[Theme] Failed to initialize HelixScreen theme");

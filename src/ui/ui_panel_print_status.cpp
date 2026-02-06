@@ -291,7 +291,7 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    spdlog::info("[{}] Setting up panel...", get_name());
+    spdlog::debug("[{}] Setting up panel...", get_name());
 
     // Panel width is set via XML using #overlay_panel_width_large (same as print_file_detail)
     // Use standard overlay panel setup for header/content/back button
@@ -332,19 +332,19 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
             // Command line takes highest priority
             auto render_mode = static_cast<gcode_viewer_render_mode_t>(config->gcode_render_mode);
             ui_gcode_viewer_set_render_mode(gcode_viewer_, render_mode);
-            spdlog::info("[{}]   ✓ Set G-code render mode: {} (cmdline)", get_name(),
-                         config->gcode_render_mode);
+            spdlog::debug("[{}]   ✓ Set G-code render mode: {} (cmdline)", get_name(),
+                          config->gcode_render_mode);
         } else if (env_mode) {
             // Env var already applied at widget creation - just log
-            spdlog::info("[{}]   ✓ G-code render mode: {} (env var)", get_name(),
-                         ui_gcode_viewer_is_using_2d_mode(gcode_viewer_) ? "2D" : "3D");
+            spdlog::debug("[{}]   ✓ G-code render mode: {} (env var)", get_name(),
+                          ui_gcode_viewer_is_using_2d_mode(gcode_viewer_) ? "2D" : "3D");
         } else {
             // No cmdline or env var - apply saved settings
             int render_mode_val = SettingsManager::instance().get_gcode_render_mode();
             auto render_mode = static_cast<gcode_viewer_render_mode_t>(render_mode_val);
             ui_gcode_viewer_set_render_mode(gcode_viewer_, render_mode);
-            spdlog::info("[{}]   ✓ Set G-code render mode: {} (settings)", get_name(),
-                         render_mode_val);
+            spdlog::debug("[{}]   ✓ Set G-code render mode: {} (settings)", get_name(),
+                          render_mode_val);
         }
 
         // Create and initialize exclude object manager
@@ -460,7 +460,7 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
     // Hide initially - NavigationManager will show when pushed
     lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
 
-    spdlog::info("[{}] Setup complete!", get_name());
+    spdlog::debug("[{}] Setup complete!", get_name());
     return overlay_root_;
 }
 
@@ -1842,7 +1842,7 @@ void PrintStatusPanel::load_gcode_for_viewing(const std::string& filename) {
 
 void PrintStatusPanel::set_temp_control_panel(TempControlPanel* temp_panel) {
     temp_control_panel_ = temp_panel;
-    spdlog::debug("[{}] TempControlPanel reference set", get_name());
+    spdlog::trace("[{}] TempControlPanel reference set", get_name());
 }
 
 void PrintStatusPanel::set_filename(const char* filename) {

@@ -1421,7 +1421,7 @@ void ui_gcode_viewer_set_render_mode(lv_obj_t* obj, gcode_viewer_render_mode_t m
     st->fps_sample_index_ = 0;
 
     const char* mode_names[] = {"AUTO (2D)", "3D", "2D_LAYER"};
-    spdlog::info("[GCode Viewer] Render mode set to {}", mode_names[static_cast<int>(mode)]);
+    spdlog::debug("[GCode Viewer] Render mode set to {}", mode_names[static_cast<int>(mode)]);
 
     // If using 2D mode (AUTO or 2D_LAYER), ensure the 2D renderer is initialized
     if (st->is_using_2d_mode() && st->gcode_file && !st->layer_renderer_2d_) {

@@ -23,7 +23,7 @@ void PrinterVersionsState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterVersionsState] Initializing subjects (register_xml={})", register_xml);
+    spdlog::trace("[PrinterVersionsState] Initializing subjects (register_xml={})", register_xml);
 
     // Initialize string subjects with em dash default
     INIT_SUBJECT_STRING(klipper_version, "—", subjects_, register_xml);
@@ -31,7 +31,7 @@ void PrinterVersionsState::init_subjects(bool register_xml) {
     INIT_SUBJECT_STRING(os_version, "—", subjects_, register_xml);
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterVersionsState] Subjects initialized successfully");
+    spdlog::trace("[PrinterVersionsState] Subjects initialized successfully");
 }
 
 void PrinterVersionsState::deinit_subjects() {

@@ -78,7 +78,7 @@ void AdvancedPanel::init_subjects() {
     // ui_emergency_stop.cpp
 
     subjects_initialized_ = true;
-    spdlog::debug("[{}] Event callbacks registered", get_name());
+    spdlog::trace("[{}] Event callbacks registered", get_name());
 }
 
 void AdvancedPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {

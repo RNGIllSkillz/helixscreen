@@ -22,7 +22,7 @@ void PrinterTemperatureState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterTemperatureState] Initializing subjects (register_xml={})",
+    spdlog::trace("[PrinterTemperatureState] Initializing subjects (register_xml={})",
                   register_xml);
 
     // Temperature subjects (integer, centidegrees for 0.1C resolution)
@@ -33,7 +33,7 @@ void PrinterTemperatureState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(chamber_temp, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterTemperatureState] Subjects initialized successfully");
+    spdlog::trace("[PrinterTemperatureState] Subjects initialized successfully");
 }
 
 void PrinterTemperatureState::deinit_subjects() {

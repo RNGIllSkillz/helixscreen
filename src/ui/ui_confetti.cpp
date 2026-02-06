@@ -334,5 +334,5 @@ void ui_confetti_clear(lv_obj_t* confetti) {
 
 void ui_confetti_init() {
     lv_xml_register_widget("ui_confetti", confetti_xml_create, confetti_apply);
-    spdlog::debug("[Confetti] Registered ui_confetti widget");
+    spdlog::trace("[Confetti] Registered ui_confetti widget");
 }

@@ -41,7 +41,7 @@ PIDCalibrationPanel::PIDCalibrationPanel() {
     std::memset(buf_pid_kd_, 0, sizeof(buf_pid_kd_));
     std::memset(buf_error_message_, 0, sizeof(buf_error_message_));
 
-    spdlog::debug("[PIDCal] Instance created");
+    spdlog::trace("[PIDCal] Instance created");
 }
 
 PIDCalibrationPanel::~PIDCalibrationPanel() {

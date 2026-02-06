@@ -159,7 +159,7 @@ static void on_print_detail_back_clicked(lv_event_t* e) {
 
 PrintSelectPanel::PrintSelectPanel(PrinterState& printer_state, MoonrakerAPI* api)
     : PanelBase(printer_state, api) {
-    spdlog::debug("[{}] Constructed", get_name());
+    spdlog::trace("[{}] Constructed", get_name());
 }
 
 PrintSelectPanel::~PrintSelectPanel() {
@@ -614,7 +614,7 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                 }
             },
             this);
-        spdlog::debug("[{}] Registered observer on connection state for auto-refresh", get_name());
+        spdlog::trace("[{}] Registered observer on connection state for auto-refresh", get_name());
     }
 
     // Register observer on print job state to enable/disable print button
@@ -630,7 +630,7 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                 }
             },
             this);
-        spdlog::debug("[{}] Registered observer on print job state for print button", get_name());
+        spdlog::trace("[{}] Registered observer on print job state for print button", get_name());
     }
 
     // Also observe print_in_progress subject - this fires immediately when Print is tapped
@@ -646,7 +646,7 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                 }
             },
             this);
-        spdlog::debug("[{}] Registered observer on print_in_progress for print button", get_name());
+        spdlog::trace("[{}] Registered observer on print_in_progress for print button", get_name());
     }
 
     // Register observer on helix_plugin_installed to show install prompt when plugin not available
@@ -672,7 +672,7 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                 }
             },
             this);
-        spdlog::debug("[{}] Registered observer on helix_plugin_installed for install prompt",
+        spdlog::trace("[{}] Registered observer on helix_plugin_installed for install prompt",
                       get_name());
     }
 
@@ -682,16 +682,16 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     if (history_manager && !history_observer_) {
         history_observer_ = [this]() {
             // This runs on main thread (PrintHistoryManager uses ui_queue_update)
-            spdlog::debug("[{}] History changed, merging status into file list", get_name());
+            spdlog::trace("[{}] History changed, merging status into file list", get_name());
             merge_history_into_file_list();
             schedule_view_refresh(); // Debounced refresh
         };
         history_manager->add_observer(&history_observer_);
-        spdlog::debug("[{}] Registered observer on PrintHistoryManager for history updates",
+        spdlog::trace("[{}] Registered observer on PrintHistoryManager for history updates",
                       get_name());
     }
 
-    spdlog::debug("[{}] Setup complete", get_name());
+    spdlog::trace("[{}] Setup complete", get_name());
 }
 
 // ============================================================================
@@ -775,7 +775,7 @@ void PrintSelectPanel::refresh_files() {
     }
 
     if (!file_provider_->is_ready()) {
-        spdlog::debug("[{}] Cannot refresh files: not connected", get_name());
+        spdlog::trace("[{}] Cannot refresh files: not connected", get_name());
         return;
     }
 
@@ -869,7 +869,7 @@ void PrintSelectPanel::fetch_metadata_range(size_t start, size_t end) {
     }
 
     if (fetch_count > 0) {
-        spdlog::debug("[{}] fetch_metadata_range({}, {}): started {} metadata requests", get_name(),
+        spdlog::trace("[{}] fetch_metadata_range({}, {}): started {} metadata requests", get_name(),
                       start, end, fetch_count);
     }
 }
@@ -1211,7 +1211,7 @@ void PrintSelectPanel::check_moonraker_usb_symlink() {
         return;
     }
 
-    spdlog::debug("[{}] Checking if Moonraker has USB symlink access...", get_name());
+    spdlog::trace("[{}] Checking if Moonraker has USB symlink access...", get_name());
 
     // Query Moonraker for files in the "usb" directory
     // If it exists and has files, Klipper's mod has created a symlink
@@ -1228,7 +1228,7 @@ void PrintSelectPanel::check_moonraker_usb_symlink() {
                     self->usb_source_->set_moonraker_has_usb_access(true);
                 }
             } else {
-                spdlog::debug("[{}] Moonraker USB path exists but empty - symlink likely active",
+                spdlog::trace("[{}] Moonraker USB path exists but empty - symlink likely active",
                               self->get_name());
                 // Even an empty usb/ directory suggests symlink is set up
                 if (self->usb_source_) {
@@ -1403,7 +1403,7 @@ void PrintSelectPanel::show_delete_confirmation() {
 
 void PrintSelectPanel::set_print_status_panel(lv_obj_t* panel) {
     print_status_panel_widget_ = panel;
-    spdlog::debug("[{}] Print status panel reference set", get_name());
+    spdlog::trace("[{}] Print status panel reference set", get_name());
 }
 
 // ============================================================================
@@ -1562,14 +1562,14 @@ void PrintSelectPanel::populate_card_view(bool preserve_scroll) {
     if (!card_view_ || !card_view_container_)
         return;
 
-    spdlog::debug("[{}] populate_card_view() with {} files (virtualized, preserve_scroll={})",
+    spdlog::trace("[{}] populate_card_view() with {} files (virtualized, preserve_scroll={})",
                   get_name(), file_list_.size(), preserve_scroll);
 
     // Delegate to extracted card view module
     CardDimensions dims = calculate_card_dimensions();
     card_view_->populate(file_list_, dims, preserve_scroll);
 
-    spdlog::debug("[{}] Card view populated with {} files", get_name(), file_list_.size());
+    spdlog::trace("[{}] Card view populated with {} files", get_name(), file_list_.size());
 }
 
 void PrintSelectPanel::animate_view_entrance(lv_obj_t* container) {
@@ -1636,7 +1636,7 @@ void PrintSelectPanel::merge_history_into_file_list() {
 
     // Trigger fetch if history not loaded yet
     if (!history_manager->is_loaded()) {
-        spdlog::debug("[{}] History not loaded, triggering fetch", get_name());
+        spdlog::trace("[{}] History not loaded, triggering fetch", get_name());
         history_manager->fetch();
     }
 
@@ -1657,7 +1657,7 @@ void PrintSelectPanel::merge_history_into_file_list() {
     helix::ui::PrintSelectHistoryIntegration::merge_history_into_files(
         file_list_, history_manager->get_filename_stats(), current_print_filename);
 
-    spdlog::debug("[{}] Merged history status for {} files", get_name(), file_list_.size());
+    spdlog::trace("[{}] Merged history status for {} files", get_name(), file_list_.size());
 }
 
 void PrintSelectPanel::update_empty_state() {
@@ -1694,7 +1694,7 @@ void PrintSelectPanel::update_print_button_state() {
         if (auto* prep_mgr = detail_view_->get_prep_manager()) {
             if (prep_mgr->is_macro_analysis_in_progress()) {
                 can_print = false;
-                spdlog::debug("[{}] Print button disabled: macro analysis in progress", get_name());
+                spdlog::trace("[{}] Print button disabled: macro analysis in progress", get_name());
             }
         }
     }
@@ -1704,7 +1704,7 @@ void PrintSelectPanel::update_print_button_state() {
     // Only update if value changed (avoid unnecessary subject notifications)
     if (lv_subject_get_int(&can_print_subject_) != new_value) {
         lv_subject_set_int(&can_print_subject_, new_value);
-        spdlog::debug("[{}] Print button {} (can_start_new_print={})", get_name(),
+        spdlog::trace("[{}] Print button {} (can_start_new_print={})", get_name(),
                       can_print ? "enabled" : "disabled", can_print);
     }
 }
@@ -1726,7 +1726,7 @@ void PrintSelectPanel::update_preprint_steps_subject() {
     lv_subject_copy_string(&selected_preprint_steps_subject_, steps.c_str());
     lv_subject_set_int(&selected_preprint_steps_visible_subject_, steps.empty() ? 0 : 1);
 
-    spdlog::debug("[{}] Updated preprint steps (visible: {}): {}", get_name(), !steps.empty(),
+    spdlog::trace("[{}] Updated preprint steps (visible: {}): {}", get_name(), !steps.empty(),
                   steps.empty() ? "(empty)" : steps);
 }
 
@@ -2109,7 +2109,7 @@ void PrintSelectPanel::set_usb_manager(UsbManager* manager) {
     if (usb_source_) {
         usb_source_->set_usb_manager(manager);
     }
-    spdlog::debug("[{}] UsbManager set", get_name());
+    spdlog::trace("[{}] UsbManager set", get_name());
 }
 
 void PrintSelectPanel::on_usb_drive_inserted() {

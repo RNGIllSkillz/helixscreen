@@ -52,19 +52,19 @@ static void ui_switch_init_size_presets() {
         SIZE_SMALL = {40, 20, 1, 5, 5};
         SIZE_MEDIUM = {48, 24, 2, 6, 6};
         SIZE_LARGE = {56, 28, 2, 7, 7};
-        spdlog::debug("[Switch] Initialized SMALL screen presets (greater_res={}px)", greater_res);
+        spdlog::trace("[Switch] Initialized SMALL screen presets (greater_res={}px)", greater_res);
     } else if (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) { // 481-800: 800x480
         SIZE_TINY = {48, 24, 2, 6, 6};
         SIZE_SMALL = {64, 32, 2, 8, 8};
         SIZE_MEDIUM = {80, 40, 3, 10, 10};
         SIZE_LARGE = {88, 44, 3, 11, 11};
-        spdlog::debug("[Switch] Initialized MEDIUM screen presets (greater_res={}px)", greater_res);
+        spdlog::trace("[Switch] Initialized MEDIUM screen presets (greater_res={}px)", greater_res);
     } else { // >800: 1024x600+
         SIZE_TINY = {64, 32, 2, 8, 8};
         SIZE_SMALL = {88, 40, 3, 10, 10};
         SIZE_MEDIUM = {112, 48, 4, 12, 12};
         SIZE_LARGE = {128, 56, 4, 14, 14};
-        spdlog::debug("[Switch] Initialized LARGE screen presets (greater_res={}px)", greater_res);
+        spdlog::trace("[Switch] Initialized LARGE screen presets (greater_res={}px)", greater_res);
     }
 }
 
@@ -282,15 +282,15 @@ static void ui_switch_xml_apply(lv_xml_parser_state_t* state, const char** attrs
     // This allows size="medium" width="100" to override just width
     if (explicit_width > 0) {
         lv_obj_set_width(obj, explicit_width);
-        spdlog::debug("[Switch] Explicit width override: {}px", explicit_width);
+        spdlog::trace("[Switch] Explicit width override: {}px", explicit_width);
     }
     if (explicit_height > 0) {
         lv_obj_set_height(obj, explicit_height);
-        spdlog::debug("[Switch] Explicit height override: {}px", explicit_height);
+        spdlog::trace("[Switch] Explicit height override: {}px", explicit_height);
     }
     if (explicit_knob_pad >= 0) {
         lv_obj_set_style_pad_all(obj, explicit_knob_pad, LV_PART_KNOB);
-        spdlog::debug("[Switch] Explicit knob_pad override: {}px", explicit_knob_pad);
+        spdlog::trace("[Switch] Explicit knob_pad override: {}px", explicit_knob_pad);
     }
 
     // Log final state
@@ -305,7 +305,7 @@ static void ui_switch_xml_apply(lv_xml_parser_state_t* state, const char** attrs
  * Call this BEFORE registering XML components that use switches
  */
 void ui_switch_register_responsive_constants() {
-    spdlog::debug("[Switch] Registering responsive constants");
+    spdlog::trace("[Switch] Registering responsive constants");
 
     // Use custom breakpoints optimized for our hardware: max(hor_res, ver_res)
     lv_display_t* display = lv_display_get_default();
@@ -348,7 +348,7 @@ void ui_switch_register_responsive_constants() {
         switch_width_large = "56";
         knob_pad_large = "2";
 
-        spdlog::debug("[Switch] Screen: SMALL (greater_res={}px), switch: {}x{}, row: {}px",
+        spdlog::trace("[Switch] Screen: SMALL (greater_res={}px), switch: {}x{}, row: {}px",
                       greater_res, switch_width, switch_height, row_height);
     } else if (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) { // 481-800: 800x480
         switch_height = "28";
@@ -364,7 +364,7 @@ void ui_switch_register_responsive_constants() {
         switch_width_large = "88";
         knob_pad_large = "3";
 
-        spdlog::debug("[Switch] Screen: MEDIUM (greater_res={}px), switch: {}x{}, row: {}px",
+        spdlog::trace("[Switch] Screen: MEDIUM (greater_res={}px), switch: {}x{}, row: {}px",
                       greater_res, switch_width, switch_height, row_height);
     } else { // >800: 1024x600+
         // Switch: 44px height, 88px width
@@ -383,8 +383,8 @@ void ui_switch_register_responsive_constants() {
         switch_width_large = "112";
         knob_pad_large = "4";
 
-        spdlog::info("[Switch] Screen: LARGE (greater_res={}px), switch: {}x{}, row: {}px",
-                     greater_res, switch_width, switch_height, row_height);
+        spdlog::trace("[Switch] Screen: LARGE (greater_res={}px), switch: {}x{}, row: {}px",
+                      greater_res, switch_width, switch_height, row_height);
     }
 
     // Get globals scope for constant registration

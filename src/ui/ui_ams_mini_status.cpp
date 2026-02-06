@@ -403,7 +403,7 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
         spdlog::debug("[AmsMiniStatus] Auto-bound to AmsState slots_version subject");
     }
 
-    spdlog::debug("[AmsMiniStatus] Created (height={})", height);
+    spdlog::trace("[AmsMiniStatus] Created (height={})", height);
     return container;
 }
 
@@ -632,7 +632,7 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
         }
     }
 
-    spdlog::debug("[AmsMiniStatus] Created via XML (responsive height)");
+    spdlog::trace("[AmsMiniStatus] Created via XML (responsive height)");
     return container;
 }
 
@@ -647,5 +647,5 @@ static void ui_ams_mini_status_xml_apply(lv_xml_parser_state_t* state, const cha
 void ui_ams_mini_status_init(void) {
     lv_xml_register_widget("ams_mini_status", ui_ams_mini_status_xml_create,
                            ui_ams_mini_status_xml_apply);
-    spdlog::debug("[AmsMiniStatus] Registered ams_mini_status XML widget");
+    spdlog::trace("[AmsMiniStatus] Registered ams_mini_status XML widget");
 }

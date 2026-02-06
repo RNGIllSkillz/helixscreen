@@ -776,7 +776,7 @@ void modal_init_subjects() {
         return;
     }
 
-    spdlog::debug("[Modal] Initializing modal dialog subjects");
+    spdlog::trace("[Modal] Initializing modal dialog subjects");
 
     // Initialize and register subjects with SubjectManager for automatic cleanup
     UI_MANAGED_SUBJECT_INT(g_dialog_severity, static_cast<int>(ModalSeverity::Info),
@@ -794,7 +794,7 @@ void modal_init_subjects() {
     lv_xml_register_event_cb(nullptr, "on_print_complete_ok", static_modal_close_cb);
 
     g_subjects_initialized = true;
-    spdlog::debug("[Modal] Modal dialog subjects registered");
+    spdlog::trace("[Modal] Modal dialog subjects registered");
 }
 
 void ui_modal_deinit_subjects() {

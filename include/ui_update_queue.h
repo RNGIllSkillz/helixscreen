@@ -95,7 +95,7 @@ class UpdateQueue {
         }
 
         initialized_ = true;
-        spdlog::info("[UpdateQueue] Initialized - timer created for queue drain");
+        spdlog::debug("[UpdateQueue] Initialized - timer created for queue drain");
     }
 
     /**

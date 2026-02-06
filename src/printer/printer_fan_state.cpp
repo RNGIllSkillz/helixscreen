@@ -37,14 +37,14 @@ void PrinterFanState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterFanState] Initializing subjects (register_xml={})", register_xml);
+    spdlog::trace("[PrinterFanState] Initializing subjects (register_xml={})", register_xml);
 
     // Fan subjects
     INIT_SUBJECT_INT(fan_speed, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(fans_version, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterFanState] Subjects initialized successfully");
+    spdlog::trace("[PrinterFanState] Subjects initialized successfully");
 }
 
 void PrinterFanState::deinit_subjects() {
@@ -184,7 +184,7 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
         role_display_names_[roles_.exhaust_fan] = "Exhaust Fan";
     }
 
-    spdlog::debug("[PrinterFanState] Fan role config: part='{}' hotend='{}' chamber='{}' "
+    spdlog::trace("[PrinterFanState] Fan role config: part='{}' hotend='{}' chamber='{}' "
                   "exhaust='{}' ({} display overrides)",
                   roles_.part_fan, roles_.hotend_fan, roles_.chamber_fan, roles_.exhaust_fan,
                   role_display_names_.size());
@@ -209,7 +209,7 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
         info.is_controllable = is_fan_controllable(info.type);
         info.speed_percent = 0;
 
-        spdlog::debug("[PrinterFanState] Registered fan: {} -> \"{}\" (type={}, controllable={})",
+        spdlog::trace("[PrinterFanState] Registered fan: {} -> \"{}\" (type={}, controllable={})",
                       obj_name, info.display_name, static_cast<int>(info.type),
                       info.is_controllable);
         fans_.push_back(std::move(info));
@@ -218,7 +218,7 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
         auto subject_ptr = std::make_unique<lv_subject_t>();
         lv_subject_init_int(subject_ptr.get(), 0);
         fan_speed_subjects_.emplace(obj_name, std::move(subject_ptr));
-        spdlog::debug("[PrinterFanState] Created speed subject for fan: {}", obj_name);
+        spdlog::trace("[PrinterFanState] Created speed subject for fan: {}", obj_name);
     }
 
     // Initialize and bump version to notify UI

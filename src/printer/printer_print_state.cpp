@@ -39,7 +39,7 @@ void PrinterPrintState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterPrintState] Initializing subjects (register_xml={})", register_xml);
+    spdlog::trace("[PrinterPrintState] Initializing subjects (register_xml={})", register_xml);
 
     // Print progress subjects
     INIT_SUBJECT_INT(print_progress, 0, subjects_, register_xml);
@@ -71,7 +71,7 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(print_in_progress, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterPrintState] Subjects initialized successfully");
+    spdlog::trace("[PrinterPrintState] Subjects initialized successfully");
 }
 
 void PrinterPrintState::deinit_subjects() {

@@ -26,7 +26,7 @@ void init_active_print_media_manager() {
         return;
     }
     g_instance = std::make_unique<ActivePrintMediaManager>(::get_printer_state());
-    spdlog::info("[ActivePrintMediaManager] Initialized");
+    spdlog::debug("[ActivePrintMediaManager] Initialized");
 }
 
 ActivePrintMediaManager& get_active_print_media_manager() {

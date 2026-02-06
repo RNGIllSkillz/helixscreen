@@ -702,8 +702,8 @@ ui_temp_graph_t* ui_temp_graph_create(lv_obj_t* parent) {
         graph->theme_observer = lv_subject_add_observer(theme_subject, theme_change_cb, graph);
     }
 
-    spdlog::info("[TempGraph] Created: {} points, {:.0f}-{:.0f}°C range", graph->point_count,
-                 graph->min_temp, graph->max_temp);
+    spdlog::debug("[TempGraph] Created: {} points, {:.0f}-{:.0f}°C range", graph->point_count,
+                  graph->min_temp, graph->max_temp);
 
     // Transfer ownership to caller
     return graph_ptr.release();

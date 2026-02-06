@@ -52,7 +52,7 @@ class BacklightBackendNone : public BacklightBackend {
   public:
     explicit BacklightBackendNone(bool simulate) : simulate_(simulate), cached_brightness_(50) {
         if (simulate_) {
-            spdlog::info("[Backlight] Using simulated backend for testing");
+            spdlog::debug("[Backlight] Using simulated backend for testing");
         }
     }
 

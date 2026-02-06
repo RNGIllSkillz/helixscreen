@@ -259,5 +259,5 @@ static void ui_spinner_apply(lv_xml_parser_state_t* state, const char** attrs) {
 
 void ui_spinner_init() {
     lv_xml_register_widget("spinner", ui_spinner_create, ui_spinner_apply);
-    spdlog::debug("[ui_spinner] Registered Material Design spinner widget");
+    spdlog::trace("[ui_spinner] Registered Material Design spinner widget");
 }

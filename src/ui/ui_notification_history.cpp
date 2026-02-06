@@ -269,7 +269,7 @@ void NotificationHistory::seed_test_data() {
     warning2_entry.was_read = false;
     add(warning2_entry);
 
-    spdlog::info("[Notification History] Seeded {} test notifications", 5);
+    spdlog::debug("[Notification History] Seeded {} test notifications", 5);
 }
 
 bool NotificationHistory::load_from_disk(const char* path) {

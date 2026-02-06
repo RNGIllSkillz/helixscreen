@@ -140,7 +140,7 @@ void UsbBackendMock::simulate_drive_insert(const UsbDrive& drive) {
 
         drives_.push_back(drive);
         callback_copy = event_callback_;
-        spdlog::info("[UsbBackendMock] Drive inserted: {} ({})", drive.label, drive.mount_path);
+        spdlog::debug("[UsbBackendMock] Drive inserted: {} ({})", drive.label, drive.mount_path);
     }
 
     // Fire callback outside lock to avoid deadlock
@@ -217,5 +217,5 @@ void UsbBackendMock::add_demo_drives() {
 
     set_mock_files(demo_drive.mount_path, demo_files);
 
-    spdlog::info("[UsbBackendMock] Added demo drive with {} files", demo_files.size());
+    spdlog::debug("[UsbBackendMock] Added demo drive with {} files", demo_files.size());
 }

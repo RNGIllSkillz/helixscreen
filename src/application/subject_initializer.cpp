@@ -115,7 +115,7 @@ void SubjectInitializer::init_post(const RuntimeConfig& runtime_config) {
     init_usb_manager(runtime_config);
 
     m_initialized = true;
-    spdlog::info("[SubjectInitializer] Initialized {} observer guards", m_observers.size());
+    spdlog::debug("[SubjectInitializer] Initialized {} observer guards", m_observers.size());
 }
 
 void SubjectInitializer::init_core_subjects() {
@@ -326,8 +326,8 @@ void SubjectInitializer::init_usb_manager(const RuntimeConfig& runtime_config) {
 
     m_usb_manager = std::make_unique<UsbManager>(runtime_config.should_mock_usb());
     if (m_usb_manager->start()) {
-        spdlog::info("[SubjectInitializer] USB Manager started (mock={})",
-                     runtime_config.should_mock_usb());
+        spdlog::debug("[SubjectInitializer] USB Manager started (mock={})",
+                      runtime_config.should_mock_usb());
         if (m_print_select_panel) {
             m_print_select_panel->set_usb_manager(m_usb_manager.get());
         }

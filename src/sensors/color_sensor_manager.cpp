@@ -205,8 +205,8 @@ void ColorSensorManager::update_from_status(const nlohmann::json& status) {
 }
 
 void ColorSensorManager::inject_mock_sensors(std::vector<std::string>& /*objects*/,
-                                              nlohmann::json& /*config_keys*/,
-                                              nlohmann::json& moonraker_info) {
+                                             nlohmann::json& /*config_keys*/,
+                                             nlohmann::json& moonraker_info) {
     // Color sensors (TD-1) are discovered from Moonraker info
     moonraker_info["components"]["td1_sensor"] = nlohmann::json::array({"default"});
     spdlog::debug("[ColorSensorManager] Injected mock sensors: td1_sensor default");
@@ -293,7 +293,7 @@ void ColorSensorManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(sensor_count_, 0, "color_sensor_count", subjects_);
 
     subjects_initialized_ = true;
-    spdlog::info("[ColorSensorManager] Subjects initialized");
+    spdlog::debug("[ColorSensorManager] Subjects initialized");
 }
 
 void ColorSensorManager::deinit_subjects() {

@@ -283,7 +283,7 @@ AmsError AmsBackendMock::start() {
 
         running_ = true;
         should_emit = true;
-        spdlog::info("[AmsBackendMock] Started");
+        spdlog::debug("[AmsBackendMock] Started");
     }
 
     // Emit initial state event OUTSIDE the lock to avoid deadlock

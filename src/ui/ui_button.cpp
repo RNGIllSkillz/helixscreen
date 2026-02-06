@@ -617,5 +617,5 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
 
 void ui_button_init() {
     lv_xml_register_widget("ui_button", ui_button_create, ui_button_apply);
-    spdlog::debug("[ui_button] Registered semantic button widget");
+    spdlog::trace("[ui_button] Registered semantic button widget");
 }

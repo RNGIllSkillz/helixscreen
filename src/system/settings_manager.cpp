@@ -133,7 +133,7 @@ void SettingsManager::init_subjects() {
     int brightness = config->get<int>("/brightness", 50);
     brightness = std::clamp(brightness, 10, 100);
     UI_MANAGED_SUBJECT_INT(brightness_subject_, brightness, "settings_brightness", subjects_);
-    spdlog::info("[SettingsManager] Brightness initialized to {}%", brightness);
+    spdlog::debug("[SettingsManager] Brightness initialized to {}%", brightness);
 
     // Has backlight control subject (for UI visibility) - check DisplayManager
     bool has_backlight = false;
@@ -203,14 +203,14 @@ void SettingsManager::init_subjects() {
     std::string lang_code = config->get_language();
     int lang_index = language_code_to_index(lang_code);
     UI_MANAGED_SUBJECT_INT(language_subject_, lang_index, "settings_language", subjects_);
-    spdlog::info("[SettingsManager] Language initialized to {} (index {})", lang_code, lang_index);
+    spdlog::debug("[SettingsManager] Language initialized to {} (index {})", lang_code, lang_index);
 
     subjects_initialized_ = true;
-    spdlog::info("[SettingsManager] Subjects initialized: dark_mode={}, theme={}, "
-                 "dim={}s, sleep={}s, sounds={}, "
-                 "completion_alert_mode={}, scroll_throw={}, scroll_limit={}, animations={}",
-                 dark_mode, get_theme_name(), dim_sec, sleep_sec, sounds, completion_mode,
-                 scroll_throw, scroll_limit, animations);
+    spdlog::debug("[SettingsManager] Subjects initialized: dark_mode={}, theme={}, "
+                  "dim={}s, sleep={}s, sounds={}, "
+                  "completion_alert_mode={}, scroll_throw={}, scroll_limit={}, animations={}",
+                  dark_mode, get_theme_name(), dim_sec, sleep_sec, sounds, completion_mode,
+                  scroll_throw, scroll_limit, animations);
 }
 
 void SettingsManager::deinit_subjects() {
@@ -287,7 +287,7 @@ void SettingsManager::on_theme_changed() {
     if (supports_dark && supports_light) {
         // Dual-mode theme - enable toggle
         lv_subject_set_int(&dark_mode_available_subject_, 1);
-        spdlog::debug("[SettingsManager] Theme supports both modes, toggle enabled");
+        spdlog::trace("[SettingsManager] Theme supports both modes, toggle enabled");
     } else if (supports_dark) {
         // Dark-only theme - disable toggle, force dark mode
         lv_subject_set_int(&dark_mode_available_subject_, 0);

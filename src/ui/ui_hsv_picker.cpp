@@ -474,7 +474,7 @@ static void ui_hsv_picker_xml_apply(lv_xml_parser_state_t* state, const char** a
 
 void ui_hsv_picker_register() {
     lv_xml_register_widget("ui_hsv_picker", ui_hsv_picker_xml_create, ui_hsv_picker_xml_apply);
-    spdlog::debug("[HsvPicker] Registered <ui_hsv_picker> widget");
+    spdlog::trace("[HsvPicker] Registered <ui_hsv_picker> widget");
 }
 
 void ui_hsv_picker_set_color_rgb(lv_obj_t* obj, uint32_t rgb) {

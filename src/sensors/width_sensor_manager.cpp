@@ -253,7 +253,7 @@ void WidthSensorManager::init_subjects() {
                               subjects_);
 
     subjects_initialized_ = true;
-    spdlog::info("[WidthSensorManager] Subjects initialized");
+    spdlog::debug("[WidthSensorManager] Subjects initialized");
 }
 
 void WidthSensorManager::deinit_subjects() {

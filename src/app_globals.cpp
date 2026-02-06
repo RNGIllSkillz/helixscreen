@@ -129,7 +129,7 @@ void app_globals_init_subjects() {
     ui_modal_init_subjects();
 
     g_subjects_initialized = true;
-    spdlog::debug("[App Globals] Global subjects initialized");
+    spdlog::trace("[App Globals] Global subjects initialized");
 }
 
 void app_globals_deinit_subjects() {

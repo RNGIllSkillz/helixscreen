@@ -24,7 +24,7 @@ void PrinterCompositeVisibilityState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterCompositeVisibilityState] Initializing subjects (register_xml={})",
+    spdlog::trace("[PrinterCompositeVisibilityState] Initializing subjects (register_xml={})",
                   register_xml);
 
     // Composite visibility subjects - all initialize to 0 (hidden by default)
@@ -36,7 +36,7 @@ void PrinterCompositeVisibilityState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(can_show_purge_line, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterCompositeVisibilityState] Subjects initialized successfully");
+    spdlog::trace("[PrinterCompositeVisibilityState] Subjects initialized successfully");
 }
 
 void PrinterCompositeVisibilityState::deinit_subjects() {

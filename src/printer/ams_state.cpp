@@ -256,8 +256,8 @@ void AmsState::init_subjects(bool register_xml) {
             backend->start();
             set_backend(std::move(backend));
             sync_from_backend();
-            spdlog::info("[AMS State] Backend initialized via factory ({} slots)",
-                         lv_subject_get_int(&ams_slot_count_));
+            spdlog::debug("[AMS State] Backend initialized via factory ({} slots)",
+                          lv_subject_get_int(&ams_slot_count_));
         }
     }
 
@@ -376,7 +376,8 @@ void AmsState::set_backend(std::unique_ptr<AmsBackend> backend) {
             on_backend_event(event, data);
         });
 
-        spdlog::info("[AMS State] Backend set (type={})", ams_type_to_string(backend_->get_type()));
+        spdlog::debug("[AMS State] Backend set (type={})",
+                      ams_type_to_string(backend_->get_type()));
     }
 }
 

@@ -384,7 +384,7 @@ static void spool_canvas_xml_apply(lv_xml_parser_state_t* state, const char** at
 
 void ui_spool_canvas_register(void) {
     lv_xml_register_widget("spool_canvas", spool_canvas_xml_create, spool_canvas_xml_apply);
-    spdlog::info("[SpoolCanvas] Registered spool_canvas widget with XML system");
+    spdlog::debug("[SpoolCanvas] Registered spool_canvas widget with XML system");
 }
 
 lv_obj_t* ui_spool_canvas_create(lv_obj_t* parent, int32_t size) {

@@ -108,7 +108,7 @@ std::string get_prerendered_printer_path(const std::string& printer_name, int sc
         return "A:" + path;
     }
 
-    spdlog::debug("[Prerendered] Printer {} fallback to PNG (no {}px)", printer_name, size);
+    spdlog::trace("[Prerendered] Printer {} fallback to PNG (no {}px)", printer_name, size);
     return "A:assets/images/printers/" + printer_name + ".png";
 }
 
@@ -125,7 +125,7 @@ std::string get_prerendered_placeholder_path(const std::string& placeholder_name
 
     // Fallback to original PNG
     std::string png_path = "assets/images/" + placeholder_name + ".png";
-    spdlog::debug("[Prerendered] Placeholder fallback to PNG: {}", png_path);
+    spdlog::trace("[Prerendered] Placeholder fallback to PNG: {}", png_path);
     return "A:" + png_path;
 }
 

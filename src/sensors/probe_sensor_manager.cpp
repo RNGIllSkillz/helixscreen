@@ -164,8 +164,8 @@ void ProbeSensorManager::update_from_status(const nlohmann::json& status) {
 }
 
 void ProbeSensorManager::inject_mock_sensors(std::vector<std::string>& objects,
-                                              nlohmann::json& /*config_keys*/,
-                                              nlohmann::json& /*moonraker_info*/) {
+                                             nlohmann::json& /*config_keys*/,
+                                             nlohmann::json& /*moonraker_info*/) {
     // Probe sensors are discovered from Klipper objects
     objects.emplace_back("probe");
     spdlog::debug("[ProbeSensorManager] Injected mock sensors: probe");
@@ -252,7 +252,7 @@ void ProbeSensorManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(sensor_count_, 0, "probe_count", subjects_);
 
     subjects_initialized_ = true;
-    spdlog::info("[ProbeSensorManager] Subjects initialized");
+    spdlog::debug("[ProbeSensorManager] Subjects initialized");
 }
 
 void ProbeSensorManager::deinit_subjects() {

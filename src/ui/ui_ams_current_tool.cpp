@@ -116,7 +116,7 @@ void ui_ams_current_tool_init() {
     // Register click callback for XML event_cb [L007]
     lv_xml_register_event_cb(nullptr, "on_ams_current_tool_clicked", on_clicked);
 
-    spdlog::info("[AmsCurrentTool] Callbacks registered");
+    spdlog::debug("[AmsCurrentTool] Callbacks registered");
 }
 
 // Called after lv_xml_create() for ams_current_tool components

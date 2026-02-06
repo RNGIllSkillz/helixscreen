@@ -24,7 +24,7 @@ void PrinterCalibrationState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterCalibrationState] Initializing subjects (register_xml={})",
+    spdlog::trace("[PrinterCalibrationState] Initializing subjects (register_xml={})",
                   register_xml);
 
     // Firmware retraction settings (defaults: disabled)
@@ -42,7 +42,7 @@ void PrinterCalibrationState::init_subjects(bool register_xml) {
                      register_xml); // 1=enabled (Ready/Printing), 0=disabled (Idle)
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterCalibrationState] Subjects initialized successfully");
+    spdlog::trace("[PrinterCalibrationState] Subjects initialized successfully");
 }
 
 void PrinterCalibrationState::deinit_subjects() {

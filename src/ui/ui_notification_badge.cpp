@@ -186,7 +186,7 @@ extern "C" {
 
 void ui_notification_badge_init() {
     lv_xml_register_widget("notification_badge", notification_badge_create, lv_xml_obj_apply);
-    spdlog::debug("[notification_badge] Registered widget");
+    spdlog::trace("[notification_badge] Registered widget");
 }
 
 } // extern "C"

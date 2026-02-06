@@ -37,7 +37,7 @@ void init_global_retraction_settings(MoonrakerClient* client) {
     g_retraction_settings = std::make_unique<RetractionSettingsOverlay>(client);
     StaticPanelRegistry::instance().register_destroy("RetractionSettingsOverlay",
                                                      []() { g_retraction_settings.reset(); });
-    spdlog::debug("[Retraction Settings] RetractionSettingsOverlay initialized");
+    spdlog::trace("[Retraction Settings] RetractionSettingsOverlay initialized");
 }
 
 RetractionSettingsOverlay::RetractionSettingsOverlay(MoonrakerClient* client) : client_(client) {

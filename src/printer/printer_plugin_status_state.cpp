@@ -25,7 +25,7 @@ void PrinterPluginStatusState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterPluginStatusState] Initializing subjects (register_xml={})",
+    spdlog::trace("[PrinterPluginStatusState] Initializing subjects (register_xml={})",
                   register_xml);
 
     // Plugin status subjects use tri-state: -1=unknown, 0=no, 1=yes
@@ -34,7 +34,7 @@ void PrinterPluginStatusState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(phase_tracking_enabled, -1, subjects_, register_xml);
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterPluginStatusState] Subjects initialized successfully");
+    spdlog::trace("[PrinterPluginStatusState] Subjects initialized successfully");
 }
 
 void PrinterPluginStatusState::deinit_subjects() {

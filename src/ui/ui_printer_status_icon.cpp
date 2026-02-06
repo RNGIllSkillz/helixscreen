@@ -30,7 +30,7 @@ void PrinterStatusIcon::init_subjects() {
         return;
     }
 
-    spdlog::debug("[PrinterStatusIcon] Initializing printer icon subjects...");
+    spdlog::trace("[PrinterStatusIcon] Initializing printer icon subjects...");
 
     // Printer starts disconnected (gray)
     UI_MANAGED_SUBJECT_INT(printer_icon_state_subject_,
@@ -38,7 +38,7 @@ void PrinterStatusIcon::init_subjects() {
                            subjects_);
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterStatusIcon] Subjects initialized and registered");
+    spdlog::trace("[PrinterStatusIcon] Subjects initialized and registered");
 }
 
 void PrinterStatusIcon::init() {

@@ -33,7 +33,7 @@ void PrinterNetworkState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterNetworkState] Initializing subjects (register_xml={})", register_xml);
+    spdlog::trace("[PrinterNetworkState] Initializing subjects (register_xml={})", register_xml);
 
     // Printer connection state subjects (Moonraker WebSocket)
     INIT_SUBJECT_INT(printer_connection_state, 0, subjects_, register_xml); // 0 = disconnected
@@ -52,7 +52,7 @@ void PrinterNetworkState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(nav_buttons_enabled, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterNetworkState] Subjects initialized successfully");
+    spdlog::trace("[PrinterNetworkState] Subjects initialized successfully");
 }
 
 void PrinterNetworkState::deinit_subjects() {

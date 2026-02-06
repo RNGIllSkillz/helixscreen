@@ -52,7 +52,7 @@ void InjectionPointManager::register_point(const std::string& point_id, lv_obj_t
     }
 
     points_[point_id] = container;
-    spdlog::info("[InjectionPointManager] Registered injection point: {}", point_id);
+    spdlog::debug("[InjectionPointManager] Registered injection point: {}", point_id);
 }
 
 void InjectionPointManager::unregister_point(const std::string& point_id) {

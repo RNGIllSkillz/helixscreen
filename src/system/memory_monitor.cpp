@@ -87,8 +87,8 @@ void MemoryMonitor::log_now(const char* context) {
     MemoryStats stats = get_current_stats();
 
     if (context) {
-        // Context-based logs go to DEBUG so they're visible with -vv
-        spdlog::debug(
+        // Context-based logs go to TRACE - show 0kB on macOS, only useful on Pi
+        spdlog::trace(
             "[MemoryMonitor] [{}] RSS={}kB VmSize={}kB VmData={}kB Swap={}kB (Peak: RSS={}kB "
             "Vm={}kB)",
             context, stats.vm_rss_kb, stats.vm_size_kb, stats.vm_data_kb, stats.vm_swap_kb,

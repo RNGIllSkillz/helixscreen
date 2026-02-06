@@ -36,7 +36,7 @@ void init_global_timelapse_settings(MoonrakerAPI* api) {
     g_timelapse_settings = std::make_unique<TimelapseSettingsOverlay>(api);
     StaticPanelRegistry::instance().register_destroy("TimelapseSettingsOverlay",
                                                      []() { g_timelapse_settings.reset(); });
-    spdlog::debug("[Timelapse Settings] TimelapseSettingsOverlay initialized");
+    spdlog::trace("[Timelapse Settings] TimelapseSettingsOverlay initialized");
 }
 
 // Framerate mapping

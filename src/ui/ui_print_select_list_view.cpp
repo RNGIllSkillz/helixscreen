@@ -19,7 +19,7 @@ namespace helix::ui {
 // ============================================================================
 
 PrintSelectListView::PrintSelectListView() {
-    spdlog::debug("[PrintSelectListView] Constructed");
+    spdlog::trace("[PrintSelectListView] Constructed");
 }
 
 PrintSelectListView::~PrintSelectListView() {
@@ -80,7 +80,7 @@ bool PrintSelectListView::setup(lv_obj_t* container, FileClickCallback on_file_c
     on_file_click_ = std::move(on_file_click);
     on_metadata_fetch_ = std::move(on_metadata_fetch);
 
-    spdlog::debug("[PrintSelectListView] Setup complete");
+    spdlog::trace("[PrintSelectListView] Setup complete");
     return true;
 }
 

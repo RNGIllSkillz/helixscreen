@@ -269,7 +269,7 @@ void HumiditySensorManager::init_subjects() {
                               "chamber_humidity_text", subjects_);
 
     subjects_initialized_ = true;
-    spdlog::info("[HumiditySensorManager] Subjects initialized");
+    spdlog::debug("[HumiditySensorManager] Subjects initialized");
 }
 
 void HumiditySensorManager::deinit_subjects() {

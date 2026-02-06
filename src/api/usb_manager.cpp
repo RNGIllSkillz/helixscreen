@@ -122,7 +122,7 @@ void UsbManager::on_backend_event(UsbEvent event, const UsbDrive& drive) {
 
     // Log the event
     const char* event_name = (event == UsbEvent::DRIVE_INSERTED) ? "INSERTED" : "REMOVED";
-    spdlog::info("[UsbManager] Drive {}: {} ({})", event_name, drive.label, drive.mount_path);
+    spdlog::debug("[UsbManager] Drive {}: {} ({})", event_name, drive.label, drive.mount_path);
 
     // Fire callback outside lock
     if (callback_copy) {

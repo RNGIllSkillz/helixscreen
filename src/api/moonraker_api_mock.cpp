@@ -28,7 +28,7 @@ const std::vector<std::string> MoonrakerAPIMock::PATH_PREFIXES = {
 
 MoonrakerAPIMock::MoonrakerAPIMock(MoonrakerClient& client, PrinterState& state)
     : MoonrakerAPI(client, state) {
-    spdlog::info("[MoonrakerAPIMock] Created - HTTP methods will use local test files");
+    spdlog::debug("[MoonrakerAPIMock] Created - HTTP methods will use local test files");
     init_mock_spools();
 }
 
@@ -495,7 +495,7 @@ void MockScrewsTiltState::reset() {
         {"rear_left", 30.0f, 200.0f, 0.12f, false}     // Too high: CW ~2.5 turns
     };
 
-    spdlog::info("[MockScrewsTilt] Reset bed to initial out-of-level state");
+    spdlog::debug("[MockScrewsTilt] Reset bed to initial out-of-level state");
 }
 
 std::vector<ScrewTiltResult> MockScrewsTiltState::probe() {

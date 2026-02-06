@@ -34,7 +34,7 @@ void init_fan_control_overlay(PrinterState& printer_state) {
 // ============================================================================
 
 FanControlOverlay::FanControlOverlay(PrinterState& printer_state) : printer_state_(printer_state) {
-    spdlog::debug("[{}] Constructor", get_name());
+    spdlog::trace("[{}] Constructor", get_name());
 }
 
 FanControlOverlay::~FanControlOverlay() {
@@ -64,7 +64,7 @@ void FanControlOverlay::init_subjects() {
     // No local subjects needed - we use PrinterState's fans_version subject
 
     subjects_initialized_ = true;
-    spdlog::debug("[{}] Subjects initialized", get_name());
+    spdlog::trace("[{}] Subjects initialized", get_name());
 }
 
 lv_obj_t* FanControlOverlay::create(lv_obj_t* parent) {
@@ -85,7 +85,7 @@ lv_obj_t* FanControlOverlay::create(lv_obj_t* parent) {
     // Populate fans from current PrinterState
     populate_fans();
 
-    spdlog::debug("[{}] Created overlay with {} animated dials and {} auto fans", get_name(),
+    spdlog::trace("[{}] Created overlay with {} animated dials and {} auto fans", get_name(),
                   animated_fan_dials_.size(), auto_fan_cards_.size());
 
     return overlay_root_;
@@ -93,7 +93,7 @@ lv_obj_t* FanControlOverlay::create(lv_obj_t* parent) {
 
 void FanControlOverlay::register_callbacks() {
     // Back button is handled by overlay_panel base component
-    spdlog::debug("[{}] Callbacks registered", get_name());
+    spdlog::trace("[{}] Callbacks registered", get_name());
 }
 
 void FanControlOverlay::on_activate() {
@@ -120,7 +120,7 @@ void FanControlOverlay::on_activate() {
     // Refresh fan speeds from current state
     update_fan_speeds();
 
-    spdlog::debug("[{}] Activated", get_name());
+    spdlog::trace("[{}] Activated", get_name());
 }
 
 void FanControlOverlay::on_deactivate() {
@@ -178,7 +178,7 @@ void FanControlOverlay::populate_fans() {
 
             animated_fan_dials_.push_back(std::move(afd));
 
-            spdlog::debug("[{}] Created AnimatedFanDial for '{}' ({}%)", get_name(),
+            spdlog::trace("[{}] Created AnimatedFanDial for '{}' ({}%)", get_name(),
                           fan.display_name, fan.speed_percent);
         }
     }
@@ -215,7 +215,7 @@ void FanControlOverlay::populate_fans() {
                 card_info.arc = arc;
                 auto_fan_cards_.push_back(card_info);
 
-                spdlog::debug("[{}] Created fan_status_card for '{}' ({}%)", get_name(),
+                spdlog::trace("[{}] Created fan_status_card for '{}' ({}%)", get_name(),
                               fan.display_name, fan.speed_percent);
             } else {
                 spdlog::error("[{}] Failed to create fan_status_card for '{}'", get_name(),
@@ -224,8 +224,8 @@ void FanControlOverlay::populate_fans() {
         }
     }
 
-    spdlog::info("[{}] Populated {} animated fan dials and {} auto fan cards", get_name(),
-                 animated_fan_dials_.size(), auto_fan_cards_.size());
+    spdlog::trace("[{}] Populated {} animated fan dials and {} auto fan cards", get_name(),
+                  animated_fan_dials_.size(), auto_fan_cards_.size());
 }
 
 void FanControlOverlay::update_fan_speeds() {
@@ -319,7 +319,7 @@ void FanControlOverlay::subscribe_to_fan_speeds() {
         }
     }
 
-    spdlog::debug("[{}] Bound {} animated fan dials, subscribed to {} auto fan subjects",
+    spdlog::trace("[{}] Bound {} animated fan dials, subscribed to {} auto fan subjects",
                   get_name(), animated_fan_dials_.size(), fan_speed_observers_.size());
 }
 

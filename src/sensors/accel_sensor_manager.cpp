@@ -160,8 +160,8 @@ void AccelSensorManager::update_from_status(const nlohmann::json& status) {
 }
 
 void AccelSensorManager::inject_mock_sensors(std::vector<std::string>& /*objects*/,
-                                              nlohmann::json& config_keys,
-                                              nlohmann::json& /*moonraker_info*/) {
+                                             nlohmann::json& config_keys,
+                                             nlohmann::json& /*moonraker_info*/) {
     // Accelerometers are discovered from config keys (configfile.config)
     config_keys["adxl345 bed"] = nlohmann::json::object();
     spdlog::debug("[AccelSensorManager] Injected mock sensors: adxl345 bed");
@@ -246,7 +246,7 @@ void AccelSensorManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(sensor_count_, 0, "accel_count", subjects_);
 
     subjects_initialized_ = true;
-    spdlog::info("[AccelSensorManager] Subjects initialized");
+    spdlog::debug("[AccelSensorManager] Subjects initialized");
 }
 
 void AccelSensorManager::deinit_subjects() {

@@ -183,7 +183,7 @@ void PrinterState::init_subjects(bool register_xml) {
 
     cached_display_ = current_display;
 
-    spdlog::debug("[PrinterState] Initializing subjects (register_xml={})", register_xml);
+    spdlog::trace("[PrinterState] Initializing subjects (register_xml={})", register_xml);
 
     // Initialize temperature state component (extruder and bed temperatures)
     temperature_state_.init_subjects(register_xml);
@@ -260,7 +260,7 @@ void PrinterState::init_subjects(bool register_xml) {
     // motor state subjects are registered by calibration_state_.init_subjects()
     // Note: Version subjects are registered by versions_state_.init_subjects()
 
-    spdlog::debug("[PrinterState] Registered {} subjects with SubjectManager", subjects_.count());
+    spdlog::trace("[PrinterState] Registered {} subjects with SubjectManager", subjects_.count());
 
     // Register all subjects with LVGL XML system (CRITICAL for XML bindings)
     // Note: Temperature subjects are registered by temperature_state_ component
@@ -280,7 +280,7 @@ void PrinterState::init_subjects(bool register_xml) {
     // All component subjects handle their own XML registration in init_subjects(register_xml)
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterState] Subjects initialized and registered successfully");
+    spdlog::trace("[PrinterState] Subjects initialized and registered successfully");
 }
 
 void PrinterState::update_from_notification(const json& notification) {

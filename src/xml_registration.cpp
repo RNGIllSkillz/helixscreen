@@ -86,7 +86,7 @@ static void register_color_picker_responsive_constants() {
 }
 
 void register_xml_components() {
-    spdlog::debug("[XML Registration] Registering XML components...");
+    spdlog::trace("[XML Registration] Registering XML components...");
 
     // Register responsive constants (AFTER globals, BEFORE components that use them)
     ui_switch_register_responsive_constants();
@@ -284,7 +284,7 @@ void register_xml_components() {
     lv_xml_register_component_from_file("A:ui_xml/wizard_language_chooser.xml");
     lv_xml_register_component_from_file("A:ui_xml/wizard_summary.xml");
 
-    spdlog::debug("[XML Registration] XML component registration complete");
+    spdlog::trace("[XML Registration] XML component registration complete");
 }
 
 void deinit_xml_subjects() {

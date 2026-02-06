@@ -1193,9 +1193,9 @@ void TempControlPanel::setup_mini_combined_graph(lv_obj_t* container) {
         ui_temp_graph_set_series_target(mini_graph_, mini_bed_series_id_, target_deg, true);
     }
 
-    spdlog::info("[TempPanel] Mini combined graph created with {} point capacity, "
-                 "registered {} nozzle graphs, {} bed graphs",
-                 MINI_GRAPH_POINTS, nozzle_temp_graphs_.size(), bed_temp_graphs_.size());
+    spdlog::debug("[TempPanel] Mini combined graph created with {} point capacity, "
+                  "registered {} nozzle graphs, {} bed graphs",
+                  MINI_GRAPH_POINTS, nozzle_temp_graphs_.size(), bed_temp_graphs_.size());
 }
 
 void TempControlPanel::replay_history_to_mini_graph() {

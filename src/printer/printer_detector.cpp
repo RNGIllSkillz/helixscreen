@@ -73,8 +73,8 @@ struct PrinterDatabase {
 
             data = json::parse(file);
             loaded_files.push_back("config/printer_database.json");
-            spdlog::info("[PrinterDetector] Loaded bundled printer database version {}",
-                         data.value("version", "unknown"));
+            spdlog::debug("[PrinterDetector] Loaded bundled printer database version {}",
+                          data.value("version", "unknown"));
         } catch (const std::exception& e) {
             NOTIFY_ERROR("Printer database format error");
             LOG_ERROR_INTERNAL("[PrinterDetector] Failed to parse printer database: {}", e.what());

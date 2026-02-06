@@ -97,7 +97,7 @@ void NotificationManager::init_subjects() {
         return;
     }
 
-    spdlog::debug("[NotificationManager] Initializing notification subjects...");
+    spdlog::trace("[NotificationManager] Initializing notification subjects...");
 
     // Initialize all subjects with default values using managed macros
     // Notification badge starts hidden (count = 0)
@@ -108,7 +108,7 @@ void NotificationManager::init_subjects() {
                            "notification_severity", subjects_);
 
     subjects_initialized_ = true;
-    spdlog::debug("[NotificationManager] Subjects initialized and registered");
+    spdlog::trace("[NotificationManager] Subjects initialized and registered");
 }
 
 void NotificationManager::init() {

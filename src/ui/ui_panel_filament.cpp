@@ -277,7 +277,7 @@ void FilamentPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
     // AMS mini status widget is now created declaratively via XML <ams_mini_status/>
 
-    spdlog::info("[{}] Setup complete!", get_name());
+    spdlog::debug("[{}] Setup complete!", get_name());
 }
 
 // ============================================================================
@@ -586,7 +586,7 @@ void FilamentPanel::handle_purge_amount_select(int amount) {
     lv_subject_set_int(&purge_5mm_active_subject_, amount == 5 ? 1 : 0);
     lv_subject_set_int(&purge_10mm_active_subject_, amount == 10 ? 1 : 0);
     lv_subject_set_int(&purge_25mm_active_subject_, amount == 25 ? 1 : 0);
-    spdlog::info("[{}] Purge amount set to {}mm", get_name(), amount);
+    spdlog::debug("[{}] Purge amount set to {}mm", get_name(), amount);
 }
 
 void FilamentPanel::handle_load_button() {
@@ -938,7 +938,8 @@ void FilamentPanel::set_limits(int min_temp, int max_temp, int min_extrude_temp)
         spdlog::info("[{}] Min extrusion temp updated: {}°C", get_name(), min_extrude_temp_);
     }
 
-    spdlog::info("[{}] Nozzle temperature limits updated: {}-{}°C", get_name(), min_temp, max_temp);
+    spdlog::debug("[{}] Nozzle temperature limits updated: {}-{}°C", get_name(), min_temp,
+                  max_temp);
 }
 
 // ============================================================================

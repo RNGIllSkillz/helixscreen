@@ -78,7 +78,7 @@ BedMeshPanel::BedMeshPanel() {
         std::memset(profile_range_bufs_[static_cast<size_t>(i)].data(), 0, 32);
     }
 
-    spdlog::debug("[BedMeshPanel] Instance created");
+    spdlog::trace("[BedMeshPanel] Instance created");
 }
 
 BedMeshPanel::~BedMeshPanel() {

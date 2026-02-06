@@ -23,7 +23,7 @@ void PrinterLedState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterLedState] Initializing subjects (register_xml={})", register_xml);
+    spdlog::trace("[PrinterLedState] Initializing subjects (register_xml={})", register_xml);
 
     // LED state subject (0=off, 1=on, derived from LED color data)
     INIT_SUBJECT_INT(led_state, 0, subjects_, register_xml);
@@ -36,7 +36,7 @@ void PrinterLedState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(led_brightness, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterLedState] Subjects initialized successfully");
+    spdlog::trace("[PrinterLedState] Subjects initialized successfully");
 }
 
 void PrinterLedState::deinit_subjects() {
@@ -123,7 +123,7 @@ void PrinterLedState::reset_for_testing() {
 void PrinterLedState::set_tracked_led(const std::string& led_name) {
     tracked_led_name_ = led_name;
     if (!led_name.empty()) {
-        spdlog::info("[PrinterLedState] Tracking LED: {}", led_name);
+        spdlog::debug("[PrinterLedState] Tracking LED: {}", led_name);
     } else {
         spdlog::debug("[PrinterLedState] LED tracking disabled");
     }

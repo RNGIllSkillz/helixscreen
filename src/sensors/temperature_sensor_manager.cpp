@@ -310,7 +310,7 @@ void TemperatureSensorManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(sensor_count_, 0, "temp_sensor_count", subjects_);
 
     subjects_initialized_ = true;
-    spdlog::info("[TemperatureSensorManager] Subjects initialized");
+    spdlog::debug("[TemperatureSensorManager] Subjects initialized");
 }
 
 void TemperatureSensorManager::deinit_subjects() {

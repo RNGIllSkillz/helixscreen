@@ -29,8 +29,8 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     // Set speedup factor (clamped)
     speedup_factor_.store(std::clamp(speedup_factor, 0.1, 10000.0));
 
-    spdlog::info("[MoonrakerClientMock] Created with printer type: {}, speedup: {}x",
-                 static_cast<int>(type), speedup_factor_.load());
+    spdlog::debug("[MoonrakerClientMock] Created with printer type: {}, speedup: {}x",
+                  static_cast<int>(type), speedup_factor_.load());
 
     // Register method handlers for all RPC domains
     mock_internal::register_file_handlers(method_handlers_);
@@ -144,7 +144,7 @@ MoonrakerClientMock::~MoonrakerClientMock() {
 
 int MoonrakerClientMock::connect(const char* url, std::function<void()> on_connected,
                                  [[maybe_unused]] std::function<void()> on_disconnected) {
-    spdlog::info("[MoonrakerClientMock] Simulating connection to: {}", url ? url : "(null)");
+    spdlog::debug("[MoonrakerClientMock] Simulating connection to: {}", url ? url : "(null)");
 
     // Simulate connection state change (same as real client)
     set_connection_state(ConnectionState::CONNECTING);
@@ -186,7 +186,7 @@ int MoonrakerClientMock::connect(const char* url, std::function<void()> on_conne
 
     // Immediately invoke connection callback
     if (on_connected) {
-        spdlog::info("[MoonrakerClientMock] Simulated connection successful");
+        spdlog::debug("[MoonrakerClientMock] Simulated connection successful");
         on_connected();
     }
 
@@ -427,7 +427,7 @@ void MoonrakerClientMock::rebuild_hardware() {
 
 void MoonrakerClientMock::discover_printer(
     std::function<void()> on_complete, std::function<void(const std::string& reason)> on_error) {
-    spdlog::info("[MoonrakerClientMock] Simulating hardware discovery");
+    spdlog::debug("[MoonrakerClientMock] Simulating hardware discovery");
 
     // Check Klippy state - discovery fails if Klippy not connected
     KlippyState state = klippy_state_.load();
@@ -774,8 +774,8 @@ void MoonrakerClientMock::generate_mock_bed_mesh() {
     // Load "default" as active
     active_bed_mesh_ = stored_bed_mesh_profiles_["default"];
 
-    spdlog::info("[MoonrakerClientMock] Generated {} bed mesh profiles, active='{}'",
-                 stored_bed_mesh_profiles_.size(), active_bed_mesh_.name);
+    spdlog::debug("[MoonrakerClientMock] Generated {} bed mesh profiles, active='{}'",
+                  stored_bed_mesh_profiles_.size(), active_bed_mesh_.name);
 }
 
 void MoonrakerClientMock::generate_mock_bed_mesh_with_variation() {
@@ -2257,10 +2257,10 @@ void MoonrakerClientMock::dispatch_initial_state() {
         initial_status[sensor] = {{"filament_detected", detected}, {"enabled", true}};
     }
 
-    spdlog::info("[MoonrakerClientMock] Dispatching initial state: extruder={}/{}°C, bed={}/{}°C, "
-                 "homed_axes='{}', leds={}, filament_sensors={}",
-                 ext_temp, ext_target, bed_temp_val, bed_target_val, homed, led_json.size(),
-                 filament_sensors_.size());
+    spdlog::debug("[MoonrakerClientMock] Dispatching initial state: extruder={}/{}°C, bed={}/{}°C, "
+                  "homed_axes='{}', leds={}, filament_sensors={}",
+                  ext_temp, ext_target, bed_temp_val, bed_target_val, homed, led_json.size(),
+                  filament_sensors_.size());
 
     // Use the base class dispatch method (same as real client)
     dispatch_status_update(initial_status);
@@ -2273,8 +2273,9 @@ void MoonrakerClientMock::dispatch_historical_temperatures() {
     constexpr int SAMPLE_INTERVAL_MS = 250;     // Same as SIMULATION_INTERVAL_MS
     constexpr int HISTORY_SAMPLES = HISTORY_DURATION_MS / SAMPLE_INTERVAL_MS;
 
-    spdlog::info("[MoonrakerClientMock] Dispatching {} historical temperature samples ({} seconds)",
-                 HISTORY_SAMPLES, HISTORY_DURATION_MS / 1000);
+    spdlog::debug(
+        "[MoonrakerClientMock] Dispatching {} historical temperature samples ({} seconds)",
+        HISTORY_SAMPLES, HISTORY_DURATION_MS / 1000);
 
     // Simulate a realistic temperature profile: heating up to ~60°C then partial cooldown
     // This creates an interesting curve for debugging/visualization
@@ -2410,9 +2411,9 @@ void MoonrakerClientMock::dispatch_historical_temperatures() {
         chamber_temp_.store(35.0);
     }
 
-    spdlog::info("[MoonrakerClientMock] Historical temps dispatched: final extruder={:.1f}°C, "
-                 "bed={:.1f}°C",
-                 ext_temp_hist, bed_temp_hist);
+    spdlog::debug("[MoonrakerClientMock] Historical temps dispatched: final extruder={:.1f}°C, "
+                  "bed={:.1f}°C",
+                  ext_temp_hist, bed_temp_hist);
 }
 
 void MoonrakerClientMock::set_extruder_target(double target) {
@@ -2445,14 +2446,15 @@ void MoonrakerClientMock::dispatch_method_callback(const std::string& method, co
 void MoonrakerClientMock::start_temperature_simulation() {
     // Use exchange for atomic check-and-set - prevents race condition if called concurrently
     bool was_running = simulation_running_.exchange(true);
-    spdlog::info("[MoonrakerClientMock] start_temperature_simulation: was_running={}", was_running);
+    spdlog::debug("[MoonrakerClientMock] start_temperature_simulation: was_running={}",
+                  was_running);
     if (was_running) {
         spdlog::warn("[MoonrakerClientMock] Simulation already running, skipping thread start");
         return;
     }
 
     simulation_thread_ = std::thread(&MoonrakerClientMock::temperature_simulation_loop, this);
-    spdlog::info("[MoonrakerClientMock] Temperature simulation started");
+    spdlog::debug("[MoonrakerClientMock] Temperature simulation started");
 }
 
 void MoonrakerClientMock::stop_temperature_simulation(bool during_destruction) {
@@ -2475,7 +2477,7 @@ void MoonrakerClientMock::stop_temperature_simulation(bool during_destruction) {
 }
 
 void MoonrakerClientMock::temperature_simulation_loop() {
-    spdlog::info("[MoonrakerClientMock] temperature_simulation_loop ENTERED");
+    spdlog::debug("[MoonrakerClientMock] temperature_simulation_loop ENTERED");
     const double base_dt = SIMULATION_INTERVAL_MS / 1000.0; // Base time step (0.5s)
 
     while (simulation_running_.load()) {

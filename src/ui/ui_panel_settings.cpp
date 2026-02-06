@@ -403,7 +403,7 @@ void SettingsPanel::setup_toggle_handlers() {
             } else {
                 lv_obj_remove_state(dark_mode_switch_, LV_STATE_CHECKED);
             }
-            spdlog::debug("[{}]   ✓ Dark mode toggle", get_name());
+            spdlog::trace("[{}]   ✓ Dark mode toggle", get_name());
         }
     }
 
@@ -419,7 +419,7 @@ void SettingsPanel::setup_toggle_handlers() {
             } else {
                 lv_obj_remove_state(animations_switch_, LV_STATE_CHECKED);
             }
-            spdlog::debug("[{}]   ✓ Animations toggle", get_name());
+            spdlog::trace("[{}]   ✓ Animations toggle", get_name());
         }
     }
 
@@ -445,7 +445,7 @@ void SettingsPanel::setup_toggle_handlers() {
                     }
                 },
                 this);
-            spdlog::debug("[{}]   ✓ LED light toggle (observing printer state)", get_name());
+            spdlog::trace("[{}]   ✓ LED light toggle (observing printer state)", get_name());
         }
     }
 
@@ -458,7 +458,7 @@ void SettingsPanel::setup_toggle_handlers() {
             if (settings.get_sounds_enabled()) {
                 lv_obj_add_state(sounds_switch_, LV_STATE_CHECKED);
             }
-            spdlog::debug("[{}]   ✓ Sounds toggle", get_name());
+            spdlog::trace("[{}]   ✓ Sounds toggle", get_name());
         }
     }
 
@@ -470,7 +470,7 @@ void SettingsPanel::setup_toggle_handlers() {
         if (completion_alert_dropdown_) {
             auto mode = settings.get_completion_alert_mode();
             lv_dropdown_set_selected(completion_alert_dropdown_, static_cast<uint32_t>(mode));
-            spdlog::debug("[{}]   ✓ Completion alert dropdown (mode={})", get_name(),
+            spdlog::trace("[{}]   ✓ Completion alert dropdown (mode={})", get_name(),
                           static_cast<int>(mode));
         }
     }
@@ -484,7 +484,7 @@ void SettingsPanel::setup_toggle_handlers() {
             lv_dropdown_set_options(language_dropdown_, SettingsManager::get_language_options());
             int lang_index = settings.get_language_index();
             lv_dropdown_set_selected(language_dropdown_, static_cast<uint32_t>(lang_index));
-            spdlog::debug("[{}]   ✓ Language dropdown (index={})", get_name(), lang_index);
+            spdlog::trace("[{}]   ✓ Language dropdown (index={})", get_name(), lang_index);
         }
     }
 
@@ -497,7 +497,7 @@ void SettingsPanel::setup_toggle_handlers() {
             if (settings.get_estop_require_confirmation()) {
                 lv_obj_add_state(estop_confirm_switch_, LV_STATE_CHECKED);
             }
-            spdlog::debug("[{}]   ✓ E-Stop confirmation toggle", get_name());
+            spdlog::trace("[{}]   ✓ E-Stop confirmation toggle", get_name());
         }
     }
 }
@@ -509,25 +509,25 @@ void SettingsPanel::setup_action_handlers() {
     // === Display Settings Row ===
     display_settings_row_ = lv_obj_find_by_name(panel_, "row_display_settings");
     if (display_settings_row_) {
-        spdlog::debug("[{}]   ✓ Display settings action row", get_name());
+        spdlog::trace("[{}]   ✓ Display settings action row", get_name());
     }
 
     // === Filament Sensors Row ===
     filament_sensors_row_ = lv_obj_find_by_name(panel_, "row_filament_sensors");
     if (filament_sensors_row_) {
-        spdlog::debug("[{}]   ✓ Filament sensors action row", get_name());
+        spdlog::trace("[{}]   ✓ Filament sensors action row", get_name());
     }
 
     // === Network Row ===
     network_row_ = lv_obj_find_by_name(panel_, "row_network");
     if (network_row_) {
-        spdlog::debug("[{}]   ✓ Network action row", get_name());
+        spdlog::trace("[{}]   ✓ Network action row", get_name());
     }
 
     // === Factory Reset Row ===
     factory_reset_row_ = lv_obj_find_by_name(panel_, "row_factory_reset");
     if (factory_reset_row_) {
-        spdlog::debug("[{}]   ✓ Factory reset action row", get_name());
+        spdlog::trace("[{}]   ✓ Factory reset action row", get_name());
     }
 
     // === Hardware Health Row (reactive label binding) ===
@@ -538,7 +538,7 @@ void SettingsPanel::setup_action_handlers() {
             // Bind to subject with %s format (string passthrough)
             lv_label_bind_text(label, get_printer_state().get_hardware_issues_label_subject(),
                                "%s");
-            spdlog::debug("[{}]   ✓ Hardware health row with reactive label", get_name());
+            spdlog::trace("[{}]   ✓ Hardware health row with reactive label", get_name());
         }
     }
 
@@ -549,7 +549,7 @@ void SettingsPanel::setup_action_handlers() {
         if (description) {
             // Bind to subject for "Calibrated" / "Not calibrated" status
             lv_label_bind_text(description, &touch_cal_status_subject_, "%s");
-            spdlog::debug("[{}]   ✓ Touch calibration row with reactive description", get_name());
+            spdlog::trace("[{}]   ✓ Touch calibration row with reactive description", get_name());
         }
     }
 }
@@ -562,7 +562,7 @@ void SettingsPanel::populate_info_rows() {
         if (version_value_) {
             // Update subject (label binding happens in XML)
             lv_subject_copy_string(&version_value_subject_, helix_version());
-            spdlog::debug("[{}]   ✓ Version: {}", get_name(), helix_version());
+            spdlog::trace("[{}]   ✓ Version: {}", get_name(), helix_version());
         }
     }
 
@@ -577,7 +577,7 @@ void SettingsPanel::populate_info_rows() {
                 config->get<std::string>(helix::wizard::PRINTER_NAME, "Unknown");
             // Update subject (label binding happens in XML)
             lv_subject_copy_string(&printer_value_subject_, printer_name.c_str());
-            spdlog::debug("[{}]   ✓ Printer: {}", get_name(), printer_name);
+            spdlog::trace("[{}]   ✓ Printer: {}", get_name(), printer_name);
         }
     }
 
@@ -593,7 +593,7 @@ void SettingsPanel::populate_info_rows() {
             if (!host.empty()) {
                 std::string host_display = host + ":" + std::to_string(port);
                 lv_subject_copy_string(&printer_host_value_subject_, host_display.c_str());
-                spdlog::debug("[{}]   ✓ Printer Host: {}", get_name(), host_display);
+                spdlog::trace("[{}]   ✓ Printer Host: {}", get_name(), host_display);
             }
         }
     }
@@ -607,7 +607,7 @@ void SettingsPanel::populate_info_rows() {
             // Track observer for cleanup in destructor
             klipper_version_observer_ = lv_label_bind_text(
                 klipper_value_, printer_state_.get_klipper_version_subject(), "%s");
-            spdlog::debug("[{}]   ✓ Klipper version bound to subject", get_name());
+            spdlog::trace("[{}]   ✓ Klipper version bound to subject", get_name());
         }
     }
 
@@ -620,7 +620,7 @@ void SettingsPanel::populate_info_rows() {
             // Track observer for cleanup in destructor
             moonraker_version_observer_ = lv_label_bind_text(
                 moonraker_value_, printer_state_.get_moonraker_version_subject(), "%s");
-            spdlog::debug("[{}]   ✓ Moonraker version bound to subject", get_name());
+            spdlog::trace("[{}]   ✓ Moonraker version bound to subject", get_name());
         }
     }
 
@@ -631,7 +631,7 @@ void SettingsPanel::populate_info_rows() {
         if (os_value) {
             os_version_observer_ =
                 lv_label_bind_text(os_value, printer_state_.get_os_version_subject(), "%s");
-            spdlog::debug("[{}]   ✓ OS version bound to subject", get_name());
+            spdlog::trace("[{}]   ✓ OS version bound to subject", get_name());
         }
     }
 
@@ -675,7 +675,7 @@ void SettingsPanel::populate_info_rows() {
                         lv_label_set_text(value_label, display_version.c_str());
                     }
 
-                    spdlog::debug("[{}]   ✓ MCU row: {} = {}", get_name(), label, mcu_version);
+                    spdlog::trace("[{}]   ✓ MCU row: {} = {}", get_name(), label, mcu_version);
                 }
             }
         }
@@ -697,7 +697,7 @@ void SettingsPanel::fetch_print_hours() {
             ui_queue_update([this, formatted]() {
                 if (subjects_initialized_) {
                     lv_subject_copy_string(&print_hours_value_subject_, formatted.c_str());
-                    spdlog::debug("[{}] Print hours updated: {}", get_name(), formatted);
+                    spdlog::trace("[{}] Print hours updated: {}", get_name(), formatted);
                 }
             });
         },
@@ -1186,7 +1186,7 @@ SettingsPanel& get_global_settings_panel() {
 
 // Register callbacks BEFORE settings_panel.xml registration per [L013]
 void register_settings_panel_callbacks() {
-    spdlog::debug("[SettingsPanel] Registering XML callbacks for settings_panel.xml");
+    spdlog::trace("[SettingsPanel] Registering XML callbacks for settings_panel.xml");
 
     // Toggle callbacks used in settings_panel.xml
     lv_xml_register_event_cb(nullptr, "on_animations_changed",

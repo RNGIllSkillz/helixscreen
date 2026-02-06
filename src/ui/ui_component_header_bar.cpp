@@ -113,7 +113,7 @@ void ui_component_header_bar_init() {
         dm->register_resize_callback(on_app_resize);
     }
 
-    spdlog::debug("[HeaderBar] Component system initialized");
+    spdlog::trace("[HeaderBar] Component system initialized");
 }
 
 void ui_component_header_bar_setup(lv_obj_t* header, lv_obj_t* screen) {
@@ -131,5 +131,5 @@ void ui_component_header_bar_setup(lv_obj_t* header, lv_obj_t* screen) {
     lv_coord_t header_height = ui_get_responsive_header_height(lv_obj_get_height(screen));
     lv_obj_set_height(header, header_height);
 
-    spdlog::debug("[HeaderBar] Setup complete: height={}px", header_height);
+    spdlog::trace("[HeaderBar] Setup complete: height={}px", header_height);
 }

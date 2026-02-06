@@ -206,7 +206,7 @@ static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs
 
 void ui_text_input_init() {
     lv_xml_register_widget("text_input", ui_text_input_create, ui_text_input_apply);
-    spdlog::info("[ui_text_input] Registered <text_input> widget");
+    spdlog::debug("[ui_text_input] Registered <text_input> widget");
 }
 
 KeyboardHint ui_text_input_get_keyboard_hint(lv_obj_t* textarea) {

@@ -36,7 +36,7 @@ bool PrintSelectCardView::is_placeholder_thumbnail(const std::string& path) {
 // ============================================================================
 
 PrintSelectCardView::PrintSelectCardView() {
-    spdlog::debug("[PrintSelectCardView] Constructed");
+    spdlog::trace("[PrintSelectCardView] Constructed");
 }
 
 PrintSelectCardView::~PrintSelectCardView() {
@@ -99,7 +99,7 @@ bool PrintSelectCardView::setup(lv_obj_t* container, FileClickCallback on_file_c
     on_file_click_ = std::move(on_file_click);
     on_metadata_fetch_ = std::move(on_metadata_fetch);
 
-    spdlog::debug("[PrintSelectCardView] Setup complete");
+    spdlog::trace("[PrintSelectCardView] Setup complete");
     return true;
 }
 

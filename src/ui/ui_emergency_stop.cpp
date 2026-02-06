@@ -146,7 +146,7 @@ void EmergencyStopOverlay::create() {
     // Initial visibility update
     update_visibility();
 
-    spdlog::info("[EmergencyStop] Initialized visibility subject for contextual E-Stop buttons");
+    spdlog::debug("[EmergencyStop] Initialized visibility subject for contextual E-Stop buttons");
 }
 
 void EmergencyStopOverlay::update_visibility() {

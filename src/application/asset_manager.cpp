@@ -19,7 +19,7 @@ void AssetManager::register_fonts() {
         return;
     }
 
-    spdlog::debug("[AssetManager] Registering fonts...");
+    spdlog::trace("[AssetManager] Registering fonts...");
 
     // Material Design Icons (various sizes for different UI elements)
     // Source: https://pictogrammers.com/library/mdi/
@@ -72,7 +72,7 @@ void AssetManager::register_fonts() {
     lv_xml_register_font(nullptr, "noto_sans_bold_28", &noto_sans_bold_28);
 
     s_fonts_registered = true;
-    spdlog::debug("[AssetManager] Fonts registered successfully");
+    spdlog::trace("[AssetManager] Fonts registered successfully");
 }
 
 void AssetManager::register_images() {
@@ -81,7 +81,7 @@ void AssetManager::register_images() {
         return;
     }
 
-    spdlog::debug("[AssetManager] Registering images...");
+    spdlog::trace("[AssetManager] Registering images...");
 
     // Printer and UI images
     lv_xml_register_image(nullptr, "A:assets/images/printer_400.png",
@@ -150,7 +150,7 @@ void AssetManager::register_images() {
     lv_xml_register_image(nullptr, "flag_ja", "A:assets/images/flags/flag_ja.bin");
 
     s_images_registered = true;
-    spdlog::debug("[AssetManager] Images registered successfully");
+    spdlog::trace("[AssetManager] Images registered successfully");
 }
 
 void AssetManager::register_all() {

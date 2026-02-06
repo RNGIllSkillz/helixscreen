@@ -91,7 +91,7 @@ void MemoryStatsOverlay::init(lv_obj_t* /*parent*/, bool initially_visible) {
     StaticPanelRegistry::instance().register_destroy("MemoryStatsOverlay",
                                                      []() { instance().shutdown(); });
 
-    spdlog::info("[MemoryStats] Overlay initialized (baseline={}KB)", baseline_rss_kb_);
+    spdlog::debug("[MemoryStats] Overlay initialized (baseline={}KB)", baseline_rss_kb_);
 }
 
 void MemoryStatsOverlay::toggle() {

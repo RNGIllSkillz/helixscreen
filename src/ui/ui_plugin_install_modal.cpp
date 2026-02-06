@@ -52,7 +52,7 @@ void PluginInstallModal::register_callbacks() {
     lv_xml_register_event_cb(nullptr, "on_plugin_install_cancel", cancel_clicked_cb);
     lv_xml_register_event_cb(nullptr, "on_plugin_install_ok", ok_clicked_cb);
     callbacks_registered_ = true;
-    spdlog::debug("[PluginInstallModal] Event callbacks registered");
+    spdlog::trace("[PluginInstallModal] Event callbacks registered");
 }
 
 // ============================================================================

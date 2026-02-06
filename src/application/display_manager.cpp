@@ -150,7 +150,7 @@ bool DisplayManager::init(const Config& config) {
     // Without this, closing the window deletes the display mid-timer-handler,
     // causing use-after-free crashes in any running timer callbacks.
     SDL_AddEventWatch(sdl_event_filter, nullptr);
-    spdlog::debug("[DisplayManager] Installed SDL event filter for graceful window close");
+    spdlog::trace("[DisplayManager] Installed SDL event filter for graceful window close");
 #endif
 
     // Create pointer input device (mouse/touch)
@@ -198,7 +198,7 @@ bool DisplayManager::init(const Config& config) {
     m_keyboard = m_backend->create_input_keyboard();
     if (m_keyboard) {
         setup_keyboard_group();
-        spdlog::debug("[DisplayManager] Physical keyboard input enabled");
+        spdlog::trace("[DisplayManager] Physical keyboard input enabled");
     }
 
     // Create backlight backend (auto-detects hardware)
@@ -210,7 +210,7 @@ bool DisplayManager::init(const Config& config) {
     // previous instance left it off or in an unknown state
     if (m_backlight && m_backlight->is_available()) {
         m_backlight->set_brightness(100);
-        spdlog::info("[DisplayManager] Backlight forced ON at 100% for startup");
+        spdlog::debug("[DisplayManager] Backlight forced ON at 100% for startup");
 
         // Schedule delayed brightness override to counteract ForgeX's delayed_gcode.
         // On AD5M, Klipper's reset_screen fires ~3s after Klipper becomes READY.
@@ -238,10 +238,10 @@ bool DisplayManager::init(const Config& config) {
     ::Config* cfg = ::Config::get_instance();
     m_dim_timeout_sec = cfg->get<int>("/display/dim_sec", 300);
     m_dim_brightness_percent = std::clamp(cfg->get<int>("/display/dim_brightness", 30), 1, 100);
-    spdlog::info("[DisplayManager] Display dim: {}s timeout, {}% brightness", m_dim_timeout_sec,
-                 m_dim_brightness_percent);
+    spdlog::debug("[DisplayManager] Display dim: {}s timeout, {}% brightness", m_dim_timeout_sec,
+                  m_dim_brightness_percent);
 
-    spdlog::debug("[DisplayManager] Initialized: {}x{}", m_width, m_height);
+    spdlog::trace("[DisplayManager] Initialized: {}x{}", m_width, m_height);
     m_initialized = true;
     s_instance = this;
     return true;
@@ -305,7 +305,7 @@ void DisplayManager::configure_scroll(int scroll_throw, int scroll_limit) {
 
     lv_indev_set_scroll_throw(m_pointer, static_cast<uint8_t>(scroll_throw));
     lv_indev_set_scroll_limit(m_pointer, static_cast<uint8_t>(scroll_limit));
-    spdlog::debug("[DisplayManager] Scroll config: throw={}, limit={}", scroll_throw, scroll_limit);
+    spdlog::trace("[DisplayManager] Scroll config: throw={}, limit={}", scroll_throw, scroll_limit);
 }
 
 void DisplayManager::setup_keyboard_group() {
@@ -316,7 +316,7 @@ void DisplayManager::setup_keyboard_group() {
     m_input_group = lv_group_create();
     lv_group_set_default(m_input_group);
     lv_indev_set_group(m_keyboard, m_input_group);
-    spdlog::debug("[DisplayManager] Created default input group for keyboard");
+    spdlog::trace("[DisplayManager] Created default input group for keyboard");
 }
 
 // ============================================================================
@@ -476,7 +476,7 @@ void DisplayManager::ensure_display_on() {
 
 void DisplayManager::set_dim_timeout(int seconds) {
     m_dim_timeout_sec = seconds;
-    spdlog::info("[DisplayManager] Dim timeout set to {}s", seconds);
+    spdlog::debug("[DisplayManager] Dim timeout set to {}s", seconds);
 }
 
 void DisplayManager::restore_display_on_shutdown() {
@@ -673,7 +673,7 @@ void DisplayManager::init_resize_handler(lv_obj_t* screen) {
     // Add SIZE_CHANGED event listener to screen
     lv_obj_add_event_cb(screen, resize_event_cb, LV_EVENT_SIZE_CHANGED, this);
 
-    spdlog::debug("[DisplayManager] Resize handler initialized on screen");
+    spdlog::trace("[DisplayManager] Resize handler initialized on screen");
 }
 
 void DisplayManager::register_resize_callback(ResizeCallback callback) {
@@ -683,6 +683,6 @@ void DisplayManager::register_resize_callback(ResizeCallback callback) {
     }
 
     m_resize_callbacks.push_back(callback);
-    spdlog::debug("[DisplayManager] Registered resize callback ({} total)",
+    spdlog::trace("[DisplayManager] Registered resize callback ({} total)",
                   m_resize_callbacks.size());
 }

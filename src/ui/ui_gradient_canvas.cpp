@@ -266,7 +266,7 @@ static void ui_gradient_canvas_xml_apply(lv_xml_parser_state_t* state, const cha
 void ui_gradient_canvas_register(void) {
     lv_xml_register_widget("ui_gradient_canvas", ui_gradient_canvas_xml_create,
                            ui_gradient_canvas_xml_apply);
-    spdlog::debug("[GradientCanvas] Registered <ui_gradient_canvas> widget");
+    spdlog::trace("[GradientCanvas] Registered <ui_gradient_canvas> widget");
 }
 
 void ui_gradient_canvas_redraw(lv_obj_t* obj) {

@@ -56,7 +56,7 @@ bool TipsManager::init(const std::string& tips_path) {
         // Build cache for fast access
         build_tips_cache();
 
-        spdlog::debug("[TipsManager] Loaded {} tips from {} categories (version: {})",
+        spdlog::trace("[TipsManager] Loaded {} tips from {} categories (version: {})",
                       tips_cache.size(), data["categories"].size(),
                       data.value("version", "unknown"));
 
@@ -94,7 +94,7 @@ void TipsManager::build_tips_cache() {
         }
     }
 
-    spdlog::debug("[TipsManager] Built cache with {} tips", tips_cache.size());
+    spdlog::trace("[TipsManager] Built cache with {} tips", tips_cache.size());
 }
 
 PrintingTip TipsManager::json_to_tip(const json& tip_json, const std::string& category) {
@@ -200,7 +200,7 @@ PrintingTip TipsManager::get_random_unique_tip() {
     // Mark as viewed
     viewed_tip_ids_.push_back(selected.id);
 
-    spdlog::debug("[TipsManager] Selected unique tip '{}' ({}/{})", selected.id,
+    spdlog::trace("[TipsManager] Selected unique tip '{}' ({}/{})", selected.id,
                   viewed_tip_ids_.size(), tips_cache.size());
 
     return selected;

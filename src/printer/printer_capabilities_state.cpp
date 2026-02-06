@@ -23,7 +23,7 @@ void PrinterCapabilitiesState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterCapabilitiesState] Initializing subjects (register_xml={})",
+    spdlog::trace("[PrinterCapabilitiesState] Initializing subjects (register_xml={})",
                   register_xml);
 
     // Printer capability subjects (all default to 0=not available)
@@ -45,7 +45,7 @@ void PrinterCapabilitiesState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(printer_has_screws_tilt, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterCapabilitiesState] Subjects initialized successfully");
+    spdlog::trace("[PrinterCapabilitiesState] Subjects initialized successfully");
 }
 
 void PrinterCapabilitiesState::deinit_subjects() {

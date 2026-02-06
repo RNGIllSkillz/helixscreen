@@ -116,7 +116,7 @@ void FilamentSensorManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(sensor_count_, 0, "filament_sensor_count", subjects_);
 
     subjects_initialized_ = true;
-    spdlog::info("[FilamentSensorManager] Subjects initialized");
+    spdlog::debug("[FilamentSensorManager] Subjects initialized");
 }
 
 void FilamentSensorManager::deinit_subjects() {

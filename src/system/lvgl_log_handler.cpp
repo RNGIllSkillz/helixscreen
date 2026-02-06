@@ -295,7 +295,7 @@ namespace logging {
 
 void register_lvgl_log_handler() {
     lv_log_register_print_cb(lvgl_log_callback);
-    spdlog::debug("[Logging] Registered custom LVGL log handler");
+    spdlog::trace("[Logging] Registered custom LVGL log handler");
 }
 
 } // namespace logging

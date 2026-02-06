@@ -62,7 +62,7 @@ ExtrusionPanel::ExtrusionPanel() {
     helix::fmt::format_speed_mm_min(static_cast<double>(extrusion_speed_mmpm_), speed_display_buf_,
                                     sizeof(speed_display_buf_));
 
-    spdlog::debug("[ExtrusionPanel] Instance created");
+    spdlog::trace("[ExtrusionPanel] Instance created");
 }
 
 ExtrusionPanel::~ExtrusionPanel() {

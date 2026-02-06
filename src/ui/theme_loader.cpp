@@ -203,7 +203,7 @@ ThemeData parse_theme_json(const std::string& json_str, const std::string& filen
             return get_default_nord_theme();
         }
 
-        spdlog::debug("[ThemeLoader] Parsing {} with dark={}, light={}", filename, has_dark,
+        spdlog::trace("[ThemeLoader] Parsing {} with dark={}, light={}", filename, has_dark,
                       has_light);
 
         if (has_dark) {

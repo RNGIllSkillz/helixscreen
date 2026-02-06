@@ -53,7 +53,7 @@ MotionPanel::MotionPanel() {
     std::strcpy(z_up_icon_buf_, "arrow_up");
     std::strcpy(z_down_icon_buf_, "arrow_down");
 
-    spdlog::debug("[MotionPanel] Instance created");
+    spdlog::trace("[MotionPanel] Instance created");
 }
 
 MotionPanel::~MotionPanel() {

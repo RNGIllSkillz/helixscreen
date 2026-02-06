@@ -33,7 +33,7 @@ static bool s_callbacks_registered = false;
 // ============================================================================
 
 ZOffsetCalibrationPanel::ZOffsetCalibrationPanel() {
-    spdlog::debug("[ZOffsetCal] Instance created");
+    spdlog::trace("[ZOffsetCal] Instance created");
 }
 
 ZOffsetCalibrationPanel::~ZOffsetCalibrationPanel() {

@@ -23,14 +23,14 @@ void PrinterExcludedObjectsState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterExcludedObjectsState] Initializing subjects (register_xml={})",
+    spdlog::trace("[PrinterExcludedObjectsState] Initializing subjects (register_xml={})",
                   register_xml);
 
     // Initialize version subject to 0 (no changes yet)
     INIT_SUBJECT_INT(excluded_objects_version, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterExcludedObjectsState] Subjects initialized successfully");
+    spdlog::trace("[PrinterExcludedObjectsState] Subjects initialized successfully");
 }
 
 void PrinterExcludedObjectsState::deinit_subjects() {

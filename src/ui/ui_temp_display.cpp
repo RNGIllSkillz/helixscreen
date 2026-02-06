@@ -403,7 +403,7 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
 
 void ui_temp_display_init(void) {
     lv_xml_register_widget("temp_display", ui_temp_display_create_cb, ui_temp_display_apply_cb);
-    spdlog::debug("[temp_display] Registered temp_display widget");
+    spdlog::trace("[temp_display] Registered temp_display widget");
 }
 
 void ui_temp_display_set(lv_obj_t* obj, int current, int target) {

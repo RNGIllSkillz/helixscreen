@@ -507,7 +507,7 @@ std::shared_ptr<WiFiManager> get_wifi_manager() {
     std::lock_guard<std::mutex> lock(g_wifi_manager_mutex);
 
     if (!g_shared_wifi_manager) {
-        spdlog::info("[WiFiManager] Creating global instance");
+        spdlog::debug("[WiFiManager] Creating global instance");
         // Use silent=true for global instance since it's used for passive status monitoring
         // (e.g., home panel WiFi icon). Avoids modal popup when WiFi hardware is unavailable
         // on development machines or when WiFi is simply turned off.

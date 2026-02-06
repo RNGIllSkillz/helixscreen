@@ -284,7 +284,7 @@ void ui_text_init() {
     // text_button: centered body text with AUTO-CONTRAST based on parent bg color
     lv_xml_register_widget("text_button", ui_text_button_create, ui_text_button_apply);
 
-    spdlog::debug(
+    spdlog::trace(
         "[ui_text] Registered semantic text widgets: text_heading, text_body, text_muted, "
         "text_small, text_xs, text_tiny, text_button");
 }

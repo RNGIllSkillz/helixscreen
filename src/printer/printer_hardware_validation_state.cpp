@@ -26,7 +26,7 @@ void PrinterHardwareValidationState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterHardwareValidationState] Initializing subjects (register_xml={})",
+    spdlog::trace("[PrinterHardwareValidationState] Initializing subjects (register_xml={})",
                   register_xml);
 
     // Initialize hardware validation subjects
@@ -43,7 +43,7 @@ void PrinterHardwareValidationState::init_subjects(bool register_xml) {
     INIT_SUBJECT_STRING(hardware_issues_label, "No Hardware Issues", subjects_, register_xml);
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterHardwareValidationState] Subjects initialized successfully");
+    spdlog::trace("[PrinterHardwareValidationState] Subjects initialized successfully");
 }
 
 void PrinterHardwareValidationState::deinit_subjects() {

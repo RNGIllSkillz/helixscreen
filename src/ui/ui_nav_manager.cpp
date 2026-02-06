@@ -103,7 +103,7 @@ void NavigationManager::clear_overlay_stack() {
         set_backdrop_visible(false);
     }
 
-    spdlog::debug("[NavigationManager] Overlay stack cleared (connection gating)");
+    spdlog::trace("[NavigationManager] Overlay stack cleared (connection gating)");
 }
 
 // ============================================================================
@@ -116,14 +116,14 @@ void NavigationManager::overlay_slide_out_complete_cb(lv_anim_t* anim) {
     // Reset transform and opacity for potential reuse
     lv_obj_set_style_translate_x(panel, 0, LV_PART_MAIN);
     lv_obj_set_style_opa(panel, LV_OPA_COVER, LV_PART_MAIN);
-    spdlog::debug("[NavigationManager] Overlay slide+fade-out complete, panel {} hidden",
+    spdlog::trace("[NavigationManager] Overlay slide+fade-out complete, panel {} hidden",
                   (void*)panel);
 
     // Invoke close callback if registered (AFTER animation completes, before any deletion)
     auto& mgr = NavigationManager::instance();
     auto it = mgr.overlay_close_callbacks_.find(panel);
     if (it != mgr.overlay_close_callbacks_.end()) {
-        spdlog::debug("[NavigationManager] Invoking close callback for overlay {}", (void*)panel);
+        spdlog::trace("[NavigationManager] Invoking close callback for overlay {}", (void*)panel);
         auto callback = std::move(it->second);
         mgr.overlay_close_callbacks_.erase(it);
         callback(); // Call after erasing to allow re-registration
@@ -160,7 +160,7 @@ void NavigationManager::overlay_animate_slide_in(lv_obj_t* panel) {
     if (!SettingsManager::instance().get_animations_enabled()) {
         lv_obj_set_style_translate_x(panel, 0, LV_PART_MAIN);
         lv_obj_set_style_opa(panel, LV_OPA_COVER, LV_PART_MAIN);
-        spdlog::debug("[NavigationManager] Animations disabled - showing overlay instantly");
+        spdlog::trace("[NavigationManager] Animations disabled - showing overlay instantly");
         return;
     }
 
@@ -192,7 +192,7 @@ void NavigationManager::overlay_animate_slide_in(lv_obj_t* panel) {
     });
     lv_anim_start(&fade_anim);
 
-    spdlog::debug("[NavigationManager] Started slide+fade-in animation for panel {} (width={})",
+    spdlog::trace("[NavigationManager] Started slide+fade-in animation for panel {} (width={})",
                   (void*)panel, panel_width);
 }
 
@@ -207,13 +207,13 @@ void NavigationManager::overlay_animate_slide_out(lv_obj_t* panel) {
         // Reset transform and opacity for potential reuse
         lv_obj_set_style_translate_x(panel, 0, LV_PART_MAIN);
         lv_obj_set_style_opa(panel, LV_OPA_COVER, LV_PART_MAIN);
-        spdlog::debug("[NavigationManager] Animations disabled - hiding overlay instantly");
+        spdlog::trace("[NavigationManager] Animations disabled - hiding overlay instantly");
 
         // Invoke close callback if registered
         auto& mgr = NavigationManager::instance();
         auto it = mgr.overlay_close_callbacks_.find(panel);
         if (it != mgr.overlay_close_callbacks_.end()) {
-            spdlog::debug("[NavigationManager] Invoking close callback for overlay {}",
+            spdlog::trace("[NavigationManager] Invoking close callback for overlay {}",
                           (void*)panel);
             auto callback = std::move(it->second);
             mgr.overlay_close_callbacks_.erase(it);
@@ -269,7 +269,7 @@ void NavigationManager::overlay_animate_slide_out(lv_obj_t* panel) {
     });
     lv_anim_start(&fade_anim);
 
-    spdlog::debug("[NavigationManager] Started slide+fade-out animation for panel {} (width={})",
+    spdlog::trace("[NavigationManager] Started slide+fade-out animation for panel {} (width={})",
                   (void*)panel, panel_width);
 }
 
@@ -373,7 +373,7 @@ void NavigationManager::backdrop_click_event_cb(lv_event_t* e) {
                 // Simple bounds check (point in rectangle)
                 if (click_point.x >= btn_area.x1 && click_point.x <= btn_area.x2 &&
                     click_point.y >= btn_area.y1 && click_point.y <= btn_area.y2) {
-                    spdlog::debug(
+                    spdlog::trace(
                         "[NavigationManager] Backdrop click forwarded to navbar button {}", i);
                     // Simulate the navbar button click by sending a clicked event
                     lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
@@ -382,12 +382,12 @@ void NavigationManager::backdrop_click_event_cb(lv_event_t* e) {
             }
 
             // Click was in navbar area but not on a button - just close overlay
-            spdlog::debug("[NavigationManager] Backdrop clicked in navbar area (no button hit)");
+            spdlog::trace("[NavigationManager] Backdrop clicked in navbar area (no button hit)");
         }
     }
 
     // Regular backdrop click - close topmost overlay
-    spdlog::debug("[NavigationManager] Backdrop clicked, closing topmost overlay");
+    spdlog::trace("[NavigationManager] Backdrop clicked, closing topmost overlay");
     mgr.go_back();
 }
 
@@ -398,7 +398,7 @@ void NavigationManager::nav_button_clicked_cb(lv_event_t* event) {
     lv_event_code_t code = lv_event_get_code(event);
     int panel_id = (int)(uintptr_t)lv_event_get_user_data(event);
 
-    spdlog::debug("[NavigationManager] nav_button_clicked_cb fired: code={}, panel_id={}, "
+    spdlog::trace("[NavigationManager] nav_button_clicked_cb fired: code={}, panel_id={}, "
                   "active_panel={}",
                   static_cast<int>(code), panel_id, static_cast<int>(mgr.active_panel_));
 
@@ -425,7 +425,7 @@ void NavigationManager::nav_button_clicked_cb(lv_event_t* event) {
         }
 
         // Queue for REFR_START - guarantees we never modify widgets during render phase
-        spdlog::debug("[NavigationManager] Queuing switch to panel {}", panel_id);
+        spdlog::trace("[NavigationManager] Queuing switch to panel {}", panel_id);
         ui_queue_update(
             [panel_id]() { NavigationManager::instance().switch_to_panel_impl(panel_id); });
     }
@@ -434,7 +434,7 @@ void NavigationManager::nav_button_clicked_cb(lv_event_t* event) {
 }
 
 void NavigationManager::switch_to_panel_impl(int panel_id) {
-    spdlog::debug("[NavigationManager] switch_to_panel_impl executing for panel {}", panel_id);
+    spdlog::trace("[NavigationManager] switch_to_panel_impl executing for panel {}", panel_id);
 
     // Hide ALL visible overlay panels
     lv_obj_t* screen = lv_screen_active();
@@ -483,7 +483,7 @@ void NavigationManager::switch_to_panel_impl(int panel_id) {
         if (it != overlay_close_callbacks_.end()) {
             auto callback = std::move(it->second);
             overlay_close_callbacks_.erase(it);
-            spdlog::debug("[NavigationManager] Invoking close callback for panel {} (navbar)",
+            spdlog::trace("[NavigationManager] Invoking close callback for panel {} (navbar)",
                           (void*)panel);
             callback();
         }
@@ -514,7 +514,7 @@ void NavigationManager::switch_to_panel_impl(int panel_id) {
                       panel_stack_.size());
     }
 
-    spdlog::debug("[NavigationManager] Switched to panel {}", panel_id);
+    spdlog::trace("[NavigationManager] Switched to panel {}", panel_id);
     set_active((ui_panel_id_t)panel_id);
 }
 
@@ -528,7 +528,7 @@ void NavigationManager::init() {
         return;
     }
 
-    spdlog::debug("[NavigationManager] Initializing navigation reactive subjects...");
+    spdlog::trace("[NavigationManager] Initializing navigation reactive subjects...");
 
     UI_MANAGED_SUBJECT_INT(active_panel_subject_, UI_PANEL_HOME, "active_panel", subjects_);
 
@@ -541,7 +541,7 @@ void NavigationManager::init() {
         [](NavigationManager* mgr, int value) { mgr->handle_active_panel_change(value); });
 
     subjects_initialized_ = true;
-    spdlog::debug("[NavigationManager] Navigation subjects initialized successfully");
+    spdlog::trace("[NavigationManager] Navigation subjects initialized successfully");
 }
 
 void NavigationManager::init_overlay_backdrop(lv_obj_t* screen) {
@@ -564,12 +564,12 @@ void NavigationManager::init_overlay_backdrop(lv_obj_t* screen) {
     // Wire up click handler to close topmost overlay when backdrop is clicked
     lv_obj_add_event_cb(overlay_backdrop_, backdrop_click_event_cb, LV_EVENT_CLICKED, nullptr);
 
-    spdlog::debug("[NavigationManager] Overlay backdrop created from XML successfully");
+    spdlog::trace("[NavigationManager] Overlay backdrop created from XML successfully");
 }
 
 void NavigationManager::set_app_layout(lv_obj_t* app_layout) {
     app_layout_widget_ = app_layout;
-    spdlog::debug("[NavigationManager] App layout widget registered");
+    spdlog::trace("[NavigationManager] App layout widget registered");
 }
 
 void NavigationManager::wire_events(lv_obj_t* navbar) {
@@ -595,7 +595,7 @@ void NavigationManager::wire_events(lv_obj_t* navbar) {
         lv_obj_t* btn = lv_obj_find_by_name(navbar, button_names[i]);
 
         if (!btn) {
-            spdlog::debug("[NavigationManager] Nav button {} not found (may be intentional)", i);
+            spdlog::trace("[NavigationManager] Nav button {} not found (may be intentional)", i);
             continue;
         }
 
@@ -612,7 +612,7 @@ void NavigationManager::wire_events(lv_obj_t* navbar) {
         get_printer_state().get_klippy_state_subject(), this,
         [](NavigationManager* mgr, int value) { mgr->handle_klippy_state_change(value); });
 
-    spdlog::debug(
+    spdlog::trace(
         "[NavigationManager] Navigation button events wired (with connection/klippy gating)");
 }
 
@@ -677,7 +677,7 @@ void NavigationManager::set_active(ui_panel_id_t panel_id) {
             // Overlays are present - update base panel but preserve overlays
             // This handles the case where connection changes while an overlay is open
             panel_stack_[0] = panel_widgets_[panel_id];
-            spdlog::debug("[NavigationManager] Panel stack base updated to panel {}, "
+            spdlog::trace("[NavigationManager] Panel stack base updated to panel {}, "
                           "preserving {} overlays",
                           static_cast<int>(panel_id), panel_stack_.size() - 1);
         }
@@ -731,11 +731,11 @@ void NavigationManager::set_panels(lv_obj_t** panels) {
     panel_stack_.clear();
     if (panel_widgets_[active_panel_]) {
         panel_stack_.push_back(panel_widgets_[active_panel_]);
-        spdlog::debug("[NavigationManager] Panel stack initialized with active panel {}",
+        spdlog::trace("[NavigationManager] Panel stack initialized with active panel {}",
                       (void*)panel_widgets_[active_panel_]);
     }
 
-    spdlog::debug("[NavigationManager] Panel widgets registered for show/hide management");
+    spdlog::trace("[NavigationManager] Panel widgets registered for show/hide management");
 }
 
 void NavigationManager::register_panel_instance(ui_panel_id_t id, PanelBase* panel) {
@@ -745,12 +745,12 @@ void NavigationManager::register_panel_instance(ui_panel_id_t id, PanelBase* pan
         return;
     }
     panel_instances_[id] = panel;
-    spdlog::debug("[NavigationManager] Registered panel instance for ID {}", static_cast<int>(id));
+    spdlog::trace("[NavigationManager] Registered panel instance for ID {}", static_cast<int>(id));
 }
 
 void NavigationManager::activate_initial_panel() {
     if (panel_instances_[active_panel_]) {
-        spdlog::debug("[NavigationManager] Activating initial panel {}",
+        spdlog::trace("[NavigationManager] Activating initial panel {}",
                       static_cast<int>(active_panel_));
         panel_instances_[active_panel_]->on_activate();
     }
@@ -763,10 +763,10 @@ void NavigationManager::register_overlay_instance(lv_obj_t* widget, IPanelLifecy
     }
     overlay_instances_[widget] = overlay;
     if (overlay) {
-        spdlog::debug("[NavigationManager] Registered overlay instance {} for widget {}",
+        spdlog::trace("[NavigationManager] Registered overlay instance {} for widget {}",
                       overlay->get_name(), (void*)widget);
     } else {
-        spdlog::debug("[NavigationManager] Registered overlay widget {} (no lifecycle)",
+        spdlog::trace("[NavigationManager] Registered overlay widget {} (no lifecycle)",
                       (void*)widget);
     }
 }
@@ -774,7 +774,7 @@ void NavigationManager::register_overlay_instance(lv_obj_t* widget, IPanelLifecy
 void NavigationManager::unregister_overlay_instance(lv_obj_t* widget) {
     auto it = overlay_instances_.find(widget);
     if (it != overlay_instances_.end()) {
-        spdlog::debug("[NavigationManager] Unregistered overlay instance for widget {}",
+        spdlog::trace("[NavigationManager] Unregistered overlay instance for widget {}",
                       (void*)widget);
         overlay_instances_.erase(it);
     }
@@ -861,7 +861,7 @@ void NavigationManager::push_overlay(lv_obj_t* overlay_panel, bool hide_previous
             it->second->on_activate();
         }
 
-        spdlog::debug("[NavigationManager] Pushed overlay {} (stack: {})", (void*)overlay_panel,
+        spdlog::trace("[NavigationManager] Pushed overlay {} (stack: {})", (void*)overlay_panel,
                       mgr.panel_stack_.size());
     });
 }
@@ -872,7 +872,7 @@ void NavigationManager::register_overlay_close_callback(lv_obj_t* overlay_panel,
         return;
     }
     overlay_close_callbacks_[overlay_panel] = std::move(callback);
-    spdlog::debug("[NavigationManager] Registered close callback for overlay {}",
+    spdlog::trace("[NavigationManager] Registered close callback for overlay {}",
                   (void*)overlay_panel);
 }
 
@@ -880,7 +880,7 @@ void NavigationManager::unregister_overlay_close_callback(lv_obj_t* overlay_pane
     auto it = overlay_close_callbacks_.find(overlay_panel);
     if (it != overlay_close_callbacks_.end()) {
         overlay_close_callbacks_.erase(it);
-        spdlog::debug("[NavigationManager] Unregistered close callback for overlay {}",
+        spdlog::trace("[NavigationManager] Unregistered close callback for overlay {}",
                       (void*)overlay_panel);
     }
 }
@@ -888,7 +888,7 @@ void NavigationManager::unregister_overlay_close_callback(lv_obj_t* overlay_pane
 bool NavigationManager::go_back() {
     ui_queue_update([]() {
         auto& mgr = NavigationManager::instance();
-        spdlog::debug("[NavigationManager] go_back executing, stack depth: {}",
+        spdlog::trace("[NavigationManager] go_back executing, stack depth: {}",
                       mgr.panel_stack_.size());
 
         lv_obj_t* current_top = mgr.panel_stack_.empty() ? nullptr : mgr.panel_stack_.back();
@@ -975,7 +975,7 @@ bool NavigationManager::go_back() {
 
         // Fallback to home if empty
         if (mgr.panel_stack_.empty()) {
-            spdlog::debug("[NavigationManager] go_back stack empty, falling back to HOME");
+            spdlog::trace("[NavigationManager] go_back stack empty, falling back to HOME");
             for (int i = 0; i < UI_PANEL_COUNT; i++) {
                 if (mgr.panel_widgets_[i])
                     lv_obj_add_flag(mgr.panel_widgets_[i], LV_OBJ_FLAG_HIDDEN);
@@ -1015,13 +1015,13 @@ bool NavigationManager::is_panel_in_stack(lv_obj_t* panel) const {
 }
 
 void NavigationManager::shutdown() {
-    spdlog::debug("[NavigationManager] Shutting down...");
+    spdlog::trace("[NavigationManager] Shutting down...");
 
     // Deactivate any overlays in the stack
     for (lv_obj_t* overlay_widget : panel_stack_) {
         auto it = overlay_instances_.find(overlay_widget);
         if (it != overlay_instances_.end() && it->second) {
-            spdlog::debug("[NavigationManager] Deactivating overlay: {}", it->second->get_name());
+            spdlog::trace("[NavigationManager] Deactivating overlay: {}", it->second->get_name());
             it->second->on_deactivate();
         }
     }
@@ -1039,7 +1039,7 @@ void NavigationManager::shutdown() {
     // Clear panel stack
     panel_stack_.clear();
 
-    spdlog::debug("[NavigationManager] Shutdown complete");
+    spdlog::trace("[NavigationManager] Shutdown complete");
 }
 
 void NavigationManager::set_backdrop_visible(bool visible) {
@@ -1084,7 +1084,7 @@ void NavigationManager::deinit_subjects() {
     previous_klippy_state_ = -1;
 
     subjects_initialized_ = false;
-    spdlog::debug("[NavigationManager] Subjects deinitialized");
+    spdlog::trace("[NavigationManager] Subjects deinitialized");
 }
 
 // ============================================================================

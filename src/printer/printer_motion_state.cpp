@@ -22,7 +22,7 @@ void PrinterMotionState::init_subjects(bool register_xml) {
         return;
     }
 
-    spdlog::debug("[PrinterMotionState] Initializing subjects (register_xml={})", register_xml);
+    spdlog::trace("[PrinterMotionState] Initializing subjects (register_xml={})", register_xml);
 
     // Toolhead position subjects (actual physical position)
     INIT_SUBJECT_INT(position_x, 0, subjects_, register_xml);
@@ -45,7 +45,7 @@ void PrinterMotionState::init_subjects(bool register_xml) {
                      register_xml); // Accumulated adjustment during print
 
     subjects_initialized_ = true;
-    spdlog::debug("[PrinterMotionState] Subjects initialized successfully");
+    spdlog::trace("[PrinterMotionState] Subjects initialized successfully");
 }
 
 void PrinterMotionState::deinit_subjects() {

@@ -755,7 +755,7 @@ void KeyboardManager::init(lv_obj_t* parent) {
                         nullptr);
 
     initialized_ = true;
-    spdlog::info("[KeyboardManager] Initialization complete");
+    spdlog::debug("[KeyboardManager] Initialization complete");
 }
 
 void KeyboardManager::register_textarea(lv_obj_t* textarea) {
