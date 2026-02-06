@@ -13,6 +13,12 @@ _HELIX_PLATFORM_SOURCED=1
 # Default paths (may be overridden by set_install_paths)
 : "${INSTALL_DIR:=/opt/helixscreen}"
 : "${TMP_DIR:=/tmp/helixscreen-install}"
+
+# Capture user-provided INSTALL_DIR before we potentially override it.
+# If the user explicitly set INSTALL_DIR (and it's not the default),
+# we respect their choice over auto-detection.
+_USER_INSTALL_DIR="${INSTALL_DIR}"
+[ "$_USER_INSTALL_DIR" = "/opt/helixscreen" ] && _USER_INSTALL_DIR=""
 INIT_SCRIPT_DEST=""
 PREVIOUS_UI_SCRIPT=""
 AD5M_FIRMWARE=""
@@ -189,6 +195,58 @@ detect_k1_firmware() {
     echo "stock_klipper"
 }
 
+# Detect Pi install directory based on Klipper ecosystem presence
+# Cascade (first match wins):
+#   1. User explicitly set INSTALL_DIR → keep it
+#   2. ~/klipper or ~/moonraker exists → ~/helixscreen
+#   3. ~/printer_data exists → ~/helixscreen
+#   4. moonraker.service is active → ~/helixscreen
+#   5. Fallback → /opt/helixscreen
+# Requires: KLIPPER_HOME to be set (by detect_klipper_user)
+# Sets: INSTALL_DIR
+detect_pi_install_dir() {
+    # 1. User explicitly set INSTALL_DIR — respect their choice
+    if [ -n "$_USER_INSTALL_DIR" ]; then
+        INSTALL_DIR="$_USER_INSTALL_DIR"
+        log_info "Install directory (user override): $INSTALL_DIR"
+        return 0
+    fi
+
+    # Need KLIPPER_HOME for ecosystem detection
+    if [ -z "$KLIPPER_HOME" ]; then
+        INSTALL_DIR="/opt/helixscreen"
+        return 0
+    fi
+
+    # 2. Klipper or Moonraker source directories
+    if [ -d "$KLIPPER_HOME/klipper" ] || [ -d "$KLIPPER_HOME/moonraker" ]; then
+        INSTALL_DIR="$KLIPPER_HOME/helixscreen"
+        log_info "Install directory (klipper ecosystem): $INSTALL_DIR"
+        return 0
+    fi
+
+    # 3. printer_data directory (Klipper config structure)
+    if [ -d "$KLIPPER_HOME/printer_data" ]; then
+        INSTALL_DIR="$KLIPPER_HOME/helixscreen"
+        log_info "Install directory (printer_data): $INSTALL_DIR"
+        return 0
+    fi
+
+    # 4. Moonraker service running (ecosystem present but maybe different layout)
+    if command -v systemctl >/dev/null 2>&1; then
+        if systemctl is-active --quiet moonraker.service 2>/dev/null || \
+           systemctl is-active --quiet moonraker 2>/dev/null; then
+            INSTALL_DIR="$KLIPPER_HOME/helixscreen"
+            log_info "Install directory (moonraker service): $INSTALL_DIR"
+            return 0
+        fi
+    fi
+
+    # 5. Fallback: no ecosystem detected
+    INSTALL_DIR="/opt/helixscreen"
+    return 0
+}
+
 # Set installation paths based on platform and firmware
 # Sets: INSTALL_DIR, INIT_SCRIPT_DEST, PREVIOUS_UI_SCRIPT, TMP_DIR
 set_install_paths() {
@@ -230,11 +288,11 @@ set_install_paths() {
                 ;;
         esac
     else
-        # Pi and other platforms - use default paths
-        INSTALL_DIR="/opt/helixscreen"
+        # Pi and other platforms — detect klipper user, then auto-detect install dir
         INIT_SCRIPT_DEST="/etc/init.d/S90helixscreen"
         PREVIOUS_UI_SCRIPT=""
         TMP_DIR="/tmp/helixscreen-install"
         detect_klipper_user
+        detect_pi_install_dir
     fi
 }
