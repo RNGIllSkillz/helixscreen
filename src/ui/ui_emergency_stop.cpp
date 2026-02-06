@@ -9,6 +9,7 @@
 #include "ui_utils.h"
 
 #include "abort_manager.h"
+#include "app_globals.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 
@@ -98,6 +99,11 @@ void EmergencyStopOverlay::create() {
             auto klippy_state = static_cast<KlippyState>(state);
 
             if (klippy_state == KlippyState::SHUTDOWN) {
+                // Don't show recovery dialog during wizard - no printer configured yet
+                if (is_wizard_active()) {
+                    spdlog::debug("[KlipperRecovery] Ignoring SHUTDOWN during setup wizard");
+                    return;
+                }
                 // Don't show recovery dialog if we initiated the restart operation
                 // (Klipper briefly enters SHUTDOWN during firmware/klipper restart)
                 if (self->restart_in_progress_) {
