@@ -8,7 +8,7 @@
  * @pattern Pure virtual interface + static create()/create_auto() factory methods
  * @threading Implementation-dependent; see concrete implementations
  *
- * @see wifi_backend_wpa_supplicant.cpp, wifi_backend_macos.cpp
+ * @see wifi_backend_wpa_supplicant.cpp, wifi_backend_networkmanager.cpp, wifi_backend_macos.cpp
  */
 
 #pragma once

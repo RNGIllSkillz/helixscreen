@@ -179,8 +179,13 @@ WiFiError WifiBackendWpaSupplicant::check_system_prerequisites() {
         if (fs::exists(base_path) && fs::is_directory(base_path)) {
             spdlog::debug("[WifiBackend] Found wpa_supplicant directory: {}", base_path);
 
-            // Look for interface sockets
-            for (const auto& entry : fs::directory_iterator(base_path)) {
+            // Look for interface sockets (use error_code overload to handle permission denied)
+            std::error_code ec;
+            for (const auto& entry : fs::directory_iterator(base_path, ec)) {
+                if (ec) {
+                    spdlog::debug("[WifiBackend] Cannot iterate {}: {}", base_path, ec.message());
+                    break;
+                }
                 if (fs::is_socket(entry.path())) {
                     std::string socket_path = entry.path().string();
 
@@ -200,6 +205,9 @@ WiFiError WifiBackendWpaSupplicant::check_system_prerequisites() {
                         }
                     }
                 }
+            }
+            if (ec && !socket_found) {
+                spdlog::debug("[WifiBackend] Permission denied iterating {}", base_path);
             }
             if (!accessible_socket.empty())
                 break;
@@ -328,12 +336,23 @@ void WifiBackendWpaSupplicant::init_wpa() {
     std::string wpa_socket;
     bool socket_found = false;
 
-    // Try modern systemd path first: /run/wpa_supplicant
-    std::string base_path = "/run/wpa_supplicant";
-    if (fs::exists(base_path) && fs::is_directory(base_path)) {
+    // Try common wpa_supplicant socket paths
+    // Use error_code overload to handle permission denied gracefully (non-root users)
+    std::vector<std::string> socket_dirs = {"/run/wpa_supplicant", "/var/run/wpa_supplicant"};
+    for (const auto& base_path : socket_dirs) {
+        if (socket_found)
+            break;
+        if (!fs::exists(base_path) || !fs::is_directory(base_path))
+            continue;
+
         spdlog::debug("[WifiBackend] Searching for wpa_supplicant socket in {}", base_path);
 
-        for (const auto& entry : fs::directory_iterator(base_path)) {
+        std::error_code ec;
+        for (const auto& entry : fs::directory_iterator(base_path, ec)) {
+            if (ec) {
+                spdlog::debug("[WifiBackend] Cannot iterate {}: {}", base_path, ec.message());
+                break;
+            }
             if (fs::is_socket(entry.path())) {
                 std::string socket_path = entry.path().string();
 
@@ -343,28 +362,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
                     socket_found = true;
                     spdlog::debug("[WifiBackend] Found wpa_supplicant socket: {}", wpa_socket);
                     break;
-                }
-            }
-        }
-    }
-
-    // Try older path if not found: /var/run/wpa_supplicant
-    if (!socket_found) {
-        base_path = "/var/run/wpa_supplicant";
-        if (fs::exists(base_path) && fs::is_directory(base_path)) {
-            spdlog::debug("[WifiBackend] Searching for wpa_supplicant socket in {}", base_path);
-
-            for (const auto& entry : fs::directory_iterator(base_path)) {
-                if (fs::is_socket(entry.path())) {
-                    std::string socket_path = entry.path().string();
-
-                    // Filter out P2P sockets
-                    if (socket_path.find("p2p") == std::string::npos) {
-                        wpa_socket = socket_path;
-                        socket_found = true;
-                        spdlog::debug("[WifiBackend] Found wpa_supplicant socket: {}", wpa_socket);
-                        break;
-                    }
                 }
             }
         }

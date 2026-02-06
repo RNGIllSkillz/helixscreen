@@ -10,6 +10,7 @@
 #ifdef __APPLE__
 #include "wifi_backend_macos.h"
 #else
+#include "wifi_backend_networkmanager.h"
 #include "wifi_backend_wpa_supplicant.h"
 #endif
 
@@ -40,21 +41,35 @@ std::unique_ptr<WifiBackend> WifiBackend::create(bool silent) {
                  start_result.technical_msg);
     return nullptr;
 #else
-    // Linux: Try wpa_supplicant backend
+    // Linux: Try wpa_supplicant backend first (primary)
     spdlog::debug("[WifiBackend] Attempting wpa_supplicant backend for Linux{}",
                   silent ? " (silent mode)" : "");
-    auto backend = std::make_unique<WifiBackendWpaSupplicant>();
-    backend->set_silent(silent);
-    WiFiError start_result = backend->start();
+    auto wpa_backend = std::make_unique<WifiBackendWpaSupplicant>();
+    wpa_backend->set_silent(true); // Silent during probe - we may fallback to NM
+    WiFiError wpa_result = wpa_backend->start();
 
-    if (start_result.success()) {
+    if (wpa_result.success()) {
         spdlog::info("[WifiBackend] wpa_supplicant backend started successfully");
-        return backend;
+        return wpa_backend;
     }
 
-    // In production mode, don't fallback to mock - WiFi is simply unavailable
-    spdlog::warn("[WifiBackend] wpa_supplicant backend failed: {} - WiFi unavailable",
-                 start_result.technical_msg);
+    spdlog::debug("[WifiBackend] wpa_supplicant failed: {} - trying NetworkManager",
+                  wpa_result.technical_msg);
+
+    // Fallback: Try NetworkManager backend (for systems like MainsailOS)
+    auto nm_backend = std::make_unique<WifiBackendNetworkManager>();
+    nm_backend->set_silent(silent);
+    WiFiError nm_result = nm_backend->start();
+
+    if (nm_result.success()) {
+        spdlog::info("[WifiBackend] NetworkManager backend started successfully");
+        return nm_backend;
+    }
+
+    // Both backends failed
+    spdlog::warn("[WifiBackend] All backends failed - WiFi unavailable");
+    spdlog::warn("[WifiBackend]   wpa_supplicant: {}", wpa_result.technical_msg);
+    spdlog::warn("[WifiBackend]   NetworkManager: {}", nm_result.technical_msg);
     return nullptr;
 #endif
 }
