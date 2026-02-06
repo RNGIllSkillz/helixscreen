@@ -17,7 +17,7 @@ jobs:
   build-pi:
     name: Build (Raspberry Pi)
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
     - name: Checkout repository
@@ -73,7 +73,7 @@ jobs:
   build-ad5m:
     name: Build (Adventurer 5M)
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
     - name: Checkout repository
@@ -129,7 +129,7 @@ jobs:
   build-k1:
     name: Build (Creality K1 Series)
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
     - name: Checkout repository
