@@ -604,6 +604,11 @@ static void gcode_viewer_pressing_cb(lv_event_t* e) {
     if (!st || !st->is_dragging)
         return;
 
+    // In 2D mode, no camera rotation - skip drag handling entirely.
+    // This also prevents mouse micro-jitter from cancelling the long-press timer.
+    if (st->is_using_2d_mode())
+        return;
+
     lv_indev_t* indev = lv_indev_active();
     if (!indev)
         return;
@@ -701,18 +706,18 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
         const char* picked = ui_gcode_viewer_pick_object(obj, point.x, point.y);
 
         if (picked && picked[0] != '\0') {
-            // Object clicked - toggle selection
+            // Object clicked - toggle selection (single-select)
             std::string picked_name(picked);
 
             if (st->selected_objects.count(picked_name) > 0) {
                 // Already selected - deselect
-                st->selected_objects.erase(picked_name);
+                st->selected_objects.clear();
                 spdlog::info("[GCode Viewer] Deselected object '{}'", picked_name);
             } else {
-                // Not selected - add to selection (multi-select mode)
+                // Select this object (replacing any previous selection)
+                st->selected_objects.clear();
                 st->selected_objects.insert(picked_name);
-                spdlog::info("[GCode Viewer] Selected object '{}' ({} total selected)", picked_name,
-                             st->selected_objects.size());
+                spdlog::info("[GCode Viewer] Selected object '{}'", picked_name);
             }
 
             // Update highlighting to show all selected objects

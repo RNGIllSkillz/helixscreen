@@ -152,6 +152,15 @@ void GCodeLayerRenderer::set_excluded_objects(const std::unordered_set<std::stri
 }
 
 void GCodeLayerRenderer::set_highlighted_objects(const std::unordered_set<std::string>& names) {
+    if (names != highlighted_objects_) {
+        if (names.empty()) {
+            spdlog::debug("[GCodeLayerRenderer] Selection cleared");
+        } else {
+            for (const auto& name : names) {
+                spdlog::debug("[GCodeLayerRenderer] Selection brackets active for '{}'", name);
+            }
+        }
+    }
     highlighted_objects_ = names;
     invalidate_cache();
 }
@@ -1332,8 +1341,6 @@ void GCodeLayerRenderer::render_selection_brackets(lv_layer_t* layer) {
             dsc.p2.y = static_cast<lv_value_precise_t>(bz.y);
             lv_draw_line(layer, &dsc);
         }
-
-        spdlog::debug("[GCodeLayerRenderer] Selection brackets rendered for '{}'", object_name);
     }
 }
 
