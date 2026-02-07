@@ -353,7 +353,7 @@ int MoonrakerClient::connect(const char* url, std::function<void()> on_connected
             }
 
             // Validate message size to prevent memory exhaustion
-            static constexpr size_t MAX_MESSAGE_SIZE = 1024 * 1024; // 1 MB
+            static constexpr size_t MAX_MESSAGE_SIZE = 5 * 1024 * 1024; // 5 MB
             if (msg.size() > MAX_MESSAGE_SIZE) {
                 spdlog::error("[Moonraker Client] Message too large: {} bytes (max: {})",
                               msg.size(), MAX_MESSAGE_SIZE);
