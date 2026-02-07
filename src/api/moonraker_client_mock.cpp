@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <fstream>
 #include <map>
 #include <random>
 
@@ -179,9 +180,12 @@ int MoonrakerClientMock::connect(const char* url, std::function<void()> on_conne
 
     // Auto-start a print if configured (e.g., when testing print-status panel)
     if (get_runtime_config()->mock_auto_start_print) {
-        spdlog::info("[MoonrakerClientMock] Auto-starting print simulation with '{}'",
-                     RuntimeConfig::DEFAULT_TEST_FILE);
-        start_print_internal(RuntimeConfig::DEFAULT_TEST_FILE);
+        // Use --gcode-file if specified, otherwise fall back to default test file
+        const char* print_file = get_runtime_config()->gcode_test_file
+                                     ? get_runtime_config()->gcode_test_file
+                                     : RuntimeConfig::DEFAULT_TEST_FILE;
+        spdlog::info("[MoonrakerClientMock] Auto-starting print simulation with '{}'", print_file);
+        start_print_internal(print_file);
     }
 
     // Immediately invoke connection callback
@@ -629,15 +633,15 @@ void MoonrakerClientMock::populate_hardware() {
         }
     }
 
-    spdlog::debug("[MoonrakerClientMock] Populated hardware:");
+    spdlog::trace("[MoonrakerClientMock] Populated hardware:");
     for (const auto& h : heaters_)
-        spdlog::debug("  Heater: {}", h);
+        spdlog::trace("  Heater: {}", h);
     for (const auto& s : sensors_)
-        spdlog::debug("  Sensor: {}", s);
+        spdlog::trace("  Sensor: {}", s);
     for (const auto& f : fans_)
-        spdlog::debug("  Fan: {}", f);
+        spdlog::trace("  Fan: {}", f);
     for (const auto& l : leds_)
-        spdlog::debug("  LED: {}", l);
+        spdlog::trace("  LED: {}", l);
 }
 
 void MoonrakerClientMock::parse_incoming_bed_mesh(const json& bed_mesh) {
@@ -1728,6 +1732,29 @@ int MoonrakerClientMock::gcode_script(const std::string& gcode) {
         }
     }
 
+    // EXCLUDE_OBJECT_DEFINE - Register objects for the print
+    if (gcode.find("EXCLUDE_OBJECT_DEFINE") != std::string::npos) {
+        size_t name_pos = gcode.find("NAME=");
+        if (name_pos != std::string::npos) {
+            size_t start = name_pos + 5;
+            std::string object_name;
+            if (start < gcode.size() && gcode[start] == '"') {
+                size_t end = gcode.find('"', start + 1);
+                if (end != std::string::npos) {
+                    object_name = gcode.substr(start + 1, end - start - 1);
+                }
+            } else {
+                size_t end = gcode.find_first_of(" \t\r\n", start);
+                object_name = gcode.substr(start, end - start);
+            }
+            if (!object_name.empty() && mock_state_) {
+                mock_state_->add_object_name(object_name);
+                spdlog::debug("[MoonrakerClientMock] EXCLUDE_OBJECT_DEFINE: registered '{}'",
+                              object_name);
+            }
+        }
+    }
+
     // QGL / Z-tilt (NOT IMPLEMENTED)
     if (gcode.find("QUAD_GANTRY_LEVEL") != std::string::npos) {
         spdlog::warn("[MoonrakerClientMock] STUB: QUAD_GANTRY_LEVEL NOT IMPLEMENTED");
@@ -1849,6 +1876,50 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
     {
         std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
         excluded_objects_.clear();
+        object_names_.clear();
+    }
+
+    // Scan gcode file for EXCLUDE_OBJECT_DEFINE to populate object names
+    {
+        std::ifstream gcode_file(full_path);
+        if (gcode_file.is_open()) {
+            std::string line;
+            while (std::getline(gcode_file, line)) {
+                if (line.find("EXCLUDE_OBJECT_DEFINE") != std::string::npos) {
+                    size_t name_pos = line.find("NAME=");
+                    if (name_pos != std::string::npos) {
+                        size_t start = name_pos + 5;
+                        std::string object_name;
+                        if (start < line.size() && line[start] == '"') {
+                            size_t end = line.find('"', start + 1);
+                            if (end != std::string::npos) {
+                                object_name = line.substr(start + 1, end - start - 1);
+                            }
+                        } else {
+                            size_t end = line.find_first_of(" \t\r\n", start);
+                            object_name = (end != std::string::npos)
+                                              ? line.substr(start, end - start)
+                                              : line.substr(start);
+                        }
+                        if (!object_name.empty()) {
+                            if (mock_state_) {
+                                mock_state_->add_object_name(object_name);
+                            }
+                            std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
+                            if (std::find(object_names_.begin(), object_names_.end(),
+                                          object_name) == object_names_.end()) {
+                                object_names_.push_back(object_name);
+                            }
+                        }
+                    }
+                }
+            }
+            std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
+            if (!object_names_.empty()) {
+                spdlog::info("[MoonrakerClientMock] Found {} EXCLUDE_OBJECT_DEFINE objects in '{}'",
+                             object_names_.size(), full_path);
+            }
+        }
     }
 
     // Reset PRINT_START simulation phase tracking for new print
@@ -1858,10 +1929,10 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
     print_phase_.store(MockPrintPhase::PREHEAT);
     print_state_.store(1); // "printing" for backward compatibility
 
-    spdlog::info("[MoonrakerClientMock] Starting print '{}': est_time={:.0f}s, layers={}, "
-                 "nozzle={:.0f}°C, bed={:.0f}°C",
-                 filename, meta.estimated_time_seconds, meta.layer_count, nozzle_target,
-                 bed_target);
+    spdlog::debug("[MoonrakerClientMock] Starting print '{}': est_time={:.0f}s, layers={}, "
+                  "nozzle={:.0f}°C, bed={:.0f}°C",
+                  filename, meta.estimated_time_seconds, meta.layer_count, nozzle_target,
+                  bed_target);
 
     dispatch_print_state_notification("printing");
     return true;
@@ -1933,8 +2004,8 @@ bool MoonrakerClientMock::cancel_print_internal() {
     print_phase_.store(MockPrintPhase::CANCELLED);
     print_state_.store(4); // "cancelled" for backward compatibility
 
-    spdlog::info("[MoonrakerClientMock] Print cancelled at {:.1f}% progress",
-                 print_progress_.load() * 100.0);
+    spdlog::debug("[MoonrakerClientMock] Print cancelled at {:.1f}% progress",
+                  print_progress_.load() * 100.0);
 
     dispatch_print_state_notification("cancelled");
     return true;
@@ -2059,8 +2130,57 @@ void MoonrakerClientMock::dispatch_enhanced_print_status() {
                    {"virtual_sdcard",
                     {{"file_path", filename}, {"progress", progress}, {"is_active", is_active}}}};
 
-    // Note: dispatch_status_update called separately in the simulation loop
-    // This function builds the enhanced status object
+    // Build exclude_object status with defined objects and excluded state
+    {
+        json objects_array = json::array();
+        json excluded_array = json::array();
+        std::string current;
+
+        if (mock_state_) {
+            // Use shared state (thread-safe copies via internal mutex)
+            auto names = mock_state_->get_object_names();
+            auto excl = mock_state_->get_excluded_objects();
+            for (const auto& name : names) {
+                objects_array.push_back({{"name", name}});
+            }
+            for (const auto& obj : excl) {
+                excluded_array.push_back(obj);
+            }
+            // Pick first non-excluded object as current during active printing
+            if (!names.empty() && is_active) {
+                for (const auto& n : names) {
+                    if (excl.count(n) == 0) {
+                        current = n;
+                        break;
+                    }
+                }
+            }
+        } else {
+            // Fallback to local state for backward compatibility
+            std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
+            for (const auto& name : object_names_) {
+                objects_array.push_back({{"name", name}});
+            }
+            for (const auto& obj : excluded_objects_) {
+                excluded_array.push_back(obj);
+            }
+            // Pick first non-excluded object as current during active printing
+            if (!object_names_.empty() && is_active) {
+                for (const auto& n : object_names_) {
+                    if (excluded_objects_.count(n) == 0) {
+                        current = n;
+                        break;
+                    }
+                }
+            }
+        }
+
+        status["exclude_object"] = {
+            {"objects", objects_array},
+            {"excluded_objects", excluded_array},
+            {"current_object", current.empty() ? json(nullptr) : json(current)}};
+    }
+
     dispatch_status_update(status);
 }
 
@@ -2177,6 +2297,11 @@ void MoonrakerClientMock::dispatch_initial_state() {
           {"mesh_max", {active_bed_mesh_.mesh_max[0], active_bed_mesh_.mesh_max[1]}},
           {"profiles", profiles_json},
           {"mesh_params", {{"algo", active_bed_mesh_.algo}}}}}};
+
+    // Include exclude_object initial state (empty - no objects defined until print starts)
+    initial_status["exclude_object"] = {{"objects", json::array()},
+                                        {"excluded_objects", json::array()},
+                                        {"current_object", nullptr}};
 
     // Merge LED states into initial_status (each LED is a top-level key)
     for (auto& [key, value] : led_json.items()) {
@@ -2665,7 +2790,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                 // Transition to PRINTING phase
                 print_phase_.store(MockPrintPhase::PRINTING);
                 printing_start_time_ = std::chrono::steady_clock::now();
-                spdlog::info("[MoonrakerClientMock] Preheat complete - starting print");
+                spdlog::debug("[MoonrakerClientMock] Preheat complete - starting print");
             }
             break;
 
@@ -2840,6 +2965,55 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             }
         }
 
+        // Add exclude_object status with defined objects and excluded state
+        {
+            json objects_array = json::array();
+            json excluded_array = json::array();
+            std::string current_obj;
+
+            if (mock_state_) {
+                auto names = mock_state_->get_object_names();
+                auto excl = mock_state_->get_excluded_objects();
+                for (const auto& name : names) {
+                    objects_array.push_back({{"name", name}});
+                }
+                for (const auto& obj : excl) {
+                    excluded_array.push_back(obj);
+                }
+                if (!names.empty() &&
+                    (phase == MockPrintPhase::PRINTING || phase == MockPrintPhase::PREHEAT)) {
+                    for (const auto& n : names) {
+                        if (excl.count(n) == 0) {
+                            current_obj = n;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
+                for (const auto& name : object_names_) {
+                    objects_array.push_back({{"name", name}});
+                }
+                for (const auto& obj : excluded_objects_) {
+                    excluded_array.push_back(obj);
+                }
+                if (!object_names_.empty() &&
+                    (phase == MockPrintPhase::PRINTING || phase == MockPrintPhase::PREHEAT)) {
+                    for (const auto& n : object_names_) {
+                        if (excluded_objects_.count(n) == 0) {
+                            current_obj = n;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            status_obj["exclude_object"] = {
+                {"objects", objects_array},
+                {"excluded_objects", excluded_array},
+                {"current_object", current_obj.empty() ? json(nullptr) : json(current_obj)}};
+        }
+
         // Add temperature sensor data for all sensors in the sensors_ list
         for (const auto& s : sensors_) {
             if (s.rfind("temperature_sensor ", 0) == 0) {
@@ -2898,7 +3072,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                              [this] { return !simulation_running_.load(); });
         }
     }
-    spdlog::info("[MoonrakerClientMock] temperature_simulation_loop EXITED");
+    spdlog::debug("[MoonrakerClientMock] temperature_simulation_loop EXITED");
 }
 
 // ============================================================================

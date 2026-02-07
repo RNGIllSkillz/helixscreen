@@ -923,7 +923,8 @@ class MoonrakerClientMock : public MoonrakerClient {
 
     // Excluded objects tracking (for EXCLUDE_OBJECT command)
     std::set<std::string> excluded_objects_; // Object names excluded during print (local fallback)
-    mutable std::mutex excluded_objects_mutex_; // Protects excluded_objects_
+    std::vector<std::string> object_names_;  // Defined object names from gcode (local fallback)
+    mutable std::mutex excluded_objects_mutex_; // Protects excluded_objects_ and object_names_
 
     // Shared mock state for coordination with MoonrakerAPIMock
     // When set, state changes are propagated to this shared object
