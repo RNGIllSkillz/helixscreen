@@ -821,6 +821,46 @@ class PrinterState {
     }
 
     /**
+     * @brief Get the list of all defined objects in the current print
+     *
+     * Returns all object names from Klipper's exclude_object status.
+     *
+     * @return Const reference to the vector of defined object names
+     */
+    const std::vector<std::string>& get_defined_objects() const {
+        return excluded_objects_state_.get_defined_objects();
+    }
+
+    /**
+     * @brief Get the name of the currently printing object
+     *
+     * @return Const reference to current object name, or empty string if none
+     */
+    const std::string& get_current_object() const {
+        return excluded_objects_state_.get_current_object();
+    }
+
+    /**
+     * @brief Get defined objects version subject
+     *
+     * Incremented whenever the defined objects list changes.
+     *
+     * @return Subject pointer (integer, incremented on each change)
+     */
+    lv_subject_t* get_defined_objects_version_subject() {
+        return excluded_objects_state_.get_defined_objects_version_subject();
+    }
+
+    /**
+     * @brief Check if any objects are defined for exclude_object
+     *
+     * @return true if the print has defined objects available for exclusion
+     */
+    bool has_exclude_objects() const {
+        return excluded_objects_state_.has_objects();
+    }
+
+    /**
      * @brief Update excluded objects from Moonraker status update
      *
      * Called by status update handler when exclude_object.excluded_objects changes.

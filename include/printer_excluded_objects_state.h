@@ -6,6 +6,7 @@
 #include <lvgl.h>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 namespace helix {
 
@@ -63,6 +64,23 @@ class PrinterExcludedObjectsState {
      */
     void set_excluded_objects(const std::unordered_set<std::string>& objects);
 
+    /**
+     * @brief Update defined objects from Klipper's exclude_object status
+     *
+     * Sets the full list of objects defined in the current print.
+     * Only bumps version subject if the list actually changed.
+     *
+     * @param objects Vector of all object names from Klipper
+     */
+    void set_defined_objects(const std::vector<std::string>& objects);
+
+    /**
+     * @brief Update currently printing object name
+     *
+     * @param name Name of the object currently being printed, or empty if none
+     */
+    void set_current_object(const std::string& name);
+
     // ========================================================================
     // Subject accessors
     // ========================================================================
@@ -78,6 +96,19 @@ class PrinterExcludedObjectsState {
      */
     lv_subject_t* get_excluded_objects_version_subject() {
         return &excluded_objects_version_;
+    }
+
+    /**
+     * @brief Get defined objects version subject
+     *
+     * This subject is incremented whenever the defined objects list changes.
+     * Observers should watch this subject and call get_defined_objects() to
+     * get the updated list when notified.
+     *
+     * @return Subject pointer (integer, incremented on each change)
+     */
+    lv_subject_t* get_defined_objects_version_subject() {
+        return &defined_objects_version_;
     }
 
     // ========================================================================
@@ -96,6 +127,33 @@ class PrinterExcludedObjectsState {
         return excluded_objects_;
     }
 
+    /**
+     * @brief Get the list of all defined objects in the current print
+     *
+     * @return Const reference to the vector of defined object names
+     */
+    const std::vector<std::string>& get_defined_objects() const {
+        return defined_objects_;
+    }
+
+    /**
+     * @brief Get the name of the currently printing object
+     *
+     * @return Const reference to current object name, or empty string if none
+     */
+    const std::string& get_current_object() const {
+        return current_object_;
+    }
+
+    /**
+     * @brief Check if any objects are defined for exclude_object
+     *
+     * @return true if the print has defined objects available for exclusion
+     */
+    bool has_objects() const {
+        return !defined_objects_.empty();
+    }
+
   private:
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
@@ -105,6 +163,15 @@ class PrinterExcludedObjectsState {
 
     // Set of excluded object names (NOT a subject - sets aren't natively supported)
     std::unordered_set<std::string> excluded_objects_;
+
+    // All defined object names from Klipper's exclude_object status
+    std::vector<std::string> defined_objects_;
+
+    // Currently printing object name (empty if none)
+    std::string current_object_;
+
+    // Version subject for defined objects list (incremented when list changes)
+    lv_subject_t defined_objects_version_{};
 };
 
 } // namespace helix

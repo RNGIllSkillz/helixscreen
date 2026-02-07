@@ -101,6 +101,16 @@ class PrintExcludeObjectManager {
     void handle_object_long_press(const char* object_name);
 
     /**
+     * @brief Request exclusion of an object by name (from list overlay)
+     *
+     * Triggers the same confirmation flow as a long-press:
+     * guard checks → confirmation modal → 5s undo → API call.
+     *
+     * @param object_name Name of the object to exclude
+     */
+    void request_exclude(const std::string& object_name);
+
+    /**
      * @brief Update the MoonrakerAPI pointer
      *
      * @param api New API pointer (may be nullptr)

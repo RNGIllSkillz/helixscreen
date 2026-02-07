@@ -218,6 +218,7 @@ void register_xml_components() {
     lv_xml_register_component_from_file("A:ui_xml/fan_status_card.xml");
     lv_xml_register_component_from_file("A:ui_xml/fan_control_overlay.xml");
     lv_xml_register_component_from_file("A:ui_xml/ams_current_tool.xml");
+    lv_xml_register_component_from_file("A:ui_xml/exclude_objects_list_overlay.xml");
     lv_xml_register_component_from_file("A:ui_xml/print_status_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/print_tune_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/filament_panel.xml");

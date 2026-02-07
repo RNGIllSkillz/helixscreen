@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<component>
+  <view name="exclude_objects_list_overlay"
+        extends="overlay_panel" width="#keypad_width" title="Print Objects" title_tag="Print Objects">
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="true" flex_flow="column"
+            style_pad_gap="#space_sm">
+      <!-- Rows populated dynamically by C++ -->
+      <lv_obj name="objects_list" width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs"/>
+    </lv_obj>
+  </view>
+</component>

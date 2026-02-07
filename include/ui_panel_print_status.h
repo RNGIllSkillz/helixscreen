@@ -299,6 +299,8 @@ class PrintStatusPanel : public OverlayBase {
     // Viewer mode subject (0=thumbnail mode, 1=gcode viewer mode)
     lv_subject_t gcode_viewer_mode_subject_;
 
+    lv_subject_t exclude_objects_available_subject_; ///< Int: 1 if multi-object print
+
     // Subject storage buffers
     char progress_text_buf_[32] = "0%";
     char layer_text_buf_[64] = "Layer 0 / 0";
@@ -442,6 +444,7 @@ class PrintStatusPanel : public OverlayBase {
     static void on_tune_clicked(lv_event_t* e);
     static void on_cancel_clicked(lv_event_t* e);
     static void on_reprint_clicked(lv_event_t* e);
+    static void on_objects_clicked(lv_event_t* e);
 
     // Static resize callback (registered with ui_resize_handler)
     static void on_resize_static();
@@ -485,6 +488,7 @@ class PrintStatusPanel : public OverlayBase {
     ObserverGuard print_start_progress_observer_;
     ObserverGuard preprint_remaining_observer_;
     ObserverGuard preprint_elapsed_observer_;
+    ObserverGuard exclude_objects_observer_;
 
     //
     // === Exclude Object Manager ===

@@ -4,6 +4,7 @@
 #ifndef MOCK_PRINTER_STATE_H
 #define MOCK_PRINTER_STATE_H
 
+#include <algorithm>
 #include <atomic>
 #include <mutex>
 #include <set>
@@ -77,13 +78,14 @@ class MockPrinterState {
     }
 
     /**
-     * @brief Clear all excluded objects
+     * @brief Clear all excluded objects and object name definitions
      *
      * Called on print start or Klipper restart to reset the exclusion list.
      */
     void clear_excluded_objects() {
         std::lock_guard<std::mutex> lock(objects_mutex_);
         excluded_objects_.clear();
+        object_names_.clear();
     }
 
     /**
@@ -106,6 +108,30 @@ class MockPrinterState {
     std::vector<std::string> get_available_objects() const {
         std::lock_guard<std::mutex> lock(objects_mutex_);
         return available_objects_;
+    }
+
+    /**
+     * @brief Add an object name from EXCLUDE_OBJECT_DEFINE
+     *
+     * Avoids duplicates. Used during G-code parsing to build the object list.
+     *
+     * @param name Object name to register
+     */
+    void add_object_name(const std::string& name) {
+        std::lock_guard<std::mutex> lock(objects_mutex_);
+        if (std::find(object_names_.begin(), object_names_.end(), name) == object_names_.end()) {
+            object_names_.push_back(name);
+        }
+    }
+
+    /**
+     * @brief Get registered object names (thread-safe copy)
+     *
+     * @return Vector of object names from EXCLUDE_OBJECT_DEFINE commands
+     */
+    std::vector<std::string> get_object_names() const {
+        std::lock_guard<std::mutex> lock(objects_mutex_);
+        return object_names_;
     }
 
     /**
@@ -150,12 +176,14 @@ class MockPrinterState {
             std::lock_guard<std::mutex> lock(objects_mutex_);
             excluded_objects_.clear();
             available_objects_.clear();
+            object_names_.clear();
         }
     }
 
   private:
     std::set<std::string> excluded_objects_;
     std::vector<std::string> available_objects_;
+    std::vector<std::string> object_names_; ///< Object names from EXCLUDE_OBJECT_DEFINE
     mutable std::mutex objects_mutex_;
     mutable std::mutex filename_mutex_;
 };

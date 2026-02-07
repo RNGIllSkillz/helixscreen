@@ -28,6 +28,7 @@ void PrinterExcludedObjectsState::init_subjects(bool register_xml) {
 
     // Initialize version subject to 0 (no changes yet)
     INIT_SUBJECT_INT(excluded_objects_version, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(defined_objects_version, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
     spdlog::trace("[PrinterExcludedObjectsState] Subjects initialized successfully");
@@ -45,16 +46,18 @@ void PrinterExcludedObjectsState::deinit_subjects() {
 
 void PrinterExcludedObjectsState::reset_for_testing() {
     if (!subjects_initialized_) {
-        spdlog::debug("[PrinterExcludedObjectsState] reset_for_testing: subjects not initialized, "
+        spdlog::trace("[PrinterExcludedObjectsState] reset_for_testing: subjects not initialized, "
                       "nothing to reset");
         return;
     }
 
-    spdlog::debug("[PrinterExcludedObjectsState] reset_for_testing: Deinitializing subjects to "
+    spdlog::trace("[PrinterExcludedObjectsState] reset_for_testing: Deinitializing subjects to "
                   "clear observers");
 
-    // Clear the excluded objects set
+    // Clear all state
     excluded_objects_.clear();
+    defined_objects_.clear();
+    current_object_.clear();
 
     // Use SubjectManager for automatic subject cleanup
     subjects_.deinit_all();
@@ -74,6 +77,34 @@ void PrinterExcludedObjectsState::set_excluded_objects(
         spdlog::debug("[PrinterExcludedObjectsState] Excluded objects updated: {} objects "
                       "(version {})",
                       excluded_objects_.size(), version + 1);
+    }
+}
+
+void PrinterExcludedObjectsState::set_defined_objects(const std::vector<std::string>& objects) {
+    // Only update if the list actually changed
+    if (defined_objects_ != objects) {
+        defined_objects_ = objects;
+
+        // Increment version to notify observers
+        int version = lv_subject_get_int(&defined_objects_version_);
+        lv_subject_set_int(&defined_objects_version_, version + 1);
+
+        spdlog::debug("[PrinterExcludedObjectsState] Defined objects updated: {} objects "
+                      "(version {})",
+                      defined_objects_.size(), version + 1);
+    }
+}
+
+void PrinterExcludedObjectsState::set_current_object(const std::string& name) {
+    if (current_object_ != name) {
+        current_object_ = name;
+
+        // Bump excluded version to notify overlay observers of current object change
+        int version = lv_subject_get_int(&excluded_objects_version_);
+        lv_subject_set_int(&excluded_objects_version_, version + 1);
+
+        spdlog::debug("[PrinterExcludedObjectsState] Current object: '{}' (version {})",
+                      current_object_, version + 1);
     }
 }
 

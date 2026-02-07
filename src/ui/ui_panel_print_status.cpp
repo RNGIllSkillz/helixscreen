@@ -7,6 +7,7 @@
 #include "ui_component_header_bar.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
+#include "ui_exclude_objects_list_overlay.h"
 #include "ui_gcode_viewer.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
@@ -71,6 +72,9 @@ PrintStatusPanel& get_global_print_status_panel() {
 
 PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, MoonrakerAPI* api)
     : printer_state_(printer_state), api_(api) {
+    // Pre-init local subject used by observer callback below (fires immediately on subscribe)
+    lv_subject_init_int(&exclude_objects_available_subject_, 0);
+
     // Subscribe to temperature subjects using bundle (replaces 4 individual observers)
     temp_observers_.setup_sync(
         this, printer_state_, [](PrintStatusPanel* self, int) { self->on_temperature_changed(); },
@@ -135,6 +139,14 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, MoonrakerAPI* ap
     preprint_elapsed_observer_ = observe_int_sync<PrintStatusPanel>(
         printer_state_.get_preprint_elapsed_subject(), this,
         [](PrintStatusPanel* self, int seconds) { self->on_preprint_elapsed_changed(seconds); });
+
+    // Subscribe to defined objects changes (for objects list button visibility)
+    exclude_objects_observer_ = observe_int_sync<PrintStatusPanel>(
+        printer_state_.get_defined_objects_version_subject(), this,
+        [](PrintStatusPanel* self, int) {
+            int available = self->printer_state_.get_defined_objects().size() >= 2 ? 1 : 0;
+            lv_subject_set_int(&self->exclude_objects_available_subject_, available);
+        });
 
     spdlog::debug("[{}] Subscribed to PrinterState subjects", get_name());
 
@@ -235,6 +247,15 @@ void PrintStatusPanel::init_subjects() {
     // Viewer mode subject (0=thumbnail, 1=3D gcode viewer, 2=2D gcode viewer)
     UI_MANAGED_SUBJECT_INT(gcode_viewer_mode_subject_, 0, "gcode_viewer_mode", subjects_);
 
+    // Exclude objects availability (0=hidden, 1=visible - shown when >= 2 objects defined)
+    // Note: subject already initialized in constructor (needed before observer fires)
+    lv_xml_register_subject(nullptr, "exclude_objects_available",
+                            &exclude_objects_available_subject_);
+    subjects_.register_subject(&exclude_objects_available_subject_);
+    SubjectDebugRegistry::instance().register_subject(&exclude_objects_available_subject_,
+                                                      "exclude_objects_available",
+                                                      LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+
     // Register XML event callbacks for print status panel buttons
     // (tune overlay subjects/callbacks registered by singleton on first show())
     // (light and timelapse callbacks are registered by light_timelapse_controls_.init_subjects())
@@ -244,6 +265,7 @@ void PrintStatusPanel::init_subjects() {
     lv_xml_register_event_cb(nullptr, "on_print_status_reprint", on_reprint_clicked);
     lv_xml_register_event_cb(nullptr, "on_print_status_nozzle_clicked", on_nozzle_card_clicked);
     lv_xml_register_event_cb(nullptr, "on_print_status_bed_clicked", on_bed_card_clicked);
+    lv_xml_register_event_cb(nullptr, "on_print_status_objects", on_objects_clicked);
 
     subjects_initialized_ = true;
 
@@ -561,23 +583,23 @@ void PrintStatusPanel::show_gcode_viewer(bool show) {
         ui_gcode_viewer_set_paused(gcode_viewer_, !show);
     }
 
-    spdlog::debug("[{}] G-code viewer mode: {} ({})", get_name(), mode,
+    spdlog::trace("[{}] G-code viewer mode: {} ({})", get_name(), mode,
                   mode == 0 ? "thumbnail" : (mode == 1 ? "3D" : "2D"));
 
     // Diagnostic: log visibility state of all viewer components
     if (print_thumbnail_) {
         bool thumb_hidden = lv_obj_has_flag(print_thumbnail_, LV_OBJ_FLAG_HIDDEN);
         const void* img_src = lv_image_get_src(print_thumbnail_);
-        spdlog::debug("[{}]   -> thumbnail: hidden={}, has_src={}", get_name(), thumb_hidden,
+        spdlog::trace("[{}]   -> thumbnail: hidden={}, has_src={}", get_name(), thumb_hidden,
                       img_src != nullptr);
     }
     if (gcode_viewer_) {
         bool viewer_hidden = lv_obj_has_flag(gcode_viewer_, LV_OBJ_FLAG_HIDDEN);
-        spdlog::debug("[{}]   -> gcode_viewer: hidden={}", get_name(), viewer_hidden);
+        spdlog::trace("[{}]   -> gcode_viewer: hidden={}", get_name(), viewer_hidden);
     }
     if (gradient_background_) {
         bool grad_hidden = lv_obj_has_flag(gradient_background_, LV_OBJ_FLAG_HIDDEN);
-        spdlog::debug("[{}]   -> gradient: hidden={}", get_name(), grad_hidden);
+        spdlog::trace("[{}]   -> gradient: hidden={}", get_name(), grad_hidden);
     }
 }
 
@@ -588,7 +610,7 @@ void PrintStatusPanel::load_gcode_file(const char* file_path) {
         return;
     }
 
-    spdlog::info("[{}] Loading G-code file: {}", get_name(), file_path);
+    spdlog::debug("[{}] Loading G-code file: {}", get_name(), file_path);
 
     // Register callback to be notified when loading completes
     ui_gcode_viewer_set_load_callback(
@@ -603,7 +625,10 @@ void PrintStatusPanel::load_gcode_file(const char* file_path) {
 
             // Get layer count from loaded geometry
             int max_layer = ui_gcode_viewer_get_max_layer(viewer);
-            spdlog::info("[{}] G-code loaded: {} layers", self->get_name(), max_layer);
+            if (max_layer >= 0)
+                spdlog::debug("[{}] G-code loaded: {} layers", self->get_name(), max_layer);
+            else
+                spdlog::debug("[{}] G-code loaded (renderer pending)", self->get_name());
 
             // Mark G-code as successfully loaded (enables viewer mode on state changes)
             self->gcode_loaded_ = true;
@@ -1005,6 +1030,17 @@ void PrintStatusPanel::on_reprint_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
+void PrintStatusPanel::on_objects_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[PrintStatusPanel] on_objects_clicked");
+    (void)e;
+    auto& panel = get_global_print_status_panel();
+    if (panel.exclude_manager_ && panel.parent_screen_) {
+        helix::ui::get_exclude_objects_list_overlay().show(
+            panel.parent_screen_, panel.api_, panel.printer_state_, panel.exclude_manager_.get());
+    }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
 void PrintStatusPanel::on_resize_static() {
     // Use global instance for resize callback (registered without user_data)
     if (g_print_status_panel) {
@@ -1132,8 +1168,8 @@ void PrintStatusPanel::on_print_state_changed(PrintJobState job_state) {
         }
 
         set_state(new_state);
-        spdlog::info("[{}] Print state changed: {} -> {}", get_name(),
-                     print_job_state_to_string(job_state), static_cast<int>(new_state));
+        spdlog::debug("[{}] Print state changed: {} -> {}", get_name(),
+                      print_job_state_to_string(job_state), static_cast<int>(new_state));
 
         // Toggle G-code viewer visibility based on print state
         // Show 3D/2D viewer during preparing/printing/paused ONLY if G-code was successfully
@@ -1197,7 +1233,7 @@ void PrintStatusPanel::on_print_state_changed(PrintJobState job_state) {
         // Show print cancelled overlay when entering Cancelled state
         if (new_state == PrintState::Cancelled) {
             animate_print_cancelled();
-            spdlog::info("[{}] Print cancelled at progress: {}%", get_name(), current_progress_);
+            spdlog::debug("[{}] Print cancelled at progress: {}%", get_name(), current_progress_);
         }
 
         // Update e-stop button visibility: show only during active print
@@ -1963,8 +1999,8 @@ void PrintStatusPanel::load_gcode_for_viewing(const std::string& filename) {
                     // Track the temp file for cleanup
                     temp_gcode_path_ = path;
 
-                    spdlog::info("[{}] Streamed G-code to disk, loading into viewer: {}",
-                                 get_name(), path);
+                    spdlog::debug("[{}] Streamed G-code to disk, loading into viewer: {}",
+                                  get_name(), path);
 
                     // Load into the viewer widget
                     load_gcode_file(path.c_str());
@@ -2024,8 +2060,8 @@ void PrintStatusPanel::set_filename(const char* filename) {
         // G-code loading: immediate if panel active, deferred otherwise
         if (is_active_) {
             // Panel is already visible - load immediately instead of deferring
-            spdlog::info("[{}] Panel active, loading G-code immediately: {}", get_name(),
-                         effective_filename);
+            spdlog::debug("[{}] Panel active, loading G-code immediately: {}", get_name(),
+                          effective_filename);
             load_gcode_for_viewing(effective_filename);
             pending_gcode_filename_.clear();
         } else {
@@ -2108,7 +2144,7 @@ void PrintStatusPanel::end_preparing(bool success) {
     if (success) {
         // Transition to Printing state
         set_state(PrintState::Printing);
-        spdlog::info("[{}] Preparation complete, starting print", get_name());
+        spdlog::debug("[{}] Preparation complete, starting print", get_name());
     } else {
         // Transition back to Idle
         set_state(PrintState::Idle);

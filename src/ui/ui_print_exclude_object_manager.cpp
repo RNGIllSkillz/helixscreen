@@ -43,7 +43,7 @@ PrintExcludeObjectManager::~PrintExcludeObjectManager() {
         exclude_undo_timer_ = nullptr;
     }
 
-    spdlog::debug("[PrintExcludeObjectManager] Destroyed");
+    spdlog::trace("[PrintExcludeObjectManager] Destroyed");
 }
 
 void PrintExcludeObjectManager::init() {
@@ -157,6 +157,10 @@ void PrintExcludeObjectManager::handle_object_long_press(const char* object_name
         spdlog::error("[PrintExcludeObjectManager] Failed to show exclude confirmation modal");
         pending_exclude_object_.clear();
     }
+}
+
+void PrintExcludeObjectManager::request_exclude(const std::string& object_name) {
+    handle_object_long_press(object_name.c_str());
 }
 
 // ============================================================================

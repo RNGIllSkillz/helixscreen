@@ -104,12 +104,12 @@ PrinterState::~PrinterState() {}
 
 void PrinterState::reset_for_testing() {
     if (!subjects_initialized_) {
-        spdlog::debug(
+        spdlog::trace(
             "[PrinterState] reset_for_testing: subjects not initialized, nothing to reset");
         return; // Nothing to reset
     }
 
-    spdlog::debug("[PrinterState] reset_for_testing: Deinitializing subjects to clear observers");
+    spdlog::trace("[PrinterState] reset_for_testing: Deinitializing subjects to clear observers");
 
     // Reset temperature state component
     temperature_state_.reset_for_testing();
@@ -362,6 +362,26 @@ void PrinterState::update_from_status(const json& state) {
             // Note: We're inside state_mutex_ lock, but set_excluded_objects only modifies
             // its own data and calls lv_subject_set_int which is safe
             set_excluded_objects(excluded);
+        }
+
+        // Parse defined objects list
+        if (eo.contains("objects") && eo["objects"].is_array()) {
+            std::vector<std::string> defined;
+            for (const auto& obj : eo["objects"]) {
+                if (obj.is_object() && obj.contains("name") && obj["name"].is_string()) {
+                    defined.push_back(obj["name"].get<std::string>());
+                }
+            }
+            excluded_objects_state_.set_defined_objects(defined);
+        }
+
+        // Parse current object
+        if (eo.contains("current_object")) {
+            if (eo["current_object"].is_string()) {
+                excluded_objects_state_.set_current_object(eo["current_object"].get<std::string>());
+            } else if (eo["current_object"].is_null()) {
+                excluded_objects_state_.set_current_object("");
+            }
         }
     }
 
