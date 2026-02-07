@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <fstream>
 #include <map>
 #include <random>
 
@@ -1849,6 +1850,73 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
     {
         std::lock_guard<std::mutex> lock(excluded_objects_mutex_);
         excluded_objects_.clear();
+    }
+
+    // Parse EXCLUDE_OBJECT_DEFINE lines from gcode to populate defined objects
+    // This simulates what Klipper does when it processes the gcode file
+    {
+        std::vector<std::string> defined_objects;
+        std::ifstream gcode_file(full_path);
+        if (gcode_file.is_open()) {
+            std::string line;
+            while (std::getline(gcode_file, line)) {
+                if (line.find("EXCLUDE_OBJECT_DEFINE") != std::string::npos) {
+                    // Extract NAME= parameter
+                    auto name_pos = line.find("NAME=");
+                    if (name_pos != std::string::npos) {
+                        std::string name;
+                        size_t start = name_pos + 5;
+                        if (start < line.size() && line[start] == '"') {
+                            // Quoted name
+                            size_t end = line.find('"', start + 1);
+                            if (end != std::string::npos) {
+                                name = line.substr(start + 1, end - start - 1);
+                            }
+                        } else if (start < line.size() && line[start] == '\'') {
+                            // Single-quoted name
+                            size_t end = line.find('\'', start + 1);
+                            if (end != std::string::npos) {
+                                name = line.substr(start + 1, end - start - 1);
+                            }
+                        } else {
+                            // Unquoted: ends at space or end of line
+                            size_t end = line.find(' ', start);
+                            name = line.substr(start, end - start);
+                        }
+                        if (!name.empty()) {
+                            defined_objects.push_back(name);
+                            if (mock_state_) {
+                                mock_state_->add_object_name(name);
+                            }
+                        }
+                    }
+                }
+                // Stop scanning after first layer to avoid reading the entire file
+                if (line.find(";LAYER_CHANGE") != std::string::npos ||
+                    line.find("; LAYER_CHANGE") != std::string::npos) {
+                    break;
+                }
+            }
+        }
+
+        if (!defined_objects.empty()) {
+            spdlog::info("[MoonrakerClientMock] Found {} defined objects in '{}'",
+                         defined_objects.size(), lookup_filename);
+            if (mock_state_) {
+                mock_state_->set_available_objects(defined_objects);
+            }
+
+            // Dispatch exclude_object status update so PrinterState knows about them
+            json objects_array = json::array();
+            for (const auto& obj_name : defined_objects) {
+                objects_array.push_back({{"name", obj_name}});
+            }
+            json eo_status = {{"exclude_object",
+                               {{"objects", objects_array},
+                                {"excluded_objects", json::array()},
+                                {"current_object", nullptr}}}};
+            dispatch_status_update(eo_status);
+        }
     }
 
     // Reset PRINT_START simulation phase tracking for new print
