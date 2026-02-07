@@ -95,3 +95,40 @@ setup() {
     result=$(find_moonraker_conf)
     [ -z "$result" ]
 }
+
+# --- Updater repo directory tests ---
+
+@test "get_updater_repo_dir returns INSTALL_DIR-repo" {
+    INSTALL_DIR="/opt/helixscreen"
+    result=$(get_updater_repo_dir)
+    [ "$result" = "/opt/helixscreen-repo" ]
+}
+
+@test "get_updater_repo_dir works with home directory path" {
+    INSTALL_DIR="/home/biqu/helixscreen"
+    result=$(get_updater_repo_dir)
+    [ "$result" = "/home/biqu/helixscreen-repo" ]
+}
+
+@test "generate_update_manager_config uses repo dir for path" {
+    INSTALL_DIR="/opt/helixscreen"
+    local config
+    config=$(generate_update_manager_config)
+    echo "$config" | grep -q "path: /opt/helixscreen-repo"
+}
+
+@test "generate_update_manager_config path differs from INSTALL_DIR" {
+    INSTALL_DIR="/opt/helixscreen"
+    local config
+    config=$(generate_update_manager_config)
+    local path_value
+    path_value=$(echo "$config" | grep '^path:' | sed 's/^path: *//')
+    [ "$path_value" != "$INSTALL_DIR" ]
+}
+
+@test "generate_update_manager_config contains install_script" {
+    INSTALL_DIR="/opt/helixscreen"
+    local config
+    config=$(generate_update_manager_config)
+    echo "$config" | grep -q "install_script: scripts/install.sh"
+}

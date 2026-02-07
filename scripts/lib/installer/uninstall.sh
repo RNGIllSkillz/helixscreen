@@ -85,6 +85,11 @@ uninstall() {
             $SUDO rm -rf "$install_dir"
             log_success "Removed ${install_dir}"
             removed_dir="$install_dir"
+            # Also remove the updater repo clone if present
+            if [ -d "${install_dir}-repo" ]; then
+                $SUDO rm -rf "${install_dir}-repo"
+                log_success "Removed ${install_dir}-repo"
+            fi
         fi
     done
 

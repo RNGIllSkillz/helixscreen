@@ -1639,6 +1639,43 @@ stop_service() {
 # ============================================
 
 #
+# Updater repo directory (lightweight git clone for Moonraker tracking)
+UPDATER_REPO_DIR=""
+# Get the updater repo directory path
+# Returns: path like ${INSTALL_DIR}-repo
+get_updater_repo_dir() {
+    echo "${INSTALL_DIR}-repo"
+}
+
+# Set up a lightweight git clone for Moonraker update tracking
+# Moonraker needs a git repo to detect new tags and trigger updates.
+# The actual INSTALL_DIR is an extracted tarball (not a git repo),
+# so we maintain a separate shallow clone alongside it.
+# Skip if: already exists, or running on AD5M (no web UI)
+setup_updater_repo() {
+    UPDATER_REPO_DIR=$(get_updater_repo_dir)
+
+    if [ -d "$UPDATER_REPO_DIR/.git" ]; then
+        log_info "Updater repo already exists at $UPDATER_REPO_DIR"
+        return 0
+    fi
+
+    if ! command -v git >/dev/null 2>&1; then
+        log_warn "git not available - skipping updater repo setup"
+        return 0
+    fi
+
+    log_info "Setting up updater repo at $UPDATER_REPO_DIR..."
+    $SUDO mkdir -p "$UPDATER_REPO_DIR"
+    if $SUDO git clone --depth 1 --filter=blob:none --no-checkout \
+        "https://github.com/${GITHUB_REPO}.git" "$UPDATER_REPO_DIR" 2>/dev/null; then
+        log_success "Updater repo created at $UPDATER_REPO_DIR"
+    else
+        log_warn "Could not create updater repo - Moonraker updates may not work"
+        $SUDO rm -rf "$UPDATER_REPO_DIR"
+    fi
+}
+
 # Common moonraker.conf locations
 MOONRAKER_CONF_PATHS="
 /home/pi/printer_data/config/moonraker.conf
@@ -1680,9 +1717,12 @@ has_update_manager_section() {
 }
 
 # Generate update_manager configuration block
-# Uses git_repo type for tracking updates
-# Note: Uses INSTALL_DIR which must be set before calling
+# Uses git_repo type with a lightweight clone for tracking updates
+# The clone at ${INSTALL_DIR}-repo lets Moonraker detect new tags
+# and trigger install_script, which downloads the actual release binary
 generate_update_manager_config() {
+    local repo_dir
+    repo_dir=$(get_updater_repo_dir)
     cat << EOF
 
 # HelixScreen Update Manager
@@ -1690,7 +1730,7 @@ generate_update_manager_config() {
 [update_manager helixscreen]
 type: git_repo
 channel: stable
-path: ${INSTALL_DIR}
+path: ${repo_dir}
 origin: https://github.com/prestonbrown/helixscreen.git
 primary_branch: main
 managed_services: helixscreen
@@ -1726,6 +1766,9 @@ configure_moonraker_updates() {
 
     # Pi and K1 (Simple AF) both commonly use Mainsail/Fluidd
     log_info "Configuring Moonraker update_manager..."
+
+    # Set up the lightweight git clone for Moonraker tracking
+    setup_updater_repo
 
     local conf
     conf=$(find_moonraker_conf)
@@ -1877,6 +1920,11 @@ uninstall() {
             $SUDO rm -rf "$install_dir"
             log_success "Removed ${install_dir}"
             removed_dir="$install_dir"
+            # Also remove the updater repo clone if present
+            if [ -d "${install_dir}-repo" ]; then
+                $SUDO rm -rf "${install_dir}-repo"
+                log_success "Removed ${install_dir}-repo"
+            fi
         fi
     done
 
