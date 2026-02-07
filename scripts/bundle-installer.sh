@@ -166,8 +166,8 @@ install_platform_hooks() {
         klipper_mod) platform_hook="ad5m-kmod" ;;
     esac
 
-    # Pi and K1 platform hooks
-    if [ "$platform" = "pi" ]; then
+    # Pi and K1 platform hooks (pi32 shares Pi hooks)
+    if [ "$platform" = "pi" ] || [ "$platform" = "pi32" ]; then
         platform_hook="pi"
     elif [ "$platform" = "k1" ]; then
         platform_hook="k1"

@@ -6,9 +6,11 @@
 # Usage:
 #   make                       # Native build (SDL)
 #   make PLATFORM_TARGET=pi    # Cross-compile for Raspberry Pi (aarch64)
+#   make PLATFORM_TARGET=pi32  # Cross-compile for Raspberry Pi (armhf/armv7l)
 #   make PLATFORM_TARGET=ad5m  # Cross-compile for Adventurer 5M (armv7-a)
 #   make PLATFORM_TARGET=k1    # Cross-compile for Creality K1 series (MIPS32)
-#   make pi-docker             # Docker-based Pi build
+#   make pi-docker             # Docker-based Pi build (64-bit)
+#   make pi32-docker           # Docker-based Pi build (32-bit)
 #   make ad5m-docker           # Docker-based AD5M build
 #   make k1-docker             # Docker-based K1 build
 
@@ -41,6 +43,28 @@ ifeq ($(PLATFORM_TARGET),pi)
     HELIX_HAS_SYSTEMD := yes
     BUILD_SUBDIR := pi
     # Strip binary for size - embedded targets don't need debug symbols
+    STRIP_BINARY := yes
+
+else ifeq ($(PLATFORM_TARGET),pi32)
+    # -------------------------------------------------------------------------
+    # Raspberry Pi 32-bit (MainsailOS armhf) - armv7-a hard-float
+    # -------------------------------------------------------------------------
+    # For 32-bit Raspberry Pi OS / MainsailOS (armv7l).
+    # Covers Pi 2/3/4/5 running 32-bit userland.
+    # Same strategy as 64-bit Pi: dynamic linking, static OpenSSL, DRM display.
+    CROSS_COMPILE ?= arm-linux-gnueabihf-
+    TARGET_ARCH := armv7-a
+    TARGET_TRIPLE := arm-linux-gnueabihf
+    TARGET_CFLAGS := -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard \
+        -I/usr/arm-linux-gnueabihf/include -I/usr/include/libdrm \
+        -Wno-error=conversion -Wno-error=sign-conversion -DHELIX_RELEASE_BUILD
+    DISPLAY_BACKEND := drm
+    ENABLE_SDL := no
+    ENABLE_TINYGL_3D := yes
+    ENABLE_EVDEV := yes
+    ENABLE_SSL := yes
+    HELIX_HAS_SYSTEMD := yes
+    BUILD_SUBDIR := pi32
     STRIP_BINARY := yes
 
 else ifeq ($(PLATFORM_TARGET),ad5m)
@@ -153,7 +177,7 @@ else ifeq ($(PLATFORM_TARGET),native)
     BUILD_SUBDIR :=
 
 else
-    $(error Unknown PLATFORM_TARGET: $(PLATFORM_TARGET). Valid options: native, pi, ad5m, k1)
+    $(error Unknown PLATFORM_TARGET: $(PLATFORM_TARGET). Valid options: native, pi, pi32, ad5m, k1)
 endif
 
 # =============================================================================
@@ -254,12 +278,16 @@ endif
 # Cross-Compilation Build Targets
 # =============================================================================
 
-.PHONY: pi ad5m k1 pi-docker ad5m-docker k1-docker docker-toolchains cross-info ensure-docker ensure-buildx maybe-stop-colima
+.PHONY: pi pi32 ad5m k1 pi-docker pi32-docker ad5m-docker k1-docker docker-toolchains cross-info ensure-docker ensure-buildx maybe-stop-colima
 
 # Direct cross-compilation (requires toolchain installed)
 pi:
 	@echo "$(CYAN)$(BOLD)Cross-compiling for Raspberry Pi (aarch64)...$(RESET)"
 	$(Q)$(MAKE) PLATFORM_TARGET=pi -j$(NPROC) all
+
+pi32:
+	@echo "$(CYAN)$(BOLD)Cross-compiling for Raspberry Pi 32-bit (armv7-a)...$(RESET)"
+	$(Q)$(MAKE) PLATFORM_TARGET=pi32 -j$(NPROC) all
 
 ad5m:
 	@echo "$(CYAN)$(BOLD)Cross-compiling for Adventurer 5M (armv7-a)...$(RESET)"
@@ -357,6 +385,16 @@ pi-docker: ensure-docker
 		make PLATFORM_TARGET=pi SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
+pi32-docker: ensure-docker
+	@echo "$(CYAN)$(BOLD)Cross-compiling for Raspberry Pi 32-bit via Docker...$(RESET)"
+	@if ! docker image inspect helixscreen/toolchain-pi32 >/dev/null 2>&1; then \
+		echo "$(YELLOW)Docker image not found. Building toolchain first...$(RESET)"; \
+		$(MAKE) docker-toolchain-pi32; \
+	fi
+	$(Q)docker run --platform linux/amd64 --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src helixscreen/toolchain-pi32 \
+		make PLATFORM_TARGET=pi32 SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+	@$(MAKE) --no-print-directory maybe-stop-colima
+
 ad5m-docker: ensure-docker
 	@echo "$(CYAN)$(BOLD)Cross-compiling for Adventurer 5M via Docker...$(RESET)"
 	@if ! docker image inspect helixscreen/toolchain-ad5m >/dev/null 2>&1; then \
@@ -365,6 +403,11 @@ ad5m-docker: ensure-docker
 	fi
 	$(Q)docker run --rm --user $$(id -u):$$(id -g) -v "$(PWD)":/src -w /src helixscreen/toolchain-ad5m \
 		make PLATFORM_TARGET=ad5m SKIP_OPTIONAL_DEPS=1 -j$$(nproc)
+	@# Extract CA certificates from Docker image for HTTPS verification on device
+	@mkdir -p build/ad5m/certs
+	@docker run --rm helixscreen/toolchain-ad5m cat /etc/ssl/certs/ca-certificates.crt > build/ad5m/certs/ca-certificates.crt 2>/dev/null \
+		&& echo "$(GREEN)✓ CA certificates extracted$(RESET)" \
+		|| echo "$(YELLOW)⚠ Could not extract CA certificates (HTTPS may rely on device certs)$(RESET)"
 	@$(MAKE) --no-print-directory maybe-stop-colima
 
 k1-docker: ensure-docker
@@ -389,12 +432,16 @@ maybe-stop-colima:
 	fi
 
 # Build Docker toolchain images
-docker-toolchains: docker-toolchain-pi docker-toolchain-ad5m docker-toolchain-k1
+docker-toolchains: docker-toolchain-pi docker-toolchain-pi32 docker-toolchain-ad5m docker-toolchain-k1
 	@echo "$(GREEN)$(BOLD)All Docker toolchains built successfully$(RESET)"
 
 docker-toolchain-pi: ensure-buildx
 	@echo "$(CYAN)Building Raspberry Pi toolchain Docker image...$(RESET)"
 	$(Q)docker buildx build --platform linux/amd64 -t helixscreen/toolchain-pi -f docker/Dockerfile.pi docker/
+
+docker-toolchain-pi32: ensure-buildx
+	@echo "$(CYAN)Building Raspberry Pi 32-bit toolchain Docker image...$(RESET)"
+	$(Q)docker buildx build --platform linux/amd64 -t helixscreen/toolchain-pi32 -f docker/Dockerfile.pi32 docker/
 
 docker-toolchain-ad5m: ensure-buildx
 	@echo "$(CYAN)Building Adventurer 5M toolchain Docker image...$(RESET)"
@@ -419,23 +466,32 @@ help-cross:
 	echo ""; \
 	echo "$${C}Docker Cross-Compilation (recommended):$${X}"; \
 	echo "  $${G}pi-docker$${X}            - Build for Raspberry Pi (aarch64) via Docker"; \
+	echo "  $${G}pi32-docker$${X}          - Build for Raspberry Pi 32-bit (armhf) via Docker"; \
 	echo "  $${G}ad5m-docker$${X}          - Build for Adventurer 5M (armv7-a) via Docker"; \
 	echo "  $${G}k1-docker$${X}            - Build for Creality K1 series (MIPS32) via Docker"; \
 	echo "  $${G}docker-toolchains$${X}    - Build all Docker toolchain images"; \
 	echo "  $${G}docker-toolchain-pi$${X}  - Build Pi toolchain image only"; \
+	echo "  $${G}docker-toolchain-pi32$${X} - Build Pi 32-bit toolchain image only"; \
 	echo "  $${G}docker-toolchain-ad5m$${X} - Build AD5M toolchain image only"; \
 	echo "  $${G}docker-toolchain-k1$${X}  - Build K1 toolchain image only"; \
 	echo ""; \
 	echo "$${C}Direct Cross-Compilation (requires local toolchain):$${X}"; \
-	echo "  $${G}pi$${X}                   - Cross-compile for Raspberry Pi"; \
+	echo "  $${G}pi$${X}                   - Cross-compile for Raspberry Pi (64-bit)"; \
+	echo "  $${G}pi32$${X}                 - Cross-compile for Raspberry Pi (32-bit)"; \
 	echo "  $${G}ad5m$${X}                 - Cross-compile for Adventurer 5M"; \
 	echo "  $${G}k1$${X}                   - Cross-compile for Creality K1 series"; \
 	echo ""; \
-	echo "$${C}Pi Deployment:$${X}"; \
+	echo "$${C}Pi Deployment (64-bit):$${X}"; \
 	echo "  $${G}deploy-pi$${X}            - Deploy and restart in background (default)"; \
 	echo "  $${G}deploy-pi-fg$${X}         - Deploy and run in foreground (debug)"; \
 	echo "  $${G}pi-test$${X}              - Full cycle: build + deploy + run (fg)"; \
 	echo "  $${G}pi-ssh$${X}               - SSH into the Pi"; \
+	echo ""; \
+	echo "$${C}Pi Deployment (32-bit):$${X}"; \
+	echo "  $${G}deploy-pi32$${X}          - Deploy and restart in background"; \
+	echo "  $${G}deploy-pi32-fg$${X}       - Deploy and run in foreground (debug)"; \
+	echo "  $${G}deploy-pi32-bin$${X}      - Deploy binaries only (fast iteration)"; \
+	echo "  $${G}pi32-test$${X}            - Full cycle: build + deploy + run (fg)"; \
 	echo ""; \
 	echo "$${C}AD5M Deployment:$${X}"; \
 	echo "  $${G}deploy-ad5m$${X}          - Deploy and restart in background"; \
@@ -582,6 +638,49 @@ pi-ssh:
 pi-test: pi-docker deploy-pi-fg
 
 # =============================================================================
+# Pi 32-bit Deployment Targets
+# =============================================================================
+# Shares PI_HOST/PI_USER/PI_DEPLOY_DIR with 64-bit Pi (same device, different binary arch)
+
+.PHONY: deploy-pi32 deploy-pi32-fg deploy-pi32-bin pi32-test
+
+# Deploy full application to Pi (32-bit) and restart in background
+deploy-pi32:
+	@test -f build/pi32/bin/helix-screen || { echo "$(RED)Error: build/pi32/bin/helix-screen not found. Run 'make pi32-docker' first.$(RESET)"; exit 1; }
+	@test -f build/pi32/bin/helix-splash || { echo "$(RED)Error: build/pi32/bin/helix-splash not found. Run 'make pi32-docker' first.$(RESET)"; exit 1; }
+	$(call deploy-common,$(PI_SSH_TARGET),$(PI_DEPLOY_DIR),build/pi32/bin)
+	@echo "$(GREEN)✓ Deployed to $(PI_HOST):$(PI_DEPLOY_DIR)$(RESET)"
+	@echo "$(CYAN)Restarting helix-screen on $(PI_HOST)...$(RESET)"
+	@ssh $(PI_SSH_TARGET) "sudo systemctl restart helixscreen 2>/dev/null" \
+		|| ssh $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && setsid ./bin/helix-launcher.sh </dev/null >/dev/null 2>&1 &"
+	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
+	@echo "$(DIM)Logs: ssh $(PI_SSH_TARGET) 'journalctl -u helixscreen -f'$(RESET)"
+
+# Deploy and run in foreground with debug logging (for interactive debugging)
+deploy-pi32-fg:
+	@test -f build/pi32/bin/helix-screen || { echo "$(RED)Error: build/pi32/bin/helix-screen not found. Run 'make pi32-docker' first.$(RESET)"; exit 1; }
+	@test -f build/pi32/bin/helix-splash || { echo "$(RED)Error: build/pi32/bin/helix-splash not found. Run 'make pi32-docker' first.$(RESET)"; exit 1; }
+	$(call deploy-common,$(PI_SSH_TARGET),$(PI_DEPLOY_DIR),build/pi32/bin)
+	@echo "$(CYAN)Starting helix-screen on $(PI_HOST) (foreground, debug mode)...$(RESET)"
+	ssh -t $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && ./bin/helix-launcher.sh --debug --log-dest=console"
+
+# Deploy binaries only (fast, for quick iteration)
+deploy-pi32-bin:
+	@test -f build/pi32/bin/helix-screen || { echo "$(RED)Error: build/pi32/bin/helix-screen not found. Run 'make pi32-docker' first.$(RESET)"; exit 1; }
+	@echo "$(CYAN)Deploying binaries only to $(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/bin...$(RESET)"
+	ssh $(PI_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; mkdir -p $(PI_DEPLOY_DIR)/bin"
+	rsync -avz --progress build/pi32/bin/helix-screen build/pi32/bin/helix-splash $(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/bin/
+	@if [ -f build/pi32/bin/helix-watchdog ]; then rsync -avz build/pi32/bin/helix-watchdog $(PI_SSH_TARGET):$(PI_DEPLOY_DIR)/bin/; fi
+	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
+	@echo "$(CYAN)Restarting helix-screen on $(PI_HOST)...$(RESET)"
+	@ssh $(PI_SSH_TARGET) "sudo systemctl restart helixscreen 2>/dev/null" \
+		|| ssh $(PI_SSH_TARGET) "cd $(PI_DEPLOY_DIR) && setsid ./bin/helix-launcher.sh </dev/null >/dev/null 2>&1 &"
+	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
+
+# Full cycle: build + deploy + run in foreground
+pi32-test: pi32-docker deploy-pi32-fg
+
+# =============================================================================
 # AD5M Deployment Configuration
 # =============================================================================
 
@@ -649,6 +748,12 @@ deploy-ad5m:
 	fi
 	@if [ -d build/assets/images/printers/prerendered ] && ls build/assets/images/printers/prerendered/*.bin >/dev/null 2>&1; then \
 		COPYFILE_DISABLE=1 tar -cf - -C build/assets/images/printers prerendered | ssh $(AD5M_SSH_TARGET) "cd $(AD5M_DEPLOY_DIR)/assets/images/printers && tar -xf -"; \
+	fi
+	@# Deploy CA certificates for HTTPS verification
+	@if [ -f build/ad5m/certs/ca-certificates.crt ]; then \
+		echo "$(DIM)Transferring CA certificates...$(RESET)"; \
+		ssh $(AD5M_SSH_TARGET) "mkdir -p $(AD5M_DEPLOY_DIR)/certs"; \
+		cat build/ad5m/certs/ca-certificates.crt | ssh $(AD5M_SSH_TARGET) "cat > $(AD5M_DEPLOY_DIR)/certs/ca-certificates.crt"; \
 	fi
 	@# AD5M-specific: Update init script in /etc/init.d/ if it differs
 	@echo "$(DIM)Checking init script...$(RESET)"
@@ -875,7 +980,7 @@ RELEASE_VERSION := v$(VERSION)
 # Assets to include (exclude test_gcodes, gcode test files)
 RELEASE_ASSETS := assets/fonts assets/images
 
-.PHONY: release-pi release-ad5m release-k1 release-all release-clean
+.PHONY: release-pi release-pi32 release-ad5m release-k1 release-all release-clean
 
 # Package Pi release
 release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash
@@ -909,6 +1014,38 @@ release-pi: | build/pi/bin/helix-screen build/pi/bin/helix-splash
 	@echo "$(GREEN)✓ Created $(RELEASE_DIR)/helixscreen-pi-$(RELEASE_VERSION).tar.gz$(RESET)"
 	@ls -lh $(RELEASE_DIR)/helixscreen-pi-$(RELEASE_VERSION).tar.gz
 
+# Package Pi 32-bit release (same structure as 64-bit Pi)
+release-pi32: | build/pi32/bin/helix-screen build/pi32/bin/helix-splash
+	@echo "$(CYAN)$(BOLD)Packaging Pi 32-bit release v$(VERSION)...$(RESET)"
+	@mkdir -p $(RELEASE_DIR)/helixscreen/bin
+	@cp build/pi32/bin/helix-screen build/pi32/bin/helix-splash $(RELEASE_DIR)/helixscreen/bin/
+	@if [ -f build/pi32/bin/helix-watchdog ]; then cp build/pi32/bin/helix-watchdog $(RELEASE_DIR)/helixscreen/bin/; fi
+	@cp scripts/helix-launcher.sh $(RELEASE_DIR)/helixscreen/bin/
+	@cp -r ui_xml config $(RELEASE_DIR)/helixscreen/
+	@# Remove any personal config — release ships template only (installer copies it on first run)
+	@rm -f $(RELEASE_DIR)/helixscreen/config/helixconfig.json $(RELEASE_DIR)/helixscreen/config/helixconfig-test.json
+	@mkdir -p $(RELEASE_DIR)/helixscreen/scripts
+	@cp scripts/uninstall.sh $(RELEASE_DIR)/helixscreen/scripts/
+	@mkdir -p $(RELEASE_DIR)/helixscreen/assets
+	@for asset in $(RELEASE_ASSETS); do \
+		if [ -d "$$asset" ]; then cp -r "$$asset" $(RELEASE_DIR)/helixscreen/assets/; fi; \
+	done
+	@# Copy pre-rendered images from build directory (splash + printer images)
+	@if [ -d "build/assets/images/prerendered" ]; then \
+		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/prerendered; \
+		cp -r build/assets/images/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/prerendered/; \
+	fi
+	@if [ -d "build/assets/images/printers/prerendered" ]; then \
+		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered; \
+		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
+	fi
+	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
+	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
+	@cd $(RELEASE_DIR) && COPYFILE_DISABLE=1 tar -czvf helixscreen-pi32-$(RELEASE_VERSION).tar.gz helixscreen
+	@rm -rf $(RELEASE_DIR)/helixscreen
+	@echo "$(GREEN)✓ Created $(RELEASE_DIR)/helixscreen-pi32-$(RELEASE_VERSION).tar.gz$(RESET)"
+	@ls -lh $(RELEASE_DIR)/helixscreen-pi32-$(RELEASE_VERSION).tar.gz
+
 # Package AD5M release
 # Note: AD5M uses BusyBox which doesn't support tar -z, so we create uncompressed tar + gzip separately
 # Includes pre-configured helixconfig.json for Adventurer 5M Pro (skips setup wizard)
@@ -936,6 +1073,12 @@ release-ad5m: | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
 	@if [ -d "build/assets/images/printers/prerendered" ]; then \
 		mkdir -p $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered; \
 		cp -r build/assets/images/printers/prerendered/* $(RELEASE_DIR)/helixscreen/assets/images/printers/prerendered/; \
+	fi
+	@# Bundle CA certificates for HTTPS verification (fallback if device lacks system certs)
+	@if [ -f "build/ad5m/certs/ca-certificates.crt" ]; then \
+		mkdir -p $(RELEASE_DIR)/helixscreen/certs; \
+		cp build/ad5m/certs/ca-certificates.crt $(RELEASE_DIR)/helixscreen/certs/; \
+		echo "  $(DIM)Included CA certificates for HTTPS$(RESET)"; \
 	fi
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
@@ -976,7 +1119,7 @@ release-k1: | build/k1/bin/helix-screen build/k1/bin/helix-splash
 	@ls -lh $(RELEASE_DIR)/helixscreen-k1-$(RELEASE_VERSION).tar.gz
 
 # Package all releases
-release-all: release-pi release-ad5m release-k1
+release-all: release-pi release-pi32 release-ad5m release-k1
 	@echo "$(GREEN)$(BOLD)✓ All releases packaged in $(RELEASE_DIR)/$(RESET)"
 	@ls -lh $(RELEASE_DIR)/*.tar.gz
 
@@ -987,10 +1130,11 @@ release-clean:
 
 # Aliases for package-* (matches scripts/package.sh naming)
 # These trigger the full build + package workflow
-.PHONY: package-ad5m package-pi package-all package-clean
+.PHONY: package-ad5m package-pi package-pi32 package-all package-clean
 package-ad5m: ad5m-docker gen-images-ad5m gen-splash-3d-ad5m gen-printer-images release-ad5m
 package-pi: pi-docker gen-images gen-splash-3d gen-printer-images release-pi
-package-all: package-ad5m package-pi
+package-pi32: pi32-docker gen-images gen-splash-3d gen-printer-images release-pi32
+package-all: package-ad5m package-pi package-pi32
 package-clean: release-clean
 
 # Convenience aliases (verb-target → target-verb)

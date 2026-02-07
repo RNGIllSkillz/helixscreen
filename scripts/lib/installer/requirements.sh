@@ -56,8 +56,8 @@ check_requirements() {
 install_runtime_deps() {
     local platform=$1
 
-    # Only needed for Pi - AD5M uses framebuffer with static linking
-    if [ "$platform" != "pi" ]; then
+    # Only needed for Pi (32-bit and 64-bit) - AD5M uses framebuffer with static linking
+    if [ "$platform" != "pi" ] && [ "$platform" != "pi32" ]; then
         return 0
     fi
 

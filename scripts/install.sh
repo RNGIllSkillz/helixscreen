@@ -206,7 +206,7 @@ KLIPPER_USER=""
 KLIPPER_HOME=""
 
 # Detect platform
-# Returns: "ad5m", "k1", "pi", or "unsupported"
+# Returns: "ad5m", "k1", "pi", "pi32", or "unsupported"
 detect_platform() {
     local arch kernel
     arch=$(uname -m)
@@ -246,14 +246,22 @@ detect_platform() {
     fi
 
     # Check for Raspberry Pi (aarch64 or armv7l)
+    # Returns "pi" for 64-bit, "pi32" for 32-bit
     if [ "$arch" = "aarch64" ] || [ "$arch" = "armv7l" ]; then
+        local is_pi=false
         if [ -f /etc/os-release ] && grep -q "Raspbian\|Debian" /etc/os-release; then
-            echo "pi"
-            return
+            is_pi=true
         fi
         # Also check for MainsailOS / BTT Pi / MKS
         if [ -d /home/pi ] || [ -d /home/mks ] || [ -d /home/biqu ]; then
-            echo "pi"
+            is_pi=true
+        fi
+        if [ "$is_pi" = true ]; then
+            if [ "$arch" = "aarch64" ]; then
+                echo "pi"
+            else
+                echo "pi32"
+            fi
             return
         fi
     fi
@@ -561,8 +569,8 @@ check_requirements() {
 install_runtime_deps() {
     local platform=$1
 
-    # Only needed for Pi - AD5M uses framebuffer with static linking
-    if [ "$platform" != "pi" ]; then
+    # Only needed for Pi (32-bit and 64-bit) - AD5M uses framebuffer with static linking
+    if [ "$platform" != "pi" ] && [ "$platform" != "pi32" ]; then
         return 0
     fi
 
@@ -2128,8 +2136,8 @@ install_platform_hooks() {
         klipper_mod) platform_hook="ad5m-kmod" ;;
     esac
 
-    # Pi and K1 platform hooks
-    if [ "$platform" = "pi" ]; then
+    # Pi and K1 platform hooks (pi32 shares Pi hooks)
+    if [ "$platform" = "pi" ] || [ "$platform" = "pi32" ]; then
         platform_hook="pi"
     elif [ "$platform" = "k1" ]; then
         platform_hook="k1"

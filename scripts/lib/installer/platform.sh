@@ -27,7 +27,7 @@ KLIPPER_USER=""
 KLIPPER_HOME=""
 
 # Detect platform
-# Returns: "ad5m", "k1", "pi", or "unsupported"
+# Returns: "ad5m", "k1", "pi", "pi32", or "unsupported"
 detect_platform() {
     local arch kernel
     arch=$(uname -m)
@@ -67,14 +67,22 @@ detect_platform() {
     fi
 
     # Check for Raspberry Pi (aarch64 or armv7l)
+    # Returns "pi" for 64-bit, "pi32" for 32-bit
     if [ "$arch" = "aarch64" ] || [ "$arch" = "armv7l" ]; then
+        local is_pi=false
         if [ -f /etc/os-release ] && grep -q "Raspbian\|Debian" /etc/os-release; then
-            echo "pi"
-            return
+            is_pi=true
         fi
         # Also check for MainsailOS / BTT Pi / MKS
         if [ -d /home/pi ] || [ -d /home/mks ] || [ -d /home/biqu ]; then
-            echo "pi"
+            is_pi=true
+        fi
+        if [ "$is_pi" = true ]; then
+            if [ "$arch" = "aarch64" ]; then
+                echo "pi"
+            else
+                echo "pi32"
+            fi
             return
         fi
     fi
