@@ -1,7 +1,7 @@
 # Testing Infrastructure
 
 **Status:** Active
-**Last Updated:** 2026-01-11
+**Last Updated:** 2026-02-06
 
 ---
 
@@ -30,30 +30,33 @@ Tests are tagged by **feature/importance**, not layer/speed. This enables runnin
 
 | Tag | Count | Purpose |
 |-----|-------|---------|
-| `[core]` | ~18 | Critical tests - if these fail, the app is fundamentally broken |
-| `[slow]` | ~185 | Tests with network/timing - excluded from `test-run` |
-| `[eventloop]` | ~54 | Uses `hv::EventLoop` - very slow, always paired with `[slow]` |
+| `[core]` | ~12 | Critical tests - if these fail, the app is fundamentally broken |
+| `[slow]` | ~36 | Tests with network/timing - excluded from `test-run` |
+| `[eventloop]` | ~2 | Uses `hv::EventLoop` - very slow, always paired with `[slow]` |
+
+*Counts are TEST_CASE definitions; each can have multiple SECTIONs expanding the actual test paths.*
 
 ### Feature Tags
 
 | Tag | Count | Purpose |
 |-----|-------|---------|
-| `[connection]` | ~70 | WebSocket connection lifecycle, retry logic |
-| `[state]` | ~60 | PrinterState singleton, LVGL subjects, observers |
-| `[print]` | ~46 | Print workflow: start, pause, cancel, progress |
-| `[api]` | ~79 | Moonraker API infrastructure |
-| `[calibration]` | ~27 | Bed mesh, input shaper, QGL, Z-tilt |
-| `[printer]` | ~130 | Printer detection, capabilities, hardware |
-| `[ams]` | ~67 | AMS/MMU backends |
-| `[filament]` | ~32 | Spoolman, filament sensors |
-| `[network]` | ~25 | WiFi, Ethernet management |
+| `[ui]` | ~162 | Theme, icons, widgets, panels |
+| `[gcode]` | ~118 | G-code parsing, streaming, geometry |
+| `[ams]` | ~117 | AMS/MMU backends |
+| `[print]` | ~72 | Print workflow: start, pause, cancel, progress |
+| `[state]` | ~57 | PrinterState singleton, LVGL subjects, observers |
+| `[filament]` | ~53 | Spoolman, filament sensors |
+| `[application]` | ~51 | Application lifecycle |
+| `[config]` | ~50 | Configuration loading, validation |
+| `[printer]` | ~32 | Printer detection, capabilities, hardware |
 | `[assets]` | ~28 | Thumbnail extraction |
-| `[ui]` | ~138 | Theme, icons, widgets, panels |
-| `[gcode]` | ~125 | G-code parsing, streaming, geometry |
-| `[config]` | ~64 | Configuration loading, validation |
-| `[wizard]` | ~29 | Setup wizard flow |
-| `[history]` | ~24 | Print/notification history |
-| `[application]` | ~40 | Application lifecycle |
+| `[wizard]` | ~27 | Setup wizard flow |
+| `[history]` | ~27 | Print/notification history |
+| `[network]` | ~26 | WiFi, Ethernet management |
+| `[api]` | ~25 | Moonraker API infrastructure |
+| `[connection]` | ~23 | WebSocket connection lifecycle, retry logic |
+| `[calibration]` | ~17 | Bed mesh, input shaper, QGL, Z-tilt |
+| `[predictor]` | ~15 | Pre-print time estimation |
 
 ### Sub-Tags
 
@@ -76,7 +79,7 @@ Run `./build/bin/helix-tests "[.]" --list-tests` to see all hidden tests.
 
 ---
 
-## Core Tests (~18 Must Pass)
+## Core Tests (~12 Must Pass)
 
 These validate fundamental functionality:
 
@@ -164,12 +167,14 @@ The default `make test-run` uses filter `~[.] ~[slow]` to exclude tests that wou
 
 ### Test Count Summary
 
-| Category | Count | % of Total |
-|----------|------:|------------|
-| **Total tests** | ~1,441 | 100% |
-| **Fast tests** (default run) | ~1,263 | 87.6% |
-| **Slow tests** `[slow]` | ~185 | 12.8% |
-| **Hidden tests** `[.]` | ~57 | 4.0% |
+| Category | Count | Notes |
+|----------|------:|-------|
+| **Test files** | 203 | All in `tests/unit/` |
+| **TEST_CASE macros** | ~2,050 | Individual test definitions |
+| **SECTION blocks** | ~4,680 | Subsections within test cases |
+| **Total test paths** | ~6,700+ | Each section path is a unique test run |
+| **Slow tests** `[slow]` | ~185 | Excluded from `test-run` |
+| **Hidden tests** `[.]` | ~57 | Require explicit invocation |
 
 *Note: Some overlap exists between [slow] and [.]*
 
@@ -248,7 +253,7 @@ make test-all
 
 Tests fall into three timing categories based on their execution characteristics. Understanding these helps plan CI/CD pipelines and local development workflows.
 
-### Fast Tests (~1,400 tests, ~27s parallel)
+### Fast Tests (~2,000+ test cases, ~27s parallel)
 
 The majority of tests complete quickly and are suitable for rapid iteration during development.
 

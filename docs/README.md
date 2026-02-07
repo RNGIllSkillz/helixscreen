@@ -42,6 +42,11 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Quick Reference**](DEVELOPER_QUICK_REFERENCE.md) | Common patterns and code snippets |
 | [**Environment Variables**](ENVIRONMENT_VARIABLES.md) | All runtime and build env vars |
 | [**Moonraker Architecture**](MOONRAKER_ARCHITECTURE.md) | Moonraker integration details |
+| [**Print Start Profiles**](PRINT_START_PROFILES.md) | Print start phase detection, profiles, predictor |
+| [**Print Start Integration**](PRINT_START_INTEGRATION.md) | User-facing macro setup guide |
+| [**Theme System**](THEME_SYSTEM.md) | Reactive theming, color tokens, responsive sizing |
+| [**UI Testing**](UI_TESTING.md) | Headless LVGL testing, UITest utilities |
+| [**Translation System**](TRANSLATION_SYSTEM.md) | i18n: YAML → code generation, runtime lookups |
 | [**HelixPrint Plugin**](../moonraker-plugin/README.md) | Phase tracking Moonraker plugin |
 | [**Logging Guidelines**](LOGGING.md) | Log levels and message format |
 | [**Copyright Headers**](COPYRIGHT_HEADERS.md) | SPDX license requirements |
@@ -95,6 +100,11 @@ docs/
 ├── DEVELOPER_QUICK_REFERENCE.md  # Code patterns
 ├── ENVIRONMENT_VARIABLES.md  # Env var reference
 ├── MOONRAKER_ARCHITECTURE.md # Moonraker integration
+├── THEME_SYSTEM.md           # Theming, tokens, responsive sizing
+├── PRINT_START_PROFILES.md   # Print start profiles & predictor
+├── PRINT_START_INTEGRATION.md # User-facing macro guide
+├── TRANSLATION_SYSTEM.md     # i18n system
+├── UI_TESTING.md             # Headless UI testing
 ├── LOGGING.md                # Logging standards
 │
 ├── ROADMAP.md                # Feature timeline

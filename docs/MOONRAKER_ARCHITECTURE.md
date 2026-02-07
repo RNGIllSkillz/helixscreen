@@ -2,7 +2,7 @@
 
 This document describes the architecture of the Moonraker integration layer.
 
-> **Last Updated:** 2026-01-11 (Hardware Discovery Refactor completed)
+> **Last Updated:** 2026-02-06
 
 ## Overview
 
@@ -46,7 +46,7 @@ The Moonraker integration is split into three distinct layers with clean separat
 
 ### MoonrakerClient (Transport Layer)
 
-**Location:** `include/moonraker_client.h`, `src/api/moonraker_client.cpp`
+**Location:** `include/moonraker_client.h`, `src/api/moonraker_client.cpp` (+ mock split files)
 
 **Responsibilities:**
 - WebSocket connection management (connect, disconnect, reconnect)
@@ -265,10 +265,11 @@ The following methods have been removed from `MoonrakerClient` and are now in `M
 
 | File | Purpose |
 |------|---------|
-| `src/moonraker_client.cpp` | Transport implementation |
-| `src/moonraker_api.cpp` | Domain logic implementation |
-| `src/moonraker_client_mock.cpp` | Mock transport (simulated temps, etc.) |
-| `src/moonraker_api_mock.cpp` | Mock domain (local file access) |
+| `src/api/moonraker_client.cpp` | Transport implementation |
+| `src/api/moonraker_api.cpp` | Domain logic (+ `moonraker_api_*.cpp` splits) |
+| `src/api/moonraker_client_mock.cpp` | Mock transport (+ `moonraker_client_mock_*.cpp` splits) |
+| `src/api/moonraker_api_mock.cpp` | Mock domain (local file access) |
+| `src/application/moonraker_manager.cpp` | Lifecycle wiring, profile loading, observer setup |
 
 ### Test Files
 

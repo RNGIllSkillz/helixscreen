@@ -213,7 +213,7 @@ void ui_panel_init() {
 ```
 app_layout.xml
 ├── navigation_bar.xml      # 5-button vertical navigation
-└── content_area            # 30+ panels (see ui_xml/*.xml)
+└── content_area            # 31 panels + 17 overlays (see ui_xml/*.xml)
 ```
 
 **Design Patterns:**
@@ -225,9 +225,10 @@ app_layout.xml
 ## ⚠️ PREFERRED: Class-Based Architecture
 
 **All new code should use class-based patterns.** This applies to:
-- **UI panels** (PanelBase)
+- **UI panels** (SubjectManagedPanel or PanelBase)
 - **Modals** (ModalBase)
 - **Backend managers** (WiFiManager, EthernetManager, MoonrakerClient)
+- **Domain state classes** (Printer*State decomposition)
 - **Services and utilities**
 
 ### Why Class-Based?
@@ -241,6 +242,35 @@ app_layout.xml
 
 **For implementation examples, see [DEVELOPER_QUICK_REFERENCE.md](DEVELOPER_QUICK_REFERENCE.md#class-patterns).**
 
+### SubjectManagedPanel Base Class
+
+Panels that own LVGL subjects should inherit from `SubjectManagedPanel` for automatic observer cleanup:
+
+```cpp
+class MyPanel : public SubjectManagedPanel {
+public:
+    explicit MyPanel(lv_obj_t* parent);
+    ~MyPanel() override;
+
+    void show() override;
+    void hide() override;
+    lv_obj_t* get_root() const override { return root_; }
+
+private:
+    void init_subjects();     // Call BEFORE lv_xml_create()
+    void setup_observers();   // Wire reactive bindings via observer_factory.h
+
+    lv_obj_t* root_ = nullptr;
+    lv_subject_t my_subject_{};
+    char buf_[128]{};         // Static storage for string subjects
+};
+```
+
+**Benefits over raw PanelBase:**
+- Automatic observer removal on destruction (no manual cleanup)
+- `add_observer()` method tracks all observers via `ObserverGuard`
+- Safe during shutdown (checks `lv_is_initialized()`)
+
 ### ❌ AVOID: Function-Based Patterns
 
 ```cpp
@@ -253,6 +283,73 @@ void ui_panel_motion_hide();
 auto motion = std::make_unique<MotionPanel>(parent);
 motion->show();
 ```
+
+## Domain Decomposition: PrinterState
+
+The central `PrinterState` class was decomposed into 13 focused domain classes, each owning LVGL subjects for a specific concern. `PrinterState` delegates to these via composition, keeping its public API but distributing the implementation.
+
+```
+PrinterState (orchestrator)
+├── PrinterTemperatureState      # Nozzle, bed, chamber temps + targets
+├── PrinterMotionState           # Position, speed, homed axes
+├── PrinterFanState              # Fan speeds, types
+├── PrinterPrintState            # Print progress, filename, layers, ETA
+├── PrinterCalibrationState      # PID, Z-offset, bed mesh status
+├── PrinterCapabilitiesState     # QGL, probe, firmware features
+├── PrinterExcludedObjectsState  # Object exclusion during prints
+├── PrinterNetworkState          # WiFi, Ethernet, hostname
+├── PrinterVersionsState         # Klipper, MCU, Moonraker versions
+├── PrinterLedState              # LED controls and effects
+├── PrinterHardwareValidationState  # Hardware health checks
+├── PrinterPluginStatusState     # Plugin system state
+└── PrinterCompositeVisibilityState # UI visibility rules
+```
+
+### Why Domain Decomposition?
+
+| Concern | Before (God Class) | After (Domains) |
+|---------|---------------------|------------------|
+| **Lines** | 1514 in one file | ~100-200 per domain |
+| **Subjects** | All mixed together | Grouped by concern |
+| **Testing** | Hard to isolate | Test each domain independently |
+| **Threading** | One big mutex | Domain-scoped thread safety |
+| **Navigation** | Scroll 1500 lines | Find the right 150-line file |
+
+### Domain Class Pattern
+
+Each domain class follows a consistent structure:
+
+```cpp
+class PrinterTemperatureState {
+public:
+    void init_subjects();                     // Initialize LVGL subjects
+    void deinit_subjects();                   // Clean shutdown
+    void reset_for_testing();                 // Reset for unit tests
+
+    // Subject accessors (for binding in XML or observers)
+    lv_subject_t* nozzle_temp_subject();
+    lv_subject_t* bed_temp_subject();
+
+    // Setters (called from WebSocket thread via ui_async_call)
+    void set_nozzle_temp(int temp);
+    void set_bed_temp(int temp);
+
+private:
+    lv_subject_t nozzle_temp_{};
+    lv_subject_t bed_temp_{};
+    bool initialized_ = false;
+};
+```
+
+**Key rules:**
+- Domain classes own their subjects (init/deinit lifecycle)
+- `PrinterState` forwards public API calls to the appropriate domain
+- Callers never need to know about domain classes directly
+- Each domain registers with `StaticSubjectRegistry` for shutdown cleanup
+
+**Files:** `include/printer_*_state.h`, `src/printer/printer_*_state.cpp`
+
+---
 
 ## Data Flow Architecture
 
@@ -986,12 +1083,21 @@ if (!ui_nav_go_back()) {
 
 These systems extend the core architecture for specific features:
 
+### Print Start Phase Detection
+
+Modular system for detecting preparation phases (homing, heating, leveling) during PRINT_START:
+
+- **PrintStartCollector** - Monitors G-code responses for phase detection with priority chain: HELIX:PHASE signals → profile signal formats → PRINT_START marker → completion marker → profile regex → built-in fallback
+- **PrintStartProfile** - JSON-driven printer-specific profiles with signal format matching and regex patterns. Supports `sequential` (known firmware) and `weighted` (generic) progress modes
+- **PreprintPredictor** - Weighted-average predictor using historical timing data to estimate remaining preparation time. Tracks last 3 entries (FIFO) with per-phase weighting and 15-minute anomaly rejection
+
+**See [PRINT_START_PROFILES.md](PRINT_START_PROFILES.md) for the full developer guide.**
+
 ### Moonraker Plugin
 
 Optional plugin for enhanced print phase tracking. See [moonraker-plugin/README.md](../moonraker-plugin/README.md) for installation and details.
 
 - **helix_print.py** - Tracks print phases (heating, mesh, purge, etc.)
-- **PrintStartCollector** - Aggregates phase events from Moonraker
 - **HelixPluginInstaller** - Auto-detects and installs plugin (local) or shows install command (remote)
 
 ### Print History Management

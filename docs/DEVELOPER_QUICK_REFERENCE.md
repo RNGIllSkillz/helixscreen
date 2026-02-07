@@ -73,6 +73,34 @@ private:
 };
 ```
 
+### Domain State Pattern
+
+**Canonical example:** `include/printer_temperature_state.h` + `src/printer/printer_temperature_state.cpp`
+
+PrinterState is composed of 13 focused domain classes. Each owns its LVGL subjects:
+
+```cpp
+class PrinterTemperatureState {
+public:
+    void init_subjects();       // Initialize all subjects
+    void deinit_subjects();     // Shutdown cleanup
+    void reset_for_testing();   // Test reset
+
+    lv_subject_t* nozzle_temp_subject();   // Accessor for binding
+    void set_nozzle_temp(int temp);        // Update via ui_async_call
+
+private:
+    lv_subject_t nozzle_temp_{};
+    bool initialized_ = false;
+};
+```
+
+**Domain classes:** `printer_*_state.h` — Temperature, Motion, Fan, Print, Calibration, Capabilities, ExcludedObjects, Network, Versions, Led, HardwareValidation, PluginStatus, CompositeVisibility
+
+**For architectural rationale, see [ARCHITECTURE.md § Domain Decomposition](ARCHITECTURE.md#domain-decomposition-printerstate).**
+
+---
+
 ### Singleton Subject Cleanup Pattern
 
 **Canonical example:** `src/printer/ams_state.cpp`, `src/system/settings_manager.cpp`

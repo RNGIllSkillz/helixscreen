@@ -327,9 +327,12 @@ For printers that don't emit any G-code layer markers (like Forge-X), the collec
 |------|---------|
 | `include/print_start_profile.h` | Profile class: structs, factory methods, matching API |
 | `src/print/print_start_profile.cpp` | JSON parsing, signal/pattern matching, built-in fallback |
-| `include/print_start_collector.h` | Collector: lifecycle, phase tracking, profile integration |
-| `src/print/print_start_collector.cpp` | Detection engine: priority chain, progress calculation |
+| `include/print_start_collector.h` | Collector: lifecycle, phase tracking, profile + predictor integration |
+| `src/print/print_start_collector.cpp` | Detection engine: priority chain, progress calculation, ETA timer |
+| `include/preprint_predictor.h` | Pure-logic ETA predictor using historical timing data |
+| `src/print/preprint_predictor.cpp` | Config integration, caching for predictor |
 | `include/printer_state.h` | `PrintStartPhase` enum, subject accessors |
+| `include/printer_print_state.h` | Print domain: progress, layers, preprint ETA subjects |
 | `src/application/moonraker_manager.cpp` | Wiring: profile loading, observer setup |
 | `include/printer_detector.h` | `get_print_start_profile()` declaration |
 | `src/printer/printer_detector.cpp` | Database lookup for profile name |
@@ -337,6 +340,7 @@ For printers that don't emit any G-code layer markers (like Forge-X), the collec
 | `config/printer_database.json` | Maps printer IDs to profile names |
 | `tests/unit/test_print_start_profile.cpp` | Profile loading + matching tests |
 | `tests/unit/test_print_start_collector.cpp` | Integration tests with collector |
+| `tests/unit/test_preprint_predictor.cpp` | Predictor unit tests (weighting, FIFO, edge cases) |
 | `docs/PRINT_START_INTEGRATION.md` | User-facing setup guide |
 
 ---
@@ -348,6 +352,38 @@ For printers that don't emit any G-code layer markers (like Forge-X), the collec
 - `state_mutex_` protects `detected_phases_`, `current_phase_`, `print_start_detected_`, and `printing_state_start_`. All writes happen under the lock.
 - `update_phase()` calls `state_.set_print_start_state()` **outside** the lock (it posts to the UI thread via `ui_async_call`).
 - WebSocket callbacks (`on_gcode_response`) run on a background thread. `check_fallback_completion()` runs on the main thread.
+
+---
+
+## Pre-Print ETA Prediction
+
+The `PreprintPredictor` uses historical timing data from previous prints to estimate how long the remaining preparation will take. It integrates with `PrintStartCollector` and is exposed as subjects on `PrinterPrintState`.
+
+### How It Works
+
+1. **During PRINT_START**, the collector records timestamps when each phase is entered
+2. **On completion**, the per-phase durations are saved to config (`/print_start_history/entries`)
+3. **On next print**, the predictor loads history and computes a weighted average across entries:
+   - 1 entry: 100% weight
+   - 2 entries: 60/40 (recent favored)
+   - 3 entries: 50/30/20 (most recent favored)
+4. **Real-time remaining** is calculated by subtracting completed phase time and elapsed time in current phase
+
+### Key Design Decisions
+
+- **Pure logic class**: `PreprintPredictor` has no LVGL or Config dependencies, making it fully unit-testable
+- **FIFO with cap**: Keeps last 3 entries, rejects any entry over 15 minutes (anomaly protection)
+- **Phase subset handling**: Redistributes weights when phases appear in only some entries
+- **60-second cache**: `predicted_total_from_config()` caches parsed config to avoid repeated JSON parsing
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `include/preprint_predictor.h` | Pure prediction logic, weighted averages |
+| `src/print/preprint_predictor.cpp` | Config integration, caching |
+| `tests/unit/test_preprint_predictor.cpp` | 18 test cases covering all prediction paths |
+| `include/printer_print_state.h` | Exposes `preprint_remaining_` and `preprint_elapsed_` subjects |
 
 ---
 

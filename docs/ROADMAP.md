@@ -1,6 +1,6 @@
 # HelixScreen Development Roadmap
 
-**Last Updated:** 2026-01-22 | **Status:** Beta - Seeking Testers
+**Last Updated:** 2026-02-06 | **Status:** Beta - Seeking Testers
 
 ---
 
@@ -8,12 +8,12 @@
 
 | Area | Status |
 |------|--------|
-| **Production Panels** | 30 panels + 16 overlays |
+| **Production Panels** | 31 panels + 17 overlays |
 | **First-Run Wizard** | 8-step guided setup (Input Shaper optional) |
 | **Moonraker API** | 40+ methods |
 | **Multi-Material (AMS)** | Core complete (Happy Hare, AFC, ValgACE, Toolchanger) |
 | **Plugin System** | Core infrastructure complete |
-| **Test Suite** | 156 test files, 6600+ test cases |
+| **Test Suite** | 203 test files, 6700+ test cases |
 | **Platforms** | Pi, AD5M, macOS, Linux |
 | **Printer Database** | 59 printer models with auto-detection |
 | **Filament Database** | 48 materials with temp/drying/compatibility data |
@@ -88,7 +88,21 @@ Major architectural improvements:
 
 ## Current Priorities
 
-### 1. Plugin Ecosystem
+### 1. Pre-Print ETA Prediction
+
+**Status:** In progress
+
+Predict how long the preparation phase (heating, homing, leveling) will take based on historical timing data:
+- **PreprintPredictor**: Pure-logic weighted-average predictor using last 3 print start timings
+- Phase-level timing history stored in config (`/print_start_history/entries`)
+- Real-time "time remaining" display during PRINT_START with per-phase weighting
+- FIFO entry management with 15-minute anomaly rejection
+- Integration with PrintStartCollector for automatic timing capture
+
+**Files:** `preprint_predictor.h`, `print_start_collector.h`, `printer_print_state.h`
+**Tests:** 18 test cases covering weighting, FIFO, edge cases
+
+### 2. Plugin Ecosystem
 
 **Status:** Core infrastructure complete, expanding ecosystem
 
@@ -101,7 +115,7 @@ The plugin system launched with version checking, UI injection points, and async
 
 **Files:** `src/plugin_manager.cpp`, `docs/PLUGIN_DEVELOPMENT.md`
 
-### 2. Production Hardening
+### 3. Production Hardening
 
 Remaining items for production readiness:
 - [ ] Structured logging with log rotation
@@ -122,8 +136,8 @@ Remaining items for production readiness:
 - Observer factory pattern (`observe_int_sync`, `observe_string_async`, etc.)
 
 ### Panels & Features
-- **30 Production Panels:** Home, Controls, Motion, Print Status, Print Select, Settings, Advanced, Macros, Console, Power, Print History, Spoolman, AMS, Bed Mesh, PID Calibration, Z-Offset, Screws Tilt, Input Shaper, Extrusion, Filament, Temperature panels, and more
-- **16+ Overlays:** WiFi, Timelapse Settings, Firmware Retraction, Machine Limits, Fan Control, Exclude Object, Print Tune, Theme Editor, AMS Device Operations, Network Settings, Touch Calibration, and more
+- **31 Production Panels:** Home, Controls, Motion, Print Status, Print Select, Settings, Advanced, Macros, Console, Power, Print History, Spoolman, AMS, Bed Mesh, PID Calibration, Z-Offset, Screws Tilt, Input Shaper, Extrusion, Filament, Temperature panels, and more
+- **17+ Overlays:** WiFi, Timelapse Settings, Firmware Retraction, Machine Limits, Fan Control, Exclude Object, Print Tune, Theme Editor, AMS Device Operations, Network Settings, Touch Calibration, and more
 - **First-Run Wizard:** WiFi → Moonraker → Printer ID → Heaters → Fans → LEDs → Input Shaper → Summary
 - **Calibration Workflows:** PID tuning, Z-offset with live adjust, Screws Tilt, Input Shaper (full ADXL integration)
 - **Bed Mesh:** 3D visualization with touch rotation, profile switching, 38 FPS optimized rendering
