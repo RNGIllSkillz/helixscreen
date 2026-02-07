@@ -1723,6 +1723,26 @@ int MoonrakerClientMock::gcode_script(const std::string& gcode) {
                 }
                 spdlog::info("[MoonrakerClientMock] EXCLUDE_OBJECT: '{}' added to exclusion list",
                              object_name);
+
+                // Dispatch status update (like real Klipper would via WebSocket)
+                if (mock_state_) {
+                    auto available = mock_state_->get_available_objects();
+                    auto excluded = mock_state_->get_excluded_objects();
+
+                    json objects_array = json::array();
+                    for (const auto& obj : available) {
+                        objects_array.push_back({{"name", obj}});
+                    }
+                    json excluded_array = json::array();
+                    for (const auto& obj : excluded) {
+                        excluded_array.push_back(obj);
+                    }
+                    json eo_status = {{"exclude_object",
+                                       {{"objects", objects_array},
+                                        {"excluded_objects", excluded_array},
+                                        {"current_object", nullptr}}}};
+                    dispatch_status_update(eo_status);
+                }
             }
         } else {
             spdlog::warn("[MoonrakerClientMock] EXCLUDE_OBJECT without NAME parameter ignored");
