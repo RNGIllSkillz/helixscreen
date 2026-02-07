@@ -10,6 +10,56 @@
 [ -n "${_HELIX_RELEASE_SOURCED:-}" ] && return 0
 _HELIX_RELEASE_SOURCED=1
 
+# R2 CDN configuration (overridable via environment)
+: "${R2_BASE_URL:=https://releases.helixscreen.org}"
+: "${R2_CHANNEL:=stable}"
+
+# Cached manifest from R2 (set by get_latest_version, consumed by download_release)
+_R2_MANIFEST=""
+
+# Fetch a URL to stdout using curl or wget
+# Returns non-zero if neither is available or fetch fails
+fetch_url() {
+    local url=$1
+    if command -v curl >/dev/null 2>&1; then
+        curl -sSL --connect-timeout 10 "$url" 2>/dev/null
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO- --timeout=10 "$url" 2>/dev/null
+    else
+        return 1
+    fi
+}
+
+# Download a URL to a file
+# Returns 0 on success (file exists and is non-empty), non-zero on failure
+download_file() {
+    local url=$1 dest=$2
+    if command -v curl >/dev/null 2>&1; then
+        local http_code
+        http_code=$(curl -sSL --connect-timeout 30 -w "%{http_code}" -o "$dest" "$url" 2>/dev/null) || true
+        [ "$http_code" = "200" ] && [ -f "$dest" ] && [ -s "$dest" ]
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q --timeout=30 -O "$dest" "$url" 2>/dev/null && [ -f "$dest" ] && [ -s "$dest" ]
+    else
+        return 1
+    fi
+}
+
+# Extract "version" value from manifest JSON on stdin
+# Uses POSIX basic regex only (BusyBox compatible)
+parse_manifest_version() {
+    sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
+}
+
+# Extract platform asset URL from manifest JSON on stdin
+# Greps for the platform-specific filename pattern then extracts the URL
+# Uses POSIX basic regex only (BusyBox compatible)
+parse_manifest_platform_url() {
+    local platform=$1
+    grep "helixscreen-${platform}-" | \
+        sed -n 's/.*"url"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
+}
+
 # Validate a tarball is a valid gzip archive and not truncated
 # Args: tarball_path, context (e.g., "Downloaded" or "Local")
 # Exits on failure
@@ -101,12 +151,11 @@ show_manual_install_instructions() {
     exit 1
 }
 
-# Get latest release version from GitHub
+# Get latest release version from GitHub (with R2 CDN as primary source)
 # Returns the tag name as-is (e.g., "v0.9.3")
 # Args: platform (for error message if HTTPS unavailable)
 get_latest_version() {
     local platform=${1:-unknown}
-    local url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
     local version=""
 
     # Check HTTPS capability first
@@ -114,6 +163,28 @@ get_latest_version() {
         show_manual_install_instructions "$platform" "latest"
     fi
 
+    # Try R2 manifest first (faster CDN, no API rate limits)
+    local manifest_url="${R2_BASE_URL}/${R2_CHANNEL}/manifest.json"
+    log_info "Fetching latest version from CDN..."
+
+    _R2_MANIFEST=$(fetch_url "$manifest_url") || true
+    if [ -n "$_R2_MANIFEST" ]; then
+        version=$(echo "$_R2_MANIFEST" | parse_manifest_version)
+        if [ -n "$version" ]; then
+            # Manifest has bare version (e.g., "0.9.5"), we need the tag (e.g., "v0.9.5")
+            version="v${version}"
+            log_info "Latest version (CDN): ${version}"
+            echo "$version"
+            return 0
+        fi
+        log_warn "CDN manifest found but version could not be parsed, trying GitHub..."
+        _R2_MANIFEST=""
+    else
+        log_warn "CDN unavailable, trying GitHub..."
+    fi
+
+    # Fallback: GitHub API
+    local url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
     log_info "Fetching latest version from GitHub..."
 
     if command -v curl >/dev/null 2>&1; then
@@ -125,35 +196,65 @@ get_latest_version() {
     fi
 
     if [ -z "$version" ]; then
-        log_error "Failed to fetch latest version from GitHub."
+        log_error "Failed to fetch latest version."
         log_error "Check your network connection and try again."
-        log_error "URL: $url"
+        log_error "Tried: $manifest_url"
+        log_error "Tried: $url"
         exit 1
     fi
 
     echo "$version"
 }
 
-# Download release tarball
+# Download release tarball (tries R2 CDN first, falls back to GitHub)
 download_release() {
     local version=$1
     local platform=$2
 
     local filename="helixscreen-${platform}-${version}.tar.gz"
-    local url="https://github.com/${GITHUB_REPO}/releases/download/${version}/${filename}"
     local dest="${TMP_DIR}/helixscreen.tar.gz"
-
-    log_info "Downloading HelixScreen ${version} for ${platform}..."
-    log_info "URL: $url"
 
     mkdir -p "$TMP_DIR"
     CLEANUP_TMP=true
 
+    # Try R2 CDN first
+    local r2_url=""
+    if [ -n "$_R2_MANIFEST" ]; then
+        # Extract URL from cached manifest
+        r2_url=$(echo "$_R2_MANIFEST" | parse_manifest_platform_url "$platform")
+    fi
+    # Fall back to constructed R2 URL if manifest didn't have it
+    if [ -z "$r2_url" ]; then
+        r2_url="${R2_BASE_URL}/${R2_CHANNEL}/${filename}"
+    fi
+
+    log_info "Downloading HelixScreen ${version} for ${platform}..."
+    log_info "URL: $r2_url"
+
+    if download_file "$r2_url" "$dest"; then
+        # Quick validation — make sure it's actually a gzip file
+        if gunzip -t "$dest" 2>/dev/null; then
+            local size
+            size=$(ls -lh "$dest" | awk '{print $5}')
+            log_success "Downloaded ${filename} (${size}) from CDN"
+            return 0
+        fi
+        log_warn "CDN download corrupt, trying GitHub..."
+        rm -f "$dest"
+    else
+        log_warn "CDN download failed, trying GitHub..."
+        rm -f "$dest"
+    fi
+
+    # Fallback: GitHub Releases
+    local gh_url="https://github.com/${GITHUB_REPO}/releases/download/${version}/${filename}"
+    log_info "URL: $gh_url"
+
     local http_code=""
     if command -v curl >/dev/null 2>&1; then
-        http_code=$(curl -sSL --connect-timeout 30 -w "%{http_code}" -o "$dest" "$url")
+        http_code=$(curl -sSL --connect-timeout 30 -w "%{http_code}" -o "$dest" "$gh_url")
     elif command -v wget >/dev/null 2>&1; then
-        if wget -q --timeout=30 -O "$dest" "$url"; then
+        if wget -q --timeout=30 -O "$dest" "$gh_url"; then
             http_code="200"
         else
             http_code="failed"
@@ -162,7 +263,8 @@ download_release() {
 
     if [ ! -f "$dest" ] || [ ! -s "$dest" ]; then
         log_error "Failed to download release."
-        log_error "URL: $url"
+        log_error "Tried: $r2_url"
+        log_error "Tried: $gh_url"
         if [ -n "$http_code" ] && [ "$http_code" != "200" ]; then
             log_error "HTTP status: $http_code"
         fi
@@ -170,7 +272,7 @@ download_release() {
         log_error "Possible causes:"
         log_error "  - Version ${version} may not exist for platform ${platform}"
         log_error "  - Network connectivity issues"
-        log_error "  - GitHub may be unavailable"
+        log_error "  - CDN and GitHub may be unavailable"
         exit 1
     fi
 
@@ -178,7 +280,7 @@ download_release() {
 
     local size
     size=$(ls -lh "$dest" | awk '{print $5}')
-    log_success "Downloaded ${filename} (${size})"
+    log_success "Downloaded ${filename} (${size}) from GitHub"
 }
 
 # Use a local tarball instead of downloading
