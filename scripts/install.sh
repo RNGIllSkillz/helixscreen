@@ -1478,18 +1478,138 @@ use_local_tarball() {
     log_success "Using local tarball (${size})"
 }
 
-# Extract tarball (handles BusyBox tar on AD5M)
+# Validate binary architecture matches the current system
+# Args: binary_path platform
+# Returns: 0 if valid, 1 if mismatch or error
+validate_binary_architecture() {
+    local binary=$1
+    local platform=$2
+
+    if [ ! -f "$binary" ]; then
+        log_error "Binary not found: $binary"
+        return 1
+    fi
+
+    # Read first 20 bytes of ELF header using dd + hexdump
+    # hexdump -v -e is POSIX and available in BusyBox
+    local header
+    header=$(dd if="$binary" bs=1 count=20 2>/dev/null | hexdump -v -e '1/1 "%02x "' 2>/dev/null) || true
+
+    if [ -z "$header" ]; then
+        log_error "Cannot read binary header (file may be empty or corrupted)"
+        return 1
+    fi
+
+    # Parse space-separated hex bytes into individual values
+    # Header format: "7f 45 4c 46 CC ... XX XX MM MM ..."
+    # Byte 0-3: ELF magic (7f 45 4c 46)
+    # Byte 4: EI_CLASS (01=32-bit, 02=64-bit)
+    # Byte 18-19: e_machine LE (28 00=ARM, b7 00=AARCH64)
+
+    local magic
+    magic=$(echo "$header" | awk '{printf "%s%s%s%s", $1, $2, $3, $4}')
+    if [ "$magic" != "7f454c46" ]; then
+        log_error "Binary is not a valid ELF file"
+        return 1
+    fi
+
+    local elf_class
+    elf_class=$(echo "$header" | awk '{print $5}')
+
+    local machine_lo machine_hi
+    machine_lo=$(echo "$header" | awk '{print $19}')
+    machine_hi=$(echo "$header" | awk '{print $20}')
+
+    # Determine expected values based on platform
+    local expected_class expected_machine_lo expected_desc
+    case "$platform" in
+        ad5m|k1|pi32)
+            expected_class="01"
+            expected_machine_lo="28"
+            expected_desc="ARM 32-bit (armv7l)"
+            ;;
+        pi)
+            expected_class="02"
+            expected_machine_lo="b7"
+            expected_desc="AARCH64 64-bit"
+            ;;
+        *)
+            log_warn "Unknown platform '$platform', skipping architecture validation"
+            return 0
+            ;;
+    esac
+
+    local actual_desc
+    if [ "$elf_class" = "01" ] && [ "$machine_lo" = "28" ]; then
+        actual_desc="ARM 32-bit (armv7l)"
+    elif [ "$elf_class" = "02" ] && [ "$machine_lo" = "b7" ]; then
+        actual_desc="AARCH64 64-bit"
+    else
+        actual_desc="unknown (class=$elf_class, machine=$machine_lo)"
+    fi
+
+    if [ "$elf_class" != "$expected_class" ] || [ "$machine_lo" != "$expected_machine_lo" ]; then
+        log_error "Architecture mismatch!"
+        log_error "  Expected: $expected_desc (for platform '$platform')"
+        log_error "  Got:      $actual_desc"
+        log_error "  This binary was built for the wrong platform."
+        return 1
+    fi
+
+    log_info "Architecture validated: $actual_desc"
+    return 0
+}
+
+# Extract tarball with atomic swap and rollback protection
 extract_release() {
     local platform=$1
     local tarball="${TMP_DIR}/helixscreen.tar.gz"
+    local extract_dir="${TMP_DIR}/extract"
+    local new_install="${extract_dir}/helixscreen"
 
-    log_info "Extracting release to ${INSTALL_DIR}..."
+    log_info "Extracting release..."
 
-    # Check if install dir already exists
+    # Phase 1: Extract to temporary directory
+    mkdir -p "$extract_dir"
+    cd "$extract_dir" || exit 1
+
+    if [ "$platform" = "ad5m" ] || [ "$platform" = "k1" ]; then
+        # BusyBox tar doesn't support -z
+        if ! gunzip -c "$tarball" | $SUDO tar xf -; then
+            log_error "Failed to extract tarball."
+            log_error "The archive may be corrupted."
+            rm -rf "$extract_dir"
+            exit 1
+        fi
+    else
+        if ! $SUDO tar -xzf "$tarball"; then
+            log_error "Failed to extract tarball."
+            log_error "The archive may be corrupted."
+            rm -rf "$extract_dir"
+            exit 1
+        fi
+    fi
+
+    # Phase 2: Validate extracted content
+    if [ ! -f "${new_install}/bin/helix-screen" ]; then
+        log_error "Extraction failed - helix-screen binary not found."
+        log_error "Expected: helixscreen/bin/helix-screen in tarball"
+        rm -rf "$extract_dir"
+        exit 1
+    fi
+
+    # Phase 3: Validate architecture
+    if ! validate_binary_architecture "${new_install}/bin/helix-screen" "$platform"; then
+        log_error "Aborting installation due to architecture mismatch."
+        rm -rf "$extract_dir"
+        exit 1
+    fi
+
+    # Phase 4: Backup existing installation (if present)
     if [ -d "${INSTALL_DIR}" ]; then
         ORIGINAL_INSTALL_EXISTS=true
 
-        # Backup existing config (check new location first, then legacy)
+        # Backup config (check new location first, then legacy)
         if [ -f "${INSTALL_DIR}/config/helixconfig.json" ]; then
             BACKUP_CONFIG="${TMP_DIR}/helixconfig.json.backup"
             cp "${INSTALL_DIR}/config/helixconfig.json" "$BACKUP_CONFIG"
@@ -1499,45 +1619,51 @@ extract_release() {
             cp "${INSTALL_DIR}/helixconfig.json" "$BACKUP_CONFIG"
             log_info "Backed up existing configuration (legacy location)"
         fi
+
+        # Atomic swap: move old install to .old backup
+        if ! $SUDO mv "${INSTALL_DIR}" "${INSTALL_DIR}.old"; then
+            log_error "Failed to backup existing installation."
+            rm -rf "$extract_dir"
+            exit 1
+        fi
     fi
 
-    # Remove old installation
-    $SUDO rm -rf "${INSTALL_DIR}"
-
-    # Create parent directory
+    # Phase 5: Move new install into place
     $SUDO mkdir -p "$(dirname "${INSTALL_DIR}")"
-
-    # Extract - AD5M and K1 use BusyBox tar which doesn't support -z
-    cd "$(dirname "${INSTALL_DIR}")" || exit 1
-    if [ "$platform" = "ad5m" ] || [ "$platform" = "k1" ]; then
-        if ! gunzip -c "$tarball" | $SUDO tar xf -; then
-            log_error "Failed to extract tarball."
-            log_error "The archive may be corrupted."
-            exit 1
+    if ! $SUDO mv "${new_install}" "${INSTALL_DIR}"; then
+        log_error "Failed to install new release."
+        # ROLLBACK: restore old installation
+        if [ -d "${INSTALL_DIR}.old" ]; then
+            log_warn "Rolling back to previous installation..."
+            if $SUDO mv "${INSTALL_DIR}.old" "${INSTALL_DIR}"; then
+                log_warn "Rollback complete. Previous installation restored."
+            else
+                log_error "CRITICAL: Rollback failed! Previous install at ${INSTALL_DIR}.old"
+                log_error "Manually restore with: mv ${INSTALL_DIR}.old ${INSTALL_DIR}"
+            fi
         fi
-    else
-        if ! $SUDO tar -xzf "$tarball"; then
-            log_error "Failed to extract tarball."
-            log_error "The archive may be corrupted."
-            exit 1
-        fi
-    fi
-
-    # Verify extraction succeeded
-    if [ ! -f "${INSTALL_DIR}/bin/helix-screen" ]; then
-        log_error "Extraction failed - helix-screen binary not found."
-        log_error "Expected: ${INSTALL_DIR}/bin/helix-screen"
+        rm -rf "$extract_dir"
         exit 1
     fi
 
-    # Restore config to new location (config/helixconfig.json)
-    if [ -n "$BACKUP_CONFIG" ] && [ -f "$BACKUP_CONFIG" ]; then
+    # Phase 6: Restore config
+    if [ -n "${BACKUP_CONFIG:-}" ] && [ -f "$BACKUP_CONFIG" ]; then
         $SUDO mkdir -p "${INSTALL_DIR}/config"
         $SUDO cp "$BACKUP_CONFIG" "${INSTALL_DIR}/config/helixconfig.json"
         log_info "Restored existing configuration to config/"
     fi
 
+    # Cleanup
+    rm -rf "$extract_dir"
     log_success "Extracted to ${INSTALL_DIR}"
+}
+
+# Remove backup of previous installation (call after service starts successfully)
+cleanup_old_install() {
+    if [ -d "${INSTALL_DIR}.old" ]; then
+        $SUDO rm -rf "${INSTALL_DIR}.old"
+        log_info "Cleaned up previous installation backup"
+    fi
 }
 
 # ============================================
@@ -2408,6 +2534,7 @@ main() {
 
     # Start service
     start_service
+    cleanup_old_install
 
     # Cleanup on success
     cleanup_on_success

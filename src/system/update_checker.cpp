@@ -28,7 +28,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <sys/utsname.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -100,22 +102,20 @@ bool parse_github_release(const json& j, UpdateChecker::ReleaseInfo& info, std::
     // Find platform-specific binary asset
     if (j.contains("assets") && j["assets"].is_array()) {
         std::string platform_prefix = "helixscreen-" + UpdateChecker::get_platform_key() + "-";
+        spdlog::info("[UpdateChecker] Platform key: '{}', looking for prefix '{}'",
+                     UpdateChecker::get_platform_key(), platform_prefix);
         for (const auto& asset : j["assets"]) {
             std::string name = asset.value("name", "");
             if (name.find(platform_prefix) == 0 && name.find(".tar.gz") != std::string::npos) {
                 info.download_url = asset.value("browser_download_url", "");
+                spdlog::info("[UpdateChecker] Selected asset: {}", name);
                 break;
             }
         }
-        // Fallback: if no platform-specific match, try any .tar.gz (backward compat)
+        // No fallback to arbitrary .tar.gz — wrong-platform binaries can brick devices
         if (info.download_url.empty()) {
-            for (const auto& asset : j["assets"]) {
-                std::string name = asset.value("name", "");
-                if (name.find(".tar.gz") != std::string::npos) {
-                    info.download_url = asset.value("browser_download_url", "");
-                    break;
-                }
-            }
+            spdlog::warn("[UpdateChecker] No asset found for platform '{}' in release {}",
+                         UpdateChecker::get_platform_key(), info.version);
         }
     }
 
@@ -631,8 +631,130 @@ void UpdateChecker::do_download() {
         return;
     }
 
-    spdlog::info("[UpdateChecker] Tarball verified OK, proceeding to install");
+    spdlog::info("[UpdateChecker] Tarball verified OK");
+
+    // Validate architecture before installing
+    if (!validate_elf_architecture(download_path)) {
+        spdlog::error("[UpdateChecker] Downloaded update is for wrong architecture!");
+        std::remove(download_path.c_str());
+        report_download_status(DownloadStatus::Error, 0, "Error: Wrong architecture",
+                               "Downloaded binary doesn't match this device's architecture");
+        return;
+    }
+
     do_install(download_path);
+}
+
+bool UpdateChecker::validate_elf_architecture(const std::string& tarball_path) {
+    struct utsname uts;
+    if (uname(&uts) != 0) {
+        spdlog::warn("[UpdateChecker] uname() failed, skipping arch validation");
+        return true; // Can't determine, allow
+    }
+
+    std::string machine(uts.machine);
+    spdlog::info("[UpdateChecker] Runtime architecture: {}", machine);
+
+    // Determine expected ELF properties from runtime architecture
+    uint8_t expected_class = 0;
+    uint16_t expected_machine = 0;
+    std::string expected_arch_name;
+
+    if (machine == "armv7l") {
+        expected_class = 1;      // ELFCLASS32
+        expected_machine = 0x28; // EM_ARM
+        expected_arch_name = "ARM 32-bit";
+    } else if (machine == "aarch64") {
+        expected_class = 2;      // ELFCLASS64
+        expected_machine = 0xB7; // EM_AARCH64
+        expected_arch_name = "AARCH64 64-bit";
+    } else {
+        spdlog::warn("[UpdateChecker] Unknown architecture '{}', skipping validation", machine);
+        return true;
+    }
+
+    // Extract binary to temp location for inspection
+    std::string temp_dir = tarball_path + ".validate";
+    mkdir(temp_dir.c_str(), 0755);
+
+    // Extract binary from tarball for inspection (safe_exec avoids shell injection)
+    auto ret =
+        safe_exec({"tar", "xzf", tarball_path, "-C", temp_dir, "helixscreen/bin/helix-screen"});
+    if (ret != 0) {
+        // BusyBox tar may not support -z; decompress first, then extract
+        std::string uncompressed = tarball_path + ".tar";
+        ret = safe_exec({"gunzip", "-k", "-f", tarball_path});
+        if (ret == 0) {
+            // gunzip -k creates tarball_path without .gz → need to find it
+            // Actually gunzip -k keeps original, output is input minus .gz suffix
+            // But our file ends in .tar.gz, so output is .tar
+            std::string tar_path = tarball_path;
+            auto gz_pos = tar_path.rfind(".gz");
+            if (gz_pos != std::string::npos) {
+                tar_path = tar_path.substr(0, gz_pos);
+            }
+            ret =
+                safe_exec({"tar", "xf", tar_path, "-C", temp_dir, "helixscreen/bin/helix-screen"});
+            std::remove(tar_path.c_str()); // Clean up decompressed tarball
+        }
+        if (ret != 0) {
+            spdlog::warn("[UpdateChecker] Could not extract binary for validation, skipping");
+            safe_exec({"rm", "-rf", temp_dir});
+            return true;
+        }
+    }
+
+    std::string binary_path = temp_dir + "/helixscreen/bin/helix-screen";
+
+    // Read ELF header (first 20 bytes)
+    FILE* f = fopen(binary_path.c_str(), "rb");
+    if (!f) {
+        spdlog::warn("[UpdateChecker] Could not open extracted binary for validation");
+        safe_exec({"rm", "-rf", temp_dir});
+        return true;
+    }
+
+    uint8_t header[20];
+    size_t nread = fread(header, 1, sizeof(header), f);
+    fclose(f);
+
+    // Clean up extracted files
+    safe_exec({"rm", "-rf", temp_dir});
+
+    if (nread < 20) {
+        spdlog::error("[UpdateChecker] Binary too small to be valid ELF ({} bytes)", nread);
+        return false;
+    }
+
+    // Check ELF magic: 0x7f 'E' 'L' 'F'
+    if (header[0] != 0x7f || header[1] != 'E' || header[2] != 'L' || header[3] != 'F') {
+        spdlog::error("[UpdateChecker] Downloaded binary is not a valid ELF file");
+        return false;
+    }
+
+    // Check class (byte 4): 1=32-bit, 2=64-bit
+    uint8_t elf_class = header[4];
+
+    // Check machine type (bytes 18-19, little-endian): 0x28=ARM, 0xB7=AARCH64
+    uint16_t elf_machine =
+        static_cast<uint16_t>(header[18]) | (static_cast<uint16_t>(header[19]) << 8);
+
+    const char* class_name = (elf_class == 1) ? "32-bit" : (elf_class == 2) ? "64-bit" : "unknown";
+    const char* machine_name = (elf_machine == 0x28)   ? "ARM"
+                               : (elf_machine == 0xB7) ? "AARCH64"
+                                                       : "unknown";
+
+    spdlog::info("[UpdateChecker] Binary: {} {} (class={}, machine=0x{:x})", machine_name,
+                 class_name, elf_class, elf_machine);
+
+    if (elf_class != expected_class || elf_machine != expected_machine) {
+        spdlog::error("[UpdateChecker] Architecture mismatch! Runtime is {} but binary is {} {}",
+                      expected_arch_name, machine_name, class_name);
+        return false;
+    }
+
+    spdlog::info("[UpdateChecker] Architecture validation passed ({})", expected_arch_name);
+    return true;
 }
 
 void UpdateChecker::do_install(const std::string& tarball_path) {

@@ -275,6 +275,9 @@ class UpdateChecker {
     void do_download();
     void do_install(const std::string& tarball_path);
 
+    /** @brief Validate downloaded tarball contains binary for correct architecture */
+    bool validate_elf_architecture(const std::string& tarball_path);
+
     SubjectManager subjects_;
     bool subjects_initialized_{false};
 };

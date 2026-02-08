@@ -60,3 +60,37 @@ setup_mock_pi() {
 # SUDO stub (no-op for tests)
 SUDO=""
 export SUDO
+
+# Create a fake ELF binary with specific architecture
+# Usage: create_fake_elf output_path class machine
+#   class: 01=32-bit, 02=64-bit
+#   machine: 0x28=ARM, 0xb7=AARCH64
+# Creates a minimal 20-byte ELF header
+create_fake_elf() {
+    local output=$1
+    local class=$2      # "01" or "02"
+    local machine=$3    # "28" or "b7"
+
+    # ELF header: magic(4) + class(1) + data(1) + version(1) + osabi(1)
+    # + padding(8) + type(2) + machine(2) = 20 bytes
+    # Using little-endian (data=01)
+    printf '\x7fELF' > "$output"                          # magic
+    printf "\\x$(printf '%02x' "0x$class")" >> "$output"  # class
+    printf '\x01' >> "$output"                             # data (LE)
+    printf '\x01' >> "$output"                             # version
+    printf '\x00' >> "$output"                             # osabi
+    printf '\x00\x00\x00\x00\x00\x00\x00\x00' >> "$output"  # padding
+    printf '\x02\x00' >> "$output"                         # type (ET_EXEC)
+    printf "\\x$(printf '%02x' "0x$machine")" >> "$output" # machine lo
+    printf '\x00' >> "$output"                             # machine hi
+}
+
+# Create a fake ARM 32-bit ELF binary
+create_fake_arm32_elf() {
+    create_fake_elf "$1" "01" "28"
+}
+
+# Create a fake AARCH64 64-bit ELF binary
+create_fake_aarch64_elf() {
+    create_fake_elf "$1" "02" "b7"
+}

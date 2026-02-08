@@ -330,6 +330,7 @@ main() {
 
     # Start service
     start_service
+    cleanup_old_install
 
     # Cleanup on success
     cleanup_on_success

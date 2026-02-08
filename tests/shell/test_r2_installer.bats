@@ -155,3 +155,15 @@ SAMPLE_MANIFEST='{
     [[ "$result" != *"pi32"* ]]
     [ "$result" = "https://releases.helixscreen.org/stable/helixscreen-pi-v0.9.5.tar.gz" ]
 }
+
+# --- Architecture validation helper availability ---
+
+@test "validate_binary_architecture available after sourcing release.sh" {
+    run type validate_binary_architecture
+    [ "$status" -eq 0 ]
+}
+
+@test "cleanup_old_install available after sourcing release.sh" {
+    run type cleanup_old_install
+    [ "$status" -eq 0 ]
+}
