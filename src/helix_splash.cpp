@@ -384,11 +384,24 @@ int main(int argc, char** argv) {
     lv_obj_align(version_label, LV_ALIGN_BOTTOM_RIGHT, -8, -6);
     (void)version_label;
 
+    // On fbdev, other processes can write directly to /dev/fb0 behind LVGL's back
+    // (e.g., ForgeX S99root boot messages). DRM/SDL are not susceptible since DRM
+    // requires master access and SDL is windowed. Periodic full invalidation on fbdev
+    // forces LVGL to repaint the entire screen, self-healing any stomped pixels.
+    bool needs_fb_self_heal = (backend->type() == DisplayBackendType::FBDEV);
+
     // Main loop - run until signaled to quit
     // Exit signals: SIGTERM, SIGINT (shutdown), SIGUSR1 (main app ready)
+    int frame_count = 0;
     while (!g_quit) {
         lv_timer_handler();
         usleep(FRAME_DELAY_US);
+
+        // Force full redraw every ~500ms (30 frames at 60fps) on fbdev only
+        if (needs_fb_self_heal && ++frame_count >= 30) {
+            lv_obj_invalidate(screen);
+            frame_count = 0;
+        }
     }
 
     // Clear framebuffer to background color before exit

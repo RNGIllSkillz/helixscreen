@@ -52,6 +52,7 @@ reenable_previous_ui() {
         fi
         restore_stock_firmware_ui || true
         unpatch_forgex_screen_sh || true
+        unpatch_forgex_screen_drawing || true
     fi
 
     # For K1/Simple AF, check for GuppyScreen

@@ -192,6 +192,10 @@ main() {
         disable_stock_firmware_ui || true
         # Patch screen.sh to skip backlight control when HelixScreen is active
         patch_forgex_screen_sh || true
+        # Patch screen.sh to skip drawing (draw_splash, draw_loading, boot_message)
+        patch_forgex_screen_drawing || true
+        # Wrap logged binary to strip --send-to-screen when HelixScreen is active
+        install_forgex_logged_wrapper || true
     fi
 
     # Stop competing UIs (GuppyScreen, KlipperScreen, FeatherScreen, etc.)

@@ -40,6 +40,7 @@ platform_enable_backlight() { :; }
 platform_wait_for_services() { :; }
 platform_pre_start() { :; }
 platform_post_stop() { :; }
+platform_wait_for_boot_complete() { :; }
 
 # Source platform hooks if available
 PLATFORM_HOOKS="${DAEMON_DIR}/platform/hooks.sh"
@@ -102,6 +103,12 @@ start() {
         # Platform hooks control what (if anything) to wait for
         if [ "${HELIX_NO_SERVICE_WAIT:-0}" != "1" ]; then
             platform_wait_for_services
+        fi
+
+        # Wait for platform boot sequence to finish (e.g., ForgeX S99root)
+        # Ensures no other process is writing to the framebuffer when helix-screen starts
+        if [ "${HELIX_NO_BOOT_WAIT:-0}" != "1" ]; then
+            platform_wait_for_boot_complete
         fi
 
         # Use launcher script if available (handles watchdog)

@@ -893,7 +893,7 @@ patch_forgex_screen_drawing() {
     { print }
     ' "$screen_sh" > "$tmp_file"
 
-    if [ -s "$tmp_file" ]; then
+    if [ -s "$tmp_file" ] && grep -q 'helixscreen_active' "$tmp_file" 2>/dev/null; then
         $SUDO mv "$tmp_file" "$screen_sh"
         $SUDO chmod +x "$screen_sh"
         log_success "ForgeX screen.sh patched for screen drawing"
@@ -903,6 +903,51 @@ patch_forgex_screen_drawing() {
         log_warn "Failed to patch ForgeX screen.sh for screen drawing"
         return 1
     fi
+}
+
+# Remove screen drawing patches from ForgeX screen.sh (for uninstall)
+unpatch_forgex_screen_drawing() {
+    screen_sh="/opt/config/mod/.shell/screen.sh"
+
+    if [ ! -f "$screen_sh" ]; then
+        return 1
+    fi
+
+    # Check if our drawing patches are present
+    if ! grep -q '# Skip when HelixScreen is controlling display' "$screen_sh" 2>/dev/null; then
+        log_info "ForgeX screen.sh has no drawing patches, nothing to remove"
+        return 0
+    fi
+
+    log_info "Removing HelixScreen drawing patches from ForgeX screen.sh..."
+
+    # Remove our 4-line block: comment + if + exit 0 + fi
+    tmp_file="${screen_sh}.tmp"
+    awk '
+    /# Skip when HelixScreen is controlling display/ { skip=1; next }
+    skip && /if \[ -f \/tmp\/helixscreen_active \]; then/ { next }
+    skip && /^[[:space:]]*exit 0[[:space:]]*$/ { next }
+    skip && /^[[:space:]]*fi[[:space:]]*$/ { skip=0; next }
+    { print }
+    ' "$screen_sh" > "$tmp_file"
+
+    if [ -s "$tmp_file" ]; then
+        $SUDO mv "$tmp_file" "$screen_sh"
+        $SUDO chmod +x "$screen_sh"
+    else
+        rm -f "$tmp_file"
+        log_warn "Failed to unpatch ForgeX screen.sh drawing patches"
+        return 1
+    fi
+
+    # Verify removal
+    if grep -q '# Skip when HelixScreen is controlling display' "$screen_sh" 2>/dev/null; then
+        log_warn "Could not fully remove drawing patches from screen.sh"
+        return 1
+    fi
+
+    log_success "ForgeX screen.sh drawing patches removed"
+    return 0
 }
 
 # Install logged wrapper to prevent direct framebuffer writes during boot
@@ -938,9 +983,10 @@ install_forgex_logged_wrapper() {
 # The logged binary writes directly to /dev/fb0, bypassing screen.sh patches
 
 if [ -f /tmp/helixscreen_active ]; then
-    # Remove --send-to-screen and related args, keep everything else
-    args=""
+    # Remove --send-to-screen and related args, pass everything else through
+    # Build a clean argument list preserving quoting
     skip_next=0
+    set --
     for arg in "$@"; do
         if [ $skip_next -eq 1 ]; then
             skip_next=0
@@ -951,10 +997,10 @@ if [ -f /tmp/helixscreen_active ]; then
             --screen-no-followup) continue ;;
             --screen-level) skip_next=1; continue ;;
             --screen-queue) skip_next=1; continue ;;
-            *) args="$args $arg" ;;
+            *) set -- "$@" "$arg" ;;
         esac
     done
-    exec /opt/config/mod/.bin/exec/logged-real $args
+    exec /opt/config/mod/.bin/exec/logged-real "$@"
 else
     exec /opt/config/mod/.bin/exec/logged-real "$@"
 fi
@@ -1017,8 +1063,9 @@ uninstall_forgex() {
     # Restore stock FlashForge UI in auto_run.sh
     restore_stock_firmware_ui || true
 
-    # Remove HelixScreen patch from screen.sh
+    # Remove HelixScreen patches from screen.sh
     unpatch_forgex_screen_sh || true
+    unpatch_forgex_screen_drawing || true
 
     # Remove logged wrapper
     uninstall_forgex_logged_wrapper || true

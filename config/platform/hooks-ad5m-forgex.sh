@@ -130,6 +130,39 @@ platform_pre_start() {
     touch /tmp/helixscreen_active
 }
 
+# Wait for ForgeX boot sequence to complete before starting helix-screen.
+# S99root runs AFTER S90helixscreen and writes directly to /dev/fb0 (boot logos,
+# status messages, logged binary). Even with screen.sh patches, S99root can
+# outlive Moonraker startup and stomp on the framebuffer after helix-screen launches.
+# By waiting for S99root to exit, we guarantee a clean handoff.
+platform_wait_for_boot_complete() {
+    local s99root="/opt/config/mod/.root/S99root"
+    if [ ! -f "$s99root" ]; then
+        return 0
+    fi
+
+    echo "Waiting for ForgeX boot to complete..."
+    local timeout=60
+    local waited=0
+
+    while [ "$waited" -lt "$timeout" ]; do
+        # BusyBox-compatible process check for S99root script
+        # shellcheck disable=SC2009  # pgrep not available on all BusyBox builds
+        if ! ps w 2>/dev/null | grep -v grep | grep -q "S99root"; then
+            echo "ForgeX boot complete after ${waited}s"
+            return 0
+        fi
+        sleep 1
+        waited=$((waited + 1))
+        if [ $((waited % 10)) -eq 0 ]; then
+            echo "  Still waiting for ForgeX boot... (${waited}s)"
+        fi
+    done
+
+    echo "Warning: ForgeX boot still running after ${timeout}s, starting anyway"
+    return 1
+}
+
 # Post-stop cleanup: remove the active flag so ForgeX can resume normal display control.
 # After this, S99root and screen.sh will behave as if no third-party UI is present.
 platform_post_stop() {
