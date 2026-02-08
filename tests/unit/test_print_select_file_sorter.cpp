@@ -249,6 +249,86 @@ TEST_CASE("[FileSorter] Directories always first", "[FileSorter]") {
 }
 
 // ============================================================================
+// Parent Directory ".." Always First Tests
+// ============================================================================
+
+TEST_CASE("[FileSorter] Parent directory '..' always sorts first", "[FileSorter]") {
+    // NOTE: Default sort is MODIFIED DESCENDING. All directories get
+    // modified_timestamp=0 from make_directory(), so the comparator must
+    // handle equal values correctly (strict weak ordering) AND pin ".."
+    // regardless of sort direction.
+
+    SECTION("'..' first with default sort (modified descending) - the real-world case") {
+        // This is what actually happens: fresh sorter, directories with timestamp=0
+        PrintSelectFileSorter sorter;
+        std::vector<PrintFileData> files = {
+            make_dir("jpeg"),       make_dir("cloud"),
+            make_dir(".."),         make_dir("video"),
+            make_dir("jpeg-video"), make_file("benchy.gcode", 5000, 3000, 60, 10.0f),
+        };
+
+        // No sort_by() call - use the default (MODIFIED DESCENDING)
+        REQUIRE(sorter.current_column() == SortColumn::MODIFIED);
+        REQUIRE(sorter.current_direction() == SortDirection::DESCENDING);
+        sorter.apply_sort(files);
+
+        REQUIRE(files[0].filename == "..");
+        // All directories before the file
+        for (size_t i = 0; i < 5; i++) {
+            REQUIRE(files[i].is_dir);
+        }
+        REQUIRE(files[5].filename == "benchy.gcode");
+    }
+
+    SECTION("'..' first when sorting by filename descending") {
+        PrintSelectFileSorter sorter;
+        std::vector<PrintFileData> files = {
+            make_dir("aaa_folder"),
+            make_dir(".."),
+            make_dir("zzz_folder"),
+            make_file("test.gcode", 1000, 100, 60, 10.0f),
+        };
+
+        sorter.sort_by(SortColumn::FILENAME);
+        sorter.sort_by(SortColumn::FILENAME); // Toggle to descending
+        sorter.apply_sort(files);
+
+        REQUIRE(sorter.current_direction() == SortDirection::DESCENDING);
+        REQUIRE(files[0].filename == "..");
+        REQUIRE(files[1].filename == "zzz_folder");
+        REQUIRE(files[2].filename == "aaa_folder");
+        REQUIRE(files[3].filename == "test.gcode");
+    }
+
+    SECTION("'..' first across all sort columns") {
+        // Test every column in both directions
+        SortColumn columns[] = {SortColumn::FILENAME, SortColumn::SIZE, SortColumn::MODIFIED,
+                                SortColumn::PRINT_TIME, SortColumn::FILAMENT};
+
+        for (auto col : columns) {
+            for (int desc = 0; desc < 2; desc++) {
+                PrintSelectFileSorter sorter;
+                std::vector<PrintFileData> files = {
+                    make_dir("folder_b"),
+                    make_dir(".."),
+                    make_dir("folder_a"),
+                    make_file("test.gcode", 1000, 100, 60, 10.0f),
+                };
+
+                sorter.sort_by(col);
+                if (desc)
+                    sorter.sort_by(col); // Toggle to descending
+                sorter.apply_sort(files);
+
+                INFO("Column: " << static_cast<int>(col)
+                                << " Direction: " << (desc ? "DESC" : "ASC"));
+                REQUIRE(files[0].filename == "..");
+            }
+        }
+    }
+}
+
+// ============================================================================
 // Toggle Sort Direction Tests
 // ============================================================================
 

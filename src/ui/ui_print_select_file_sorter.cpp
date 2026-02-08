@@ -30,21 +30,33 @@ void PrintSelectFileSorter::apply_sort(std::vector<PrintFileData>& files) {
 
                   bool result = false;
 
+                  // Filename tiebreaker ensures strict weak ordering when
+                  // primary values are equal (e.g. all directories have
+                  // modified_timestamp=0). Without this, descending sort
+                  // with equal values violates comp(a,b) && comp(b,a) = UB.
                   switch (sort_column) {
                   case SortColumn::FILENAME:
                       result = a.filename < b.filename;
                       break;
                   case SortColumn::SIZE:
-                      result = a.file_size_bytes < b.file_size_bytes;
+                      result = (a.file_size_bytes != b.file_size_bytes)
+                                   ? (a.file_size_bytes < b.file_size_bytes)
+                                   : (a.filename < b.filename);
                       break;
                   case SortColumn::MODIFIED:
-                      result = a.modified_timestamp < b.modified_timestamp;
+                      result = (a.modified_timestamp != b.modified_timestamp)
+                                   ? (a.modified_timestamp < b.modified_timestamp)
+                                   : (a.filename < b.filename);
                       break;
                   case SortColumn::PRINT_TIME:
-                      result = a.print_time_minutes < b.print_time_minutes;
+                      result = (a.print_time_minutes != b.print_time_minutes)
+                                   ? (a.print_time_minutes < b.print_time_minutes)
+                                   : (a.filename < b.filename);
                       break;
                   case SortColumn::FILAMENT:
-                      result = a.filament_grams < b.filament_grams;
+                      result = (a.filament_grams != b.filament_grams)
+                                   ? (a.filament_grams < b.filament_grams)
+                                   : (a.filename < b.filename);
                       break;
                   }
 
@@ -54,6 +66,14 @@ void PrintSelectFileSorter::apply_sort(std::vector<PrintFileData>& files) {
 
                   return result;
               });
+
+    // Pin ".." parent directory to position 0 (after sort, bulletproof)
+    for (size_t i = 1; i < files.size(); i++) {
+        if (files[i].is_dir && files[i].filename == "..") {
+            std::rotate(files.begin(), files.begin() + i, files.begin() + i + 1);
+            break;
+        }
+    }
 }
 
 } // namespace helix::ui
