@@ -339,8 +339,6 @@
         </ui_button>
       </lv_obj>
 
-      <info_note icon="info"
-                 text="Theme changes apply after restart." translation_tag="Theme changes apply after restart." style_pad_left="#space_lg" style_pad_right="#space_lg"/>
     </lv_obj>
   </view>
 </component>

@@ -100,8 +100,8 @@
             <!-- Closer button (more squish) - icon depends on kinematics -->
             <ui_button name="btn_z_closer" width="100%">
               <event_cb trigger="clicked" callback="on_tune_z_closer"/>
-              <!-- Bed moves Z (CoreXY): bed goes up = arrow_expand_up -->
-              <icon src="arrow_expand_up" size="sm">
+              <!-- Bed moves Z (CoreXY): bed goes down toward nozzle = arrow_expand_down -->
+              <icon src="arrow_expand_down" size="sm">
                 <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
               </icon>
               <!-- Head moves Z (Cartesian): head goes down = arrow_down -->
@@ -112,8 +112,8 @@
             <!-- Farther button (less squish) - icon depends on kinematics -->
             <ui_button name="btn_z_farther" width="100%">
               <event_cb trigger="clicked" callback="on_tune_z_farther"/>
-              <!-- Bed moves Z (CoreXY): bed goes down = arrow_expand_down -->
-              <icon src="arrow_expand_down" size="sm">
+              <!-- Bed moves Z (CoreXY): bed goes up away from nozzle = arrow_expand_up -->
+              <icon src="arrow_expand_up" size="sm">
                 <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
               </icon>
               <!-- Head moves Z (Cartesian): head goes up = arrow_up -->

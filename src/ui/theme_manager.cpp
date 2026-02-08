@@ -875,23 +875,32 @@ static void theme_manager_register_semantic_colors(lv_xml_component_scope_t* sco
         register_color(names[i], i);
     }
 
-    // Swatch descriptions for theme editor - new semantic names
-    lv_xml_register_const(scope, "swatch_0_desc", "App background");
-    lv_xml_register_const(scope, "swatch_1_desc", "Panel/sidebar background");
-    lv_xml_register_const(scope, "swatch_2_desc", "Card surfaces");
-    lv_xml_register_const(scope, "swatch_3_desc", "Elevated surfaces");
-    lv_xml_register_const(scope, "swatch_4_desc", "Borders and dividers");
-    lv_xml_register_const(scope, "swatch_5_desc", "Primary text");
-    lv_xml_register_const(scope, "swatch_6_desc", "Secondary text");
-    lv_xml_register_const(scope, "swatch_7_desc", "Subtle/hint text");
-    lv_xml_register_const(scope, "swatch_8_desc", "Primary accent");
-    lv_xml_register_const(scope, "swatch_9_desc", "Secondary accent");
-    lv_xml_register_const(scope, "swatch_10_desc", "Tertiary accent");
-    lv_xml_register_const(scope, "swatch_11_desc", "Info states");
-    lv_xml_register_const(scope, "swatch_12_desc", "Success states");
-    lv_xml_register_const(scope, "swatch_13_desc", "Warning states");
-    lv_xml_register_const(scope, "swatch_14_desc", "Danger/error states");
-    lv_xml_register_const(scope, "swatch_15_desc", "Focus ring");
+    // Swatch descriptions for theme editor - registered as string subjects
+    // so bind_text="swatch_N_desc" works in XML (consts don't resolve for bind_text)
+    static constexpr size_t SWATCH_DESC_BUF_SIZE = 32;
+    static lv_subject_t swatch_desc_subjects[16];
+    static char swatch_desc_bufs[16][SWATCH_DESC_BUF_SIZE];
+    static bool swatch_descs_initialized = false;
+
+    static constexpr const char* swatch_descriptions[16] = {
+        "App background",    "Panel/sidebar background", "Card surfaces",
+        "Elevated surfaces", "Borders and dividers",     "Primary text",
+        "Secondary text",    "Subtle/hint text",         "Primary accent",
+        "Secondary accent",  "Tertiary accent",          "Info states",
+        "Success states",    "Warning states",           "Danger/error states",
+        "Focus ring",
+    };
+
+    if (!swatch_descs_initialized) {
+        for (size_t i = 0; i < 16; ++i) {
+            lv_subject_init_string(&swatch_desc_subjects[i], swatch_desc_bufs[i], nullptr,
+                                   SWATCH_DESC_BUF_SIZE, swatch_descriptions[i]);
+            char key[24];
+            snprintf(key, sizeof(key), "swatch_%zu_desc", i);
+            lv_xml_register_subject(nullptr, key, &swatch_desc_subjects[i]);
+        }
+        swatch_descs_initialized = true;
+    }
 
     spdlog::debug("[Theme] Registered 16 semantic colors + legacy aliases (dark={}, light={})",
                   has_dark, has_light);
