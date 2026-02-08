@@ -14,9 +14,9 @@
         style_bg_color="#card_bg" style_pad_all="0" style_border_width="0" flex_flow="column" clickable="true">
     <!-- Header Bar with E-stop action button -->
     <header_bar name="overlay_header"
-                title="Print Status" title_tag="Print Status" hide_action_button="false" action_button_icon="alert_octagon"
-                action_button_bg_color="#danger" action_button_radius="9999" action_button_width="44"
-                action_button_height="44" action_button_pad="0" hide_action_button_text="true"
+                title="Print Status" title_tag="Print Status" hide_action_button="false"
+                action_button_icon="alert_octagon" action_button_bg_color="#danger" action_button_radius="9999"
+                action_button_width="44" action_button_height="44" action_button_pad="0" hide_action_button_text="true"
                 action_button_callback="emergency_stop_clicked"/>
     <!-- Content Area (two columns: viewer left, controls right) -->
     <lv_obj name="overlay_content"
@@ -30,7 +30,8 @@
         <!-- All children overlap as direct children of the card (matching print_file_detail pattern) -->
 
         <!-- Pre-rendered gradient background (shown in thumbnail[0] and 2D[2] modes, hidden in 3D[1]) -->
-        <lv_image name="gradient_background" width="100%" height="100%" src="A:assets/images/gradient-panel-medium-dark.bin">
+        <lv_image name="gradient_background"
+                  width="100%" height="100%" src="A:assets/images/gradient-panel-medium-dark.bin">
           <bind_flag_if_eq subject="gcode_viewer_mode" flag="hidden" ref_value="1"/>
         </lv_image>
 
@@ -66,20 +67,17 @@
           <lv_bar name="preparing_progress_bar"
                   width="80%" height="#space_md" bind_value="preparing_progress" style_bg_opa="255"
                   style_bg_color="#overlay_bg" style_radius="#space_xs" style_border_width="0"/>
-          <text_small name="preparing_eta" bind_text="print_start_time_left"
-                      style_text_color="#overlay_text" style_text_opa="180"/>
+          <text_small name="preparing_eta"
+                      bind_text="print_start_time_left" style_text_color="#overlay_text" style_text_opa="180"/>
         </lv_obj>
 
         <!-- Objects list button: top-left corner, visible only when multi-object print -->
         <lv_obj name="btn_objects"
-                align="top_left" width="36" height="36"
-                style_translate_x="#space_md" style_translate_y="#space_md"
-                style_bg_color="#card_bg" style_bg_opa="180" style_radius="18"
-                clickable="true" style_pad_all="0"
+                width="36" height="36" align="top_left" style_translate_x="#space_md" style_translate_y="#space_md"
+                style_bg_color="#card_bg" style_bg_opa="180" style_radius="18" clickable="true" style_pad_all="0"
                 scrollable="false">
           <bind_flag_if_eq subject="exclude_objects_available" flag="hidden" ref_value="0"/>
-          <lv_label text="#icon_view_list" style_text_font="mdi_icons_24" style_text_color="#text_muted"
-                    align="center"/>
+          <lv_label text="#icon_view_list" style_text_font="mdi_icons_24" style_text_color="#text_muted" align="center"/>
           <event_cb trigger="clicked" callback="on_print_status_objects"/>
         </lv_obj>
 
@@ -93,10 +91,10 @@
           <!-- Green success badge with checkmark (animated on appearance) -->
           <!-- Uses ui_button for auto-contrast text via update_button_text_contrast() -->
           <ui_button name="success_badge"
-                     width="content" height="content" variant="success" icon="check_circle"
-                     text="Print Complete!" translation_tag="Print Complete!" clickable="false" focusable="false"
-                     style_radius="#space_lg" style_pad_left="#space_md" style_pad_right="#space_md"
-                     style_pad_top="#space_sm" style_pad_bottom="#space_sm"/>
+                     width="content" height="content" variant="success" icon="check_circle" text="Print Complete!"
+                     translation_tag="Print Complete!" clickable="false" focusable="false" style_radius="#space_lg"
+                     style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
+                     style_pad_bottom="#space_sm"/>
         </lv_obj>
 
         <!-- PRINT CANCELLED OVERLAY: Shown when print is cancelled -->
@@ -109,10 +107,10 @@
           <!-- Orange warning badge with cancel icon (animated on appearance) -->
           <!-- Uses ui_button for auto-contrast text via update_button_text_contrast() -->
           <ui_button name="cancel_badge"
-                     width="content" height="content" variant="warning" icon="cancel"
-                     text="Print Cancelled" translation_tag="Print Cancelled" clickable="false" focusable="false"
-                     style_radius="#space_lg" style_pad_left="#space_md" style_pad_right="#space_md"
-                     style_pad_top="#space_sm" style_pad_bottom="#space_sm"/>
+                     width="content" height="content" variant="warning" icon="cancel" text="Print Cancelled"
+                     translation_tag="Print Cancelled" clickable="false" focusable="false" style_radius="#space_lg"
+                     style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
+                     style_pad_bottom="#space_sm"/>
         </lv_obj>
 
         <!-- Metadata container - fixed height at bottom, overlaying thumbnail -->
@@ -130,9 +128,16 @@
                     bind_value="print_progress">
               <bind_style name="invisible" subject="preparing_visible" ref_value="1"/>
             </lv_bar>
-            <!-- Layer Progress (Layer X / Y) -->
-            <text_small name="layer_progress_label"
-                        width="100%" text="Layer 0 / 0" bind_text="print_layer_text" style_text_align="left"/>
+            <!-- Layer Progress (Layer X / Y) + Objects Count -->
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
+                    style_flex_cross_place="center" scrollable="false">
+              <text_small name="layer_progress_label"
+                          text="Layer 0 / 0" bind_text="print_layer_text" style_text_align="left"/>
+              <text_small name="objects_count_label" text="" bind_text="print_objects_text" variant="muted">
+                <bind_flag_if_eq subject="exclude_objects_available" flag="hidden" ref_value="0"/>
+              </text_small>
+            </lv_obj>
             <!-- File Name (shared subject from ActivePrintMediaManager) -->
             <text_body name="file_name"
                        width="100%" text="benchy.gcode" bind_text="print_display_filename" style_text_align="left"
@@ -173,11 +178,11 @@
                  style_flex_main_place="center" style_flex_cross_place="start" style_pad_left="#space_md"
                  style_pad_gap="#space_xxs">
           <event_cb trigger="clicked" callback="on_print_status_nozzle_clicked"/>
-          <lv_obj width="100%" height="content" flex_flow="row"
-                  style_flex_cross_place="center" style_pad_right="#space_md">
+          <lv_obj width="100%"
+                  height="content" flex_flow="row" style_flex_cross_place="center" style_pad_right="#space_md">
             <text_small text="Nozzle" translation_tag="Nozzle"/>
-            <text_small name="nozzle_heater_status" bind_text="print_nozzle_status"
-                        flex_grow="1" style_text_align="right" variant="muted"/>
+            <text_small name="nozzle_heater_status"
+                        bind_text="print_nozzle_status" flex_grow="1" style_text_align="right" variant="muted"/>
           </lv_obj>
           <temp_display name="nozzle_temp_display"
                         size="lg" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"/>
@@ -189,11 +194,11 @@
                  style_flex_main_place="center" style_flex_cross_place="start" style_pad_left="#space_md"
                  style_pad_gap="#space_xxs">
           <event_cb trigger="clicked" callback="on_print_status_bed_clicked"/>
-          <lv_obj width="100%" height="content" flex_flow="row"
-                  style_flex_cross_place="center" style_pad_right="#space_md">
+          <lv_obj width="100%"
+                  height="content" flex_flow="row" style_flex_cross_place="center" style_pad_right="#space_md">
             <text_small text="Bed" translation_tag="Bed"/>
-            <text_small name="bed_heater_status" bind_text="print_bed_status"
-                        flex_grow="1" style_text_align="right" variant="muted"/>
+            <text_small name="bed_heater_status"
+                        bind_text="print_bed_status" flex_grow="1" style_text_align="right" variant="muted"/>
           </lv_obj>
           <temp_display name="bed_temp_display"
                         size="lg" show_target="true" bind_current="bed_temp" bind_target="bed_target"/>
@@ -232,7 +237,8 @@
                   height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="center"
                   style_flex_cross_place="center" style_pad_gap="#space_sm">
             <ui_button name="btn_light"
-                       height="#button_height_lg" flex_grow="1" text="Light" translation_tag="Light" bind_icon="light_button_icon">
+                       height="#button_height_lg" flex_grow="1" text="Light" translation_tag="Light"
+                       bind_icon="light_button_icon">
               <event_cb trigger="clicked" callback="on_print_status_light"/>
             </ui_button>
             <!-- Timelapse button: only visible when Moonraker-Timelapse plugin installed -->
@@ -253,18 +259,21 @@
           <lv_obj width="100%"
                   height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="center"
                   style_flex_cross_place="center" style_pad_gap="#space_sm">
-            <ui_button name="btn_tune" height="#button_height_lg" flex_grow="1" icon="tune" text="Tune" translation_tag="Tune">
+            <ui_button name="btn_tune"
+                       height="#button_height_lg" flex_grow="1" icon="tune" text="Tune" translation_tag="Tune">
               <event_cb trigger="clicked" callback="on_print_status_tune"/>
             </ui_button>
             <!-- Cancel button: hidden when outcome == CANCELLED (2) -->
             <ui_button name="btn_cancel"
-                       height="#button_height_lg" flex_grow="1" variant="danger" icon="stop" text="Cancel" translation_tag="Cancel">
+                       height="#button_height_lg" flex_grow="1" variant="danger" icon="stop" text="Cancel"
+                       translation_tag="Cancel">
               <bind_flag_if_eq subject="print_outcome" flag="hidden" ref_value="2"/>
               <event_cb trigger="clicked" callback="on_print_status_cancel"/>
             </ui_button>
             <!-- Reprint button: shown only when outcome == CANCELLED (2) -->
             <ui_button name="btn_reprint"
-                       height="#button_height_lg" flex_grow="1" icon="refresh" text="Reprint" translation_tag="Reprint" hidden="true">
+                       height="#button_height_lg" flex_grow="1" icon="refresh" text="Reprint" translation_tag="Reprint"
+                       hidden="true">
               <bind_flag_if_not_eq subject="print_outcome" flag="hidden" ref_value="2"/>
               <event_cb trigger="clicked" callback="on_print_status_reprint"/>
             </ui_button>

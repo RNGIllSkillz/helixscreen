@@ -140,13 +140,19 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, MoonrakerAPI* ap
         printer_state_.get_preprint_elapsed_subject(), this,
         [](PrintStatusPanel* self, int seconds) { self->on_preprint_elapsed_changed(seconds); });
 
-    // Subscribe to defined objects changes (for objects list button visibility)
+    // Subscribe to defined objects changes (for objects list button visibility + count)
     exclude_objects_observer_ = observe_int_sync<PrintStatusPanel>(
         printer_state_.get_defined_objects_version_subject(), this,
         [](PrintStatusPanel* self, int) {
             int available = self->printer_state_.get_defined_objects().size() >= 2 ? 1 : 0;
             lv_subject_set_int(&self->exclude_objects_available_subject_, available);
+            self->update_objects_text();
         });
+
+    // Subscribe to excluded objects changes (for "X of Y obj" count updates)
+    excluded_objects_version_observer_ = observe_int_sync<PrintStatusPanel>(
+        printer_state_.get_excluded_objects_version_subject(), this,
+        [](PrintStatusPanel* self, int) { self->update_objects_text(); });
 
     spdlog::debug("[{}] Subscribed to PrinterState subjects", get_name());
 
@@ -229,6 +235,8 @@ void PrintStatusPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(pause_button_subject_, pause_button_buf_, "\xF3\xB0\x8F\xA4",
                               "pause_button_icon", subjects_);
     UI_MANAGED_SUBJECT_STRING(pause_label_subject_, pause_label_buf_, "Pause", "pause_button_label",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(objects_text_subject_, objects_text_buf_, "", "print_objects_text",
                               subjects_);
 
     // Initialize light/timelapse controls (extracted Phase 2)
@@ -1568,6 +1576,22 @@ void PrintStatusPanel::on_preprint_elapsed_changed(int seconds) {
     preprint_elapsed_seconds_ = seconds;
     format_time(seconds, elapsed_buf_, sizeof(elapsed_buf_));
     lv_subject_copy_string(&elapsed_subject_, elapsed_buf_);
+}
+
+void PrintStatusPanel::update_objects_text() {
+    if (!subjects_initialized_)
+        return;
+    auto& defined = printer_state_.get_defined_objects();
+    auto& excluded = printer_state_.get_excluded_objects();
+    int total = static_cast<int>(defined.size());
+    int active = std::max(0, total - static_cast<int>(excluded.size()));
+    if (total >= 2) {
+        std::snprintf(objects_text_buf_, sizeof(objects_text_buf_), "%d of %d objects", active,
+                      total);
+    } else {
+        objects_text_buf_[0] = '\0';
+    }
+    lv_subject_copy_string(&objects_text_subject_, objects_text_buf_);
 }
 
 void PrintStatusPanel::update_button_states() {

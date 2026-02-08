@@ -300,6 +300,7 @@ class PrintStatusPanel : public OverlayBase {
     lv_subject_t gcode_viewer_mode_subject_;
 
     lv_subject_t exclude_objects_available_subject_; ///< Int: 1 if multi-object print
+    lv_subject_t objects_text_subject_;              ///< String: "X of Y obj" display text
 
     // Subject storage buffers
     char progress_text_buf_[32] = "0%";
@@ -315,6 +316,7 @@ class PrintStatusPanel : public OverlayBase {
     char flow_buf_[32] = "100%";
     char pause_button_buf_[32] = "\xF3\xB0\x8F\xA4"; // MDI pause icon (F03E4)
     char pause_label_buf_[16] = "Pause";             ///< Pause button label
+    char objects_text_buf_[32] = "";                 ///< "X of Y obj" buffer
 
     //
     // === Instance State ===
@@ -416,6 +418,7 @@ class PrintStatusPanel : public OverlayBase {
     void
     load_gcode_for_viewing(const std::string& filename); ///< Download and load G-code into viewer
     void update_button_states();    ///< Enable/disable buttons based on current print state
+    void update_objects_text();     ///< Update "X of Y obj" display from exclude state
     void animate_print_complete();  ///< Celebratory animation when print finishes
     void animate_print_cancelled(); ///< Warning animation when print is cancelled
     void cleanup_temp_gcode();      ///< Remove temp G-code file downloaded for viewing
@@ -489,6 +492,7 @@ class PrintStatusPanel : public OverlayBase {
     ObserverGuard preprint_remaining_observer_;
     ObserverGuard preprint_elapsed_observer_;
     ObserverGuard exclude_objects_observer_;
+    ObserverGuard excluded_objects_version_observer_;
 
     //
     // === Exclude Object Manager ===
