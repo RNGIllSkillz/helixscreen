@@ -533,6 +533,14 @@ bool Application::init_display() {
     config.scroll_throw = m_config->get<int>("/input/scroll_throw", 25);
     config.scroll_limit = m_config->get<int>("/input/scroll_limit", 10);
 
+    // Allow headless/VNC operation without a touchscreen
+    const char* req_ptr = std::getenv("HELIX_REQUIRE_POINTER");
+    if (req_ptr && (std::string(req_ptr) == "0" || std::string(req_ptr) == "false")) {
+        config.require_pointer = false;
+        spdlog::info("[Application] Pointer input not required (HELIX_REQUIRE_POINTER={})",
+                     req_ptr);
+    }
+
     if (!m_display->init(config)) {
         spdlog::error("[Application] Display initialization failed");
         return false;

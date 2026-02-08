@@ -287,6 +287,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
 
     if (touch_path.empty()) {
         spdlog::warn("[Fbdev Backend] No touch device found - pointer input disabled");
+        needs_calibration_ = false;
         return nullptr;
     }
 
@@ -300,12 +301,21 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
         return nullptr;
     }
 
-    // Check if this is a USB HID touchscreen (HDMI displays)
-    // USB HID touchscreens report mapped coordinates and don't need calibration
-    needs_calibration_ = !is_usb_input_device(touch_path);
-    if (!needs_calibration_) {
-        spdlog::info("[Fbdev Backend] USB HID touchscreen detected - calibration not needed");
+    // Determine if touch calibration is needed using unified logic.
+    // Reads device name, phys, and capabilities from sysfs.
+    int event_num = -1;
+    sscanf(touch_path.c_str() + touch_path.rfind("event"), "event%d", &event_num);
+    std::string dev_name = (event_num >= 0) ? get_device_name(event_num) : "";
+    std::string dev_phys;
+    if (event_num >= 0) {
+        dev_phys =
+            read_sysfs_file("/sys/class/input/event" + std::to_string(event_num) + "/device/phys");
     }
+    bool has_abs = (event_num >= 0) && has_touch_capabilities(event_num);
+
+    needs_calibration_ = helix::device_needs_calibration(dev_name, dev_phys, has_abs);
+    spdlog::info("[Fbdev Backend] Input device '{}' phys='{}' abs={} → calibration {}", dev_name,
+                 dev_phys, has_abs, needs_calibration_ ? "needed" : "not needed");
 
     // Check for touch axis configuration via environment variables
     // HELIX_TOUCH_SWAP_AXES=1 - swap X and Y axes
@@ -426,7 +436,27 @@ std::string DisplayBackendFbdev::auto_detect_touch_device() const {
     closedir(dir);
 
     if (best_device.empty()) {
-        spdlog::debug("[Fbdev Backend] No touch-capable device found");
+        // No device with ABS_X/ABS_Y found. Fall back to first accessible event device
+        // so VNC mouse input (uinput) or other pointer sources still work.
+        DIR* fallback_dir = opendir(input_dir);
+        if (fallback_dir) {
+            struct dirent* fb_entry;
+            while ((fb_entry = readdir(fallback_dir)) != nullptr) {
+                if (strncmp(fb_entry->d_name, "event", 5) != 0)
+                    continue;
+                std::string fallback_path = std::string(input_dir) + "/" + fb_entry->d_name;
+                if (access(fallback_path.c_str(), R_OK) == 0) {
+                    std::string fb_name = get_device_name(atoi(fb_entry->d_name + 5));
+                    spdlog::info(
+                        "[Fbdev Backend] No touchscreen found, using fallback input: {} ({})",
+                        fallback_path, fb_name);
+                    closedir(fallback_dir);
+                    return fallback_path;
+                }
+            }
+            closedir(fallback_dir);
+        }
+        spdlog::debug("[Fbdev Backend] No input devices found at all");
         return "";
     }
 

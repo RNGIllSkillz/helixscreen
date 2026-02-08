@@ -111,4 +111,43 @@ inline bool is_known_touchscreen_name(const std::string& name) {
     return false;
 }
 
+/**
+ * @brief Determine if a touch input device needs affine calibration
+ *
+ * Single source of truth for calibration decisions. Returns true ONLY for
+ * resistive/platform touchscreens that need the calibration wizard.
+ *
+ * Devices that do NOT need calibration:
+ * - USB HID touchscreens (report mapped coordinates natively)
+ * - Virtual/uinput devices (VNC virtual touchscreen, testing)
+ * - Non-touch devices used as pointer fallback (CEC remotes, etc.)
+ * - Unknown devices (safer to skip than show broken calibration)
+ *
+ * @param name Device name from /sys/class/input/eventN/device/name
+ * @param phys Device phys from /sys/class/input/eventN/device/phys
+ * @param has_abs_xy Whether device has ABS_X/ABS_Y capabilities
+ * @return true if calibration wizard should be shown for this device
+ */
+inline bool device_needs_calibration(const std::string& name, const std::string& phys,
+                                     bool has_abs_xy) {
+    // No ABS_X/ABS_Y = not a touchscreen, nothing to calibrate
+    if (!has_abs_xy) {
+        return false;
+    }
+
+    // USB HID touchscreens report mapped coordinates natively
+    if (is_usb_input_phys(phys)) {
+        return false;
+    }
+
+    // Virtual/uinput devices (VNC injection, testing) don't need calibration
+    // These have empty phys and names like "virtual-touchscreen"
+    if (name.find("virtual") != std::string::npos) {
+        return false;
+    }
+
+    // Only known resistive/platform touchscreen controllers need calibration
+    return is_known_touchscreen_name(name);
+}
+
 } // namespace helix

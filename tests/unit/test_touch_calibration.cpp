@@ -461,3 +461,83 @@ TEST_CASE("TouchCalibration: known touchscreen name detection",
         REQUIRE(is_known_touchscreen_name("rc-cec") == false);
     }
 }
+
+// ============================================================================
+// Unified Calibration Decision Tests (device_needs_calibration)
+// ============================================================================
+
+TEST_CASE("TouchCalibration: device_needs_calibration",
+          "[touch-calibration][calibration-decision]") {
+    // --- Devices that NEED calibration (resistive/platform touchscreens) ---
+
+    SECTION("AD5M sun4i resistive touchscreen needs calibration") {
+        // Platform touchscreen: has ABS, not USB, known name
+        REQUIRE(device_needs_calibration("sun4i-ts", "sun4i_ts", true) == true);
+    }
+
+    SECTION("FocalTech platform touchscreen needs calibration") {
+        REQUIRE(device_needs_calibration("ft5x06_ts", "", true) == true);
+    }
+
+    SECTION("Goodix platform touchscreen needs calibration") {
+        REQUIRE(device_needs_calibration("Goodix Capacitive TouchScreen", "", true) == true);
+    }
+
+    SECTION("EDT FocalTech display needs calibration") {
+        REQUIRE(device_needs_calibration("edt-ft5x06", "", true) == true);
+    }
+
+    // --- Devices that do NOT need calibration ---
+
+    SECTION("USB HID touchscreen (BTT HDMI5) does not need calibration") {
+        // USB touchscreen: has ABS, IS USB → no calibration
+        REQUIRE(device_needs_calibration("BIQU BTT-HDMI5", "usb-5101400.usb-1/input0", true) ==
+                false);
+    }
+
+    SECTION("USB HID generic touchscreen does not need calibration") {
+        REQUIRE(device_needs_calibration("USB Touchscreen", "usb-0000:01:00.0-1.3/input0", true) ==
+                false);
+    }
+
+    SECTION("Virtual touchscreen (VNC uinput) does not need calibration") {
+        // Virtual device: has ABS, not USB, but name contains "virtual"
+        REQUIRE(device_needs_calibration("virtual-touchscreen", "", true) == false);
+    }
+
+    SECTION("HDMI CEC remote does not need calibration") {
+        // CEC remote: no ABS capabilities
+        REQUIRE(device_needs_calibration("vc4-hdmi", "vc4-hdmi/input0", false) == false);
+    }
+
+    SECTION("HDMI audio jack does not need calibration") {
+        REQUIRE(device_needs_calibration("vc4-hdmi HDMI Jack", "ALSA", false) == false);
+    }
+
+    SECTION("Device without ABS never needs calibration") {
+        // Even a known touchscreen name without ABS should not trigger calibration
+        REQUIRE(device_needs_calibration("Goodix Touch", "", false) == false);
+    }
+
+    SECTION("Unknown device with ABS does not need calibration") {
+        // Has ABS but unrecognized name → safer to skip (not a known touchscreen)
+        REQUIRE(device_needs_calibration("Random Input Device", "", true) == false);
+    }
+
+    SECTION("Keyboard does not need calibration") {
+        REQUIRE(device_needs_calibration("AT Translated Set 2 keyboard", "", false) == false);
+    }
+
+    SECTION("USB mouse does not need calibration") {
+        REQUIRE(device_needs_calibration("Logitech USB Mouse", "usb-0000:00:14.0-1/input0",
+                                         false) == false);
+    }
+
+    SECTION("Empty device does not need calibration") {
+        REQUIRE(device_needs_calibration("", "", false) == false);
+    }
+
+    SECTION("GPIO keys do not need calibration") {
+        REQUIRE(device_needs_calibration("gpio-keys", "", false) == false);
+    }
+}
