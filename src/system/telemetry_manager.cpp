@@ -1,0 +1,975 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "system/telemetry_manager.h"
+
+#include "app_globals.h"
+#include "config.h"
+#include "display_manager.h"
+#include "hv/requests.h"
+#include "platform_capabilities.h"
+#include "printer_state.h"
+#include "settings_manager.h"
+#include "system/crash_handler.h"
+#include "system/update_checker.h"
+#include "version.h"
+
+#include <spdlog/spdlog.h>
+
+#include <chrono>
+#include <cstdio>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <random>
+#include <sstream>
+
+#ifdef __APPLE__
+#include <CommonCrypto/CommonDigest.h>
+#endif
+
+using json = nlohmann::json;
+namespace fs = std::filesystem;
+
+// =============================================================================
+// SHA-256 implementation
+// =============================================================================
+
+#ifdef __APPLE__
+
+static std::string sha256_hex(const std::string& input) {
+    unsigned char hash[CC_SHA256_DIGEST_LENGTH];
+    CC_SHA256(input.data(), static_cast<CC_LONG>(input.size()), hash);
+
+    char hex[CC_SHA256_DIGEST_LENGTH * 2 + 1];
+    for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; ++i) {
+        std::snprintf(hex + i * 2, 3, "%02x", hash[i]);
+    }
+    return std::string(hex, CC_SHA256_DIGEST_LENGTH * 2);
+}
+
+#else
+
+// Minimal portable SHA-256 implementation (public domain)
+// Based on RFC 6234 / FIPS 180-4
+
+namespace {
+
+static const uint32_t K256[64] = {
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
+
+inline uint32_t rotr(uint32_t x, int n) {
+    return (x >> n) | (x << (32 - n));
+}
+
+inline uint32_t ch(uint32_t x, uint32_t y, uint32_t z) {
+    return (x & y) ^ (~x & z);
+}
+
+inline uint32_t maj(uint32_t x, uint32_t y, uint32_t z) {
+    return (x & y) ^ (x & z) ^ (y & z);
+}
+
+inline uint32_t sigma0(uint32_t x) {
+    return rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22);
+}
+
+inline uint32_t sigma1(uint32_t x) {
+    return rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25);
+}
+
+inline uint32_t gamma0(uint32_t x) {
+    return rotr(x, 7) ^ rotr(x, 18) ^ (x >> 3);
+}
+
+inline uint32_t gamma1(uint32_t x) {
+    return rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10);
+}
+
+struct Sha256Ctx {
+    uint32_t state[8];
+    uint64_t count;
+    unsigned char buf[64];
+};
+
+static void sha256_init(Sha256Ctx& ctx) {
+    ctx.state[0] = 0x6a09e667;
+    ctx.state[1] = 0xbb67ae85;
+    ctx.state[2] = 0x3c6ef372;
+    ctx.state[3] = 0xa54ff53a;
+    ctx.state[4] = 0x510e527f;
+    ctx.state[5] = 0x9b05688c;
+    ctx.state[6] = 0x1f83d9ab;
+    ctx.state[7] = 0x5be0cd19;
+    ctx.count = 0;
+}
+
+static void sha256_transform(uint32_t state[8], const unsigned char block[64]) {
+    uint32_t W[64];
+    for (int i = 0; i < 16; ++i) {
+        W[i] = (static_cast<uint32_t>(block[i * 4]) << 24) |
+               (static_cast<uint32_t>(block[i * 4 + 1]) << 16) |
+               (static_cast<uint32_t>(block[i * 4 + 2]) << 8) |
+               (static_cast<uint32_t>(block[i * 4 + 3]));
+    }
+    for (int i = 16; i < 64; ++i) {
+        W[i] = gamma1(W[i - 2]) + W[i - 7] + gamma0(W[i - 15]) + W[i - 16];
+    }
+
+    uint32_t a = state[0], b = state[1], c = state[2], d = state[3];
+    uint32_t e = state[4], f = state[5], g = state[6], h = state[7];
+
+    for (int i = 0; i < 64; ++i) {
+        uint32_t t1 = h + sigma1(e) + ch(e, f, g) + K256[i] + W[i];
+        uint32_t t2 = sigma0(a) + maj(a, b, c);
+        h = g;
+        g = f;
+        f = e;
+        e = d + t1;
+        d = c;
+        c = b;
+        b = a;
+        a = t1 + t2;
+    }
+
+    state[0] += a;
+    state[1] += b;
+    state[2] += c;
+    state[3] += d;
+    state[4] += e;
+    state[5] += f;
+    state[6] += g;
+    state[7] += h;
+}
+
+static void sha256_update(Sha256Ctx& ctx, const unsigned char* data, size_t len) {
+    size_t buf_len = static_cast<size_t>(ctx.count % 64);
+    ctx.count += len;
+
+    // Fill existing buffer first
+    if (buf_len > 0) {
+        size_t fill = 64 - buf_len;
+        if (len < fill) {
+            std::memcpy(ctx.buf + buf_len, data, len);
+            return;
+        }
+        std::memcpy(ctx.buf + buf_len, data, fill);
+        sha256_transform(ctx.state, ctx.buf);
+        data += fill;
+        len -= fill;
+    }
+
+    // Process full blocks
+    while (len >= 64) {
+        sha256_transform(ctx.state, data);
+        data += 64;
+        len -= 64;
+    }
+
+    // Buffer remaining
+    if (len > 0) {
+        std::memcpy(ctx.buf, data, len);
+    }
+}
+
+static void sha256_final(Sha256Ctx& ctx, unsigned char hash[32]) {
+    uint64_t total_bits = ctx.count * 8;
+    size_t buf_len = static_cast<size_t>(ctx.count % 64);
+
+    // Padding
+    ctx.buf[buf_len++] = 0x80;
+    if (buf_len > 56) {
+        std::memset(ctx.buf + buf_len, 0, 64 - buf_len);
+        sha256_transform(ctx.state, ctx.buf);
+        buf_len = 0;
+    }
+    std::memset(ctx.buf + buf_len, 0, 56 - buf_len);
+
+    // Append length in bits (big-endian)
+    for (int i = 0; i < 8; ++i) {
+        ctx.buf[56 + i] = static_cast<unsigned char>(total_bits >> (56 - i * 8));
+    }
+    sha256_transform(ctx.state, ctx.buf);
+
+    // Output hash (big-endian)
+    for (int i = 0; i < 8; ++i) {
+        hash[i * 4] = static_cast<unsigned char>(ctx.state[i] >> 24);
+        hash[i * 4 + 1] = static_cast<unsigned char>(ctx.state[i] >> 16);
+        hash[i * 4 + 2] = static_cast<unsigned char>(ctx.state[i] >> 8);
+        hash[i * 4 + 3] = static_cast<unsigned char>(ctx.state[i]);
+    }
+}
+
+} // anonymous namespace
+
+static std::string sha256_hex(const std::string& input) {
+    Sha256Ctx ctx;
+    sha256_init(ctx);
+    sha256_update(ctx, reinterpret_cast<const unsigned char*>(input.data()), input.size());
+
+    unsigned char hash[32];
+    sha256_final(ctx, hash);
+
+    char hex[65];
+    for (int i = 0; i < 32; ++i) {
+        std::snprintf(hex + i * 2, 3, "%02x", hash[i]);
+    }
+    return std::string(hex, 64);
+}
+
+#endif // !__APPLE__
+
+// =============================================================================
+// Singleton
+// =============================================================================
+
+TelemetryManager& TelemetryManager::instance() {
+    static TelemetryManager inst;
+    return inst;
+}
+
+TelemetryManager::~TelemetryManager() {
+    if (initialized_.load()) {
+        shutdown();
+    }
+}
+
+// =============================================================================
+// Lifecycle
+// =============================================================================
+
+void TelemetryManager::init(const std::string& config_dir) {
+    if (initialized_.load()) {
+        spdlog::debug("[TelemetryManager] Already initialized, skipping");
+        return;
+    }
+
+    spdlog::info("[TelemetryManager] Initializing with config dir: {}", config_dir);
+
+    config_dir_ = config_dir;
+
+    // Reset in-memory state for clean initialization
+    enabled_.store(false);
+    shutting_down_.store(false);
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        queue_.clear();
+    }
+
+    // Ensure config directory exists
+    try {
+        fs::create_directories(config_dir_);
+    } catch (const fs::filesystem_error& e) {
+        spdlog::error("[TelemetryManager] Failed to create config dir '{}': {}", config_dir_,
+                      e.what());
+    }
+
+    // Load or generate device identity
+    ensure_device_id();
+
+    // Restore persisted event queue
+    load_queue();
+
+    // Check for crash file from a previous session
+    check_previous_crash();
+
+    // Load enabled state from config
+    try {
+        std::string config_path = config_dir_ + "/telemetry_config.json";
+        std::ifstream config_file(config_path);
+        if (config_file.good()) {
+            json config = json::parse(config_file);
+            if (config.contains("enabled") && config["enabled"].is_boolean()) {
+                enabled_.store(config["enabled"].get<bool>());
+                spdlog::info("[TelemetryManager] Loaded enabled state: {}",
+                             enabled_.load() ? "true" : "false");
+            }
+        }
+    } catch (const std::exception& e) {
+        spdlog::warn("[TelemetryManager] Failed to load config, defaulting to disabled: {}",
+                     e.what());
+        enabled_.store(false);
+    }
+
+    // Initialize LVGL subject for settings UI binding
+    if (!subjects_initialized_) {
+        UI_MANAGED_SUBJECT_INT(enabled_subject_, enabled_.load() ? 1 : 0, "telemetry_enabled",
+                               subjects_);
+        subjects_initialized_ = true;
+        spdlog::debug("[TelemetryManager] LVGL subject initialized");
+    }
+
+    initialized_.store(true);
+    spdlog::info("[TelemetryManager] Initialization complete (enabled={}, queue={})",
+                 enabled_.load() ? "true" : "false", queue_size());
+}
+
+void TelemetryManager::shutdown() {
+    if (!initialized_.load()) {
+        spdlog::debug("[TelemetryManager] Not initialized, skipping shutdown");
+        return;
+    }
+
+    spdlog::info("[TelemetryManager] Shutting down...");
+    shutting_down_.store(true);
+
+    // Persist queue to disk
+    save_queue();
+
+    // Join background send thread if active
+    if (send_thread_.joinable()) {
+        spdlog::debug("[TelemetryManager] Joining send thread...");
+        send_thread_.join();
+    }
+
+    // Deinitialize LVGL subjects
+    if (subjects_initialized_) {
+        subjects_.deinit_all();
+        subjects_initialized_ = false;
+    }
+
+    initialized_.store(false);
+    shutting_down_.store(false);
+    spdlog::info("[TelemetryManager] Shutdown complete");
+}
+
+// =============================================================================
+// Enable / Disable
+// =============================================================================
+
+void TelemetryManager::set_enabled(bool enabled) {
+    enabled_.store(enabled);
+    spdlog::info("[TelemetryManager] Telemetry {}", enabled ? "enabled" : "disabled");
+
+    // Update LVGL subject (must be on main thread)
+    if (subjects_initialized_) {
+        lv_subject_set_int(&enabled_subject_, enabled ? 1 : 0);
+    }
+
+    // Persist to telemetry_config.json
+    try {
+        json config;
+        config["enabled"] = enabled;
+
+        std::string config_path = config_dir_ + "/telemetry_config.json";
+        std::ofstream config_file(config_path);
+        if (config_file.good()) {
+            config_file << config.dump(2);
+            spdlog::debug("[TelemetryManager] Persisted enabled state to {}", config_path);
+        } else {
+            spdlog::warn("[TelemetryManager] Failed to write config to {}", config_path);
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[TelemetryManager] Failed to persist enabled state: {}", e.what());
+    }
+}
+
+bool TelemetryManager::is_enabled() const {
+    return enabled_.load();
+}
+
+// =============================================================================
+// Event Recording
+// =============================================================================
+
+void TelemetryManager::record_session() {
+    if (!enabled_.load() || !initialized_.load()) {
+        return;
+    }
+
+    spdlog::debug("[TelemetryManager] Recording session event");
+    auto event = build_session_event();
+    enqueue_event(std::move(event));
+    save_queue();
+}
+
+void TelemetryManager::record_print_outcome(const std::string& outcome, int duration_sec,
+                                            int phases_completed, float filament_used_mm,
+                                            const std::string& filament_type, int nozzle_temp,
+                                            int bed_temp) {
+    if (!enabled_.load() || !initialized_.load()) {
+        return;
+    }
+
+    spdlog::debug("[TelemetryManager] Recording print outcome: {} ({}s)", outcome, duration_sec);
+    auto event = build_print_outcome_event(outcome, duration_sec, phases_completed,
+                                           filament_used_mm, filament_type, nozzle_temp, bed_temp);
+    enqueue_event(std::move(event));
+    save_queue();
+}
+
+// =============================================================================
+// Queue Management
+// =============================================================================
+
+size_t TelemetryManager::queue_size() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return queue_.size();
+}
+
+nlohmann::json TelemetryManager::get_queue_snapshot() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    json snapshot = json::array();
+    for (const auto& event : queue_) {
+        snapshot.push_back(event);
+    }
+    return snapshot;
+}
+
+void TelemetryManager::clear_queue() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    queue_.clear();
+    spdlog::info("[TelemetryManager] Queue cleared");
+}
+
+// =============================================================================
+// Transmission
+// =============================================================================
+
+nlohmann::json TelemetryManager::build_batch() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    json batch = json::array();
+    size_t batch_size = std::min(queue_.size(), MAX_BATCH_SIZE);
+    for (size_t i = 0; i < batch_size; ++i) {
+        batch.push_back(queue_[i]);
+    }
+    return batch;
+}
+
+void TelemetryManager::remove_sent_events(size_t count) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    size_t to_remove = std::min(count, queue_.size());
+    queue_.erase(queue_.begin(), queue_.begin() + static_cast<long>(to_remove));
+    spdlog::debug("[TelemetryManager] Removed {} sent events, {} remaining", to_remove,
+                  queue_.size());
+}
+
+void TelemetryManager::try_send() {
+    if (!enabled_.load() || !initialized_.load() || shutting_down_.load()) {
+        return;
+    }
+
+    if (queue_size() == 0) {
+        spdlog::debug("[TelemetryManager] try_send: queue empty, nothing to send");
+        return;
+    }
+
+    // Check send interval with backoff
+    auto now = std::chrono::steady_clock::now();
+    auto interval = SEND_INTERVAL * backoff_multiplier_;
+    // Cap backoff at 7 days
+    auto max_interval = std::chrono::hours{24 * 7};
+    if (interval > max_interval) {
+        interval = max_interval;
+    }
+
+    if (last_send_time_.time_since_epoch().count() > 0 && now - last_send_time_ < interval) {
+        spdlog::debug("[TelemetryManager] try_send: too soon (backoff={}x), skipping",
+                      backoff_multiplier_);
+        return;
+    }
+
+    // Join previous send thread if it completed (prevents std::terminate on reassignment)
+    if (send_thread_.joinable()) {
+        send_thread_.join();
+    }
+
+    auto batch = build_batch();
+    if (batch.empty()) {
+        return;
+    }
+
+    last_send_time_ = now;
+
+    spdlog::info("[TelemetryManager] Sending batch of {} events", batch.size());
+
+    // Send on background thread; joined on next try_send() call or shutdown()
+    send_thread_ = std::thread([this, batch = std::move(batch)]() { do_send(batch); });
+}
+
+void TelemetryManager::do_send(const nlohmann::json& batch) {
+    try {
+        // Use libhv HTTP client (same pattern as UpdateChecker and Moonraker API)
+        auto req = std::make_shared<HttpRequest>();
+        req->method = HTTP_POST;
+        req->url = ENDPOINT_URL;
+        req->timeout = 30;
+        req->content_type = APPLICATION_JSON;
+        req->headers["User-Agent"] = std::string("HelixScreen/") + HELIX_VERSION;
+        req->body = batch.dump();
+
+        auto resp = requests::request(req);
+
+        if (shutting_down_.load()) {
+            spdlog::debug("[TelemetryManager] Shutting down, aborting send result processing");
+            return;
+        }
+
+        int status_code = resp ? static_cast<int>(resp->status_code) : 0;
+
+        if (resp && status_code >= 200 && status_code < 300) {
+            // Success: remove sent events from queue and persist
+            spdlog::info("[TelemetryManager] Successfully sent {} events (HTTP {})", batch.size(),
+                         status_code);
+            remove_sent_events(batch.size());
+            save_queue();
+            backoff_multiplier_ = 1;
+        } else {
+            // Failure: keep events, increase backoff
+            spdlog::warn("[TelemetryManager] Send failed (HTTP {}), will retry with backoff={}x",
+                         status_code, backoff_multiplier_ * 2);
+            backoff_multiplier_ = std::min(backoff_multiplier_ * 2, 7);
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[TelemetryManager] Send exception: {}", e.what());
+        backoff_multiplier_ = std::min(backoff_multiplier_ * 2, 7);
+    }
+}
+
+// =============================================================================
+// Device ID Utilities
+// =============================================================================
+
+std::string TelemetryManager::generate_uuid_v4() {
+    unsigned char bytes[16];
+
+    // Try /dev/urandom for high-quality randomness
+    std::ifstream urandom("/dev/urandom", std::ios::binary);
+    if (urandom.good()) {
+        urandom.read(reinterpret_cast<char*>(bytes), sizeof(bytes));
+    } else {
+        // Fallback to std::random_device
+        spdlog::warn("[TelemetryManager] /dev/urandom unavailable, using std::random_device");
+        std::random_device rd;
+        for (int i = 0; i < 16; i += 4) {
+            uint32_t val = rd();
+            bytes[i] = static_cast<unsigned char>(val & 0xFF);
+            bytes[i + 1] = static_cast<unsigned char>((val >> 8) & 0xFF);
+            bytes[i + 2] = static_cast<unsigned char>((val >> 16) & 0xFF);
+            if (i + 3 < 16) {
+                bytes[i + 3] = static_cast<unsigned char>((val >> 24) & 0xFF);
+            }
+        }
+    }
+
+    // Set version 4 (bits 12-15 of time_hi_and_version)
+    bytes[6] = (bytes[6] & 0x0F) | 0x40;
+
+    // Set variant RFC 4122 (bits 6-7 of clock_seq_hi_and_reserved)
+    bytes[8] = (bytes[8] & 0x3F) | 0x80;
+
+    // Format as 8-4-4-4-12
+    char uuid[37];
+    std::snprintf(uuid, sizeof(uuid),
+                  "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", bytes[0],
+                  bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7], bytes[8],
+                  bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]);
+
+    return std::string(uuid);
+}
+
+std::string TelemetryManager::hash_device_id(const std::string& uuid, const std::string& salt) {
+    // Double-hash: SHA-256(SHA-256(uuid) + salt)
+    std::string first_hash = sha256_hex(uuid);
+    std::string combined = first_hash + salt;
+    return sha256_hex(combined);
+}
+
+// =============================================================================
+// Persistence
+// =============================================================================
+
+void TelemetryManager::save_queue() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    try {
+        std::string path = get_queue_path();
+        json arr = json::array();
+        for (const auto& event : queue_) {
+            arr.push_back(event);
+        }
+
+        std::ofstream file(path);
+        if (file.good()) {
+            file << arr.dump(2);
+            spdlog::trace("[TelemetryManager] Saved {} events to {}", queue_.size(), path);
+        } else {
+            spdlog::warn("[TelemetryManager] Failed to open queue file for writing: {}", path);
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[TelemetryManager] Failed to save queue: {}", e.what());
+    }
+}
+
+void TelemetryManager::load_queue() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    try {
+        std::string path = get_queue_path();
+        std::ifstream file(path);
+        if (!file.good()) {
+            spdlog::debug("[TelemetryManager] No queue file at {}, starting with empty queue",
+                          path);
+            return;
+        }
+
+        json arr = json::parse(file);
+        if (!arr.is_array()) {
+            spdlog::warn("[TelemetryManager] Queue file is not a JSON array, ignoring");
+            return;
+        }
+
+        queue_.clear();
+        for (auto& event : arr) {
+            queue_.push_back(std::move(event));
+        }
+
+        // Enforce max queue size
+        while (queue_.size() > MAX_QUEUE_SIZE) {
+            queue_.erase(queue_.begin());
+        }
+
+        spdlog::info("[TelemetryManager] Loaded {} events from queue", queue_.size());
+    } catch (const json::exception& e) {
+        spdlog::warn("[TelemetryManager] Failed to parse queue file (corrupt?): {}", e.what());
+        queue_.clear();
+    } catch (const std::exception& e) {
+        spdlog::warn("[TelemetryManager] Failed to load queue: {}", e.what());
+    }
+}
+
+// =============================================================================
+// Crash Reporting
+// =============================================================================
+
+void TelemetryManager::check_previous_crash() {
+    std::string crash_path = config_dir_ + "/crash.txt";
+
+    if (!crash_handler::has_crash_file(crash_path)) {
+        spdlog::debug("[TelemetryManager] No crash file found at {}", crash_path);
+        return;
+    }
+
+    spdlog::info("[TelemetryManager] Found crash file from previous session");
+
+    auto crash_data = crash_handler::read_crash_file(crash_path);
+    if (crash_data.is_null()) {
+        spdlog::warn("[TelemetryManager] Failed to parse crash file, removing it");
+        crash_handler::remove_crash_file(crash_path);
+        return;
+    }
+
+    // Build a crash event following the telemetry schema
+    json event;
+    event["schema_version"] = SCHEMA_VERSION;
+    event["event"] = "crash";
+    event["device_id"] = get_hashed_device_id();
+
+    // Use timestamp from crash file if available, otherwise current time
+    if (crash_data.contains("timestamp")) {
+        event["timestamp"] = crash_data["timestamp"];
+    } else {
+        event["timestamp"] = get_timestamp();
+    }
+
+    // Copy crash-specific fields
+    if (crash_data.contains("signal")) {
+        event["signal"] = crash_data["signal"];
+    }
+    if (crash_data.contains("signal_name")) {
+        event["signal_name"] = crash_data["signal_name"];
+    }
+    if (crash_data.contains("app_version")) {
+        event["app_version"] = crash_data["app_version"];
+    }
+    if (crash_data.contains("uptime_sec")) {
+        event["uptime_sec"] = crash_data["uptime_sec"];
+    }
+    if (crash_data.contains("backtrace")) {
+        event["backtrace"] = crash_data["backtrace"];
+    }
+
+    // Enqueue the crash event (bypasses enabled check -- crash data is
+    // always recorded for next-session pickup, regardless of opt-in state)
+    enqueue_event(std::move(event));
+    save_queue();
+
+    spdlog::info("[TelemetryManager] Enqueued crash event (signal={}, name={})",
+                 crash_data.value("signal", 0), crash_data.value("signal_name", "unknown"));
+
+    // Remove the crash file so we don't re-process it
+    crash_handler::remove_crash_file(crash_path);
+}
+
+// =============================================================================
+// LVGL Subject
+// =============================================================================
+
+lv_subject_t* TelemetryManager::enabled_subject() {
+    return &enabled_subject_;
+}
+
+// =============================================================================
+// Internal Helpers
+// =============================================================================
+
+void TelemetryManager::enqueue_event(nlohmann::json event) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Drop oldest if at capacity
+    if (queue_.size() >= MAX_QUEUE_SIZE) {
+        spdlog::debug("[TelemetryManager] Queue at capacity ({}), dropping oldest event",
+                      MAX_QUEUE_SIZE);
+        queue_.erase(queue_.begin());
+    }
+
+    queue_.push_back(std::move(event));
+    spdlog::trace("[TelemetryManager] Event enqueued, queue size: {}", queue_.size());
+}
+
+nlohmann::json TelemetryManager::build_session_event() const {
+    json event;
+    event["schema_version"] = SCHEMA_VERSION;
+    event["event"] = "session";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = get_timestamp();
+
+    json app;
+    app["version"] = HELIX_VERSION;
+    app["platform"] = UpdateChecker::get_platform_key();
+
+    // Include display resolution if available
+    if (auto* dm = DisplayManager::instance()) {
+        int w = dm->width();
+        int h = dm->height();
+        if (w > 0 && h > 0) {
+            app["display"] = std::to_string(w) + "x" + std::to_string(h);
+        }
+    }
+
+    event["app"] = app;
+    return event;
+}
+
+nlohmann::json TelemetryManager::build_print_outcome_event(const std::string& outcome,
+                                                           int duration_sec, int phases_completed,
+                                                           float filament_used_mm,
+                                                           const std::string& filament_type,
+                                                           int nozzle_temp, int bed_temp) const {
+    json event;
+    event["schema_version"] = SCHEMA_VERSION;
+    event["event"] = "print_outcome";
+    event["device_id"] = get_hashed_device_id();
+    event["timestamp"] = get_timestamp();
+    event["outcome"] = outcome;
+    event["duration_sec"] = duration_sec;
+    event["phases_completed"] = phases_completed;
+    event["filament_used_mm"] = filament_used_mm;
+    event["filament_type"] = filament_type;
+    event["nozzle_temp"] = nozzle_temp;
+    event["bed_temp"] = bed_temp;
+
+    return event;
+}
+
+std::string TelemetryManager::get_hashed_device_id() const {
+    // Safe without mutex: device_uuid_ and device_salt_ are immutable after
+    // init() completes, and callers verify initialized_ flag before calling
+    return hash_device_id(device_uuid_, device_salt_);
+}
+
+std::string TelemetryManager::get_timestamp() const {
+    auto now = std::chrono::system_clock::now();
+    auto time_t_now = std::chrono::system_clock::to_time_t(now);
+
+    struct tm utc_tm;
+#ifdef _WIN32
+    gmtime_s(&utc_tm, &time_t_now);
+#else
+    gmtime_r(&time_t_now, &utc_tm);
+#endif
+
+    char buf[32];
+    std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &utc_tm);
+    return std::string(buf);
+}
+
+void TelemetryManager::ensure_device_id() {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    std::string device_path = get_device_id_path();
+
+    // Try to load existing device identity
+    try {
+        std::ifstream file(device_path);
+        if (file.good()) {
+            json data = json::parse(file);
+            if (data.contains("uuid") && data["uuid"].is_string() && data.contains("salt") &&
+                data["salt"].is_string()) {
+                device_uuid_ = data["uuid"].get<std::string>();
+                device_salt_ = data["salt"].get<std::string>();
+                spdlog::info("[TelemetryManager] Loaded device identity from {}", device_path);
+                return;
+            }
+            spdlog::warn("[TelemetryManager] Device file missing uuid/salt, regenerating");
+        }
+    } catch (const std::exception& e) {
+        spdlog::warn("[TelemetryManager] Failed to load device identity: {}", e.what());
+    }
+
+    // Generate new device identity
+    device_uuid_ = generate_uuid_v4();
+    device_salt_ = generate_uuid_v4(); // Salt is also a random UUID for simplicity
+
+    spdlog::info("[TelemetryManager] Generated new device identity");
+
+    // Persist to disk
+    try {
+        json data;
+        data["uuid"] = device_uuid_;
+        data["salt"] = device_salt_;
+
+        std::ofstream file(device_path);
+        if (file.good()) {
+            file << data.dump(2);
+            spdlog::debug("[TelemetryManager] Saved device identity to {}", device_path);
+        } else {
+            spdlog::error("[TelemetryManager] Failed to write device identity to {}", device_path);
+        }
+    } catch (const std::exception& e) {
+        spdlog::error("[TelemetryManager] Failed to persist device identity: {}", e.what());
+    }
+}
+
+// =============================================================================
+// Persistence Paths
+// =============================================================================
+
+std::string TelemetryManager::get_queue_path() const {
+    return config_dir_ + "/telemetry_queue.json";
+}
+
+std::string TelemetryManager::get_device_id_path() const {
+    return config_dir_ + "/telemetry_device.json";
+}
+
+// =============================================================================
+// Print Outcome Observer
+// =============================================================================
+
+namespace {
+
+/// Tracks the previous print state to detect transitions to terminal states
+PrintJobState s_telemetry_prev_state = PrintJobState::STANDBY;
+
+/// Guards against false completion on startup (first update may be stale)
+bool s_telemetry_first_update = false;
+
+/// Tracks the highest print start phase reached during the current print.
+/// PrintStartPhase resets to IDLE after startup completes, so we capture the
+/// max value seen to report how many phases were completed.
+int s_telemetry_max_phase = 0;
+
+/// Observer callback for print state transitions (telemetry recording)
+void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t* subject) {
+    (void)observer;
+    auto current = static_cast<PrintJobState>(lv_subject_get_int(subject));
+
+    // Skip the first callback -- state may be stale before Moonraker updates arrive
+    if (!s_telemetry_first_update) {
+        s_telemetry_first_update = true;
+        s_telemetry_prev_state = current;
+        spdlog::debug("[Telemetry] Print observer armed (initial state={})",
+                      static_cast<int>(current));
+        return;
+    }
+
+    // Track the highest print start phase reached during this print.
+    // Read it on every state change so we capture the max before it resets to IDLE.
+    auto& ps = get_printer_state();
+    int phase = lv_subject_get_int(ps.get_print_start_phase_subject());
+    if (phase > s_telemetry_max_phase) {
+        s_telemetry_max_phase = phase;
+    }
+
+    // When a new print starts (transition to PRINTING from non-PAUSED), reset tracking
+    if (current == PrintJobState::PRINTING && s_telemetry_prev_state != PrintJobState::PAUSED) {
+        s_telemetry_max_phase = 0;
+        // Re-read phase in case it's already set
+        phase = lv_subject_get_int(ps.get_print_start_phase_subject());
+        if (phase > s_telemetry_max_phase) {
+            s_telemetry_max_phase = phase;
+        }
+    }
+
+    // Detect transitions from active (PRINTING/PAUSED) to terminal states
+    bool was_active = (s_telemetry_prev_state == PrintJobState::PRINTING ||
+                       s_telemetry_prev_state == PrintJobState::PAUSED);
+    bool is_terminal = (current == PrintJobState::COMPLETE || current == PrintJobState::CANCELLED ||
+                        current == PrintJobState::ERROR);
+
+    if (was_active && is_terminal) {
+        // Map PrintJobState to telemetry outcome string
+        std::string outcome;
+        switch (current) {
+        case PrintJobState::COMPLETE:
+            outcome = "success";
+            break;
+        case PrintJobState::CANCELLED:
+            outcome = "cancelled";
+            break;
+        case PrintJobState::ERROR:
+            outcome = "failure";
+            break;
+        default:
+            outcome = "unknown";
+            break;
+        }
+
+        // Gather data from PrinterState subjects
+        int duration_sec = lv_subject_get_int(ps.get_print_elapsed_subject());
+        int phases_completed = s_telemetry_max_phase;
+
+        // Temperatures: subjects store centidegrees (value * 10), divide by 10
+        int nozzle_temp_centi = lv_subject_get_int(ps.get_extruder_target_subject());
+        int bed_temp_centi = lv_subject_get_int(ps.get_bed_target_subject());
+        int nozzle_temp = nozzle_temp_centi / 10;
+        int bed_temp = bed_temp_centi / 10;
+
+        // Filament usage and type are not available as subjects at this point.
+        // Pass defaults; future phases may add metadata tracking.
+        float filament_used_mm = 0.0f;
+        std::string filament_type;
+
+        spdlog::info("[Telemetry] Print {} - duration={}s, phases={}, nozzle={}C, bed={}C", outcome,
+                     duration_sec, phases_completed, nozzle_temp, bed_temp);
+
+        TelemetryManager::instance().record_print_outcome(outcome, duration_sec, phases_completed,
+                                                          filament_used_mm, filament_type,
+                                                          nozzle_temp, bed_temp);
+
+        // Reset phase tracking for next print
+        s_telemetry_max_phase = 0;
+    }
+
+    s_telemetry_prev_state = current;
+}
+
+} // anonymous namespace
+
+ObserverGuard TelemetryManager::init_print_outcome_observer() {
+    // Reset state tracking on (re)initialization
+    s_telemetry_first_update = false;
+    s_telemetry_prev_state = PrintJobState::STANDBY;
+    s_telemetry_max_phase = 0;
+
+    spdlog::debug("[Telemetry] Print outcome observer registered");
+    return ObserverGuard(get_printer_state().get_print_state_enum_subject(),
+                         on_print_state_changed_for_telemetry, nullptr);
+}

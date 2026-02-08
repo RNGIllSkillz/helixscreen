@@ -51,6 +51,7 @@
 #include "settings_manager.h"
 #include "static_panel_registry.h"
 #include "static_subject_registry.h"
+#include "system/telemetry_manager.h"
 #include "temperature_sensor_manager.h"
 #include "usb_manager.h"
 #include "width_sensor_manager.h"
@@ -314,6 +315,9 @@ void SubjectInitializer::init_observers() {
 
     // Print start navigation observer (auto-navigate to print status)
     m_observers.push_back(helix::init_print_start_navigation_observer());
+
+    // Print outcome telemetry observer (records anonymous print stats when telemetry enabled)
+    m_observers.push_back(TelemetryManager::instance().init_print_outcome_observer());
 }
 
 void SubjectInitializer::init_utility_subjects() {

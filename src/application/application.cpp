@@ -92,6 +92,8 @@
 
 #include "printer_detector.h"
 #include "settings_manager.h"
+#include "system/crash_handler.h"
+#include "system/telemetry_manager.h"
 #include "system/update_checker.h"
 #include "theme_manager.h"
 #include "wifi_manager.h"
@@ -193,6 +195,10 @@ int Application::run(int argc, char** argv) {
         return 0; // Help shown or parse error
     }
 
+    // Install crash handler early (before other init that could crash)
+    // Uses the config directory for the crash file so TelemetryManager can find it on next startup
+    crash_handler::install("config/crash.txt");
+
     // Phase 2: Initialize config system
     if (!init_config()) {
         return 1;
@@ -266,6 +272,9 @@ int Application::run(int argc, char** argv) {
 
     // Initialize UpdateChecker before panel subjects (subjects must exist for XML binding)
     UpdateChecker::instance().init();
+
+    // Initialize TelemetryManager (opt-in, default OFF)
+    TelemetryManager::instance().init();
 
     // Phase 9c: Initialize panel subjects with API injection
     // Panels receive API at construction - no deferred set_api() needed
@@ -1835,6 +1844,9 @@ void Application::shutdown() {
     }
     m_shutdown_complete = true;
 
+    // Uninstall crash handler (clean shutdown is not a crash)
+    crash_handler::uninstall();
+
     // Stop memory monitor first
     helix::MemoryMonitor::instance().stop();
 
@@ -1853,6 +1865,9 @@ void Application::shutdown() {
 
     // Shutdown UpdateChecker (cancels pending checks)
     UpdateChecker::instance().shutdown();
+
+    // Shutdown TelemetryManager (persists queue, joins send thread)
+    TelemetryManager::instance().shutdown();
 
     // Unload plugins before destroying managers they depend on
     if (m_plugin_manager) {

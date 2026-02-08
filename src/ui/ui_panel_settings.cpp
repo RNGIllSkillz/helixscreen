@@ -19,6 +19,7 @@
 #include "ui_settings_macro_buttons.h"
 #include "ui_settings_plugins.h"
 #include "ui_settings_sensors.h"
+#include "ui_settings_telemetry_data.h"
 #include "ui_severity_card.h"
 #include "ui_toast.h"
 #include "ui_touch_calibration_overlay.h"
@@ -43,6 +44,7 @@
 #include "sound_manager.h"
 #include "standard_macros.h"
 #include "static_panel_registry.h"
+#include "system/telemetry_manager.h"
 #include "system/update_checker.h"
 #include "theme_manager.h"
 #include "wizard_config_paths.h"
@@ -397,6 +399,9 @@ void SettingsPanel::init_subjects() {
     lv_xml_register_event_cb(nullptr, "on_estop_confirm_changed", on_estop_confirm_changed);
     lv_xml_register_event_cb(nullptr, "on_sleep_while_printing_changed",
                              on_sleep_while_printing_changed);
+    lv_xml_register_event_cb(nullptr, "on_telemetry_changed", SettingsPanel::on_telemetry_changed);
+    lv_xml_register_event_cb(nullptr, "on_telemetry_view_data",
+                             SettingsPanel::on_telemetry_view_data);
 
     // Register XML event callbacks for action rows
     lv_xml_register_event_cb(nullptr, "on_display_settings_clicked", on_display_settings_clicked);
@@ -567,6 +572,20 @@ void SettingsPanel::setup_toggle_handlers() {
                 lv_obj_remove_state(sleep_while_printing_switch_, LV_STATE_CHECKED);
             }
             spdlog::trace("[{}]   ✓ Sleep while printing toggle", get_name());
+        }
+    }
+
+    // === Telemetry Toggle ===
+    lv_obj_t* telemetry_row = lv_obj_find_by_name(panel_, "row_telemetry");
+    if (telemetry_row) {
+        telemetry_switch_ = lv_obj_find_by_name(telemetry_row, "toggle");
+        if (telemetry_switch_) {
+            if (settings.get_telemetry_enabled()) {
+                lv_obj_add_state(telemetry_switch_, LV_STATE_CHECKED);
+            } else {
+                lv_obj_remove_state(telemetry_switch_, LV_STATE_CHECKED);
+            }
+            spdlog::trace("[{}]   telemetry toggle", get_name());
         }
     }
 
@@ -947,6 +966,19 @@ void SettingsPanel::handle_sleep_while_printing_changed(bool enabled) {
     SettingsManager::instance().set_sleep_while_printing(enabled);
 }
 
+void SettingsPanel::handle_telemetry_changed(bool enabled) {
+    spdlog::info("[{}] Telemetry toggled: {}", get_name(), enabled ? "ON" : "OFF");
+    SettingsManager::instance().set_telemetry_enabled(enabled);
+}
+
+void SettingsPanel::handle_telemetry_view_data_clicked() {
+    spdlog::debug("[{}] View Telemetry Data clicked - delegating to TelemetryDataOverlay",
+                  get_name());
+
+    auto& overlay = helix::settings::get_telemetry_data_overlay();
+    overlay.show(parent_screen_);
+}
+
 void SettingsPanel::show_restart_prompt() {
     // Only show once per session - check if dialog already exists and is visible
     if (restart_prompt_dialog_ && !lv_obj_has_flag(restart_prompt_dialog_, LV_OBJ_FLAG_HIDDEN)) {
@@ -1320,6 +1352,20 @@ void SettingsPanel::on_sleep_while_printing_changed(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
+void SettingsPanel::on_telemetry_changed(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_telemetry_changed");
+    auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
+    get_global_settings_panel().handle_telemetry_changed(enabled);
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void SettingsPanel::on_telemetry_view_data(lv_event_t* /*e*/) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_telemetry_view_data");
+    get_global_settings_panel().handle_telemetry_view_data_clicked();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
 void SettingsPanel::on_display_settings_clicked(lv_event_t* /*e*/) {
     LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_display_settings_clicked");
     get_global_settings_panel().handle_display_settings_clicked();
@@ -1461,6 +1507,9 @@ void register_settings_panel_callbacks() {
                              SettingsPanel::on_estop_confirm_changed);
     lv_xml_register_event_cb(nullptr, "on_sleep_while_printing_changed",
                              SettingsPanel::on_sleep_while_printing_changed);
+    lv_xml_register_event_cb(nullptr, "on_telemetry_changed", SettingsPanel::on_telemetry_changed);
+    lv_xml_register_event_cb(nullptr, "on_telemetry_view_data",
+                             SettingsPanel::on_telemetry_view_data);
 
     // Action row callbacks used in settings_panel.xml
     lv_xml_register_event_cb(nullptr, "on_display_settings_clicked",
