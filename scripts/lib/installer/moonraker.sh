@@ -10,50 +10,6 @@
 [ -n "${_HELIX_MOONRAKER_SOURCED:-}" ] && return 0
 _HELIX_MOONRAKER_SOURCED=1
 
-# Updater repo directory (lightweight git clone for Moonraker tracking)
-UPDATER_REPO_DIR=""
-
-# Get the updater repo directory path
-# Returns: path like ${INSTALL_DIR}-repo
-get_updater_repo_dir() {
-    echo "${INSTALL_DIR}-repo"
-}
-
-# Set up a lightweight git clone for Moonraker update tracking
-# Moonraker needs a git repo to detect new tags and trigger updates.
-# The actual INSTALL_DIR is an extracted tarball (not a git repo),
-# so we maintain a separate shallow clone alongside it.
-# Skip if: already exists, or running on AD5M (no web UI)
-setup_updater_repo() {
-    UPDATER_REPO_DIR=$(get_updater_repo_dir)
-
-    if [ -d "$UPDATER_REPO_DIR/.git" ]; then
-        log_info "Updater repo already exists at $UPDATER_REPO_DIR"
-        return 0
-    fi
-
-    if ! command -v git >/dev/null 2>&1; then
-        log_warn "git not available - skipping updater repo setup"
-        return 0
-    fi
-
-    log_info "Setting up updater repo at $UPDATER_REPO_DIR..."
-    $SUDO mkdir -p "$UPDATER_REPO_DIR"
-    # Sparse checkout: only need scripts/install.sh for Moonraker's install_script option.
-    # Full checkout would pull ~200MB of gcode test files, images, and submodule docs.
-    if $SUDO git clone --depth 1 --filter=blob:none --no-checkout \
-        "https://github.com/${GITHUB_REPO}.git" "$UPDATER_REPO_DIR" 2>/dev/null; then
-        cd "$UPDATER_REPO_DIR"
-        $SUDO git sparse-checkout set scripts/install.sh
-        $SUDO git checkout 2>/dev/null
-        cd - >/dev/null
-        log_success "Updater repo created at $UPDATER_REPO_DIR"
-    else
-        log_warn "Could not create updater repo - Moonraker updates may not work"
-        $SUDO rm -rf "$UPDATER_REPO_DIR"
-    fi
-}
-
 # Common moonraker.conf locations
 MOONRAKER_CONF_PATHS="
 /home/pi/printer_data/config/moonraker.conf
@@ -95,24 +51,20 @@ has_update_manager_section() {
 }
 
 # Generate update_manager configuration block
-# Uses git_repo type with a lightweight clone for tracking updates
-# The clone at ${INSTALL_DIR}-repo lets Moonraker detect new tags
-# and trigger install_script, which downloads the actual release binary
 generate_update_manager_config() {
-    local repo_dir
-    repo_dir=$(get_updater_repo_dir)
     cat << EOF
 
 # HelixScreen Update Manager
 # Added by HelixScreen installer - enables one-click updates from Mainsail/Fluidd
 [update_manager helixscreen]
-type: git_repo
+type: zip
 channel: stable
-path: ${repo_dir}
-origin: https://github.com/prestonbrown/helixscreen.git
-primary_branch: main
+repo: prestonbrown/helixscreen
+path: ${INSTALL_DIR}
 managed_services: helixscreen
-install_script: scripts/install.sh
+persistent_files:
+    config/helixconfig.json
+    config/.disabled_services
 EOF
 }
 
@@ -131,6 +83,94 @@ add_update_manager_section() {
     log_info "You can now update HelixScreen from the Mainsail/Fluidd web interface!"
 }
 
+# Check if moonraker.conf has old git_repo-style helixscreen section
+# Args: $1 = moonraker.conf path
+# Returns: 0 if old git_repo section found, 1 if not
+has_old_git_repo_section() {
+    local conf="$1"
+    # Look for helixscreen section with type: git_repo
+    if grep -q '^\[update_manager helixscreen\]' "$conf" 2>/dev/null; then
+        # Extract the section and check for git_repo type
+        awk '/^\[update_manager helixscreen\]/{found=1; next} found && /^\[/{exit} found && /^type:/{print; exit}' "$conf" | grep -q 'git_repo'
+        return $?
+    fi
+    return 1
+}
+
+# Migrate old git_repo section to zip
+# Args: $1 = moonraker.conf path
+migrate_git_repo_to_zip() {
+    local conf="$1"
+
+    log_info "Migrating update_manager from git_repo to zip..."
+
+    # Remove old section
+    remove_update_manager_section "$conf" 2>/dev/null || true
+
+    # Add new zip section
+    add_update_manager_section "$conf"
+
+    # Clean up old sparse clone directory if it exists
+    local old_repo_dir="${INSTALL_DIR}-repo"
+    if [ -d "$old_repo_dir" ]; then
+        log_info "Removing old updater repo at $old_repo_dir..."
+        $SUDO rm -rf "$old_repo_dir"
+    fi
+
+    log_success "Migrated to type: zip update manager"
+}
+
+# Write release_info.json if not already present
+# Moonraker type:zip needs this file to detect installed version
+write_release_info() {
+    local release_info="${INSTALL_DIR}/release_info.json"
+
+    if [ -f "$release_info" ]; then
+        return 0
+    fi
+
+    # Try to detect version from binary
+    local version=""
+    if [ -x "${INSTALL_DIR}/bin/helix-screen" ]; then
+        version=$("${INSTALL_DIR}/bin/helix-screen" --version 2>/dev/null | head -1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^ ]*' || echo "")
+    fi
+
+    if [ -z "$version" ]; then
+        log_warn "Could not detect version for release_info.json"
+        return 0
+    fi
+
+    # Determine platform-specific asset name
+    local asset_name="helixscreen-pi.zip"
+    case "${PLATFORM:-}" in
+        pi32)       asset_name="helixscreen-pi32.zip" ;;
+        ad5m)       asset_name="helixscreen-ad5m.zip" ;;
+        k1)         asset_name="helixscreen-k1.zip" ;;
+        k1-dynamic) asset_name="helixscreen-k1-dynamic.zip" ;;
+        k2)         asset_name="helixscreen-k2.zip" ;;
+    esac
+
+    log_info "Writing release_info.json (${version})..."
+    cat > "${release_info}.tmp" << EOF
+{"project_name":"helixscreen","project_owner":"prestonbrown","version":"${version}","asset_name":"${asset_name}"}
+EOF
+    $SUDO mv "${release_info}.tmp" "$release_info"
+}
+
+# Restart Moonraker to pick up configuration changes
+restart_moonraker() {
+    if command -v systemctl >/dev/null 2>&1 && $SUDO systemctl is-active --quiet moonraker 2>/dev/null; then
+        log_info "Restarting Moonraker to apply configuration..."
+        $SUDO systemctl restart moonraker || true
+    elif [ -x "/etc/init.d/S56moonraker_service" ]; then
+        # K1/Simple AF uses SysV init
+        log_info "Restarting Moonraker to apply configuration..."
+        if ! $SUDO /etc/init.d/S56moonraker_service restart 2>/dev/null; then
+            log_warn "Could not restart Moonraker - you may need to restart it manually"
+        fi
+    fi
+}
+
 # Configure Moonraker update_manager
 # Called during installation on platforms with web UI (Pi, K1 with Simple AF)
 configure_moonraker_updates() {
@@ -142,11 +182,10 @@ configure_moonraker_updates() {
         return 0
     fi
 
-    # Pi and K1 (Simple AF) both commonly use Mainsail/Fluidd
     log_info "Configuring Moonraker update_manager..."
 
-    # Set up the lightweight git clone for Moonraker tracking
-    setup_updater_repo
+    # Write release_info.json if not already present (fallback for older tarballs)
+    write_release_info
 
     local conf
     conf=$(find_moonraker_conf)
@@ -160,24 +199,20 @@ configure_moonraker_updates() {
         return 0
     fi
 
+    # Migrate old git_repo config to zip
+    if has_old_git_repo_section "$conf"; then
+        migrate_git_repo_to_zip "$conf"
+        restart_moonraker
+        return 0
+    fi
+
     if has_update_manager_section "$conf"; then
         log_info "update_manager section already exists in $conf"
         return 0
     fi
 
     add_update_manager_section "$conf"
-
-    # Restart Moonraker to pick up the new configuration
-    if command -v systemctl >/dev/null 2>&1 && $SUDO systemctl is-active --quiet moonraker 2>/dev/null; then
-        log_info "Restarting Moonraker to apply configuration..."
-        $SUDO systemctl restart moonraker || true
-    elif [ -x "/etc/init.d/S56moonraker_service" ]; then
-        # K1/Simple AF uses SysV init
-        log_info "Restarting Moonraker to apply configuration..."
-        if ! $SUDO /etc/init.d/S56moonraker_service restart 2>/dev/null; then
-            log_warn "Could not restart Moonraker - you may need to restart it manually"
-        fi
-    fi
+    restart_moonraker
 }
 
 # Remove update_manager section from moonraker.conf

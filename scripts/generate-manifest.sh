@@ -113,6 +113,19 @@ for plat in "${PLATFORMS[@]}"; do
         --arg url "$url" \
         --arg sha256 "$sha256" \
         '.[$plat] = {url: $url, sha256: $sha256}')
+
+    # Check for corresponding ZIP file (used by Moonraker type:zip updates)
+    zipfile="$DIR/helixscreen-${plat}.zip"
+    if [[ -f "$zipfile" ]]; then
+        zip_sha256=$($SHA256_CMD "$zipfile" | awk '{print $1}')
+        zip_url="${BASE_URL}/helixscreen-${plat}.zip"
+
+        ASSETS_JSON=$(echo "$ASSETS_JSON" | jq \
+            --arg plat "$plat" \
+            --arg zip_url "$zip_url" \
+            --arg zip_sha256 "$zip_sha256" \
+            '.[$plat] += {zip_url: $zip_url, zip_sha256: $zip_sha256}')
+    fi
 done
 
 if [[ "$FOUND_ANY" == "false" ]]; then

@@ -80,7 +80,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: release-pi
-        path: releases/helixscreen-pi-*.tar.gz
+        path: |
+          releases/helixscreen-pi-*.tar.gz
+          releases/helixscreen-pi.zip
         retention-days: 7
 
     # Move cache (prevents cache from growing indefinitely)
@@ -137,7 +139,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: release-pi32
-        path: releases/helixscreen-pi32-*.tar.gz
+        path: |
+          releases/helixscreen-pi32-*.tar.gz
+          releases/helixscreen-pi32.zip
         retention-days: 7
 
     # Move cache (prevents cache from growing indefinitely)
@@ -194,7 +198,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: release-ad5m
-        path: releases/helixscreen-ad5m-*.tar.gz
+        path: |
+          releases/helixscreen-ad5m-*.tar.gz
+          releases/helixscreen-ad5m.zip
         retention-days: 7
 
     # Move cache
@@ -251,7 +257,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: release-k1
-        path: releases/helixscreen-k1-*.tar.gz
+        path: |
+          releases/helixscreen-k1-*.tar.gz
+          releases/helixscreen-k1.zip
         retention-days: 7
 
     # Move cache
@@ -283,6 +291,7 @@ jobs:
       run: |
         mkdir -p release-files
         find artifacts -name '*.tar.gz' -exec mv {} release-files/ \;
+        find artifacts -name '*.zip' -exec mv {} release-files/ \;
         echo "Release files:"
         ls -lh release-files/
 
@@ -360,7 +369,7 @@ jobs:
         ## Checksums
 
         ```
-        $(cd release-files && sha256sum *.tar.gz)
+        $(cd release-files && sha256sum *.tar.gz *.zip)
         ```
         EOF
         fi
@@ -372,7 +381,9 @@ jobs:
         body_path: release-notes.md
         draft: false
         prerelease: ${{ contains(github.ref_name, '-') }}  # v1.0.0-beta -> prerelease
-        files: release-files/*.tar.gz
+        files: |
+          release-files/*.tar.gz
+          release-files/*.zip
         fail_on_unmatched_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -401,6 +412,7 @@ jobs:
       run: |
         mkdir -p release-files
         find artifacts -name '*.tar.gz' -exec mv {} release-files/ \;
+        find artifacts -name '*.zip' -exec mv {} release-files/ \;
         echo "Release files:"
         ls -lh release-files/
 
@@ -471,7 +483,7 @@ jobs:
           cat "release-files/manifest-${CHANNEL}.json" | jq .
 
           # Upload all tarballs
-          for tarball in release-files/*.tar.gz; do
+          for tarball in release-files/*.tar.gz release-files/*.zip; do
             filename=$(basename "$tarball")
             echo "Uploading ${CHANNEL}/${filename}..."
             aws s3 cp "$tarball" "s3://${BUCKET}/${CHANNEL}/${filename}" \

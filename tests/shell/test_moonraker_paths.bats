@@ -96,39 +96,88 @@ setup() {
     [ -z "$result" ]
 }
 
-# --- Updater repo directory tests ---
+# --- generate_update_manager_config (type: zip) ---
 
-@test "get_updater_repo_dir returns INSTALL_DIR-repo" {
-    INSTALL_DIR="/opt/helixscreen"
-    result=$(get_updater_repo_dir)
-    [ "$result" = "/opt/helixscreen-repo" ]
-}
-
-@test "get_updater_repo_dir works with home directory path" {
-    INSTALL_DIR="/home/biqu/helixscreen"
-    result=$(get_updater_repo_dir)
-    [ "$result" = "/home/biqu/helixscreen-repo" ]
-}
-
-@test "generate_update_manager_config uses repo dir for path" {
+@test "generate_update_manager_config emits type: zip" {
     INSTALL_DIR="/opt/helixscreen"
     local config
     config=$(generate_update_manager_config)
-    echo "$config" | grep -q "path: /opt/helixscreen-repo"
+    echo "$config" | grep -q "type: zip"
 }
 
-@test "generate_update_manager_config path differs from INSTALL_DIR" {
+@test "generate_update_manager_config has correct repo" {
     INSTALL_DIR="/opt/helixscreen"
     local config
     config=$(generate_update_manager_config)
-    local path_value
-    path_value=$(echo "$config" | grep '^path:' | sed 's/^path: *//')
-    [ "$path_value" != "$INSTALL_DIR" ]
+    echo "$config" | grep -q "repo: prestonbrown/helixscreen"
 }
 
-@test "generate_update_manager_config contains install_script" {
+@test "generate_update_manager_config path equals INSTALL_DIR" {
     INSTALL_DIR="/opt/helixscreen"
     local config
     config=$(generate_update_manager_config)
-    echo "$config" | grep -q "install_script: scripts/install.sh"
+    echo "$config" | grep -q "path: /opt/helixscreen"
+}
+
+@test "generate_update_manager_config has persistent_files" {
+    INSTALL_DIR="/opt/helixscreen"
+    local config
+    config=$(generate_update_manager_config)
+    echo "$config" | grep -q "persistent_files:"
+    echo "$config" | grep -q "config/helixconfig.json"
+}
+
+@test "generate_update_manager_config does NOT have install_script" {
+    INSTALL_DIR="/opt/helixscreen"
+    local config
+    config=$(generate_update_manager_config)
+    ! echo "$config" | grep -q "install_script"
+}
+
+# --- has_old_git_repo_section ---
+
+@test "has_old_git_repo_section detects old git_repo format" {
+    local conf="$BATS_TEST_TMPDIR/moonraker.conf"
+    cat > "$conf" << 'CONF'
+[server]
+host: 0.0.0.0
+
+[update_manager helixscreen]
+type: git_repo
+channel: stable
+path: ~/helixscreen-repo
+origin: https://github.com/prestonbrown/helixscreen.git
+primary_branch: main
+managed_services: helixscreen
+install_script: scripts/install.sh
+CONF
+    has_old_git_repo_section "$conf"
+}
+
+@test "has_old_git_repo_section returns false for type: zip" {
+    local conf="$BATS_TEST_TMPDIR/moonraker.conf"
+    cat > "$conf" << 'CONF'
+[server]
+host: 0.0.0.0
+
+[update_manager helixscreen]
+type: zip
+channel: stable
+repo: prestonbrown/helixscreen
+path: ~/helixscreen
+managed_services: helixscreen
+CONF
+    ! has_old_git_repo_section "$conf"
+}
+
+@test "has_old_git_repo_section returns false when no section" {
+    local conf="$BATS_TEST_TMPDIR/moonraker.conf"
+    cat > "$conf" << 'CONF'
+[server]
+host: 0.0.0.0
+
+[update_manager mainsail]
+type: web
+CONF
+    ! has_old_git_repo_section "$conf"
 }

@@ -626,13 +626,14 @@ If you installed manually or the installer couldn't find your `moonraker.conf`, 
 #   K1/Simple AF: /usr/data/helixscreen
 #   AD5M Klipper Mod: /root/printer_software/helixscreen
 [update_manager helixscreen]
-type: git_repo
+type: zip
 channel: stable
+repo: prestonbrown/helixscreen
 path: ~/helixscreen
-origin: https://github.com/prestonbrown/helixscreen.git
-primary_branch: main
 managed_services: helixscreen
-install_script: scripts/install.sh
+persistent_files:
+    config/helixconfig.json
+    config/.disabled_services
 ```
 
 Then restart Moonraker:
