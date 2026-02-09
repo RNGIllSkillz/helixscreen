@@ -157,6 +157,7 @@ void PrinterState::reset_for_testing() {
     // Reset printer type, capabilities, and auto-detected state
     printer_type_.clear();
     print_start_capabilities_ = PrintStartCapabilities{};
+    z_offset_calibration_strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
     auto_detected_bed_moves_ = false;
 
     subjects_initialized_ = false;
@@ -692,6 +693,21 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
     printer_type_ = type;
     print_start_capabilities_ = PrinterDetector::get_print_start_capabilities(type);
 
+    // Determine Z-offset calibration strategy from database
+    std::string strategy_str = PrinterDetector::get_z_offset_calibration_strategy(type);
+    if (strategy_str == "gcode_offset") {
+        z_offset_calibration_strategy_ = ZOffsetCalibrationStrategy::GCODE_OFFSET;
+    } else if (strategy_str == "endstop") {
+        z_offset_calibration_strategy_ = ZOffsetCalibrationStrategy::ENDSTOP;
+    } else if (strategy_str == "probe_calibrate") {
+        z_offset_calibration_strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+    } else {
+        // Auto-detect: probe_calibrate if has probe, endstop otherwise
+        z_offset_calibration_strategy_ = capabilities_state_.has_probe()
+                                             ? ZOffsetCalibrationStrategy::PROBE_CALIBRATE
+                                             : ZOffsetCalibrationStrategy::ENDSTOP;
+    }
+
     // Update printer_has_purge_line_ based on capabilities database
     // "priming" is the capability key for purge/prime line in the database
     bool has_priming = print_start_capabilities_.get_capability("priming") != nullptr;
@@ -700,9 +716,11 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
     // Recalculate composite visibility subjects
     update_gcode_modification_visibility();
 
-    spdlog::info("[PrinterState] Printer type set to: '{}' (capabilities: {}, priming={})", type,
-                 print_start_capabilities_.empty() ? "none" : print_start_capabilities_.macro_name,
-                 has_priming);
+    const char* strategy_names[] = {"probe_calibrate", "gcode_offset", "endstop"};
+    spdlog::info(
+        "[PrinterState] Printer type set to: '{}' (capabilities: {}, priming={}, z_cal={})", type,
+        print_start_capabilities_.empty() ? "none" : print_start_capabilities_.macro_name,
+        has_priming, strategy_names[static_cast<int>(z_offset_calibration_strategy_)]);
 }
 
 const std::string& PrinterState::get_printer_type() const {
@@ -711,4 +729,8 @@ const std::string& PrinterState::get_printer_type() const {
 
 const PrintStartCapabilities& PrinterState::get_print_start_capabilities() const {
     return print_start_capabilities_;
+}
+
+ZOffsetCalibrationStrategy PrinterState::get_z_offset_calibration_strategy() const {
+    return z_offset_calibration_strategy_;
 }

@@ -138,6 +138,20 @@ enum class PrintStartPhase {
 };
 
 /**
+ * @brief Z-offset calibration strategy — determines gcode commands for calibration and save
+ *
+ * Different printers need different approaches to calibrate and persist Z-offset.
+ * ForgeX-mod printers use SET_GCODE_OFFSET (auto-persisted by mod macro).
+ * Standard Klipper uses PROBE_CALIBRATE -> ACCEPT -> SAVE_CONFIG.
+ * Endstop printers use Z_ENDSTOP_CALIBRATE -> ACCEPT -> SAVE_CONFIG.
+ */
+enum class ZOffsetCalibrationStrategy {
+    PROBE_CALIBRATE, ///< Standard Klipper: PROBE_CALIBRATE -> ACCEPT -> SAVE_CONFIG
+    GCODE_OFFSET,    ///< ForgeX mod: G28 -> move -> G1 adjustments -> SET_GCODE_OFFSET
+    ENDSTOP ///< Endstop: Z_ENDSTOP_CALIBRATE -> ACCEPT -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
+};
+
+/**
  * @brief Convert PrintJobState enum to display string
  *
  * Returns a human-readable string for UI display.
@@ -1390,6 +1404,11 @@ class PrinterState {
      */
     const PrintStartCapabilities& get_print_start_capabilities() const;
 
+    /**
+     * @brief Get the Z-offset calibration strategy for this printer
+     */
+    ZOffsetCalibrationStrategy get_z_offset_calibration_strategy() const;
+
   private:
     /// RAII manager for automatic subject cleanup - deinits all subjects on destruction
     SubjectManager subjects_;
@@ -1512,6 +1531,8 @@ class PrinterState {
     // Printer type and print start capabilities
     std::string printer_type_;                        ///< Selected printer type name
     PrintStartCapabilities print_start_capabilities_; ///< Cached capabilities for current type
+    ZOffsetCalibrationStrategy z_offset_calibration_strategy_ =
+        ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
 
     /// Last kinematics string (to skip redundant recomputation)
     std::string last_kinematics_;

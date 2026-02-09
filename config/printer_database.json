@@ -21,6 +21,7 @@
       "manufacturer": "FlashForge",
       "image": "flashforge-adventurer-5m.png",
       "print_start_profile": "forge_x",
+      "z_offset_calibration_strategy": "gcode_offset",
       "heuristics": [
         {
           "type": "macro_match",
@@ -105,6 +106,7 @@
       "manufacturer": "FlashForge",
       "image": "flashforge-adventurer-5m-pro.png",
       "print_start_profile": "forge_x",
+      "z_offset_calibration_strategy": "gcode_offset",
       "heuristics": [
         {
           "type": "led_match",

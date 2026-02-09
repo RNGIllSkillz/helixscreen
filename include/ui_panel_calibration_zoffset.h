@@ -11,21 +11,24 @@
 
 #include <string>
 
-class MoonrakerClient;
+class MoonrakerAPI;
 class PrinterState;
 
 /**
  * @file ui_panel_calibration_zoffset.h
- * @brief Z-Offset calibration panel using PROBE_CALIBRATE workflow
+ * @brief Z-Offset calibration panel with strategy-aware dispatch
  *
  * Interactive panel that guides the user through the paper test calibration
- * process. Uses Klipper's PROBE_CALIBRATE, TESTZ, ACCEPT, and ABORT commands.
+ * process. Supports three strategies based on printer configuration:
+ * - PROBE_CALIBRATE: Klipper's PROBE_CALIBRATE -> TESTZ -> ACCEPT -> SAVE_CONFIG
+ * - ENDSTOP: Z_ENDSTOP_CALIBRATE -> TESTZ -> ACCEPT -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
+ * - GCODE_OFFSET: G28 -> move to center -> G1 Z adjustments -> SET_GCODE_OFFSET
  *
  * ## State Machine:
  * - IDLE: Shows instructions and Start button
- * - PROBING: Waiting for PROBE_CALIBRATE to complete (homes + probes)
+ * - PROBING: Waiting for calibration to begin (homes + positions)
  * - ADJUSTING: User adjusts Z with paper test (+/- buttons)
- * - SAVING: ACCEPT was pressed, saving config (Klipper restarts)
+ * - SAVING: Saving offset (ACCEPT/SAVE_CONFIG or SET_GCODE_OFFSET)
  * - COMPLETE: Calibration successful
  * - ERROR: Something went wrong
  *
@@ -34,7 +37,7 @@ class PrinterState;
  * auto& overlay = get_global_zoffset_cal_panel();
  * if (!overlay.get_root()) {
  *     overlay.init_subjects();
- *     overlay.set_client(get_moonraker_client());
+ *     overlay.set_api(get_moonraker_api());
  *     overlay.create(parent_screen);
  * }
  * overlay.show();
@@ -117,12 +120,12 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     void show();
 
     /**
-     * @brief Set the Moonraker client for G-code commands
+     * @brief Set the MoonrakerAPI for G-code commands
      *
-     * @param client MoonrakerClient for sending commands
+     * @param api MoonrakerAPI for sending commands
      */
-    void set_client(MoonrakerClient* client) {
-        client_ = client;
+    void set_api(MoonrakerAPI* api) {
+        api_ = api;
     }
 
     /**
@@ -162,10 +165,10 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     static void on_retry_clicked(lv_event_t* e);
 
   private:
-    // Client reference
+    // API reference
     // Note: overlay_root_ inherited from OverlayBase
     lv_obj_t* parent_screen_ = nullptr;
-    MoonrakerClient* client_ = nullptr;
+    MoonrakerAPI* api_ = nullptr;
 
     // State management
     State state_ = State::IDLE;
@@ -174,9 +177,9 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     // UI setup (called by create())
     void setup_widgets();
 
-    // Gcode command helpers
-    void send_probe_calibrate();
-    void send_testz(float delta);
+    // Strategy-aware gcode command helpers
+    void start_calibration();
+    void adjust_z(float delta);
     void send_accept();
     void send_abort();
 
@@ -196,6 +199,7 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     // Current Z position during calibration
     float current_z_ = 0.0f;
     float final_offset_ = 0.0f;
+    float cumulative_z_delta_ = 0.0f; ///< Tracks total Z adjustment in gcode_offset mode
 
     // Subject manager for automatic cleanup
     SubjectManager subjects_;

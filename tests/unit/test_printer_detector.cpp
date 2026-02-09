@@ -2556,3 +2556,33 @@ TEST_CASE("PrinterDetector: Filtered list is smaller than unfiltered",
     REQUIRE(delta.size() < all.size());
     REQUIRE(corexy.size() < all.size());
 }
+
+// ============================================================================
+// Z-Offset Calibration Strategy Lookup
+// ============================================================================
+
+TEST_CASE("Z-offset calibration strategy lookup", "[printer_detector]") {
+    SECTION("FlashForge AD5M returns gcode_offset strategy") {
+        std::string strategy =
+            PrinterDetector::get_z_offset_calibration_strategy("FlashForge Adventurer 5M");
+        REQUIRE(strategy == "gcode_offset");
+    }
+
+    SECTION("FlashForge AD5M Pro returns gcode_offset strategy") {
+        std::string strategy =
+            PrinterDetector::get_z_offset_calibration_strategy("FlashForge Adventurer 5M Pro");
+        REQUIRE(strategy == "gcode_offset");
+    }
+
+    SECTION("Unknown printer returns empty string") {
+        std::string strategy =
+            PrinterDetector::get_z_offset_calibration_strategy("Some Random Printer");
+        REQUIRE(strategy.empty());
+    }
+
+    SECTION("Case insensitive lookup") {
+        std::string strategy =
+            PrinterDetector::get_z_offset_calibration_strategy("flashforge adventurer 5m");
+        REQUIRE(strategy == "gcode_offset");
+    }
+}

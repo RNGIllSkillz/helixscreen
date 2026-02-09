@@ -21,6 +21,7 @@
 #include "ui_position_utils.h"
 #include "ui_settings_sensors.h"
 #include "ui_subject_registry.h"
+#include "ui_toast.h"
 
 #include "app_globals.h"
 #include "format_utils.h"
@@ -739,6 +740,14 @@ void ControlsPanel::handle_zoffset_tune() {
 }
 
 void ControlsPanel::handle_save_z_offset() {
+    // gcode_offset strategy auto-persists via firmware macro — nothing to save
+    auto strategy = printer_state_.get_z_offset_calibration_strategy();
+    if (strategy == ZOffsetCalibrationStrategy::GCODE_OFFSET) {
+        spdlog::debug("[{}] Z-offset auto-saved by firmware (gcode_offset strategy)", get_name());
+        ui_toast_show(ToastSeverity::INFO, lv_tr("Z-offset is auto-saved by firmware"), 3000);
+        return;
+    }
+
     // Get current gcode Z-offset (displayed offset, not pending delta)
     int offset_microns = 0;
     if (auto* subj = printer_state_.get_gcode_z_offset_subject()) {
@@ -754,12 +763,16 @@ void ControlsPanel::handle_save_z_offset() {
     spdlog::info("[{}] Save Z-offset clicked: {:+.3f}mm", get_name(), offset_mm);
 
     // Show confirmation dialog - SAVE_CONFIG will restart Klipper
+    const char* confirm_msg =
+        (strategy == ZOffsetCalibrationStrategy::PROBE_CALIBRATE)
+            ? lv_tr("This will apply the Z-offset to your probe and restart Klipper to save the "
+                    "configuration. The printer will briefly disconnect.")
+            : lv_tr("This will apply the Z-offset to your endstop and restart Klipper to save the "
+                    "configuration. The printer will briefly disconnect.");
+
     save_z_offset_confirmation_dialog_ = ui_modal_show_confirmation(
-        lv_tr("Save Z-Offset?"),
-        lv_tr("This will apply the Z-offset to your endstop and restart Klipper to save the "
-              "configuration. The printer will briefly disconnect."),
-        ModalSeverity::Warning, lv_tr("Save"), on_save_z_offset_confirm, on_save_z_offset_cancel,
-        this);
+        lv_tr("Save Z-Offset?"), confirm_msg, ModalSeverity::Warning, lv_tr("Save"),
+        on_save_z_offset_confirm, on_save_z_offset_cancel, this);
 
     if (!save_z_offset_confirmation_dialog_) {
         LOG_ERROR_INTERNAL("Failed to create save Z-offset confirmation dialog");
@@ -796,13 +809,31 @@ void ControlsPanel::handle_save_z_offset_confirm() {
     }
     double offset_mm = static_cast<double>(offset_microns) / 1000.0;
 
-    // Execute Z_OFFSET_APPLY_ENDSTOP first, then SAVE_CONFIG
-    // Z_OFFSET_APPLY_ENDSTOP applies current gcode Z-offset to the endstop position
-    // SAVE_CONFIG persists the config and restarts Klipper
+    auto strategy = printer_state_.get_z_offset_calibration_strategy();
+
+    // gcode_offset strategy auto-persists — should not reach here (handled by early return)
+    if (strategy == ZOffsetCalibrationStrategy::GCODE_OFFSET) {
+        spdlog::warn("[{}] save_z_offset_confirm called with gcode_offset strategy — ignoring",
+                     get_name());
+        save_z_offset_in_progress_ = false;
+        return;
+    }
+
+    // Select the apply command based on calibration strategy
+    const char* apply_cmd = (strategy == ZOffsetCalibrationStrategy::PROBE_CALIBRATE)
+                                ? "Z_OFFSET_APPLY_PROBE"
+                                : "Z_OFFSET_APPLY_ENDSTOP";
+
+    spdlog::info("[{}] Applying Z-offset with {} strategy (cmd: {})", get_name(),
+                 (strategy == ZOffsetCalibrationStrategy::PROBE_CALIBRATE) ? "probe_calibrate"
+                                                                           : "endstop",
+                 apply_cmd);
+
+    // Execute apply command first, then SAVE_CONFIG to persist and restart Klipper
     api_->execute_gcode(
-        "Z_OFFSET_APPLY_ENDSTOP",
-        [this, offset_mm]() {
-            spdlog::info("[{}] Z_OFFSET_APPLY_ENDSTOP success, executing SAVE_CONFIG", get_name());
+        apply_cmd,
+        [this, offset_mm, apply_cmd]() {
+            spdlog::info("[{}] {} success, executing SAVE_CONFIG", get_name(), apply_cmd);
 
             // Now save the config (this will restart Klipper)
             api_->execute_gcode(
@@ -818,8 +849,8 @@ void ControlsPanel::handle_save_z_offset_confirm() {
                     save_z_offset_in_progress_ = false;
                 });
         },
-        [this](const MoonrakerError& err) {
-            NOTIFY_ERROR("Z_OFFSET_APPLY_ENDSTOP failed: {}", err.user_message());
+        [this, apply_cmd](const MoonrakerError& err) {
+            NOTIFY_ERROR("{} failed: {}", apply_cmd, err.user_message());
             save_z_offset_in_progress_ = false;
         });
 }
@@ -1255,7 +1286,7 @@ void ControlsPanel::handle_calibration_bed_mesh() {
 
 void ControlsPanel::handle_calibration_zoffset() {
     // Set the Moonraker client before lazy creation so it's available when calibration starts
-    get_global_zoffset_cal_panel().set_client(get_moonraker_client());
+    get_global_zoffset_cal_panel().set_api(get_moonraker_api());
     helix::ui::lazy_create_and_push_overlay<ZOffsetCalibrationPanel>(
         get_global_zoffset_cal_panel, zoffset_panel_, parent_screen_, "Z-Offset Calibration",
         get_name());

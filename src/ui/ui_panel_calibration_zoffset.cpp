@@ -8,9 +8,10 @@
 #include "ui_nav_manager.h"
 
 #include "app_globals.h"
-#include "moonraker_client.h"
+#include "moonraker_api.h"
 #include "observer_factory.h"
 #include "printer_state.h"
+#include "standard_macros.h"
 #include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
@@ -224,9 +225,10 @@ void ZOffsetCalibrationPanel::on_activate() {
     // Reset to idle state
     set_state(State::IDLE);
 
-    // Reset Z position display
+    // Reset Z position display and tracking
     current_z_ = 0.0f;
     final_offset_ = 0.0f;
+    cumulative_z_delta_ = 0.0f;
     if (z_position_display_) {
         lv_label_set_text(z_position_display_, "Z: 0.000");
     }
@@ -281,100 +283,226 @@ void ZOffsetCalibrationPanel::set_state(State new_state) {
 }
 
 // ============================================================================
-// GCODE COMMANDS
+// GCODE COMMANDS (strategy-aware dispatch)
 // ============================================================================
 
-void ZOffsetCalibrationPanel::send_probe_calibrate() {
-    if (!client_) {
-        spdlog::error("[ZOffsetCal] No Moonraker client");
+void ZOffsetCalibrationPanel::start_calibration() {
+    if (!api_) {
+        spdlog::error("[ZOffsetCal] No MoonrakerAPI");
         on_calibration_result(false, "No printer connection");
         return;
     }
 
-    // Auto-home if needed - probe calibration requires all axes homed
     PrinterState& ps = get_printer_state();
+    auto strategy = ps.get_z_offset_calibration_strategy();
+
+    // Check homing state (shared across all strategies)
     const char* homed = lv_subject_get_string(ps.get_homed_axes_subject());
     bool all_homed = homed && std::string(homed).find("xyz") != std::string::npos;
 
-    if (!all_homed) {
-        spdlog::info("[ZOffsetCal] Axes not homed (homed_axes='{}'), homing first",
-                     homed ? homed : "");
-        int home_result = client_->gcode_script("G28");
-        if (home_result != 0) {
-            spdlog::error("[ZOffsetCal] Failed to home axes (error {})", home_result);
-            on_calibration_result(false, "Failed to home axes");
-            return;
+    if (strategy == ZOffsetCalibrationStrategy::GCODE_OFFSET) {
+        // Manual Z calibrate: home, move to center, lower to Z0.1
+        cumulative_z_delta_ = 0.0f;
+
+        // Use hardcoded center (110, 110) as safe default for most printers
+        float center_x = 110.0f;
+        float center_y = 110.0f;
+
+        std::string gcode;
+        if (!all_homed) {
+            gcode = "G28\n";
         }
-    }
 
-    // Auto-detect calibration method based on printer capabilities:
-    // - Printers with probe (BLTouch, inductive, etc.) use PROBE_CALIBRATE
-    // - Printers with only mechanical endstop use Z_ENDSTOP_CALIBRATE
-    // Both commands enter manual_probe mode and work identically from UI perspective
-    const char* calibrate_cmd = ps.has_probe() ? "PROBE_CALIBRATE" : "Z_ENDSTOP_CALIBRATE";
+        // Optional nozzle clean before calibration
+        auto& clean_slot = StandardMacros::instance().get(StandardMacroSlot::CleanNozzle);
+        if (!clean_slot.is_empty()) {
+            gcode += clean_slot.get_macro() + "\n";
+            spdlog::info("[ZOffsetCal] Adding nozzle clean: {}", clean_slot.get_macro());
+        }
 
-    spdlog::info("[ZOffsetCal] Sending {} (has_probe={})", calibrate_cmd, ps.has_probe());
-    int result = client_->gcode_script(calibrate_cmd);
-    if (result != 0) {
-        spdlog::error("[ZOffsetCal] Failed to send {} (error {})", calibrate_cmd, result);
-        on_calibration_result(false, "Failed to start calibration");
+        char move_cmd[128];
+        snprintf(move_cmd, sizeof(move_cmd), "G1 X%.1f Y%.1f Z5 F3000\nG1 Z0.1 F300", center_x,
+                 center_y);
+        gcode += move_cmd;
+
+        spdlog::info("[ZOffsetCal] Starting gcode_offset calibration (center={:.1f},{:.1f})",
+                     center_x, center_y);
+
+        api_->execute_gcode(
+            gcode,
+            [this]() {
+                spdlog::info("[ZOffsetCal] Moved to center at Z0.1, ready for adjustment");
+                set_state(State::ADJUSTING);
+                update_z_position(0.1f);
+            },
+            [this](const MoonrakerError& err) {
+                spdlog::error("[ZOffsetCal] Failed to move to position: {}", err.message);
+                on_calibration_result(false, "Failed to move to calibration position");
+            });
+    } else {
+        // Probe calibrate or endstop strategy
+        std::string gcode;
+        if (!all_homed) {
+            spdlog::info("[ZOffsetCal] Axes not homed (homed_axes='{}'), homing first",
+                         homed ? homed : "");
+            gcode = "G28\n";
+        }
+
+        // Optional nozzle clean before calibration
+        auto& clean_slot = StandardMacros::instance().get(StandardMacroSlot::CleanNozzle);
+        if (!clean_slot.is_empty()) {
+            gcode += clean_slot.get_macro() + "\n";
+            spdlog::info("[ZOffsetCal] Adding nozzle clean: {}", clean_slot.get_macro());
+        }
+
+        const char* calibrate_cmd = (strategy == ZOffsetCalibrationStrategy::ENDSTOP)
+                                        ? "Z_ENDSTOP_CALIBRATE"
+                                        : "PROBE_CALIBRATE";
+        gcode += calibrate_cmd;
+
+        spdlog::info("[ZOffsetCal] Starting {} (strategy={})", calibrate_cmd,
+                     strategy == ZOffsetCalibrationStrategy::ENDSTOP ? "endstop"
+                                                                     : "probe_calibrate");
+
+        api_->execute_gcode(
+            gcode,
+            [calibrate_cmd]() {
+                spdlog::info("[ZOffsetCal] {} sent, waiting for manual_probe", calibrate_cmd);
+                // State transition to ADJUSTING happens via manual_probe_active observer
+            },
+            [this](const MoonrakerError& err) {
+                spdlog::error("[ZOffsetCal] Failed to start calibration: {}", err.message);
+                on_calibration_result(false, "Failed to start calibration");
+            });
     }
-    // State transition to ADJUSTING is handled by on_manual_probe_active_changed
-    // when Klipper reports manual_probe.is_active=true
 }
 
-void ZOffsetCalibrationPanel::send_testz(float delta) {
-    if (!client_)
+void ZOffsetCalibrationPanel::adjust_z(float delta) {
+    if (!api_)
         return;
 
-    char cmd[64];
-    snprintf(cmd, sizeof(cmd), "TESTZ Z=%.3f", delta);
-    spdlog::debug("[ZOffsetCal] Sending: {}", cmd);
+    auto strategy = get_printer_state().get_z_offset_calibration_strategy();
 
-    int result = client_->gcode_script(cmd);
-    if (result != 0) {
-        spdlog::warn("[ZOffsetCal] Failed to send TESTZ (error {})", result);
+    if (strategy == ZOffsetCalibrationStrategy::GCODE_OFFSET) {
+        // Direct G1 move using relative positioning
+        char cmd[128];
+        snprintf(cmd, sizeof(cmd), "G91\nG1 Z%.3f F300\nG90", delta);
+
+        api_->execute_gcode(
+            cmd,
+            [this, delta]() {
+                cumulative_z_delta_ += delta;
+                update_z_position(0.1f + cumulative_z_delta_);
+                spdlog::debug("[ZOffsetCal] G1 Z adjust: delta={:.3f}, cumulative={:.3f}", delta,
+                              cumulative_z_delta_);
+            },
+            [](const MoonrakerError& err) {
+                spdlog::warn("[ZOffsetCal] Z adjust failed: {}", err.message);
+            });
+    } else {
+        // TESTZ for probe_calibrate/endstop strategies
+        char cmd[64];
+        snprintf(cmd, sizeof(cmd), "TESTZ Z=%.3f", delta);
+        spdlog::debug("[ZOffsetCal] Sending: {}", cmd);
+
+        api_->execute_gcode(
+            cmd, []() { spdlog::debug("[ZOffsetCal] TESTZ sent"); },
+            [](const MoonrakerError& err) {
+                spdlog::warn("[ZOffsetCal] TESTZ failed: {}", err.message);
+            });
+        // Z position display is updated by the manual_probe_z_position observer
     }
-
-    // Z position display is updated by the manual_probe_z_position observer
-    // when Klipper reports the new position after processing the TESTZ command
 }
 
 void ZOffsetCalibrationPanel::send_accept() {
-    if (!client_)
+    if (!api_)
         return;
 
-    spdlog::info("[ZOffsetCal] Sending ACCEPT");
-    int result = client_->gcode_script("ACCEPT");
-    if (result != 0) {
-        spdlog::error("[ZOffsetCal] Failed to send ACCEPT (error {})", result);
-        on_calibration_result(false, "Failed to accept calibration");
-        return;
-    }
-
-    // Save the final offset
+    auto strategy = get_printer_state().get_z_offset_calibration_strategy();
     final_offset_ = current_z_;
 
-    // Now save config (this will restart Klipper)
-    set_state(State::SAVING);
+    if (strategy == ZOffsetCalibrationStrategy::GCODE_OFFSET) {
+        // Apply cumulative delta as gcode Z offset
+        set_state(State::SAVING);
+        char cmd[64];
+        snprintf(cmd, sizeof(cmd), "SET_GCODE_OFFSET Z=%.3f", cumulative_z_delta_);
+        spdlog::info("[ZOffsetCal] Applying gcode_offset: {}", cmd);
 
-    spdlog::info("[ZOffsetCal] Sending SAVE_CONFIG");
-    result = client_->gcode_script("SAVE_CONFIG");
-    if (result != 0) {
-        spdlog::error("[ZOffsetCal] Failed to send SAVE_CONFIG (error {})", result);
-        on_calibration_result(false, "Failed to save configuration");
+        api_->execute_gcode(
+            cmd,
+            [this]() {
+                spdlog::info("[ZOffsetCal] SET_GCODE_OFFSET applied successfully");
+                on_calibration_result(true, "");
+            },
+            [this](const MoonrakerError& err) {
+                spdlog::error("[ZOffsetCal] SET_GCODE_OFFSET failed: {}", err.message);
+                on_calibration_result(false, "Failed to set Z-offset");
+            });
+    } else {
+        // Probe/endstop: ACCEPT then SAVE_CONFIG
+        spdlog::info("[ZOffsetCal] Sending ACCEPT");
+        set_state(State::SAVING);
+
+        api_->execute_gcode(
+            "ACCEPT",
+            [this, strategy]() {
+                if (strategy == ZOffsetCalibrationStrategy::ENDSTOP) {
+                    // Endstop needs Z_OFFSET_APPLY_ENDSTOP before SAVE_CONFIG
+                    api_->execute_gcode(
+                        "Z_OFFSET_APPLY_ENDSTOP",
+                        [this]() {
+                            spdlog::info(
+                                "[ZOffsetCal] Z_OFFSET_APPLY_ENDSTOP success, saving config");
+                            api_->execute_gcode(
+                                "SAVE_CONFIG", [this]() { on_calibration_result(true, ""); },
+                                [this](const MoonrakerError& err) {
+                                    on_calibration_result(false, "SAVE_CONFIG failed: " +
+                                                                     err.user_message());
+                                });
+                        },
+                        [this](const MoonrakerError& err) {
+                            on_calibration_result(false, "Z_OFFSET_APPLY_ENDSTOP failed: " +
+                                                             err.user_message());
+                        });
+                } else {
+                    // Probe calibrate: just SAVE_CONFIG
+                    spdlog::info("[ZOffsetCal] Sending SAVE_CONFIG");
+                    api_->execute_gcode(
+                        "SAVE_CONFIG", [this]() { on_calibration_result(true, ""); },
+                        [this](const MoonrakerError& err) {
+                            on_calibration_result(false,
+                                                  "SAVE_CONFIG failed: " + err.user_message());
+                        });
+                }
+            },
+            [this](const MoonrakerError& err) {
+                on_calibration_result(false, "ACCEPT failed: " + err.user_message());
+            });
     }
-    // Note: SAVE_CONFIG restarts Klipper, we need to wait for reconnection
-    // For now, just show complete state
-    on_calibration_result(true, "");
 }
 
 void ZOffsetCalibrationPanel::send_abort() {
-    if (!client_)
+    if (!api_)
         return;
 
-    spdlog::info("[ZOffsetCal] Sending ABORT");
-    client_->gcode_script("ABORT");
+    auto strategy = get_printer_state().get_z_offset_calibration_strategy();
+
+    if (strategy == ZOffsetCalibrationStrategy::GCODE_OFFSET) {
+        // Retract nozzle without applying any offset
+        spdlog::info("[ZOffsetCal] Aborting gcode_offset mode, retracting");
+        api_->execute_gcode(
+            "G90\nG1 Z5 F1000", []() { spdlog::info("[ZOffsetCal] Retracted after abort"); },
+            [](const MoonrakerError& err) {
+                spdlog::warn("[ZOffsetCal] Retract failed: {}", err.message);
+            });
+    } else {
+        spdlog::info("[ZOffsetCal] Sending ABORT");
+        api_->execute_gcode(
+            "ABORT", []() { spdlog::info("[ZOffsetCal] Aborted"); },
+            [](const MoonrakerError& err) {
+                spdlog::warn("[ZOffsetCal] ABORT failed: {}", err.message);
+            });
+    }
 
     set_state(State::IDLE);
 }
@@ -386,16 +514,13 @@ void ZOffsetCalibrationPanel::send_abort() {
 void ZOffsetCalibrationPanel::handle_start_clicked() {
     spdlog::debug("[ZOffsetCal] Start clicked");
     set_state(State::PROBING);
-    send_probe_calibrate();
-
-    // State transition from PROBING -> ADJUSTING is now handled by the
-    // manual_probe_active observer when Klipper reports is_active=true
+    start_calibration();
 }
 
 void ZOffsetCalibrationPanel::handle_z_adjust(float delta) {
     if (state_ != State::ADJUSTING)
         return;
-    send_testz(delta);
+    adjust_z(delta);
 }
 
 void ZOffsetCalibrationPanel::handle_accept_clicked() {
@@ -552,7 +677,6 @@ static std::unique_ptr<ZOffsetCalibrationPanel> g_zoffset_cal_panel;
 
 // Forward declarations
 static void on_zoffset_row_clicked(lv_event_t* e);
-MoonrakerClient* get_moonraker_client();
 
 ZOffsetCalibrationPanel& get_global_zoffset_cal_panel() {
     if (!g_zoffset_cal_panel) {
@@ -598,7 +722,7 @@ static void on_zoffset_row_clicked(lv_event_t* e) {
     // Lazy-create the Z-Offset calibration panel
     if (!overlay.get_root()) {
         overlay.init_subjects();
-        overlay.set_client(get_moonraker_client());
+        overlay.set_api(get_moonraker_api());
         overlay.create(lv_display_get_screen_active(nullptr));
     }
 

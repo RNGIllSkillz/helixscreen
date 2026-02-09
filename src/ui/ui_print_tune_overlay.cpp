@@ -512,6 +512,17 @@ void PrintTuneOverlay::handle_z_farther() {
 }
 
 void PrintTuneOverlay::handle_save_z_offset() {
+    // gcode_offset strategy auto-persists via firmware macro
+    if (printer_state_) {
+        auto strategy = printer_state_->get_z_offset_calibration_strategy();
+        if (strategy == ZOffsetCalibrationStrategy::GCODE_OFFSET) {
+            spdlog::debug(
+                "[PrintTuneOverlay] Z-offset auto-saved by firmware (gcode_offset strategy)");
+            ui_toast_show(ToastSeverity::INFO, lv_tr("Z-offset is auto-saved by firmware"), 3000);
+            return;
+        }
+    }
+
     // Show warning modal - SAVE_CONFIG restarts Klipper and cancels active prints!
     save_z_offset_modal_.set_on_confirm([this]() {
         if (api_) {
