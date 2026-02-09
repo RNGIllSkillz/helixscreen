@@ -906,3 +906,47 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     tm.remove_sent_events(100);
     REQUIRE(tm.queue_size() == 0);
 }
+
+// ============================================================================
+// Auto-send Scheduler [telemetry][scheduler]
+// ============================================================================
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Scheduler: start_auto_send creates timer",
+                 "[telemetry][scheduler]") {
+    auto& tm = TelemetryManager::instance();
+
+    // Should not crash when called
+    tm.start_auto_send();
+
+    // Calling again should be safe (idempotent)
+    tm.start_auto_send();
+
+    // Stop should clean up
+    tm.stop_auto_send();
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Scheduler: stop_auto_send is safe when no timer",
+                 "[telemetry][scheduler]") {
+    auto& tm = TelemetryManager::instance();
+
+    // Should not crash when called without start
+    tm.stop_auto_send();
+    tm.stop_auto_send(); // Double-stop should be safe
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Scheduler: shutdown stops auto-send",
+                 "[telemetry][scheduler]") {
+    auto& tm = TelemetryManager::instance();
+    tm.start_auto_send();
+
+    // Shutdown should stop the timer and not crash
+    tm.shutdown();
+
+    // Re-init for fixture cleanup
+    tm.init(temp_dir().string());
+}
+
+TEST_CASE("Scheduler: constants have expected values", "[telemetry][scheduler]") {
+    REQUIRE(TelemetryManager::INITIAL_SEND_DELAY_MS == 60000);
+    REQUIRE(TelemetryManager::AUTO_SEND_INTERVAL_MS == 3600000);
+}

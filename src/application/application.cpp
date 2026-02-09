@@ -275,6 +275,7 @@ int Application::run(int argc, char** argv) {
 
     // Initialize TelemetryManager (opt-in, default OFF)
     TelemetryManager::instance().init();
+    TelemetryManager::instance().record_session();
 
     // Phase 9c: Initialize panel subjects with API injection
     // Panels receive API at construction - no deferred set_api() needed
@@ -1478,6 +1479,9 @@ bool Application::connect_moonraker() {
 
     // Initialize action prompt system (Klipper action:prompt protocol)
     init_action_prompt();
+
+    // Start telemetry auto-send timer (periodic try_send)
+    TelemetryManager::instance().start_auto_send();
 
     return true;
 }

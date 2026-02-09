@@ -229,6 +229,25 @@ class TelemetryManager {
     // =========================================================================
 
     /**
+     * @brief Start periodic auto-send timer
+     *
+     * Creates an LVGL timer that calls try_send() periodically.
+     * First call is delayed by INITIAL_SEND_DELAY to let the app settle.
+     * Subsequent calls happen every AUTO_SEND_INTERVAL.
+     *
+     * Must be called from the LVGL thread.
+     */
+    void start_auto_send();
+
+    /**
+     * @brief Stop periodic auto-send timer
+     *
+     * Deletes the LVGL timer. Safe to call if timer is not active.
+     * Must be called from the LVGL thread.
+     */
+    void stop_auto_send();
+
+    /**
      * @brief Attempt to send queued events to the telemetry endpoint
      *
      * Sends up to MAX_BATCH_SIZE events in a single HTTPS POST.
@@ -342,6 +361,12 @@ class TelemetryManager {
 
     /** @brief Maximum number of events in the queue before oldest are dropped */
     static constexpr size_t MAX_QUEUE_SIZE = 100;
+
+    /** @brief Delay before first auto-send attempt after startup */
+    static constexpr uint32_t INITIAL_SEND_DELAY_MS = 60 * 1000; // 60 seconds
+
+    /** @brief Interval between auto-send attempts */
+    static constexpr uint32_t AUTO_SEND_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
     /** @brief Schema version for event JSON structure */
     static constexpr int SCHEMA_VERSION = 1;
@@ -510,4 +535,10 @@ class TelemetryManager {
 
     /// Background thread for HTTP POST
     std::thread send_thread_;
+
+    /// LVGL timer for periodic auto-send (nullptr when not active)
+    lv_timer_t* auto_send_timer_{nullptr};
+
+    /// Whether the initial delay has fired (switches to normal interval after)
+    bool auto_send_initial_fired_{false};
 };

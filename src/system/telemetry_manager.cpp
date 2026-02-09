@@ -321,6 +321,9 @@ void TelemetryManager::shutdown() {
     spdlog::info("[TelemetryManager] Shutting down...");
     shutting_down_.store(true);
 
+    // Stop auto-send timer first
+    stop_auto_send();
+
     // Persist queue to disk
     save_queue();
 
@@ -531,6 +534,49 @@ void TelemetryManager::do_send(const nlohmann::json& batch) {
     } catch (const std::exception& e) {
         spdlog::error("[TelemetryManager] Send exception: {}", e.what());
         backoff_multiplier_ = std::min(backoff_multiplier_ * 2, 7);
+    }
+}
+
+// =============================================================================
+// Auto-send Scheduler
+// =============================================================================
+
+void TelemetryManager::start_auto_send() {
+    if (auto_send_timer_) {
+        spdlog::debug("[TelemetryManager] Auto-send timer already running");
+        return;
+    }
+
+    auto_send_initial_fired_ = false;
+
+    auto_send_timer_ = lv_timer_create(
+        [](lv_timer_t* timer) {
+            auto* self = static_cast<TelemetryManager*>(lv_timer_get_user_data(timer));
+            if (!self)
+                return;
+
+            // After the initial delay fires, switch to the normal hourly interval
+            if (!self->auto_send_initial_fired_) {
+                self->auto_send_initial_fired_ = true;
+                lv_timer_set_period(timer, AUTO_SEND_INTERVAL_MS);
+            }
+
+            if (self->is_enabled()) {
+                spdlog::debug("[TelemetryManager] Auto-send timer fired");
+                self->try_send();
+            }
+        },
+        INITIAL_SEND_DELAY_MS, this);
+
+    spdlog::info("[TelemetryManager] Auto-send timer started (initial delay: {}s, interval: {}s)",
+                 INITIAL_SEND_DELAY_MS / 1000, AUTO_SEND_INTERVAL_MS / 1000);
+}
+
+void TelemetryManager::stop_auto_send() {
+    if (auto_send_timer_) {
+        lv_timer_delete(auto_send_timer_);
+        auto_send_timer_ = nullptr;
+        spdlog::info("[TelemetryManager] Auto-send timer stopped");
     }
 }
 
