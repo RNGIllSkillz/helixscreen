@@ -10,23 +10,22 @@
   <!-- Filament Management Panel -->
   <!-- Two-column layout: left (temp status + AMS), right (material + operations) -->
   <view name="filament_panel"
-        extends="lv_obj" width="100%" height="100%" style_border_width="0" style_pad_all="#space_lg" scrollable="false"
-        flex_flow="row" style_flex_cross_place="start" style_pad_gap="#space_lg" style_bg_color="#screen_bg">
+        extends="lv_obj" width="100%" height="100%" style_border_width="0" style_pad_all="#space_md" scrollable="false"
+        flex_flow="row" style_flex_cross_place="start" style_pad_gap="#space_md" style_bg_color="#screen_bg">
     <!-- ================================================================== -->
     <!-- LEFT COLUMN: Temperature Status & AMS                              -->
     <!-- ================================================================== -->
     <lv_obj name="left_column"
             width="40%" height="100%" style_pad_all="0" scrollable="false"
-            flex_flow="column" style_flex_main_place="space_between" style_pad_gap="#space_lg">
+            flex_flow="column" style_flex_main_place="space_between" style_pad_gap="#space_md">
       <!-- TOP GROUP: Temperature displays -->
       <lv_obj name="temp_group"
               width="100%" flex_grow="1" style_pad_all="0" scrollable="false"
-              flex_flow="column" style_flex_main_place="start" style_pad_gap="#space_lg">
+              flex_flow="column" style_flex_main_place="start" style_pad_gap="#space_md">
         <!-- Temperature Status Card - shows both nozzle and bed -->
         <ui_card name="temp_status_card"
                  width="100%" style_pad_all="#space_lg"
-                 flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start"
-                 style_pad_gap="#space_md">
+                 flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start">
           <!-- Header -->
           <text_body text="Temperature" translation_tag="Temperature" align="left_mid"/>
           <!-- Nozzle Row: Current / Target (entire row tappable) -->
