@@ -1,18 +1,30 @@
 locale: ru
 translations:
+  ' / ': ' / '
+  ' 0 / 0': ' 0 / 0'
+  ' elapsed · ': ' elapsed · '
+  ' left': ' left'
   (0): (0)
   (2.4GHz): (2.4GHz)
-  +0.01mm: +0.01мм
-  +0.05mm: +0.05мм
-  +0.1mm: +0.1мм
-  +1mm: +1мм
+  +: '+'
+  '+.005': '+.005'
+  '+.01': '+.01'
+  '+.05': '+.05'
+  '+.1': '+.1'
+  '+0': '+0'
+  '+1': '+1'
+  '-': '-'
   "- Check [resonance_tester] in printer.cfg": "- Проверьте [resonance_tester] в printer.cfg"
   "- Ensure ADXL345 is connected": "- Убедитесь, что ADXL345 подключен"
   "- Try Measure Noise first": "- Сначала попробуйте измерить шум"
-  -0.01mm: -0.01мм
-  -0.05mm: -0.05мм
-  -0.1mm: -0.1мм
-  -1mm: -1мм
+  --: '--'
+  '---': '---'
+  '-.005': '-.005'
+  '-.01': '-.01'
+  '-.05': '-.05'
+  '-.1': '-.1'
+  '-1': '-1'
+  /: '/'
   "0.4-2mm direct drive, 4-6mm bowden": "0.4-2мм прямой привод, 4-6мм боуден"
   "1. Printer homes and probes the bed": "1. Принтер паркуется и зондирует стол"
   "1. Printer will home and probe each screw": "1. Принтер запаркуется и проверит каждый винт"
@@ -37,21 +49,21 @@ translations:
   850g: 850г
   "= Loosen": "= Ослабить"
   "= Tighten": "= Затянуть"
-  "ABOUT": "О ПРОГРАММЕ"
+  '?': '?'
   "ABS": "ABS"
   "AMS Settings": "Настройки AMS"
   "APPEARANCE": "ВНЕШНИЙ ВИД"
   "AUTOMATION": "АВТОМАТИЗАЦИЯ"
   "Abort": "Прервать"
-  "About": "О программе"
+  About HelixScreen: 'О HelixScreen'
   "Accel to Decel": "Ускорение к торможению"
   "Acceleration to deceleration limit (mm/s²)": "Предел ускорения к торможению (мм/с²)"
   "Accelerometers": "Акселерометры"
   "Accept": "Принять"
+  'Accepted Z Position: 0.000': 'Принятая позиция Z: 0.000'
   "Action Required": "Требуется действие"
   "Actions": "Действия"
   "Active": "Активно"
-  "Actual": "Текущая"
   "Add Hidden Network": "Добавить скрытую сеть"
   "Adjust screen brightness level": "Настроить уровень яркости экрана"
   "Adjust screws, then re-probe.": "Отрегулируйте винты, затем перепроверьте."
@@ -59,8 +71,8 @@ translations:
   "Advanced Setting": "Расширенные настройки"
   "All": "Все"
   "All screws are within tolerance.": "Все винты в пределах допуска."
+  Allow display to sleep during active prints: 'Разрешить спящий режим дисплея во время печати'
   Allwinner: Allwinner
-  "Amount:": "Количество:"
   "An accelerometer was detected on your printer.": "На вашем принтере обнаружен акселерометр."
   "An error occurred during calibration.": "Во время калибровки произошла ошибка."
   "An error occurred during probing.": "Во время зондирования произошла ошибка."
@@ -84,6 +96,7 @@ translations:
   "Automatically poll Spoolman for weight updates": "Автоматически опрашивать Spoolman для обновления веса"
   "Available Networks": "Доступные сети"
   "Available networks": "Доступные сети"
+  BETA: 'BETA'
   "Back": "Назад"
   "Backup": "Резервная копия"
   "Bed": "Стол"
@@ -97,6 +110,7 @@ translations:
   "Bed is Level!": "Стол выровнен!"
   "Bed °C": "Стол °C"
   "Bed:": "Стол:"
+  Beta features are enabled: 'Beta-функции включены'
   Black: Чёрный
   "Bluetooth": "Bluetooth"
   "Body text supports longer guidance while staying readable.": "Основной текст поддерживает развёрнутые инструкции, оставаясь читаемым."
@@ -106,33 +120,30 @@ translations:
   "Border transparency (0 = invisible, 255 = solid)": "Прозрачность границы (0 = невидимая, 255 = сплошная)"
   "Brightness": "Яркость"
   "Browse": "Обзор"
-  "Busy": "Занят"
   "Bypass": "Обход"
   "Bypass Mode": "Режим обхода"
   "CALIBRATION": "КАЛИБРОВКА"
   "CHANGED FROM LAST SESSION": "ИЗМЕНЕНО С ПРОШЛОЙ СЕССИИ"
   "COLORS REQUIRED": "ТРЕБУЕМЫЕ ЦВЕТА"
   "CRITICAL": "КРИТИЧНО"
-  "Calibrate": "Калибровать"
   "Calibrate X": "Калибровать X"
   "Calibrate Y": "Калибровать Y"
   "Calibrate resonance compensation": "Калибровка компенсации резонанса"
-  "Calibrate input shaping to reduce ringing artifacts in prints": "Калибровка компенсации вибраций для уменьшения артефактов (звона) при печати"
-  "Calibrate your touchscreen for accurate input": "Калибровка сенсорного экрана для точного ввода"
   "Calibrating...": "Калибровка..."
   "Calibration": "Калибровка"
-  "Calibration &amp; Tools": "Калибровка и инструменты"
+  Calibration & Tools: 'Калибровка и инструменты'
   "Calibration Complete!": "Калибровка завершена!"
   "Calibration Failed": "Ошибка калибровки"
   "Cancel": "Отмена"
   "Cancel Print": "Отменить печать"
   Cancelled: Отменено
-  "Chamber": "Камера"
   "Chamber Fan": "Вентилятор камеры"
   "Chamber and dryer humidity monitoring": "Мониторинг влажности камеры и сушилки"
   "Chamber:": "Камера:"
+  Change Printer Host: 'Изменить хост принтера'
   "Changes apply immediately. Adjust during print for tuning.": "Изменения применяются немедленно. Корректируйте во время печати."
   "Changes are temporary and reset on printer reboot": "Изменения временные и сбрасываются при перезагрузке принтера"
+  Check for Updates: 'Проверить обновления'
   "Check the filament path and try again.": "Проверьте путь филамента и попробуйте снова."
   Checking slots...: Проверка слотов...
   "Choose 12-hour or 24-hour time display": "Выберите 12-часовой или 24-часовой формат времени"
@@ -146,38 +157,29 @@ translations:
   "Clear Assignment": "Очистить назначение"
   Clipboard unavailable - use SSH: Буфер обмена недоступен - используйте SSH
   "Close": "Закрыть"
+  Closer: 'Ближе'
   "Closer = more squish | Farther = less squish": "Ближе = больше сжатие | Дальше = меньше сжатие"
   "Color Sensors": "Датчики цвета"
   "Complete": "Завершено"
   Completed: Завершено
+  Completed in 3 probes: 'Завершено за 3 замера'
   "Config-defined (read-only)": "Определено в конфигурации (только чтение)"
   "Configure G10/G11 firmware retraction": "Настроить аппаратный ретракт G10/G11"
   "Configure PRINT_START": "Настроить PRINT_START"
   "Configure Spoolman integration and weight sync settings.": "Настройте интеграцию со Spoolman и синхронизацию веса."
   "Configure devices in Moonraker": "Настроить устройства в Moonraker"
   "Configure filament detection sensors": "Настроить датчики обнаружения филамента"
-  "Configure WiFi for this device, or skip if you're using Ethernet": "Настройте WiFi для этого устройства или пропустите, если используете Ethernet"
   "Configure quick buttons and standard macros": "Настроить быстрые кнопки и стандартные макросы"
-  "Configure your printer's cooling fans": "Настройте вентиляторы охлаждения вашего принтера"
   "Configure timelapse recording": "Настроить запись таймлапса"
   "Connect": "Подключить"
   "Connected": "Подключен"
-  "Connecting": "Подключение"
   "Connecting to network...": "Подключение к сети..."
   "Connecting...": "Подключение..."
   "Connection": "Соединение"
-  "Connection successful!": "Подключение успешно!"
   Connection failed. Check password.: Ошибка подключения. Проверьте пароль.
-  "Connected (%s)": "Подключено (%s)"
-  "Connected (no discovery)": "Подключено (без обнаружения)"
-  "Connected!": "Подключено!"
-  "Connected! Discovering printer...": "Подключено! Обнаружение принтера..."
-  "Connected, discovering...": "Подключено, обнаружение..."
-  "Connection must be tested successfully to continue": "Для продолжения соединение должно быть успешно проверено"
   "Console": "Консоль"
   "Control optional print start features": "Управление дополнительными функциями начала печати"
   "Cool Down": "Охладить"
-  "Cooldown": "Охлаждение"
   "Cooling": "Охлаждение"
   "Copy Command": "Копировать команду"
   "Corner roundness (0 = sharp, 40 = very round)": "Скругление углов (0 = острые, 40 = очень круглые)"
@@ -185,6 +187,7 @@ translations:
   Current / Target: Текущая / Цель
   "Current Mesh": "Текущая сетка"
   "Current Temperature": "Текущая температура"
+  Current Version: 'Текущая версия'
   "Current Z Position": "Текущая позиция Z"
   "Current name:": "Текущее имя:"
   "Currently Loaded": "Сейчас загружен"
@@ -196,26 +199,27 @@ translations:
   "Danger": "Опасность"
   "Dark Mode": "Тёмный режим"
   "Day": "День"
+  Default (value=50): 'Default (value=50)'
   "Default border thickness": "Толщина границы по умолчанию"
   "Define macros in your printer.cfg": "Определите макросы в вашем printer.cfg"
   "Delete": "Удалить"
-  "Detecting printer type...": "Определение типа принтера..."
   "Delta:": "Дельта:"
+  Deutsch: 'Deutsch'
   "Device Operations": "Операции с устройством"
   "Disable": "Отключить"
   "Discovered Printers": "Обнаруженные принтеры"
   "Dismiss": "Отклонить"
-  "Display": "Дисплей"
   "Display Settings": "Настройки дисплея"
   "Display Sleep": "Спящий режим экрана"
+  Do not power off your printer.: 'Не выключайте принтер.'
   "Don't Save": "Не сохранять"
   "Don't ask again": "Больше не спрашивать"
   "Done": "Готово"
+  Downloading...: 'Загрузка...'
   "Drop shadow strength (0 = disabled)": "Интенсивность тени (0 = отключено)"
   "Dryer": "Сушилка"
   "Dryer Control": "Управление сушилкой"
   "Duration": "Длительность"
-  "E-Stop": "Экстренный стоп"
   "E-Stop Confirmation": "Подтверждение аварийной остановки"
   "EMERGENCY CONTROLS": "АВАРИЙНОЕ УПРАВЛЕНИЕ"
   "EMERGENCY STOP": "АВАРИЙНАЯ ОСТАНОВКА"
@@ -225,7 +229,6 @@ translations:
   "Edit Slot 1": "Редактировать слот 1"
   "Edit Theme Colors": "Редактировать цвета темы"
   Edit Theme Colors (Modified): Редактировать цвета темы (изменено)
-  "Elapsed": "Прошло"
   "Emergency Stop": "Аварийная остановка"
   "Emergency Stop (M112)": "Аварийная остановка (M112)"
   "Emergency Stop?": "Аварийная остановка?"
@@ -242,28 +245,25 @@ translations:
   "Enable detailed print preparation tracking (Recommended)": "Включить детальное отслеживание подготовки к печати (рекомендуется)"
   "Enabled": "Включено"
   "Ended": "Завершено"
+  English: 'English'
   "Enhancement Complete!": "Улучшение завершено!"
   "Enhancement Failed": "Ошибка улучшения"
-  "Enter 127.0.0.1 if Moonraker is local, or the hostname/IP of a remote printer": "127.0.0.1 если локально, или hostname/IP"
-  "Enter G-code command...": "Введите G-code команду..."
   "Enter WiFi Password": "Введите пароль WiFi"
   "Enter a name for your custom theme:": "Введите название для вашей темы:"
   "Enter a name to save this profile": "Введите имя для сохранения профиля"
-  "Enter network name": "Введите название сети"
   "Enter password": "Введите пароль"
   "Error": "Ошибка"
   Error state: Состояние ошибки
+  Español: 'Español'
   "Ethernet": "Ethernet"
   "Exclude": "Исключить"
+  Excluded: 'Исключён'
   "Execute printer macros": "Выполнить макросы принтера"
   "Exhaust Fan": "Вытяжной вентилятор"
   "Explore how the selected palette shapes text, controls, and status colors.": "Изучите, как выбранная палитра влияет на текст, элементы управления и цвета статуса."
   "Explore palette and preview": "Изучить палитру и предпросмотр"
   "Extra prime to compensate ooze": "Дополнительная подача для компенсации вытекания"
-  "Extrude": "Экструдировать"
-  "Extrude / Retract": "Экструзия / Ретракт"
   Extruder: Экструдер
-  "Extruder PID Tuning": "PID-настройка экструдера"
   "Extruder heats automatically based on material": "Экструдер нагревается автоматически в зависимости от материала"
   "Extrusion rate": "Скорость экструзии"
   "FAILED": "ОШИБКА"
@@ -271,6 +271,7 @@ translations:
   "Factory Reset": "Сброс к заводским настройкам"
   Failed: Ошибка
   Failed to save theme file: Не удалось сохранить файл темы
+  Farther: 'Дальше'
   "Feed filament directly to extruder": "Подать филамент напрямую в экструдер"
   "Filament": "Филамент"
   "Filament Sensor": "Датчик филамента"
@@ -283,14 +284,14 @@ translations:
   "File": "Файл"
   "File Info": "Информация о файле"
   "Filename": "Имя файла"
-  "Finish": "Завершить"
-  "Files": "Файлы"
   "Fill: 100% / 75% / 40% / 10%": "Заполнение: 100% / 75% / 40% / 10%"
+  "Finish": "Завершить"
   "Firmware Restart": "Перезапуск прошивки"
   "Flat Concentric Rings (existing ams_slot)": "Плоские концентрические кольца (существующий ams_slot)"
   "Flow Rate": "Скорость потока"
   Forming tip...: Формирование кончика...
   "Framerate": "Частота кадров"
+  Français: 'Français'
   "Freq": "Частота"
   "Front": "Спереди"
   "G-code Console": "Консоль G-code"
@@ -309,7 +310,6 @@ translations:
   : "Подготовьте инструмент для регулировки стола (отвёртку, шестигранник и т.д.), если стол не регулируется                              барашками или другим встроенным механизмом."
   "Heading": "Заголовок"
   "Heat Soak": "Прогрев"
-  "Heat to 170°C to extrude": "Нагрейте до 170°C для экструзии"
   "Heatbed Temperature": "Температура стола"
   "Heated Bed": "Подогреваемый стол"
   Heating...: Нагрев...
@@ -317,15 +317,12 @@ translations:
   "HelixScreen will integrate with your filament changer for multi-spool/color print operations.": "HelixScreen интегрируется с вашим сменщиком филамента для многокатушечной/многоцветной печати."
   "Higher = faster": "Выше = быстрее"
   "Home": "Главная"
-  "Home All": "Домой все"
-  "Home X": "Домой X"
-  "Home Y": "Домой Y"
-  "Home Z": "Домой Z"
   "Horizontal Progress (Leveling Wizard)": "Горизонтальный прогресс (мастер выравнивания)"
   "Host": "Хост"
   "Hotend": "Хотенд"
   "Hotend Fan": "Вентилятор хотенда"
   "Hotend Heater": "Нагреватель хотенда"
+  How Z-axis movement is displayed: 'Как отображается движение по оси Z'
   "How often to check Spoolman for weight updates": "Как часто проверять Spoolman на обновления веса"
   "Humidity": "Влажность"
   "Humidity Sensors": "Датчики влажности"
@@ -334,14 +331,15 @@ translations:
   "Ignore": "Игнорировать"
   In Progress: В процессе
   Indexing G-code...: Индексация G-code...
-  "Initializing...": "Инициализация..."
   "Input": "Ввод"
   "Input Shaper": "Компенсатор вибраций"
   "Input Shaping": "Компенсация вибраций"
   "Input shaper calibration sensors": "Датчики калибровки компенсатора вибраций"
   "Input shaping reduces vibration artifacts (ringing) in your prints.": "Компенсация вибраций уменьшает артефакты вибрации (звон) в ваших отпечатках."
+  Install: 'Установить'
   "Install HelixPrint Plugin": "Установить плагин HelixPrint"
   "Install Plugin": "Установить плагин"
+  Install Update: 'Установить обновление'
   "Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:": "Установите плагин HelixPrint для быстрой модификации G-code. Выполните эту команду через SSH на вашем принтере:"
   Installation Failed: Ошибка установки
   "Installation takes about 30 seconds.": "Установка занимает около 30 секунд."
@@ -350,6 +348,7 @@ translations:
   "Interactive 3D G-code during prints": "Интерактивный 3D G-code во время печати"
   "Interactive probe calibration": "Интерактивная калибровка зонда"
   "Issue description": "Описание проблемы"
+  Italiano: 'Italiano'
   Just now: Только что
   "Kd:": "Kd:"
   "Keep Printing": "Продолжить печать"
@@ -366,11 +365,9 @@ translations:
   "LED on at Start": "Включать LED при старте"
   "LOADED": "ЗАГРУЖЕН"
   "Language": "Язык"
-  "Last 7 days": "Последние 7 дней"
   Last print cancelled: Последняя печать отменена
   Last print failed: Последняя печать не удалась
   "Later": "Позже"
-  "Layer": "Слой"
   "Layer Height": "Высота слоя"
   "Layer mode captures one frame per layer change. Best for most prints.": "Послойный режим захватывает один кадр на каждую смену слоя. Лучший выбор для большинства печатей."
   "Layer:": "Слой:"
@@ -389,6 +386,7 @@ translations:
   Locked during print: Заблокировано во время печати
   "M to toggle": "M для переключения"
   'MAC:': 'MAC:'
+  MCU, host, and auxiliary temperature monitoring: 'Мониторинг температуры MCU, хоста и вспомогательных датчиков'
   "MDI Icons": "Иконки MDI"
   "MISSING CONFIGURED": "ОТСУТСТВУЕТ НАСТРОЕННОЕ"
   "MOTION": "ДВИЖЕНИЕ"
@@ -406,6 +404,7 @@ translations:
   "Macro to resume a paused print": "Макрос для возобновления приостановленной печати"
   "Macro to unload filament from extruder": "Макрос для выгрузки филамента из экструдера"
   "Macros": "Макросы"
+  Main LED: 'Основной LED'
   "Main LED Strip": "Основная LED-лента"
   "Make Optional": "Сделать опциональным"
   "Make bed mesh and QGL skippable": "Сделать сетку стола и QGL пропускаемыми"
@@ -430,15 +429,12 @@ translations:
   "Motion": "Движение"
   "Motion: XYZ": "Движение: XYZ"
   "Motors Off": "Отключить моторы"
-  "Move": "Движение"
   "Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.": "Двигайте бумагу вперёд-назад во время регулировки. Остановитесь, когда бумага слегка цепляется, но ещё скользит."
   "Movement speed": "Скорость движения"
   "Multi-Filament": "Мульти-филамент"
   "Multi-Material": "Мульти-материал"
-  "Multi-Material System Detected": "Обнаружена мульти-материальная система"
   "My Custom Theme": "Моя тема"
   "My Panel": "Моя панель"
-  "My Printer": "Мой принтер"
   "NEWLY DISCOVERED": "НЕДАВНО ОБНАРУЖЕНО"
   "NOTIFICATIONS": "УВЕДОМЛЕНИЯ"
   "Name": "Название"
@@ -447,9 +443,8 @@ translations:
   "Network Name (SSID)": "Название сети (SSID)"
   "Network Settings": "Сетевые настройки"
   "Network Test": "Тест сети"
-  "Never": "Никогда"
   "New PID Values": "Новые значения PID"
-  'New Z-Offset: 0.000': 'Новое Z-смещение: 0.000'
+  New Version Available: 'Доступна новая версия'
   "New profile name": "Новое имя профиля"
   "Next": "Далее"
   "No AMS system connected.": "AMS-система не подключена."
@@ -462,7 +457,6 @@ translations:
   "No mesh loaded": "Сетка не загружена"
   "No networks found": "Сети не найдены"
   "No notifications": "Нет уведомлений"
-  "No printers found": "Принтеры не найдены"
   "No plugins found": "Плагины не найдены"
   "No preview": "Нет предпросмотра"
   "No print history yet": "Истории печати пока нет"
@@ -471,23 +465,19 @@ translations:
   "No sensors detected": "Датчики не обнаружены"
   "No spools available": "Катушки недоступны"
   "Not Now": "Не сейчас"
-  "Not configured": "Не настроено"
   "Not connected": "Не подключен"
   "Notifications": "Уведомления"
   "Notify when print finishes": "Уведомить о завершении печати"
   "Nozzle": "Сопло"
   "Nozzle Priming": "Подготовка сопла"
-  "Nozzle Temp": "Темп. сопла"
   "Nozzle Temperature": "Температура сопла"
   "Nozzle °C": "Сопло °C"
   "Nozzle:": "Сопло:"
   "OK": "OK"
+  OS: 'OS'
   "Off": "Выкл"
-  "Offline": "Не в сети"
-  "of": "из"
   "On": "Вкл"
   "Open": "Открыть"
-  "Optional - select your main lighting source, or skip if your printer doesn't have one": "Опционально - выберите основной источник освещения или пропустите, если у принтера его нет"
   "Operations": "Операции"
   "Optimize Your Printing": "Оптимизируйте вашу печать"
   "Or Enter Manually": "Или введите вручную"
@@ -518,12 +508,11 @@ translations:
   "Plugins are discovered on application startup": "Плагины обнаруживаются при запуске приложения"
   "Polymaker": "Polymaker"
   "Port": "Порт"
+  Português: 'Português'
   "Position": "Позиция"
   "Power": "Питание"
   "Power Control": "Управление питанием"
-  "Preheat": "Прогрев"
   "Preparing Print": "Подготовка печати"
-  "Preparing...": "Подготовка..."
   "Presets": "Пресеты"
   "Previous": "Назад"
   "Primary": "Основной"
@@ -533,28 +522,18 @@ translations:
   "Print Complete!": "Печать завершена!"
   "Print Completion Alert": "Уведомление о завершении печати"
   "Print Details": "Детали печати"
+  Print Failed: 'Печать не удалась'
   "Print File": "Файл печати"
   "Print Files": "Файлы печати"
   "Print History": "История печати"
   "Print Hours": "Часы печати"
+  Print Objects: 'Объекты печати'
   "Print Speed": "Скорость печати"
   "Print Status": "Статус печати"
   "Print Time": "Время печати"
   "Print Tuning": "Настройка печати"
   "Printer": "Принтер"
   "Printer Name": "Название принтера"
-  "Printer Setup: Connection": "Настройка принтера: Соединение"
-  "Printer Setup: Fans": "Настройка принтера: Вентиляторы"
-  "Printer Setup: Filament Sensor": "Настройка принтера: Датчик филамента"
-  "Printer Setup: Heaters": "Настройка принтера: Нагреватели"
-  "Printer Setup: Identity": "Настройка принтера: Идентификация"
-  "Printer Setup: Input Shaping": "Настройка принтера: Компенсация вибраций"
-  "Printer Setup: Language": "Настройка принтера: Язык"
-  "Printer Setup: LEDs": "Настройка принтера: Светодиоды"
-  "Printer Setup: Network": "Настройка принтера: Сеть"
-  "Printer Setup: Review": "Настройка принтера: Обзор"
-  "Printer Setup: Touch Calibration": "Настройка принтера: Калибровка касания"
-  "Printer Setup: Z Probe": "Настройка принтера: Z-зонд"
   "Printer Shutdown": "Остановка принтера"
   "Printer Type": "Тип принтера"
   "Printing": "Печать"
@@ -567,14 +546,10 @@ translations:
   "Probing Bed Screws...": "Проверка винтов стола..."
   "Probing Bed...": "Зондирование стола..."
   "Probing Failed": "Ошибка зондирования"
-  "Processing...": "Обработка..."
-  "Profile": "Профиль"
   "Profile name (e.g., default)": "Имя профиля (например, default)"
   "Profiles": "Профили"
-  "Progress": "Прогресс"
   "Progress Bar Tests": "Тесты прогресс-бара"
   "Purge": "Продуть"
-  "Purge 50mm": "Продуть 50мм"
   "QUICK BUTTONS": "БЫСТРЫЕ КНОПКИ"
   "Quad Gantry Level": "Выравнивание портала"
   "Quick Actions": "Быстрые действия"
@@ -591,7 +566,6 @@ translations:
   "Recording Mode": "Режим записи"
   "Recover": "Восстановить"
   "Reduce Ringing": "Уменьшить звон"
-  "Refresh": "Обновить"
   "Refresh Interval": "Интервал обновления"
   "Remaining": "Осталось"
   "Remove plugin from printer": "Удалить плагин с принтера"
@@ -602,7 +576,6 @@ translations:
   "Requires Moonraker-Timelapse plugin": "Требуется плагин Moonraker-Timelapse"
   "Reset": "Сброс"
   Reset Speed & Flow to 100%: Сбросить скорость и поток на 100%
-  "Reset Speed &amp; Flow to 100%": "Сбросить скорость и поток на 100%"
   "Reset all settings and restart wizard": "Сбросить все настройки и перезапустить мастер"
   Resetting...: Сброс...
   "Resonance compensation tuning": "Настройка компенсации резонанса"
@@ -613,14 +586,12 @@ translations:
   "Restart the display application": "Перезапустить приложение дисплея"
   "Resume": "Продолжить"
   "Resume Print": "Продолжить печать"
-  "Retract": "Втянуть"
   "Retract Length": "Длина ретракта"
   "Retract Speed": "Скорость ретракта"
   "Retraction Settings": "Настройки ретракта"
   "Retry": "Повторить"
   "Review detected hardware validation issues": "Просмотр обнаруженных проблем валидации оборудования"
   "Review your changes": "Просмотр ваших изменений"
-  "Review your configuration below, then click Finish to save": "Просмотрите конфигурацию ниже, затем нажмите Готово для сохранения"
   "Role:": "Роль:"
   "Runout Sensor": "Датчик окончания"
   "STANDARD MACROS": "СТАНДАРТНЫЕ МАКРОСЫ"
@@ -629,7 +600,6 @@ translations:
   "SYSTEM": "СИСТЕМА"
   "Save": "Сохранить"
   Save & Restart: Сохранить и перезапустить
-  "Save &amp; Restart": "Сохранить и перезапустить"
   "Save As New": "Сохранить как новый"
   "Save Config": "Сохранить конфигурацию"
   "Save Printer Configuration": "Сохранить конфигурацию принтера"
@@ -637,6 +607,7 @@ translations:
   "Save Z-Offset": "Сохранить Z-смещение"
   "Save Z-Offset?": "Сохранить Z-смещение?"
   "Save changes to persist them across restarts?": "Сохранить изменения, чтобы они сохранились после перезапуска?"
+  Saved Z-Offset: 'Сохранённый Z-Offset'
   "Saving Configuration...": "Сохранение конфигурации..."
   "Saving will restart Klipper and CANCEL any active print!": "Сохранение перезапустит Klipper и ОТМЕНИТ любую активную печать!"
   "Scanning for networks...": "Поиск сетей..."
@@ -651,14 +622,11 @@ translations:
   "Select 'None' if you don't have a filament sensor, or if you don't want to pause on runout.": "Выберите 'Нет', если у вас нет датчика филамента или вы не хотите паузу при окончании."
   "Select 'None' if you have a dedicated probe, or don't use bed mesh leveling.": "Выберите 'Нет', если у вас отдельный зонд или вы не используете сетку стола."
   "Select Filament": "Выбрать филамент"
-  "Select File": "Выбрать файл"
   Select G-Code File: Выбрать файл G-Code
   "Select Heater": "Выбрать нагреватель"
-  "Select the heaters Klipper uses for your bed and hotend": "Выберите нагреватели, которые Klipper использует для стола и хотенда"
-  "Select which sensor triggers pause on filament runout": "Выберите датчик, который вызывает паузу при окончании филамента"
-  "Select your preferred language": "Выберите предпочитаемый язык"
   "Select macro for first button": "Выберите макрос для первой кнопки"
   "Select macro for second button": "Выберите макрос для второй кнопки"
+  Select which LED to control: 'Выберите LED для управления'
   Selecting slot...: Выбор слота...
   "Semantic Size Parameter Tests": "Тесты семантических параметров размера"
   "Send commands directly to printer": "Отправлять команды напрямую принтеру"
@@ -672,22 +640,20 @@ translations:
   "Side": "Сбоку"
   "Size": "Размер"
   "Skip": "Пропустить"
-  "Skip if using dedicated probe (BLTouch, Klicky, etc.)": "Пропустите, если используете отдельный зонд (BLTouch, Klicky и т.д.)"
-  "Skip for now": "Пропустить"
+  Sleep While Printing: 'Спящий режим при печати'
   "Slot 1": "Слот 1"
   "Small labels help keep controls calm and focused.": "Мелкие надписи помогают сохранять элементы управления аккуратными."
   "Some settings will take effect after restart.": "Некоторые настройки вступят в силу после перезапуска."
   "Sounds": "Звуки"
   'Specular:': 'Отражение:'
-  "Speed": "Скорость"
   "Speed Settings": "Настройки скорости"
   "Speed of prime movement": "Скорость движения подачи"
   "Speed of retraction movement": "Скорость движения ретракта"
-  "Speed:": "Скорость:"
   "Spool Visualization (Pseudo-3D Canvas)": "Визуализация катушки (псевдо-3D)"
   "Spoolman": "Spoolman"
   "Spoolman has no spools configured": "В Spoolman нет настроенных катушек"
   "Square Corner Velocity": "Скорость прямых углов"
+  Stable\nBeta\nDev: 'Stable\nBeta\nDev'
   Standby: Режим ожидания
   "Start Calibration": "Начать калибровку"
   "Start Probing": "Начать зондирование"
@@ -700,6 +666,7 @@ translations:
   "Stop Drying": "Остановить сушку"
   "Stop Print?": "Остановить печать?"
   "Stops all motion. Requires firmware restart.": "Останавливает всё движение. Требуется перезапуск прошивки."
+  Styled (value=75): 'Styled (value=75)'
   "Success Rate": "Процент успеха"
   "Success!": "Успешно!"
   "Surfaces inherit app background tokens for light and dark modes.": "Поверхности наследуют токены фона приложения для светлого и тёмного режимов."
@@ -713,9 +680,9 @@ translations:
   "THEME COLORS": "ЦВЕТА ТЕМЫ"
   "TPU": "TPU"
   "Tap to show keyboard...": "Нажмите для показа клавиатуры..."
-  "Target": "Цель"
   "Target Temperature": "Целевая температура"
   "Temperature": "Температура"
+  Temperature Sensors: 'Датчики температуры'
   "Temperatures": "Температуры"
   "Temporary adjustment for this print, unless saved on Controls panel": "Временная настройка для этой печати, если не сохранена в панели управления"
   "Tertiary": "Третичный"
@@ -729,8 +696,8 @@ translations:
   "Theme Colors": "Цвета темы"
   "Theme Preset": "Пресет темы"
   "Theme changes apply after restart.": "Изменения темы применяются после перезапуска."
-  "Theme changes will take effect after restart.": "Изменения темы вступят в силу после перезапуска."
   "Theme, brightness, and sleep settings": "Тема, яркость и настройки сна"
+  Thin bar (height=8): 'Thin bar (height=8)'
   "This calibration uses the paper friction method to set your Z-offset.": "Эта калибровка использует метод трения бумаги для установки Z-смещения."
   "This may take 1-2 minutes": "Это может занять 1-2 минуты"
   "This may take up to 30 seconds": "Это может занять до 30 секунд"
@@ -772,16 +739,22 @@ translations:
   Unloading filament...: Выгрузка филамента...
   "Unretract Extra": "Дополнительный возврат"
   "Unretract Speed": "Скорость возврата"
+  Update Available: 'Доступно обновление'
+  Update Channel: 'Канал обновлений'
+  Update Failed: 'Ошибка обновления'
+  Update Installed: 'Обновление установлено'
   "Upload gcode files to get started": "Загрузите gcode-файлы для начала"
   "Use G10/G11 firmware retraction": "Использовать аппаратный ретракт G10/G11"
   ValgACE (ACE Pro): ValgACE (ACE Pro)
   "Values have been saved to printer configuration.": "Значения сохранены в конфигурацию принтера."
   "Velocity and acceleration limits": "Ограничения скорости и ускорения"
   "Vendor": "Производитель"
+  Verifying...: 'Проверка...'
   "Version": "Версия"
   "Vertical Progress (Retract Wizard)": "Вертикальный прогресс (мастер ретракта)"
   "Vibration": "Вибрация"
   "Video playback speed": "Скорость воспроизведения видео"
+  View Changelog: 'Просмотр изменений'
   "View Full History": "Просмотреть полную историю"
   "View Presets": "Просмотр пресетов"
   "View Timelapse": "Просмотр таймлапса"
@@ -802,32 +775,32 @@ translations:
   "Width": "Ширина"
   "Width Sensors": "Датчики ширины"
   'X:': 'X:'
+  XY: 'XY'
   'Y:': 'Y:'
   "Year": "Год"
-  "Your printer has an automatic filament changer": "Ваш принтер имеет автоматический сменщик филамента"
+  You can skip this and calibrate later in Settings.: 'Вы можете пропустить это и откалибровать позже в настройках.'
   "Your completed prints will appear here": "Ваши завершённые печати появятся здесь"
+  Z: 'Z'
   "Z Calibration": "Калибровка Z"
+  Z Movement: 'Движение Z'
   "Z Range": "Диапазон Z"
   "Z probes for bed leveling and mesh generation": "Z-зонды для выравнивания стола и создания сетки"
   "Z-Offset": "Z-смещение"
   "Z-Offset Calibration": "Калибровка Z-смещения"
   "Z-Offset:": "Z-смещение:"
   "Z-Tilt Adjust": "Регулировка Z-наклона"
+  'Z:': 'Z:'
+  'Z: 0.000': 'Z: 0.000'
   "Zoom": "Масштаб"
-  "hour": "час"
-  "hours": "часов"
-  "minute": "минута"
-  "minutes": "минут"
-  "seconds": "секунд"
-  size="large": size="large"
-  size="medium": size="medium"
-  size="medium" width="100": size="medium" width="100"
-  size="small": size="small"
-  size="tiny": size="tiny"
-  "Authentication failed": "Ошибка аутентификации"
-  "Connected to ": "Подключено к "
-  "Connecting to ": "Подключение к "
-  "Connection timeout": "Таймаут соединения"
-  "Scanning...": "Сканирование..."
-  "WiFi Disabled": "WiFi отключён"
-  "WiFi Enabled": "WiFi включён"
+  ^ FRONT: '^ FRONT'
+  min_value=0, max_value=100, value=25: 'min_value=0, max_value=100, value=25'
+  mzv @ 36.7 Hz: 'mzv @ 36.7 Hz'
+  "of": "из"
+  value=0 (shows FULL - BUG!): 'value=0 (shows FULL - BUG!)'
+  value=1 (tiny sliver?): 'value=1 (tiny sliver?)'
+  value=100 (should be full): 'value=100 (should be full)'
+  Русский: 'Русский'
+  —: '—'
+  •: '•'
+  中文: '中文'
+  日本語: '日本語'

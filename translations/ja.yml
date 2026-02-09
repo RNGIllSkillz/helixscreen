@@ -1,18 +1,30 @@
 locale: ja
 translations:
+  ' / ': ' / '
+  ' 0 / 0': ' 0 / 0'
+  ' elapsed · ': ' elapsed · '
+  ' left': ' left'
   (0): (0)
   (2.4GHz): (2.4GHz)
-  +0.01mm: +0.01mm
-  +0.05mm: +0.05mm
-  +0.1mm: +0.1mm
-  +1mm: +1mm
+  +: '+'
+  '+.005': '+.005'
+  '+.01': '+.01'
+  '+.05': '+.05'
+  '+.1': '+.1'
+  '+0': '+0'
+  '+1': '+1'
+  '-': '-'
   "- Check [resonance_tester] in printer.cfg": "- printer.cfg の [resonance_tester] を確認してください"
   "- Ensure ADXL345 is connected": "- ADXL345 が接続されていることを確認してください"
   "- Try Measure Noise first": "- まず「ノイズ測定」をお試しください"
-  -0.01mm: -0.01mm
-  -0.05mm: -0.05mm
-  -0.1mm: -0.1mm
-  -1mm: -1mm
+  --: '--'
+  '---': '---'
+  '-.005': '-.005'
+  '-.01': '-.01'
+  '-.05': '-.05'
+  '-.1': '-.1'
+  '-1': '-1'
+  /: '/'
   "0.4-2mm direct drive, 4-6mm bowden": "0.4-2mm ダイレクトドライブ、4-6mm ボーデン"
   "1. Printer homes and probes the bed": "1. プリンターがホーミングしてベッドをプローブします"
   "1. Printer will home and probe each screw": "1. プリンターがホーミングして各ネジをプローブします"
@@ -37,21 +49,21 @@ translations:
   850g: 850g
   "= Loosen": "= 緩める"
   "= Tighten": "= 締める"
-  "ABOUT": "バージョン情報"
+  '?': '?'
   "ABS": "ABS"
   "AMS Settings": "AMS設定"
   "APPEARANCE": "外観"
   "AUTOMATION": "自動化"
   "Abort": "中止"
-  "About": "バージョン情報"
+  About HelixScreen: 'HelixScreenについて'
   "Accel to Decel": "加速から減速"
   "Acceleration to deceleration limit (mm/s²)": "加速から減速の制限値 (mm/s²)"
   "Accelerometers": "加速度センサー"
   "Accept": "承認"
+  'Accepted Z Position: 0.000': '確定Z位置: 0.000'
   "Action Required": "対応が必要です"
   "Actions": "アクション"
   "Active": "アクティブ"
-  "Actual": "実際"
   "Add Hidden Network": "非公開ネットワークを追加"
   "Adjust screen brightness level": "画面の明るさを調整します"
   "Adjust screws, then re-probe.": "ネジを調整して、再度プローブしてください。"
@@ -59,8 +71,8 @@ translations:
   "Advanced Setting": "詳細設定"
   "All": "すべて"
   "All screws are within tolerance.": "すべてのネジが許容範囲内です。"
+  Allow display to sleep during active prints: '印刷中のスリープを許可'
   Allwinner: Allwinner
-  "Amount:": "量:"
   "An accelerometer was detected on your printer.": "プリンターで加速度センサーが検出されました。"
   "An error occurred during calibration.": "キャリブレーション中にエラーが発生しました。"
   "An error occurred during probing.": "プローブ中にエラーが発生しました。"
@@ -75,7 +87,6 @@ translations:
   "Assign Spool": "スプールを割り当て"
   "Assign a role to enable sensor monitoring": "センサー監視を有効にするには役割を割り当ててください"
   "Assigning to Slot 1": "スロット1に割り当て中"
-  "Authentication failed": "認証に失敗しました"
   "Auto": "自動"
   "Auto Bed Mesh": "自動ベッドメッシュ"
   "Auto-Heat on Load": "装填時に自動加熱"
@@ -85,6 +96,7 @@ translations:
   "Automatically poll Spoolman for weight updates": "Spoolman から重量更新を自動的にポーリング"
   "Available Networks": "利用可能なネットワーク"
   "Available networks": "利用可能なネットワーク"
+  BETA: 'BETA'
   "Back": "戻る"
   "Backup": "バックアップ"
   "Bed": "ベッド"
@@ -98,6 +110,7 @@ translations:
   "Bed is Level!": "ベッドが水平です！"
   "Bed °C": "ベッド °C"
   "Bed:": "ベッド:"
+  Beta features are enabled: 'ベータ機能が有効'
   Black: "ブラック"
   "Bluetooth": "Bluetooth"
   "Body text supports longer guidance while staying readable.": "本文テキストは読みやすさを保ちながら、より長い説明をサポートします。"
@@ -107,33 +120,30 @@ translations:
   "Border transparency (0 = invisible, 255 = solid)": "境界線の透明度 (0 = 透明、255 = 不透明)"
   "Brightness": "明るさ"
   "Browse": "参照"
-  "Busy": "ビジー"
   "Bypass": "バイパス"
   "Bypass Mode": "バイパスモード"
   "CALIBRATION": "キャリブレーション"
   "CHANGED FROM LAST SESSION": "前回のセッションから変更"
   "COLORS REQUIRED": "必要な色"
   "CRITICAL": "重大"
-  "Calibrate": "キャリブレート"
   "Calibrate X": "X軸をキャリブレート"
   "Calibrate Y": "Y軸をキャリブレート"
   "Calibrate resonance compensation": "共振補正をキャリブレート"
-  "Calibrate input shaping to reduce ringing artifacts in prints": "印刷物のリンギングアーティファクトを軽減するためにインプットシェーピングをキャリブレートします"
-  "Calibrate your touchscreen for accurate input": "正確な入力のためにタッチスクリーンをキャリブレートします"
   "Calibrating...": "キャリブレーション中..."
   "Calibration": "キャリブレーション"
-  "Calibration &amp; Tools": "キャリブレーションとツール"
+  Calibration & Tools: 'キャリブレーションとツール'
   "Calibration Complete!": "キャリブレーション完了！"
   "Calibration Failed": "キャリブレーション失敗"
   "Cancel": "キャンセル"
   "Cancel Print": "印刷をキャンセル"
   Cancelled: "キャンセル済み"
-  "Chamber": "チャンバー"
   "Chamber Fan": "チャンバーファン"
   "Chamber and dryer humidity monitoring": "チャンバーとドライヤーの湿度監視"
   "Chamber:": "チャンバー:"
+  Change Printer Host: 'プリンターホスト変更'
   "Changes apply immediately. Adjust during print for tuning.": "変更は即座に適用されます。印刷中に調整して最適化できます。"
   "Changes are temporary and reset on printer reboot": "変更は一時的で、プリンター再起動時にリセットされます"
+  Check for Updates: '更新を確認'
   "Check the filament path and try again.": "フィラメント経路を確認して、もう一度お試しください。"
   Checking slots...: "スロットを確認中..."
   "Choose 12-hour or 24-hour time display": "12時間表示または24時間表示を選択"
@@ -147,10 +157,12 @@ translations:
   "Clear Assignment": "割り当てを解除"
   Clipboard unavailable - use SSH: "クリップボード利用不可 - SSHを使用してください"
   "Close": "閉じる"
+  Closer: '近く'
   "Closer = more squish | Farther = less squish": "近い = より圧縮 | 遠い = 圧縮少なめ"
   "Color Sensors": "カラーセンサー"
   "Complete": "完了"
   Completed: "完了"
+  Completed in 3 probes: '3回のプローブで完了'
   "Config-defined (read-only)": "設定で定義済み（読み取り専用）"
   "Configure G10/G11 firmware retraction": "G10/G11 ファームウェアリトラクションを設定"
   "Configure PRINT_START": "PRINT_START を設定"
@@ -159,29 +171,15 @@ translations:
   "Configure filament detection sensors": "フィラメント検出センサーを設定"
   "Configure quick buttons and standard macros": "クイックボタンと標準マクロを設定"
   "Configure timelapse recording": "タイムラプス録画を設定"
-  "Configure WiFi for this device, or skip if you're using Ethernet": "このデバイスのWiFiを設定するか、イーサネットを使用している場合はスキップしてください"
-  "Configure your printer's cooling fans": "プリンターの冷却ファンを設定します"
   "Connect": "接続"
   "Connected": "接続済み"
-  "Connected (%s)": "接続済み (%s)"
-  "Connected (no discovery)": "接続済み（検出なし）"
-  "Connected, discovering...": "接続済み、検出中..."
-  "Connected to ": "接続先: "
-  "Connected!": "接続完了！"
-  "Connected! Discovering printer...": "接続完了！プリンター検出中..."
-  "Connecting": "接続中"
-  "Connecting to ": "接続中: "
   "Connecting to network...": "ネットワークに接続中..."
   "Connecting...": "接続中..."
   "Connection": "接続"
   Connection failed. Check password.: "接続に失敗しました。パスワードを確認してください。"
-  "Connection successful!": "接続成功！"
-  "Connection timeout": "接続タイムアウト"
-  "Connection must be tested successfully to continue": "続行するには接続テストに成功する必要があります"
   "Console": "コンソール"
   "Control optional print start features": "オプションの印刷開始機能を制御"
   "Cool Down": "冷却"
-  "Cooldown": "冷却"
   "Cooling": "冷却中"
   "Copy Command": "コマンドをコピー"
   "Corner roundness (0 = sharp, 40 = very round)": "角の丸み (0 = 鋭い、40 = 非常に丸い)"
@@ -189,6 +187,7 @@ translations:
   Current / Target: "現在 / 目標"
   "Current Mesh": "現在のメッシュ"
   "Current Temperature": "現在の温度"
+  Current Version: '現在のバージョン'
   "Current Z Position": "現在のZ位置"
   "Current name:": "現在の名前:"
   "Currently Loaded": "現在装填中"
@@ -200,26 +199,27 @@ translations:
   "Danger": "危険"
   "Dark Mode": "ダークモード"
   "Day": "日"
+  Default (value=50): 'Default (value=50)'
   "Default border thickness": "デフォルトの境界線の太さ"
   "Define macros in your printer.cfg": "printer.cfg でマクロを定義してください"
   "Delete": "削除"
-  "Detecting printer type...": "プリンタータイプを検出中..."
   "Delta:": "差分:"
+  Deutsch: 'Deutsch'
   "Device Operations": "デバイス操作"
   "Disable": "無効化"
   "Discovered Printers": "検出されたプリンター"
   "Dismiss": "閉じる"
-  "Display": "ディスプレイ"
   "Display Settings": "ディスプレイ設定"
   "Display Sleep": "ディスプレイスリープ"
+  Do not power off your printer.: 'プリンターの電源を切らないでください。'
   "Don't Save": "保存しない"
   "Don't ask again": "今後表示しない"
   "Done": "完了"
+  Downloading...: 'ダウンロード中...'
   "Drop shadow strength (0 = disabled)": "影の強さ (0 = 無効)"
   "Dryer": "ドライヤー"
   "Dryer Control": "ドライヤー制御"
   "Duration": "時間"
-  "E-Stop": "緊急停止"
   "E-Stop Confirmation": "緊急停止の確認"
   "EMERGENCY CONTROLS": "緊急コントロール"
   "EMERGENCY STOP": "緊急停止"
@@ -229,7 +229,6 @@ translations:
   "Edit Slot 1": "スロット1を編集"
   "Edit Theme Colors": "テーマカラーを編集"
   Edit Theme Colors (Modified): "テーマカラーを編集（変更済み）"
-  "Elapsed": "経過"
   "Emergency Stop": "緊急停止"
   "Emergency Stop (M112)": "緊急停止 (M112)"
   "Emergency Stop?": "緊急停止しますか？"
@@ -246,28 +245,25 @@ translations:
   "Enable detailed print preparation tracking (Recommended)": "詳細な印刷準備トラッキングを有効化（推奨）"
   "Enabled": "有効"
   "Ended": "終了"
+  English: 'English'
   "Enhancement Complete!": "改善完了！"
   "Enhancement Failed": "改善失敗"
-  "Enter G-code command...": "G-code コマンドを入力..."
   "Enter WiFi Password": "WiFi パスワードを入力"
   "Enter a name for your custom theme:": "カスタムテーマの名前を入力してください:"
   "Enter a name to save this profile": "このプロファイルを保存する名前を入力"
-  "Enter network name": "ネットワーク名を入力"
   "Enter password": "パスワードを入力"
-  "Enter 127.0.0.1 if Moonraker is local, or the hostname/IP of a remote printer": "ローカルは127.0.0.1、リモートはホスト名/IP"
   "Error": "エラー"
   Error state: "エラー状態"
+  Español: 'Español'
   "Ethernet": "イーサネット"
   "Exclude": "除外"
+  Excluded: '除外'
   "Execute printer macros": "プリンターマクロを実行"
   "Exhaust Fan": "排気ファン"
   "Explore how the selected palette shapes text, controls, and status colors.": "選択したパレットがテキスト、コントロール、ステータスカラーにどのように影響するかを確認できます。"
   "Explore palette and preview": "パレットを確認してプレビュー"
   "Extra prime to compensate ooze": "滲み出しを補正するための追加プライム"
-  "Extrude": "押し出し"
-  "Extrude / Retract": "押し出し / 引き戻し"
   Extruder: "エクストルーダー"
-  "Extruder PID Tuning": "エクストルーダー PID チューニング"
   "Extruder heats automatically based on material": "素材に基づいてエクストルーダーが自動加熱"
   "Extrusion rate": "押し出し速度"
   "FAILED": "失敗"
@@ -275,6 +271,7 @@ translations:
   "Factory Reset": "工場出荷時リセット"
   Failed: "失敗"
   Failed to save theme file: "テーマファイルの保存に失敗しました"
+  Farther: '遠く'
   "Feed filament directly to extruder": "フィラメントをエクストルーダーに直接供給"
   "Filament": "フィラメント"
   "Filament Sensor": "フィラメントセンサー"
@@ -287,14 +284,14 @@ translations:
   "File": "ファイル"
   "File Info": "ファイル情報"
   "Filename": "ファイル名"
-  "Files": "ファイル"
-  "Finish": "完了"
   "Fill: 100% / 75% / 40% / 10%": "塗りつぶし: 100% / 75% / 40% / 10%"
+  "Finish": "完了"
   "Firmware Restart": "ファームウェア再起動"
   "Flat Concentric Rings (existing ams_slot)": "同心円リング（既存の ams_slot）"
   "Flow Rate": "フローレート"
   Forming tip...: "チップを形成中..."
   "Framerate": "フレームレート"
+  Français: 'Français'
   "Freq": "周波数"
   "Front": "正面"
   "G-code Console": "G-code コンソール"
@@ -313,7 +310,6 @@ translations:
   : "ベッドがサムホイールなどの内蔵機構で調整できない場合は、ベッド調整ツール（ドライバー、六角レンチなど）を用意してください。"
   "Heading": "見出し"
   "Heat Soak": "ヒートソーク"
-  "Heat to 170°C to extrude": "押し出しには170°Cまで加熱してください"
   "Heatbed Temperature": "ヒートベッド温度"
   "Heated Bed": "加熱ベッド"
   Heating...: "加熱中..."
@@ -321,15 +317,12 @@ translations:
   "HelixScreen will integrate with your filament changer for multi-spool/color print operations.": "HelixScreen はマルチスプール/カラー印刷操作のためにフィラメントチェンジャーと連携します。"
   "Higher = faster": "高い = 速い"
   "Home": "ホーム"
-  "Home All": "全軸ホーム"
-  "Home X": "X軸ホーム"
-  "Home Y": "Y軸ホーム"
-  "Home Z": "Z軸ホーム"
   "Horizontal Progress (Leveling Wizard)": "水平プログレス（レベリングウィザード）"
   "Host": "ホスト"
   "Hotend": "ホットエンド"
   "Hotend Fan": "ホットエンドファン"
   "Hotend Heater": "ホットエンドヒーター"
+  How Z-axis movement is displayed: 'Z軸の移動表示方法'
   "How often to check Spoolman for weight updates": "Spoolman の重量更新をチェックする頻度"
   "Humidity": "湿度"
   "Humidity Sensors": "湿度センサー"
@@ -338,14 +331,15 @@ translations:
   "Ignore": "無視"
   In Progress: "進行中"
   Indexing G-code...: "G-codeをインデックス中..."
-  "Initializing...": "初期化中..."
   "Input": "入力"
   "Input Shaper": "インプットシェーパー"
   "Input Shaping": "インプットシェーピング"
   "Input shaper calibration sensors": "インプットシェーパーキャリブレーションセンサー"
   "Input shaping reduces vibration artifacts (ringing) in your prints.": "インプットシェーピングは印刷物の振動アーティファクト（リンギング）を軽減します。"
+  Install: 'インストール'
   "Install HelixPrint Plugin": "HelixPrint プラグインをインストール"
   "Install Plugin": "プラグインをインストール"
+  Install Update: '更新をインストール'
   "Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:": "高速 G-code 修正を有効にするために HelixPrint プラグインをインストールしてください。プリンターで SSH 経由でこのコマンドを実行してください:"
   Installation Failed: "インストール失敗"
   "Installation takes about 30 seconds.": "インストールには約30秒かかります。"
@@ -354,6 +348,7 @@ translations:
   "Interactive 3D G-code during prints": "印刷中のインタラクティブ 3D G-code"
   "Interactive probe calibration": "インタラクティブプローブキャリブレーション"
   "Issue description": "問題の説明"
+  Italiano: 'Italiano'
   Just now: "たった今"
   "Kd:": "Kd:"
   "Keep Printing": "印刷を続行"
@@ -370,11 +365,9 @@ translations:
   "LED on at Start": "起動時LED点灯"
   "LOADED": "装填済み"
   "Language": "言語"
-  "Last 7 days": "過去7日間"
   Last print cancelled: "前回の印刷がキャンセルされました"
   Last print failed: "前回の印刷が失敗しました"
   "Later": "後で"
-  "Layer": "レイヤー"
   "Layer Height": "レイヤー高さ"
   "Layer mode captures one frame per layer change. Best for most prints.": "レイヤーモードはレイヤー変更ごとに1フレームをキャプチャします。ほとんどの印刷に最適です。"
   "Layer:": "レイヤー:"
@@ -393,6 +386,7 @@ translations:
   Locked during print: "印刷中はロックされています"
   "M to toggle": "M で切り替え"
   'MAC:': 'MAC:'
+  MCU, host, and auxiliary temperature monitoring: 'MCU、ホスト、補助温度の監視'
   "MDI Icons": "MDI アイコン"
   "MISSING CONFIGURED": "設定済みが見つかりません"
   "MOTION": "動作"
@@ -410,6 +404,7 @@ translations:
   "Macro to resume a paused print": "一時停止した印刷を再開するマクロ"
   "Macro to unload filament from extruder": "エクストルーダーからフィラメントを排出するマクロ"
   "Macros": "マクロ"
+  Main LED: 'メインLED'
   "Main LED Strip": "メインLEDストリップ"
   "Make Optional": "オプションにする"
   "Make bed mesh and QGL skippable": "ベッドメッシュと QGL をスキップ可能にする"
@@ -434,15 +429,12 @@ translations:
   "Motion": "動作"
   "Motion: XYZ": "動作: XYZ"
   "Motors Off": "モーターオフ"
-  "Move": "移動"
   "Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.": "調整中は紙を前後に動かしてください。紙がわずかに引っかかりながらも滑る状態で止めてください。"
   "Movement speed": "移動速度"
   "Multi-Filament": "マルチフィラメント"
   "Multi-Material": "マルチマテリアル"
-  "Multi-Material System Detected": "マルチマテリアルシステムを検出しました"
   "My Custom Theme": "マイカスタムテーマ"
   "My Panel": "マイパネル"
-  "My Printer": "マイプリンター"
   "NEWLY DISCOVERED": "新規検出"
   "NOTIFICATIONS": "通知"
   "Name": "名前"
@@ -451,9 +443,8 @@ translations:
   "Network Name (SSID)": "ネットワーク名 (SSID)"
   "Network Settings": "ネットワーク設定"
   "Network Test": "ネットワークテスト"
-  "Never": "なし"
   "New PID Values": "新しい PID 値"
-  'New Z-Offset: 0.000': '新しい Z-Offset: 0.000'
+  New Version Available: '新バージョンあり'
   "New profile name": "新しいプロファイル名"
   "Next": "次へ"
   "No AMS system connected.": "AMS システムが接続されていません。"
@@ -466,7 +457,6 @@ translations:
   "No mesh loaded": "メッシュが読み込まれていません"
   "No networks found": "ネットワークが見つかりません"
   "No notifications": "通知なし"
-  "No printers found": "プリンターが見つかりません"
   "No plugins found": "プラグインが見つかりません"
   "No preview": "プレビューなし"
   "No print history yet": "印刷履歴がありません"
@@ -475,23 +465,19 @@ translations:
   "No sensors detected": "センサーが検出されませんでした"
   "No spools available": "利用可能なスプールがありません"
   "Not Now": "今はしない"
-  "Not configured": "未設定"
   "Not connected": "未接続"
   "Notifications": "通知"
   "Notify when print finishes": "印刷完了時に通知"
   "Nozzle": "ノズル"
   "Nozzle Priming": "ノズルプライミング"
-  "Nozzle Temp": "ノズル温度"
   "Nozzle Temperature": "ノズル温度"
   "Nozzle °C": "ノズル °C"
   "Nozzle:": "ノズル:"
   "OK": "OK"
+  OS: 'OS'
   "Off": "オフ"
-  "Offline": "オフライン"
-  "of": "の"
   "On": "オン"
   "Open": "開く"
-  "Optional - select your main lighting source, or skip if your printer doesn't have one": "オプション - メインの照明を選択するか、プリンターに照明がない場合はスキップしてください"
   "Operations": "操作"
   "Optimize Your Printing": "印刷を最適化"
   "Or Enter Manually": "または手動で入力"
@@ -522,12 +508,11 @@ translations:
   "Plugins are discovered on application startup": "プラグインはアプリケーション起動時に検出されます"
   "Polymaker": "Polymaker"
   "Port": "ポート"
+  Português: 'Português'
   "Position": "位置"
   "Power": "電源"
   "Power Control": "電源制御"
-  "Preheat": "予熱"
   "Preparing Print": "印刷準備中"
-  "Preparing...": "準備中..."
   "Presets": "プリセット"
   "Previous": "前へ"
   "Primary": "プライマリ"
@@ -537,28 +522,18 @@ translations:
   "Print Complete!": "印刷完了！"
   "Print Completion Alert": "印刷完了通知"
   "Print Details": "印刷詳細"
+  Print Failed: '印刷失敗'
   "Print File": "印刷ファイル"
   "Print Files": "印刷ファイル"
   "Print History": "印刷履歴"
   "Print Hours": "印刷時間"
+  Print Objects: '印刷オブジェクト'
   "Print Speed": "印刷速度"
   "Print Status": "印刷ステータス"
   "Print Time": "印刷時間"
   "Print Tuning": "印刷チューニング"
   "Printer": "プリンター"
   "Printer Name": "プリンター名"
-  "Printer Setup: Connection": "プリンター設定：接続"
-  "Printer Setup: Fans": "プリンター設定：ファン"
-  "Printer Setup: Filament Sensor": "プリンター設定：フィラメントセンサー"
-  "Printer Setup: Heaters": "プリンター設定：ヒーター"
-  "Printer Setup: Identity": "プリンター設定：識別"
-  "Printer Setup: Input Shaping": "プリンター設定：インプットシェーピング"
-  "Printer Setup: Language": "プリンター設定：言語"
-  "Printer Setup: LEDs": "プリンター設定：LED"
-  "Printer Setup: Network": "プリンター設定：ネットワーク"
-  "Printer Setup: Review": "プリンター設定：確認"
-  "Printer Setup: Touch Calibration": "プリンター設定：タッチキャリブレーション"
-  "Printer Setup: Z Probe": "プリンター設定：Zプローブ"
   "Printer Shutdown": "プリンターシャットダウン"
   "Printer Type": "プリンタータイプ"
   "Printing": "印刷中"
@@ -571,14 +546,10 @@ translations:
   "Probing Bed Screws...": "ベッドネジをプローブ中..."
   "Probing Bed...": "ベッドをプローブ中..."
   "Probing Failed": "プローブ失敗"
-  "Processing...": "処理中..."
-  "Profile": "プロファイル"
   "Profile name (e.g., default)": "プロファイル名（例: default）"
   "Profiles": "プロファイル"
-  "Progress": "進捗"
   "Progress Bar Tests": "プログレスバーテスト"
   "Purge": "パージ"
-  "Purge 50mm": "50mm パージ"
   "QUICK BUTTONS": "クイックボタン"
   "Quad Gantry Level": "クアッドガントリーレベル"
   "Quick Actions": "クイックアクション"
@@ -595,7 +566,6 @@ translations:
   "Recording Mode": "録画モード"
   "Recover": "回復"
   "Reduce Ringing": "リンギングを軽減"
-  "Refresh": "更新"
   "Refresh Interval": "更新間隔"
   "Remaining": "残り"
   "Remove plugin from printer": "プリンターからプラグインを削除"
@@ -606,7 +576,6 @@ translations:
   "Requires Moonraker-Timelapse plugin": "Moonraker-Timelapse プラグインが必要です"
   "Reset": "リセット"
   Reset Speed & Flow to 100%: "速度とフローを100%にリセット"
-  "Reset Speed &amp; Flow to 100%": "速度とフローを100%にリセット"
   "Reset all settings and restart wizard": "すべての設定をリセットしてウィザードを再開"
   Resetting...: "リセット中..."
   "Resonance compensation tuning": "共振補正チューニング"
@@ -617,13 +586,11 @@ translations:
   "Restart the display application": "ディスプレイアプリケーションを再起動"
   "Resume": "再開"
   "Resume Print": "印刷を再開"
-  "Retract": "リトラクト"
   "Retract Length": "リトラクト長"
   "Retract Speed": "リトラクト速度"
   "Retraction Settings": "リトラクション設定"
   "Retry": "再試行"
   "Review detected hardware validation issues": "検出されたハードウェア検証の問題を確認"
-  "Review your configuration below, then click Finish to save": "以下の設定を確認し、「完了」をクリックして保存してください"
   "Review your changes": "変更を確認"
   "Role:": "役割:"
   "Runout Sensor": "フィラメント切れセンサー"
@@ -633,7 +600,6 @@ translations:
   "SYSTEM": "システム"
   "Save": "保存"
   Save & Restart: "保存して再起動"
-  "Save &amp; Restart": "保存して再起動"
   "Save As New": "新規として保存"
   "Save Config": "設定を保存"
   "Save Printer Configuration": "プリンター設定を保存"
@@ -641,10 +607,10 @@ translations:
   "Save Z-Offset": "Z-Offset を保存"
   "Save Z-Offset?": "Z-Offset を保存しますか？"
   "Save changes to persist them across restarts?": "再起動後も変更を保持するために保存しますか？"
+  Saved Z-Offset: '保存されたZ-Offset'
   "Saving Configuration...": "設定を保存中..."
   "Saving will restart Klipper and CANCEL any active print!": "保存すると Klipper が再起動し、アクティブな印刷がキャンセルされます！"
   "Scanning for networks...": "ネットワークをスキャン中..."
-  "Scanning...": "スキャン中..."
   "Screen Dim": "画面減光"
   "Screen dims to lower brightness after period of inactivity": "一定時間操作がないと画面の明るさが下がります"
   "Screen will dim after the selected period of inactivity": "選択した時間操作がないと画面が減光します"
@@ -656,16 +622,12 @@ translations:
   "Select 'None' if you don't have a filament sensor, or if you don't want to pause on runout.": "フィラメントセンサーがない場合、またはフィラメント切れで一時停止したくない場合は「なし」を選択してください。"
   "Select 'None' if you have a dedicated probe, or don't use bed mesh leveling.": "専用プローブがある場合、またはベッドメッシュレベリングを使用しない場合は「なし」を選択してください。"
   "Select Filament": "フィラメントを選択"
-  "Select File": "ファイルを選択"
   Select G-Code File: "G-Codeファイルを選択"
   "Select Heater": "ヒーターを選択"
   "Select macro for first button": "最初のボタンのマクロを選択"
   "Select macro for second button": "2番目のボタンのマクロを選択"
-  "Select the heaters Klipper uses for your bed and hotend": "Klipperがベッドとホットエンドに使用するヒーターを選択してください"
-  "Select which sensor triggers pause on filament runout": "フィラメント切れで一時停止をトリガーするセンサーを選択してください"
-  "Select your preferred language": "ご希望の言語を選択してください"
+  Select which LED to control: '制御するLEDを選択'
   Selecting slot...: "スロットを選択中..."
-  "Skip if using dedicated probe (BLTouch, Klicky, etc.)": "専用プローブ（BLTouch、Klickyなど）を使用している場合はスキップしてください"
   "Semantic Size Parameter Tests": "セマンティックサイズパラメータテスト"
   "Send commands directly to printer": "プリンターに直接コマンドを送信"
   "Sensors": "センサー"
@@ -678,21 +640,20 @@ translations:
   "Side": "側面"
   "Size": "サイズ"
   "Skip": "スキップ"
-  "Skip for now": "今はスキップ"
+  Sleep While Printing: '印刷中のスリープ'
   "Slot 1": "スロット1"
   "Small labels help keep controls calm and focused.": "小さなラベルはコントロールを落ち着いた集中した状態に保ちます。"
   "Some settings will take effect after restart.": "一部の設定は再起動後に有効になります。"
   "Sounds": "サウンド"
   'Specular:': 'スペキュラー:'
-  "Speed": "速度"
   "Speed Settings": "速度設定"
   "Speed of prime movement": "プライム動作の速度"
   "Speed of retraction movement": "リトラクション動作の速度"
-  "Speed:": "速度:"
   "Spool Visualization (Pseudo-3D Canvas)": "スプール可視化（疑似3Dキャンバス）"
   "Spoolman": "Spoolman"
   "Spoolman has no spools configured": "Spoolman にスプールが設定されていません"
   "Square Corner Velocity": "直角コーナー速度"
+  Stable\nBeta\nDev: '安定版\nBeta\nDev'
   Standby: "スタンバイ"
   "Start Calibration": "キャリブレーション開始"
   "Start Probing": "プローブ開始"
@@ -705,6 +666,7 @@ translations:
   "Stop Drying": "乾燥を停止"
   "Stop Print?": "印刷を停止しますか？"
   "Stops all motion. Requires firmware restart.": "すべての動作を停止します。ファームウェアの再起動が必要です。"
+  Styled (value=75): 'Styled (value=75)'
   "Success Rate": "成功率"
   "Success!": "成功！"
   "Surfaces inherit app background tokens for light and dark modes.": "サーフェスはライトモードとダークモードのアプリ背景トークンを継承します。"
@@ -718,9 +680,9 @@ translations:
   "THEME COLORS": "テーマカラー"
   "TPU": "TPU"
   "Tap to show keyboard...": "タップしてキーボードを表示..."
-  "Target": "目標"
   "Target Temperature": "目標温度"
   "Temperature": "温度"
+  Temperature Sensors: '温度センサー'
   "Temperatures": "温度"
   "Temporary adjustment for this print, unless saved on Controls panel": "コントロールパネルで保存しない限り、この印刷のみの一時的な調整です"
   "Tertiary": "ターシャリ"
@@ -734,8 +696,8 @@ translations:
   "Theme Colors": "テーマカラー"
   "Theme Preset": "テーマプリセット"
   "Theme changes apply after restart.": "テーマの変更は再起動後に適用されます。"
-  "Theme changes will take effect after restart.": "テーマの変更は再起動後に有効になります。"
   "Theme, brightness, and sleep settings": "テーマ、明るさ、スリープ設定"
+  Thin bar (height=8): 'Thin bar (height=8)'
   "This calibration uses the paper friction method to set your Z-offset.": "このキャリブレーションは紙の摩擦方式を使用して Z-offset を設定します。"
   "This may take 1-2 minutes": "1〜2分かかる場合があります"
   "This may take up to 30 seconds": "最大30秒かかる場合があります"
@@ -777,16 +739,22 @@ translations:
   Unloading filament...: "フィラメントを排出中..."
   "Unretract Extra": "アンリトラクト追加量"
   "Unretract Speed": "アンリトラクト速度"
+  Update Available: '更新あり'
+  Update Channel: '更新チャンネル'
+  Update Failed: '更新失敗'
+  Update Installed: '更新完了'
   "Upload gcode files to get started": "開始するには gcode ファイルをアップロードしてください"
   "Use G10/G11 firmware retraction": "G10/G11 ファームウェアリトラクションを使用"
   ValgACE (ACE Pro): ValgACE (ACE Pro)
   "Values have been saved to printer configuration.": "値がプリンター設定に保存されました。"
   "Velocity and acceleration limits": "速度と加速度の制限"
   "Vendor": "ベンダー"
+  Verifying...: '検証中...'
   "Version": "バージョン"
   "Vertical Progress (Retract Wizard)": "垂直プログレス（リトラクトウィザード）"
   "Vibration": "振動"
   "Video playback speed": "動画再生速度"
+  View Changelog: '変更履歴を表示'
   "View Full History": "全履歴を表示"
   "View Presets": "プリセットを表示"
   "View Timelapse": "タイムラプスを表示"
@@ -803,31 +771,36 @@ translations:
   "WiFi and Ethernet": "WiFi とイーサネット"
   "WiFi and Ethernet configuration": "WiFi とイーサネットの設定"
   "WiFi control unavailable": "WiFi 制御は利用できません"
-  "WiFi Disabled": "WiFi 無効"
-  "WiFi Enabled": "WiFi 有効"
   "WiFi hardware unavailable": "WiFi ハードウェアが利用できません"
   "Width": "幅"
   "Width Sensors": "幅センサー"
   'X:': 'X:'
+  XY: 'XY'
   'Y:': 'Y:'
   "Year": "年"
+  You can skip this and calibrate later in Settings.: 'スキップして後で設定でキャリブレーションできます。'
   "Your completed prints will appear here": "完了した印刷がここに表示されます"
-  "Your printer has an automatic filament changer": "お使いのプリンターには自動フィラメントチェンジャーがあります"
+  Z: 'Z'
   "Z Calibration": "Z キャリブレーション"
+  Z Movement: 'Z移動'
   "Z Range": "Z 範囲"
   "Z probes for bed leveling and mesh generation": "ベッドレベリングとメッシュ生成用 Z プローブ"
   "Z-Offset": "Z-Offset"
   "Z-Offset Calibration": "Z-Offset キャリブレーション"
   "Z-Offset:": "Z-Offset:"
   "Z-Tilt Adjust": "Z-Tilt 調整"
+  'Z:': 'Z:'
+  'Z: 0.000': 'Z: 0.000'
   "Zoom": "ズーム"
-  "hour": "時間"
-  "hours": "時間"
-  "minute": "分"
-  "minutes": "分"
-  "seconds": "秒"
-  size="large": size="large"
-  size="medium": size="medium"
-  size="medium" width="100": size="medium" width="100"
-  size="small": size="small"
-  size="tiny": size="tiny"
+  ^ FRONT: '^ FRONT'
+  min_value=0, max_value=100, value=25: 'min_value=0, max_value=100, value=25'
+  mzv @ 36.7 Hz: 'mzv @ 36.7 Hz'
+  "of": "の"
+  value=0 (shows FULL - BUG!): 'value=0 (shows FULL - BUG!)'
+  value=1 (tiny sliver?): 'value=1 (tiny sliver?)'
+  value=100 (should be full): 'value=100 (should be full)'
+  Русский: 'Русский'
+  —: '—'
+  •: '•'
+  中文: '中文'
+  日本語: '日本語'

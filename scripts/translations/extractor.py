@@ -35,9 +35,21 @@ NUMERIC_PATTERN = re.compile(r"^[\d.]+%?$")  # 123 or 100%
 FONT_NAME_PATTERN = re.compile(r"^(mdi_icons_|noto_sans_)\w+$")  # Font names
 HEX_COLOR_PATTERN = re.compile(r"^#[0-9A-Fa-f]{6}$")  # #RRGGBB hex colors
 SIZE_ATTR_PATTERN = re.compile(r'^size=')  # XML size attribute values
+XML_ATTR_VALUE_PATTERN = re.compile(r'(?:value|height)\s*=')  # Test/debug attribute strings
+SIGNED_NUMERIC_PATTERN = re.compile(r'^[+-]\.?\d*\.?\d*$')  # +.005, -1, +0, -.1
+PAREN_TECH_PATTERN = re.compile(r'^\(.{0,8}\)$')  # Short parenthesized tech values
+CARET_DIRECTION_PATTERN = re.compile(r'^\^')  # Direction labels like ^ FRONT
 
 # Short tokens and non-translatable exact strings
 NON_TRANSLATABLE = {"true", "false", "xl", "lg", "md", "sm", "xs", "#RRGGBB"}
+
+# Language names displayed in their native script (never translated)
+LANGUAGE_NAMES = {
+    "Deutsch", "English", "Español", "Français", "Italiano", "Português",
+    "Русский", "中文", "日本語", "한국어", "العربية", "हिन्दी", "Türkçe",
+    "Nederlands", "Polski", "Svenska", "Norsk", "Dansk", "Suomi",
+    "Čeština", "Magyar", "Română", "Українська", "Ελληνικά",
+}
 
 # C++ patterns that indicate translatable text
 CPP_TRANSLATABLE_PATTERNS = [
@@ -96,6 +108,35 @@ def should_skip_text(text: str) -> bool:
 
     # Skip known non-translatable tokens
     if text in NON_TRANSLATABLE:
+        return True
+
+    # Skip test/debug strings containing value= or height= patterns
+    if XML_ATTR_VALUE_PATTERN.search(text):
+        return True
+
+    # Skip punctuation-only strings that are 3 chars or fewer
+    stripped = text.strip()
+    if len(stripped) <= 3 and not any(c.isalpha() or c.isdigit() for c in stripped):
+        return True
+
+    # Skip signed numeric step values like +.005, -1, +0
+    if SIGNED_NUMERIC_PATTERN.match(stripped) and stripped not in ('', '+', '-'):
+        return True
+
+    # Skip language names (always displayed in native script)
+    if text in LANGUAGE_NAMES:
+        return True
+
+    # Skip short parenthesized technical values like (0), (2.4GHz)
+    if PAREN_TECH_PATTERN.match(stripped):
+        return True
+
+    # Skip direction labels with caret like ^ FRONT
+    if CARET_DIRECTION_PATTERN.match(stripped):
+        return True
+
+    # Skip strings containing literal \n (multi-line dropdown option labels)
+    if r"\n" in text:
         return True
 
     return False

@@ -1,18 +1,30 @@
 locale: it
 translations:
+  ' / ': ' / '
+  ' 0 / 0': ' 0 / 0'
+  ' elapsed · ': ' elapsed · '
+  ' left': ' left'
   (0): (0)
   (2.4GHz): (2.4GHz)
-  +0.01mm: +0.01mm
-  +0.05mm: +0.05mm
-  +0.1mm: +0.1mm
-  +1mm: +1mm
+  +: '+'
+  '+.005': '+.005'
+  '+.01': '+.01'
+  '+.05': '+.05'
+  '+.1': '+.1'
+  '+0': '+0'
+  '+1': '+1'
+  '-': '-'
   "- Check [resonance_tester] in printer.cfg": "- Controllare [resonance_tester] in printer.cfg"
   "- Ensure ADXL345 is connected": "- Assicurarsi che ADXL345 sia collegato"
   "- Try Measure Noise first": "- Provare prima Misura rumore"
-  -0.01mm: -0.01mm
-  -0.05mm: -0.05mm
-  -0.1mm: -0.1mm
-  -1mm: -1mm
+  --: '--'
+  '---': '---'
+  '-.005': '-.005'
+  '-.01': '-.01'
+  '-.05': '-.05'
+  '-.1': '-.1'
+  '-1': '-1'
+  /: '/'
   "0.4-2mm direct drive, 4-6mm bowden": "0,4-2mm direct drive, 4-6mm bowden"
   "1. Printer homes and probes the bed": "1. La stampante esegue homing e sonda il piano"
   "1. Printer will home and probe each screw": "1. La stampante eseguirà homing e sonderà ogni vite"
@@ -37,21 +49,21 @@ translations:
   850g: 850g
   "= Loosen": "= Allentare"
   "= Tighten": "= Stringere"
-  "ABOUT": "INFORMAZIONI"
+  '?': '?'
   "ABS": "ABS"
   "AMS Settings": "Impostazioni AMS"
   "APPEARANCE": "ASPETTO"
   "AUTOMATION": "AUTOMAZIONE"
   "Abort": "Interrompi"
-  "About": "Informazioni"
+  About HelixScreen: 'Informazioni su HelixScreen'
   "Accel to Decel": "Accel. a Decel."
   "Acceleration to deceleration limit (mm/s²)": "Limite accelerazione a decelerazione (mm/s²)"
   "Accelerometers": "Accelerometri"
   "Accept": "Accetta"
+  'Accepted Z Position: 0.000': 'Posizione Z accettata: 0.000'
   "Action Required": "Azione richiesta"
   "Actions": "Azioni"
   "Active": "Attivo"
-  "Actual": "Effettivo"
   "Add Hidden Network": "Aggiungi rete nascosta"
   "Adjust screen brightness level": "Regola il livello di luminosità dello schermo"
   "Adjust screws, then re-probe.": "Regolare le viti, poi risondare."
@@ -59,8 +71,8 @@ translations:
   "Advanced Setting": "Impostazione avanzata"
   "All": "Tutto"
   "All screws are within tolerance.": "Tutte le viti sono entro la tolleranza."
+  Allow display to sleep during active prints: 'Consenti sospensione display durante la stampa'
   Allwinner: Allwinner
-  "Amount:": "Quantità:"
   "An accelerometer was detected on your printer.": "È stato rilevato un accelerometro sulla stampante."
   "An error occurred during calibration.": "Si è verificato un errore durante la calibrazione."
   "An error occurred during probing.": "Si è verificato un errore durante il sondaggio."
@@ -82,9 +94,9 @@ translations:
   "Auto-render video": "Rendering video automatico"
   "Automatic PID Calibration": "Calibrazione PID automatica"
   "Automatically poll Spoolman for weight updates": "Interroga automaticamente Spoolman per aggiornamenti peso"
-  "Authentication failed": "Autenticazione fallita"
   "Available Networks": "Reti disponibili"
   "Available networks": "Reti disponibili"
+  BETA: 'BETA'
   "Back": "Indietro"
   "Backup": "Backup"
   "Bed": "Piano"
@@ -98,6 +110,7 @@ translations:
   "Bed is Level!": "Piano livellato!"
   "Bed °C": "Piano °C"
   "Bed:": "Piano:"
+  Beta features are enabled: 'Funzioni Beta sono abilitate'
   Black: Nero
   "Bluetooth": "Bluetooth"
   "Body text supports longer guidance while staying readable.": "Il testo corpo supporta guide più lunghe restando leggibile."
@@ -107,33 +120,30 @@ translations:
   "Border transparency (0 = invisible, 255 = solid)": "Trasparenza bordo (0 = invisibile, 255 = solido)"
   "Brightness": "Luminosità"
   "Browse": "Sfoglia"
-  "Busy": "Occupato"
   "Bypass": "Bypass"
   "Bypass Mode": "Modalità bypass"
   "CALIBRATION": "CALIBRAZIONE"
   "CHANGED FROM LAST SESSION": "MODIFICATO DALLA SESSIONE PRECEDENTE"
   "COLORS REQUIRED": "COLORI RICHIESTI"
   "CRITICAL": "CRITICO"
-  "Calibrate": "Calibra"
   "Calibrate X": "Calibra X"
   "Calibrate Y": "Calibra Y"
-  "Calibrate input shaping to reduce ringing artifacts in prints": "Calibra input shaping per ridurre artefatti di ringing nelle stampe"
   "Calibrate resonance compensation": "Calibra compensazione risonanza"
-  "Calibrate your touchscreen for accurate input": "Calibra il touchscreen per un input preciso"
   "Calibrating...": "Calibrazione in corso..."
   "Calibration": "Calibrazione"
-  "Calibration &amp; Tools": "Calibrazione e strumenti"
+  Calibration & Tools: 'Calibrazione e Strumenti'
   "Calibration Complete!": "Calibrazione completata!"
   "Calibration Failed": "Calibrazione fallita"
   "Cancel": "Annulla"
   "Cancel Print": "Annulla stampa"
   Cancelled: Annullato
-  "Chamber": "Camera"
   "Chamber Fan": "Ventola camera"
   "Chamber and dryer humidity monitoring": "Monitoraggio umidità camera ed essiccatore"
   "Chamber:": "Camera:"
+  Change Printer Host: 'Cambia Host Stampante'
   "Changes apply immediately. Adjust during print for tuning.": "Le modifiche si applicano immediatamente. Regolare durante la stampa per la messa a punto."
   "Changes are temporary and reset on printer reboot": "Le modifiche sono temporanee e si resettano al riavvio della stampante"
+  Check for Updates: 'Verifica Aggiornamenti'
   "Check the filament path and try again.": "Controllare il percorso del filamento e riprovare."
   Checking slots...: Controllo slot...
   "Choose 12-hour or 24-hour time display": "Scegli formato orario 12 ore o 24 ore"
@@ -147,10 +157,12 @@ translations:
   "Clear Assignment": "Rimuovi assegnazione"
   Clipboard unavailable - use SSH: Appunti non disponibili - usare SSH
   "Close": "Chiudi"
+  Closer: 'Più vicino'
   "Closer = more squish | Farther = less squish": "Più vicino = più schiacciamento | Più lontano = meno schiacciamento"
   "Color Sensors": "Sensori colore"
   "Complete": "Completato"
   Completed: Completato
+  Completed in 3 probes: 'Completato in 3 sondaggi'
   "Config-defined (read-only)": "Definito nella configurazione (sola lettura)"
   "Configure G10/G11 firmware retraction": "Configura retrazione firmware G10/G11"
   "Configure PRINT_START": "Configura PRINT_START"
@@ -159,29 +171,15 @@ translations:
   "Configure filament detection sensors": "Configura sensori rilevamento filamento"
   "Configure quick buttons and standard macros": "Configura pulsanti rapidi e macro standard"
   "Configure timelapse recording": "Configura registrazione timelapse"
-  "Configure WiFi for this device, or skip if you're using Ethernet": "Configura WiFi per questo dispositivo, o salta se stai usando Ethernet"
-  "Configure your printer's cooling fans": "Configura le ventole di raffreddamento della stampante"
   "Connect": "Connetti"
   "Connected": "Connesso"
-  "Connected to ": "Connesso a "
-  "Connected (%s)": "Connesso (%s)"
-  "Connected!": "Connesso!"
-  "Connected! Discovering printer...": "Connesso! Scoperta stampante in corso..."
-  "Connected (no discovery)": "Connesso (nessuna scoperta)"
-  "Connected, discovering...": "Connesso, scoperta in corso..."
-  "Connecting": "Connessione"
-  "Connecting to ": "Connessione a "
   "Connecting to network...": "Connessione alla rete..."
   "Connecting...": "Connessione in corso..."
   "Connection": "Connessione"
   Connection failed. Check password.: Connessione fallita. Verificare la password.
-  "Connection must be tested successfully to continue": "La connessione deve essere testata con successo per continuare"
-  "Connection successful!": "Connessione riuscita!"
-  "Connection timeout": "Timeout connessione"
   "Console": "Console"
   "Control optional print start features": "Controlla funzionalità opzionali avvio stampa"
   "Cool Down": "Raffredda"
-  "Cooldown": "Raffreddamento"
   "Cooling": "Raffreddamento"
   "Copy Command": "Copia comando"
   "Corner roundness (0 = sharp, 40 = very round)": "Arrotondamento angoli (0 = netto, 40 = molto arrotondato)"
@@ -189,6 +187,7 @@ translations:
   Current / Target: Attuale / Target
   "Current Mesh": "Mesh attuale"
   "Current Temperature": "Temperatura attuale"
+  Current Version: 'Versione Attuale'
   "Current Z Position": "Posizione Z attuale"
   "Current name:": "Nome attuale:"
   "Currently Loaded": "Attualmente caricato"
@@ -200,26 +199,27 @@ translations:
   "Danger": "Pericolo"
   "Dark Mode": "Modalità scura"
   "Day": "Giorno"
+  Default (value=50): 'Default (value=50)'
   "Default border thickness": "Spessore bordo predefinito"
   "Define macros in your printer.cfg": "Definire le macro nel proprio printer.cfg"
   "Delete": "Elimina"
   "Delta:": "Delta:"
-  "Detecting printer type...": "Rilevamento tipo stampante..."
+  Deutsch: 'Deutsch'
   "Device Operations": "Operazioni dispositivo"
   "Disable": "Disabilita"
   "Discovered Printers": "Stampanti rilevate"
   "Dismiss": "Ignora"
-  "Display": "Schermo"
   "Display Settings": "Impostazioni schermo"
   "Display Sleep": "Schermo in standby"
+  Do not power off your printer.: 'Non spegnere la stampante.'
   "Don't Save": "Non salvare"
   "Don't ask again": "Non chiedere più"
   "Done": "Fatto"
+  Downloading...: 'Download in corso...'
   "Drop shadow strength (0 = disabled)": "Intensità ombra (0 = disabilitata)"
   "Dryer": "Essiccatore"
   "Dryer Control": "Controllo essiccatore"
   "Duration": "Durata"
-  "E-Stop": "Arresto emergenza"
   "E-Stop Confirmation": "Conferma arresto emergenza"
   "EMERGENCY CONTROLS": "CONTROLLI EMERGENZA"
   "EMERGENCY STOP": "ARRESTO EMERGENZA"
@@ -229,7 +229,6 @@ translations:
   "Edit Slot 1": "Modifica Slot 1"
   "Edit Theme Colors": "Modifica colori tema"
   Edit Theme Colors (Modified): Modifica colori tema (modificato)
-  "Elapsed": "Trascorso"
   "Emergency Stop": "Arresto emergenza"
   "Emergency Stop (M112)": "Arresto emergenza (M112)"
   "Emergency Stop?": "Arresto emergenza?"
@@ -246,28 +245,25 @@ translations:
   "Enable detailed print preparation tracking (Recommended)": "Abilita tracciamento dettagliato preparazione stampa (consigliato)"
   "Enabled": "Abilitato"
   "Ended": "Terminato"
+  English: 'English'
   "Enhancement Complete!": "Miglioramento completato!"
   "Enhancement Failed": "Miglioramento fallito"
-  "Enter G-code command...": "Inserisci comando G-code..."
   "Enter WiFi Password": "Inserisci password WiFi"
   "Enter a name for your custom theme:": "Inserisci un nome per il tuo tema personalizzato:"
   "Enter a name to save this profile": "Inserisci un nome per salvare questo profilo"
-  "Enter 127.0.0.1 if Moonraker is local, or the hostname/IP of a remote printer": "127.0.0.1 se locale, o hostname/IP remoto"
-  "Enter network name": "Inserisci nome rete"
   "Enter password": "Inserisci password"
   "Error": "Errore"
   Error state: Stato errore
+  Español: 'Español'
   "Ethernet": "Ethernet"
   "Exclude": "Escludi"
+  Excluded: 'Escluso'
   "Execute printer macros": "Esegui macro stampante"
   "Exhaust Fan": "Ventola scarico"
   "Explore how the selected palette shapes text, controls, and status colors.": "Esplora come la palette selezionata definisce testo, controlli e colori di stato."
   "Explore palette and preview": "Esplora palette e anteprima"
   "Extra prime to compensate ooze": "Priming extra per compensare la fuoriuscita"
-  "Extrude": "Estrudi"
-  "Extrude / Retract": "Estrudi / Ritrai"
   Extruder: Estrusore
-  "Extruder PID Tuning": "Regolazione PID estrusore"
   "Extruder heats automatically based on material": "L'estrusore si riscalda automaticamente in base al materiale"
   "Extrusion rate": "Velocità estrusione"
   "FAILED": "FALLITO"
@@ -275,6 +271,7 @@ translations:
   "Factory Reset": "Ripristino di fabbrica"
   Failed: Fallito
   Failed to save theme file: Salvataggio file tema fallito
+  Farther: 'Più lontano'
   "Feed filament directly to extruder": "Alimenta filamento direttamente all'estrusore"
   "Filament": "Filamento"
   "Filament Sensor": "Sensore filamento"
@@ -287,14 +284,14 @@ translations:
   "File": "File"
   "File Info": "Info file"
   "Filename": "Nome file"
-  "Files": "File"
-  "Finish": "Fine"
   "Fill: 100% / 75% / 40% / 10%": "Riempimento: 100% / 75% / 40% / 10%"
+  "Finish": "Fine"
   "Firmware Restart": "Riavvio firmware"
   "Flat Concentric Rings (existing ams_slot)": "Anelli concentrici piatti (ams_slot esistente)"
   "Flow Rate": "Flusso"
   Forming tip...: Formazione punta...
   "Framerate": "Frequenza fotogrammi"
+  Français: 'Français'
   "Freq": "Freq"
   "Front": "Anteriore"
   "G-code Console": "Console G-code"
@@ -313,7 +310,6 @@ translations:
   : "Avere pronto lo strumento di regolazione piano (cacciavite, chiave esagonale, ecc.) se il piano non viene regolato con                              manopole o altri meccanismi integrati."
   "Heading": "Intestazione"
   "Heat Soak": "Preriscaldamento"
-  "Heat to 170°C to extrude": "Riscaldare a 170°C per estrudere"
   "Heatbed Temperature": "Temperatura piano riscaldato"
   "Heated Bed": "Piano riscaldato"
   Heating...: Riscaldamento...
@@ -321,15 +317,12 @@ translations:
   "HelixScreen will integrate with your filament changer for multi-spool/color print operations.": "HelixScreen si integrerà con il tuo cambia-filamento per operazioni di stampa multi-bobina/colore."
   "Higher = faster": "Più alto = più veloce"
   "Home": "Home"
-  "Home All": "Home tutto"
-  "Home X": "Home X"
-  "Home Y": "Home Y"
-  "Home Z": "Home Z"
   "Horizontal Progress (Leveling Wizard)": "Progresso orizzontale (procedura guidata livellamento)"
   "Host": "Host"
   "Hotend": "Hotend"
   "Hotend Fan": "Ventola hotend"
   "Hotend Heater": "Riscaldatore hotend"
+  How Z-axis movement is displayed: 'Come viene visualizzato il movimento dell''asse Z'
   "How often to check Spoolman for weight updates": "Frequenza controllo Spoolman per aggiornamenti peso"
   "Humidity": "Umidità"
   "Humidity Sensors": "Sensori umidità"
@@ -338,14 +331,15 @@ translations:
   "Ignore": "Ignora"
   In Progress: In corso
   Indexing G-code...: Indicizzazione G-code...
-  "Initializing...": "Inizializzazione..."
   "Input": "Input"
   "Input Shaper": "Input Shaper"
   "Input Shaping": "Input Shaping"
   "Input shaper calibration sensors": "Sensori calibrazione input shaper"
   "Input shaping reduces vibration artifacts (ringing) in your prints.": "L'input shaping riduce gli artefatti da vibrazione (ringing) nelle stampe."
+  Install: 'Installa'
   "Install HelixPrint Plugin": "Installa plugin HelixPrint"
   "Install Plugin": "Installa plugin"
+  Install Update: 'Installa Aggiornamento'
   "Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:": "Installa il plugin HelixPrint per abilitare modifiche G-code rapide. Esegui questo comando via SSH sulla stampante:"
   Installation Failed: Installazione fallita
   "Installation takes about 30 seconds.": "L'installazione richiede circa 30 secondi."
@@ -354,6 +348,7 @@ translations:
   "Interactive 3D G-code during prints": "G-code 3D interattivo durante le stampe"
   "Interactive probe calibration": "Calibrazione sonda interattiva"
   "Issue description": "Descrizione problema"
+  Italiano: 'Italiano'
   Just now: Adesso
   "Kd:": "Kd:"
   "Keep Printing": "Continua a stampare"
@@ -370,11 +365,9 @@ translations:
   "LED on at Start": "LED acceso all'avvio"
   "LOADED": "CARICATO"
   "Language": "Lingua"
-  "Last 7 days": "Ultimi 7 giorni"
   Last print cancelled: Ultima stampa annullata
   Last print failed: Ultima stampa fallita
   "Later": "Dopo"
-  "Layer": "Layer"
   "Layer Height": "Altezza layer"
   "Layer mode captures one frame per layer change. Best for most prints.": "La modalità layer cattura un fotogramma per cambio layer. Ideale per la maggior parte delle stampe."
   "Layer:": "Layer:"
@@ -393,6 +386,7 @@ translations:
   Locked during print: Bloccato durante la stampa
   "M to toggle": "M per alternare"
   'MAC:': 'MAC:'
+  MCU, host, and auxiliary temperature monitoring: 'Monitoraggio temperature MCU, host e ausiliarie'
   "MDI Icons": "Icone MDI"
   "MISSING CONFIGURED": "CONFIGURATO MANCANTE"
   "MOTION": "MOVIMENTO"
@@ -410,6 +404,7 @@ translations:
   "Macro to resume a paused print": "Macro per riprendere una stampa in pausa"
   "Macro to unload filament from extruder": "Macro per scaricare filamento dall'estrusore"
   "Macros": "Macro"
+  Main LED: 'LED Principale'
   "Main LED Strip": "Striscia LED principale"
   "Make Optional": "Rendi opzionale"
   "Make bed mesh and QGL skippable": "Rendi mesh piano e QGL saltabili"
@@ -434,15 +429,12 @@ translations:
   "Motion": "Movimento"
   "Motion: XYZ": "Movimento: XYZ"
   "Motors Off": "Motori spenti"
-  "Move": "Muovi"
   "Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.": "Muovere la carta avanti e indietro durante la regolazione. Fermarsi quando la carta si blocca leggermente ma ancora scorre."
   "Movement speed": "Velocità movimento"
   "Multi-Filament": "Multi-filamento"
   "Multi-Material": "Multi-materiale"
-  "Multi-Material System Detected": "Sistema multi-materiale rilevato"
   "My Custom Theme": "Il mio tema personalizzato"
   "My Panel": "Il mio pannello"
-  "My Printer": "La mia stampante"
   "NEWLY DISCOVERED": "APPENA RILEVATO"
   "NOTIFICATIONS": "NOTIFICHE"
   "Name": "Nome"
@@ -451,9 +443,8 @@ translations:
   "Network Name (SSID)": "Nome rete (SSID)"
   "Network Settings": "Impostazioni rete"
   "Network Test": "Test rete"
-  "Never": "Mai"
   "New PID Values": "Nuovi valori PID"
-  'New Z-Offset: 0.000': 'Nuovo Z-Offset: 0.000'
+  New Version Available: 'Nuova Versione Disponibile'
   "New profile name": "Nome nuovo profilo"
   "Next": "Avanti"
   "No AMS system connected.": "Nessun sistema AMS connesso."
@@ -466,7 +457,6 @@ translations:
   "No mesh loaded": "Nessuna mesh caricata"
   "No networks found": "Nessuna rete trovata"
   "No notifications": "Nessuna notifica"
-  "No printers found": "Nessuna stampante trovata"
   "No plugins found": "Nessun plugin trovato"
   "No preview": "Nessuna anteprima"
   "No print history yet": "Ancora nessuna cronologia stampa"
@@ -475,26 +465,22 @@ translations:
   "No sensors detected": "Nessun sensore rilevato"
   "No spools available": "Nessuna bobina disponibile"
   "Not Now": "Non ora"
-  "Not configured": "Non configurato"
   "Not connected": "Non connesso"
   "Notifications": "Notifiche"
   "Notify when print finishes": "Notifica al termine della stampa"
   "Nozzle": "Ugello"
   "Nozzle Priming": "Preparazione ugello"
-  "Nozzle Temp": "Temp. ugello"
   "Nozzle Temperature": "Temperatura ugello"
   "Nozzle °C": "Ugello °C"
   "Nozzle:": "Ugello:"
   "OK": "OK"
-  "of": "di"
+  OS: 'OS'
   "Off": "Off"
-  "Offline": "Offline"
   "On": "On"
   "Open": "Apri"
   "Operations": "Operazioni"
   "Optimize Your Printing": "Ottimizza la tua stampa"
   "Or Enter Manually": "Oppure inserisci manualmente"
-  "Optional - select your main lighting source, or skip if your printer doesn't have one": "Opzionale - seleziona la tua fonte di illuminazione principale, o salta se la stampante non ne ha una"
   "PETG": "PETG"
   "PID Tuning": "Regolazione PID"
   "PID tuning optimizes temperature control for stable heating.": "La regolazione PID ottimizza il controllo temperatura per un riscaldamento stabile."
@@ -522,12 +508,11 @@ translations:
   "Plugins are discovered on application startup": "I plugin vengono rilevati all'avvio dell'applicazione"
   "Polymaker": "Polymaker"
   "Port": "Porta"
+  Português: 'Português'
   "Position": "Posizione"
   "Power": "Alimentazione"
   "Power Control": "Controllo alimentazione"
-  "Preheat": "Preriscalda"
   "Preparing Print": "Preparazione stampa"
-  "Preparing...": "Preparazione..."
   "Presets": "Preset"
   "Previous": "Precedente"
   "Primary": "Primario"
@@ -537,10 +522,12 @@ translations:
   "Print Complete!": "Stampa completata!"
   "Print Completion Alert": "Avviso completamento stampa"
   "Print Details": "Dettagli stampa"
+  Print Failed: 'Stampa Fallita'
   "Print File": "File stampa"
   "Print Files": "File di stampa"
   "Print History": "Cronologia stampe"
   "Print Hours": "Ore di stampa"
+  Print Objects: 'Oggetti di Stampa'
   "Print Speed": "Velocità stampa"
   "Print Status": "Stato stampa"
   "Print Time": "Tempo stampa"
@@ -548,18 +535,6 @@ translations:
   "Printer": "Stampante"
   "Printer Name": "Nome stampante"
   "Printer Shutdown": "Arresto stampante"
-  "Printer Setup: Connection": "Configurazione stampante: Connessione"
-  "Printer Setup: Fans": "Configurazione stampante: Ventole"
-  "Printer Setup: Filament Sensor": "Configurazione stampante: Sensore filamento"
-  "Printer Setup: Heaters": "Configurazione stampante: Riscaldatori"
-  "Printer Setup: Identity": "Configurazione stampante: Identita"
-  "Printer Setup: Input Shaping": "Configurazione stampante: Input Shaping"
-  "Printer Setup: LEDs": "Configurazione stampante: LED"
-  "Printer Setup: Language": "Configurazione stampante: Lingua"
-  "Printer Setup: Network": "Configurazione stampante: Rete"
-  "Printer Setup: Review": "Configurazione stampante: Riepilogo"
-  "Printer Setup: Touch Calibration": "Configurazione stampante: Calibrazione touch"
-  "Printer Setup: Z Probe": "Configurazione stampante: Sonda Z"
   "Printer Type": "Tipo stampante"
   "Printing": "Stampa in corso"
   "Prints Trend": "Tendenza stampe"
@@ -571,14 +546,10 @@ translations:
   "Probing Bed Screws...": "Sondaggio viti piano..."
   "Probing Bed...": "Sondaggio piano..."
   "Probing Failed": "Sondaggio fallito"
-  "Processing...": "Elaborazione..."
-  "Profile": "Profilo"
   "Profile name (e.g., default)": "Nome profilo (es. default)"
   "Profiles": "Profili"
-  "Progress": "Progresso"
   "Progress Bar Tests": "Test barra progresso"
   "Purge": "Spurga"
-  "Purge 50mm": "Spurga 50mm"
   "QUICK BUTTONS": "PULSANTI RAPIDI"
   "Quad Gantry Level": "Livellamento gantry quadruplo"
   "Quick Actions": "Azioni rapide"
@@ -595,7 +566,6 @@ translations:
   "Recording Mode": "Modalità registrazione"
   "Recover": "Recupera"
   "Reduce Ringing": "Riduci ringing"
-  "Refresh": "Aggiorna"
   "Refresh Interval": "Intervallo aggiornamento"
   "Remaining": "Rimanente"
   "Remove plugin from printer": "Rimuovi plugin dalla stampante"
@@ -606,7 +576,6 @@ translations:
   "Requires Moonraker-Timelapse plugin": "Richiede plugin Moonraker-Timelapse"
   "Reset": "Ripristina"
   Reset Speed & Flow to 100%: Ripristina velocità e flusso al 100%
-  "Reset Speed &amp; Flow to 100%": "Ripristina velocità e flusso al 100%"
   "Reset all settings and restart wizard": "Ripristina tutte le impostazioni e riavvia procedura guidata"
   Resetting...: Ripristino...
   "Resonance compensation tuning": "Regolazione compensazione risonanza"
@@ -617,14 +586,12 @@ translations:
   "Restart the display application": "Riavvia l'applicazione display"
   "Resume": "Riprendi"
   "Resume Print": "Riprendi stampa"
-  "Retract": "Ritrai"
   "Retract Length": "Lunghezza retrazione"
   "Retract Speed": "Velocità retrazione"
   "Retraction Settings": "Impostazioni retrazione"
   "Retry": "Riprova"
   "Review detected hardware validation issues": "Rivedi problemi di validazione hardware rilevati"
   "Review your changes": "Rivedi le modifiche"
-  "Review your configuration below, then click Finish to save": "Rivedi la configurazione qui sotto, poi clicca Fine per salvare"
   "Role:": "Ruolo:"
   "Runout Sensor": "Sensore esaurimento"
   "STANDARD MACROS": "MACRO STANDARD"
@@ -633,7 +600,6 @@ translations:
   "SYSTEM": "SISTEMA"
   "Save": "Salva"
   Save & Restart: Salva e riavvia
-  "Save &amp; Restart": "Salva e riavvia"
   "Save As New": "Salva come nuovo"
   "Save Config": "Salva configurazione"
   "Save Printer Configuration": "Salva configurazione stampante"
@@ -641,10 +607,10 @@ translations:
   "Save Z-Offset": "Salva Z-Offset"
   "Save Z-Offset?": "Salvare Z-Offset?"
   "Save changes to persist them across restarts?": "Salvare le modifiche per mantenerle dopo i riavvii?"
+  Saved Z-Offset: 'Z-Offset Salvato'
   "Saving Configuration...": "Salvataggio configurazione..."
   "Saving will restart Klipper and CANCEL any active print!": "Il salvataggio riavvierà Klipper e ANNULLERÀ qualsiasi stampa attiva!"
   "Scanning for networks...": "Scansione reti..."
-  "Scanning...": "Scansione..."
   "Screen Dim": "Attenuazione schermo"
   "Screen dims to lower brightness after period of inactivity": "Lo schermo si attenua dopo un periodo di inattività"
   "Screen will dim after the selected period of inactivity": "Lo schermo si attenuerà dopo il periodo di inattività selezionato"
@@ -656,14 +622,11 @@ translations:
   "Select 'None' if you don't have a filament sensor, or if you don't want to pause on runout.": "Selezionare 'Nessuno' se non si dispone di un sensore filamento o se non si desidera la pausa all'esaurimento."
   "Select 'None' if you have a dedicated probe, or don't use bed mesh leveling.": "Selezionare 'Nessuno' se si dispone di una sonda dedicata o non si utilizza il livellamento mesh piano."
   "Select Filament": "Seleziona filamento"
-  "Select File": "Seleziona file"
   Select G-Code File: Seleziona file G-Code
   "Select Heater": "Seleziona riscaldatore"
-  "Select the heaters Klipper uses for your bed and hotend": "Seleziona i riscaldatori che Klipper usa per piano e hotend"
-  "Select which sensor triggers pause on filament runout": "Seleziona quale sensore attiva la pausa all'esaurimento filamento"
-  "Select your preferred language": "Seleziona la tua lingua preferita"
   "Select macro for first button": "Seleziona macro per il primo pulsante"
   "Select macro for second button": "Seleziona macro per il secondo pulsante"
+  Select which LED to control: 'Seleziona quale LED controllare'
   Selecting slot...: Selezione slot...
   "Semantic Size Parameter Tests": "Test parametri dimensione semantici"
   "Send commands directly to printer": "Invia comandi direttamente alla stampante"
@@ -677,22 +640,20 @@ translations:
   "Side": "Lato"
   "Size": "Dimensione"
   "Skip": "Salta"
-  "Skip for now": "Salta per ora"
-  "Skip if using dedicated probe (BLTouch, Klicky, etc.)": "Salta se usi una sonda dedicata (BLTouch, Klicky, ecc.)"
+  Sleep While Printing: 'Sospensione Durante Stampa'
   "Slot 1": "Slot 1"
   "Small labels help keep controls calm and focused.": "Le etichette piccole aiutano a mantenere i controlli ordinati e mirati."
   "Some settings will take effect after restart.": "Alcune impostazioni avranno effetto dopo il riavvio."
   "Sounds": "Suoni"
   'Specular:': 'Speculare:'
-  "Speed": "Velocità"
   "Speed Settings": "Impostazioni velocità"
   "Speed of prime movement": "Velocità movimento priming"
   "Speed of retraction movement": "Velocità movimento retrazione"
-  "Speed:": "Velocità:"
   "Spool Visualization (Pseudo-3D Canvas)": "Visualizzazione bobina (Canvas pseudo-3D)"
   "Spoolman": "Spoolman"
   "Spoolman has no spools configured": "Spoolman non ha bobine configurate"
   "Square Corner Velocity": "Velocità angoli retti"
+  Stable\nBeta\nDev: 'Stable\nBeta\nDev'
   Standby: Standby
   "Start Calibration": "Avvia calibrazione"
   "Start Probing": "Avvia sondaggio"
@@ -705,6 +666,7 @@ translations:
   "Stop Drying": "Ferma essiccazione"
   "Stop Print?": "Fermare stampa?"
   "Stops all motion. Requires firmware restart.": "Ferma tutto il movimento. Richiede riavvio firmware."
+  Styled (value=75): 'Styled (value=75)'
   "Success Rate": "Tasso di successo"
   "Success!": "Successo!"
   "Surfaces inherit app background tokens for light and dark modes.": "Le superfici ereditano i token sfondo app per modalità chiara e scura."
@@ -718,9 +680,9 @@ translations:
   "THEME COLORS": "COLORI TEMA"
   "TPU": "TPU"
   "Tap to show keyboard...": "Tocca per mostrare tastiera..."
-  "Target": "Target"
   "Target Temperature": "Temperatura target"
   "Temperature": "Temperatura"
+  Temperature Sensors: 'Sensori di Temperatura'
   "Temperatures": "Temperature"
   "Temporary adjustment for this print, unless saved on Controls panel": "Regolazione temporanea per questa stampa, salvo salvataggio nel pannello Controlli"
   "Tertiary": "Terziario"
@@ -734,8 +696,8 @@ translations:
   "Theme Colors": "Colori tema"
   "Theme Preset": "Preset tema"
   "Theme changes apply after restart.": "Le modifiche al tema si applicano dopo il riavvio."
-  "Theme changes will take effect after restart.": "Le modifiche al tema avranno effetto dopo il riavvio."
   "Theme, brightness, and sleep settings": "Tema, luminosità e impostazioni standby"
+  Thin bar (height=8): 'Thin bar (height=8)'
   "This calibration uses the paper friction method to set your Z-offset.": "Questa calibrazione utilizza il metodo della frizione della carta per impostare lo Z-offset."
   "This may take 1-2 minutes": "Questo potrebbe richiedere 1-2 minuti"
   "This may take up to 30 seconds": "Questo potrebbe richiedere fino a 30 secondi"
@@ -777,16 +739,22 @@ translations:
   Unloading filament...: Scaricamento filamento...
   "Unretract Extra": "Extra dopo retrazione"
   "Unretract Speed": "Velocità dopo retrazione"
+  Update Available: 'Aggiornamento Disponibile'
+  Update Channel: 'Canale Aggiornamenti'
+  Update Failed: 'Aggiornamento Fallito'
+  Update Installed: 'Aggiornamento Installato'
   "Upload gcode files to get started": "Carica file gcode per iniziare"
   "Use G10/G11 firmware retraction": "Usa retrazione firmware G10/G11"
   ValgACE (ACE Pro): ValgACE (ACE Pro)
   "Values have been saved to printer configuration.": "I valori sono stati salvati nella configurazione stampante."
   "Velocity and acceleration limits": "Limiti velocità e accelerazione"
   "Vendor": "Produttore"
+  Verifying...: 'Verifica in corso...'
   "Version": "Versione"
   "Vertical Progress (Retract Wizard)": "Progresso verticale (procedura guidata retrazione)"
   "Vibration": "Vibrazione"
   "Video playback speed": "Velocità riproduzione video"
+  View Changelog: 'Visualizza Modifiche'
   "View Full History": "Visualizza cronologia completa"
   "View Presets": "Visualizza preset"
   "View Timelapse": "Visualizza timelapse"
@@ -803,31 +771,36 @@ translations:
   "WiFi and Ethernet": "WiFi ed Ethernet"
   "WiFi and Ethernet configuration": "Configurazione WiFi ed Ethernet"
   "WiFi control unavailable": "Controllo WiFi non disponibile"
-  "WiFi Disabled": "WiFi disabilitato"
-  "WiFi Enabled": "WiFi abilitato"
   "WiFi hardware unavailable": "Hardware WiFi non disponibile"
   "Width": "Larghezza"
   "Width Sensors": "Sensori larghezza"
   'X:': 'X:'
+  XY: 'XY'
   'Y:': 'Y:'
   "Year": "Anno"
+  You can skip this and calibrate later in Settings.: 'Puoi saltare e calibrare più tardi nelle Impostazioni.'
   "Your completed prints will appear here": "Le stampe completate appariranno qui"
-  "Your printer has an automatic filament changer": "La tua stampante ha un cambia-filamento automatico"
+  Z: 'Z'
   "Z Calibration": "Calibrazione Z"
+  Z Movement: 'Movimento Z'
   "Z Range": "Intervallo Z"
   "Z probes for bed leveling and mesh generation": "Sonde Z per livellamento piano e generazione mesh"
   "Z-Offset": "Z-Offset"
   "Z-Offset Calibration": "Calibrazione Z-Offset"
   "Z-Offset:": "Z-Offset:"
   "Z-Tilt Adjust": "Regolazione Z-Tilt"
+  'Z:': 'Z:'
+  'Z: 0.000': 'Z: 0.000'
   "Zoom": "Zoom"
-  "hour": "ora"
-  "hours": "ore"
-  "minute": "minuto"
-  "minutes": "minuti"
-  "seconds": "secondi"
-  size="large": size="large"
-  size="medium": size="medium"
-  size="medium" width="100": size="medium" width="100"
-  size="small": size="small"
-  size="tiny": size="tiny"
+  ^ FRONT: '^ FRONT'
+  min_value=0, max_value=100, value=25: 'min_value=0, max_value=100, value=25'
+  mzv @ 36.7 Hz: 'mzv @ 36.7 Hz'
+  "of": "di"
+  value=0 (shows FULL - BUG!): 'value=0 (shows FULL - BUG!)'
+  value=1 (tiny sliver?): 'value=1 (tiny sliver?)'
+  value=100 (should be full): 'value=100 (should be full)'
+  Русский: 'Русский'
+  —: '—'
+  •: '•'
+  中文: '中文'
+  日本語: '日本語'

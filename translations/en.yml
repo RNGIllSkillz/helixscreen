@@ -1,18 +1,30 @@
 locale: en
 translations:
+  ' / ': ' / '
+  ' 0 / 0': ' 0 / 0'
+  ' elapsed · ': ' elapsed · '
+  ' left': ' left'
   (0): (0)
   (2.4GHz): (2.4GHz)
-  +0.01mm: +0.01mm
-  +0.05mm: +0.05mm
-  +0.1mm: +0.1mm
-  +1mm: +1mm
+  +: +
+  '+.005': '+.005'
+  '+.01': '+.01'
+  '+.05': '+.05'
+  '+.1': '+.1'
+  '+0': '+0'
+  '+1': '+1'
+  '-': '-'
   "- Check [resonance_tester] in printer.cfg": "- Check [resonance_tester] in printer.cfg"
   "- Ensure ADXL345 is connected": "- Ensure ADXL345 is connected"
   "- Try Measure Noise first": "- Try Measure Noise first"
-  -0.01mm: -0.01mm
-  -0.05mm: -0.05mm
-  -0.1mm: -0.1mm
-  -1mm: -1mm
+  --: --
+  '---': '---'
+  '-.005': '-.005'
+  '-.01': '-.01'
+  '-.05': '-.05'
+  '-.1': '-.1'
+  '-1': '-1'
+  /: /
   "0.4-2mm direct drive, 4-6mm bowden": "0.4-2mm direct drive, 4-6mm bowden"
   "1. Printer homes and probes the bed": "1. Printer homes and probes the bed"
   "1. Printer will home and probe each screw": "1. Printer will home and probe each screw"
@@ -37,21 +49,21 @@ translations:
   850g: 850g
   "= Loosen": "= Loosen"
   "= Tighten": "= Tighten"
-  "ABOUT": "ABOUT"
+  '?': '?'
   "ABS": "ABS"
   "AMS Settings": "AMS Settings"
   "APPEARANCE": "APPEARANCE"
   "AUTOMATION": "AUTOMATION"
   "Abort": "Abort"
-  "About": "About"
+  About HelixScreen: About HelixScreen
   "Accel to Decel": "Accel to Decel"
   "Acceleration to deceleration limit (mm/s²)": "Acceleration to deceleration limit (mm/s²)"
   "Accelerometers": "Accelerometers"
   "Accept": "Accept"
+  'Accepted Z Position: 0.000': 'Accepted Z Position: 0.000'
   "Action Required": "Action Required"
   "Actions": "Actions"
   "Active": "Active"
-  "Actual": "Actual"
   "Add Hidden Network": "Add Hidden Network"
   "Adjust screen brightness level": "Adjust screen brightness level"
   "Adjust screws, then re-probe.": "Adjust screws, then re-probe."
@@ -59,8 +71,8 @@ translations:
   "Advanced Setting": "Advanced Setting"
   "All": "All"
   "All screws are within tolerance.": "All screws are within tolerance."
+  Allow display to sleep during active prints: Allow display to sleep during active prints
   Allwinner: Allwinner
-  "Amount:": "Amount:"
   "An accelerometer was detected on your printer.": "An accelerometer was detected on your printer."
   "An error occurred during calibration.": "An error occurred during calibration."
   "An error occurred during probing.": "An error occurred during probing."
@@ -84,6 +96,7 @@ translations:
   "Automatically poll Spoolman for weight updates": "Automatically poll Spoolman for weight updates"
   "Available Networks": "Available Networks"
   "Available networks": "Available networks"
+  BETA: BETA
   "Back": "Back"
   "Backup": "Backup"
   "Bed": "Bed"
@@ -97,6 +110,7 @@ translations:
   "Bed is Level!": "Bed is Level!"
   "Bed °C": "Bed °C"
   "Bed:": "Bed:"
+  Beta features are enabled: Beta features are enabled
   Black: Black
   "Bluetooth": "Bluetooth"
   "Body text supports longer guidance while staying readable.": "Body text supports longer guidance while staying readable."
@@ -106,31 +120,30 @@ translations:
   "Border transparency (0 = invisible, 255 = solid)": "Border transparency (0 = invisible, 255 = solid)"
   "Brightness": "Brightness"
   "Browse": "Browse"
-  "Busy": "Busy"
   "Bypass": "Bypass"
   "Bypass Mode": "Bypass Mode"
   "CALIBRATION": "CALIBRATION"
   "CHANGED FROM LAST SESSION": "CHANGED FROM LAST SESSION"
   "COLORS REQUIRED": "COLORS REQUIRED"
   "CRITICAL": "CRITICAL"
-  "Calibrate": "Calibrate"
   "Calibrate X": "Calibrate X"
   "Calibrate Y": "Calibrate Y"
   "Calibrate resonance compensation": "Calibrate resonance compensation"
   "Calibrating...": "Calibrating..."
   "Calibration": "Calibration"
-  "Calibration &amp; Tools": "Calibration &amp; Tools"
+  Calibration & Tools: Calibration & Tools
   "Calibration Complete!": "Calibration Complete!"
   "Calibration Failed": "Calibration Failed"
   "Cancel": "Cancel"
   "Cancel Print": "Cancel Print"
   Cancelled: Cancelled
-  "Chamber": "Chamber"
   "Chamber Fan": "Chamber Fan"
   "Chamber and dryer humidity monitoring": "Chamber and dryer humidity monitoring"
   "Chamber:": "Chamber:"
+  Change Printer Host: Change Printer Host
   "Changes apply immediately. Adjust during print for tuning.": "Changes apply immediately. Adjust during print for tuning."
   "Changes are temporary and reset on printer reboot": "Changes are temporary and reset on printer reboot"
+  Check for Updates: Check for Updates
   "Check the filament path and try again.": "Check the filament path and try again."
   Checking slots...: Checking slots...
   "Choose 12-hour or 24-hour time display": "Choose 12-hour or 24-hour time display"
@@ -144,10 +157,12 @@ translations:
   "Clear Assignment": "Clear Assignment"
   Clipboard unavailable - use SSH: Clipboard unavailable - use SSH
   "Close": "Close"
+  Closer: Closer
   "Closer = more squish | Farther = less squish": "Closer = more squish | Farther = less squish"
   "Color Sensors": "Color Sensors"
   "Complete": "Complete"
   Completed: Completed
+  Completed in 3 probes: Completed in 3 probes
   "Config-defined (read-only)": "Config-defined (read-only)"
   "Configure G10/G11 firmware retraction": "Configure G10/G11 firmware retraction"
   "Configure PRINT_START": "Configure PRINT_START"
@@ -158,22 +173,13 @@ translations:
   "Configure timelapse recording": "Configure timelapse recording"
   "Connect": "Connect"
   "Connected": "Connected"
-  "Connected (%s)": "Connected (%s)"
-  "Connected!": "Connected!"
-  "Connected! Discovering printer...": "Connected! Discovering printer..."
-  "Connected (no discovery)": "Connected (no discovery)"
-  "Connected, discovering...": "Connected, discovering..."
-  "Connecting": "Connecting"
   "Connecting to network...": "Connecting to network..."
   "Connecting...": "Connecting..."
   "Connection": "Connection"
   Connection failed. Check password.: Connection failed. Check password.
-  "Connection must be tested successfully to continue": "Connection must be tested successfully to continue"
-  "Connection successful!": "Connection successful!"
   "Console": "Console"
   "Control optional print start features": "Control optional print start features"
   "Cool Down": "Cool Down"
-  "Cooldown": "Cooldown"
   "Cooling": "Cooling"
   "Copy Command": "Copy Command"
   "Corner roundness (0 = sharp, 40 = very round)": "Corner roundness (0 = sharp, 40 = very round)"
@@ -181,6 +187,7 @@ translations:
   Current / Target: Current / Target
   "Current Mesh": "Current Mesh"
   "Current Temperature": "Current Temperature"
+  Current Version: Current Version
   "Current Z Position": "Current Z Position"
   "Current name:": "Current name:"
   "Currently Loaded": "Currently Loaded"
@@ -192,25 +199,27 @@ translations:
   "Danger": "Danger"
   "Dark Mode": "Dark Mode"
   "Day": "Day"
+  Default (value=50): Default (value=50)
   "Default border thickness": "Default border thickness"
   "Define macros in your printer.cfg": "Define macros in your printer.cfg"
   "Delete": "Delete"
   "Delta:": "Delta:"
+  Deutsch: Deutsch
   "Device Operations": "Device Operations"
   "Disable": "Disable"
   "Discovered Printers": "Discovered Printers"
   "Dismiss": "Dismiss"
-  "Display": "Display"
   "Display Settings": "Display Settings"
   "Display Sleep": "Display Sleep"
+  Do not power off your printer.: Do not power off your printer.
   "Don't Save": "Don't Save"
   "Don't ask again": "Don't ask again"
   "Done": "Done"
+  Downloading...: Downloading...
   "Drop shadow strength (0 = disabled)": "Drop shadow strength (0 = disabled)"
   "Dryer": "Dryer"
   "Dryer Control": "Dryer Control"
   "Duration": "Duration"
-  "E-Stop": "E-Stop"
   "E-Stop Confirmation": "E-Stop Confirmation"
   "EMERGENCY CONTROLS": "EMERGENCY CONTROLS"
   "EMERGENCY STOP": "EMERGENCY STOP"
@@ -220,7 +229,6 @@ translations:
   "Edit Slot 1": "Edit Slot 1"
   "Edit Theme Colors": "Edit Theme Colors"
   Edit Theme Colors (Modified): Edit Theme Colors (Modified)
-  "Elapsed": "Elapsed"
   "Emergency Stop": "Emergency Stop"
   "Emergency Stop (M112)": "Emergency Stop (M112)"
   "Emergency Stop?": "Emergency Stop?"
@@ -237,27 +245,25 @@ translations:
   "Enable detailed print preparation tracking (Recommended)": "Enable detailed print preparation tracking (Recommended)"
   "Enabled": "Enabled"
   "Ended": "Ended"
+  English: English
   "Enhancement Complete!": "Enhancement Complete!"
   "Enhancement Failed": "Enhancement Failed"
-  "Enter G-code command...": "Enter G-code command..."
   "Enter WiFi Password": "Enter WiFi Password"
   "Enter a name for your custom theme:": "Enter a name for your custom theme:"
   "Enter a name to save this profile": "Enter a name to save this profile"
-  "Enter network name": "Enter network name"
   "Enter password": "Enter password"
   "Error": "Error"
   Error state: Error state
+  Español: Español
   "Ethernet": "Ethernet"
   "Exclude": "Exclude"
+  Excluded: Excluded
   "Execute printer macros": "Execute printer macros"
   "Exhaust Fan": "Exhaust Fan"
   "Explore how the selected palette shapes text, controls, and status colors.": "Explore how the selected palette shapes text, controls, and status colors."
   "Explore palette and preview": "Explore palette and preview"
   "Extra prime to compensate ooze": "Extra prime to compensate ooze"
-  "Extrude": "Extrude"
-  "Extrude / Retract": "Extrude / Retract"
   Extruder: Extruder
-  "Extruder PID Tuning": "Extruder PID Tuning"
   "Extruder heats automatically based on material": "Extruder heats automatically based on material"
   "Extrusion rate": "Extrusion rate"
   "FAILED": "FAILED"
@@ -265,6 +271,7 @@ translations:
   "Factory Reset": "Factory Reset"
   Failed: Failed
   Failed to save theme file: Failed to save theme file
+  Farther: Farther
   "Feed filament directly to extruder": "Feed filament directly to extruder"
   "Filament": "Filament"
   "Filament Sensor": "Filament Sensor"
@@ -277,14 +284,14 @@ translations:
   "File": "File"
   "File Info": "File Info"
   "Filename": "Filename"
-  "Files": "Files"
-  "Finish": "Finish"
   "Fill: 100% / 75% / 40% / 10%": "Fill: 100% / 75% / 40% / 10%"
+  "Finish": "Finish"
   "Firmware Restart": "Firmware Restart"
   "Flat Concentric Rings (existing ams_slot)": "Flat Concentric Rings (existing ams_slot)"
   "Flow Rate": "Flow Rate"
   Forming tip...: Forming tip...
   "Framerate": "Framerate"
+  Français: Français
   "Freq": "Freq"
   "Front": "Front"
   "G-code Console": "G-code Console"
@@ -303,7 +310,6 @@ translations:
   : "Have your bed adjustment tool (screwdriver, hex-key, etc.) ready if your bed isn't adjusted with                              thumb wheels or some other built-in mechanism."
   "Heading": "Heading"
   "Heat Soak": "Heat Soak"
-  "Heat to 170°C to extrude": "Heat to 170°C to extrude"
   "Heatbed Temperature": "Heatbed Temperature"
   "Heated Bed": "Heated Bed"
   Heating...: Heating...
@@ -311,15 +317,12 @@ translations:
   "HelixScreen will integrate with your filament changer for multi-spool/color print operations.": "HelixScreen will integrate with your filament changer for multi-spool/color print operations."
   "Higher = faster": "Higher = faster"
   "Home": "Home"
-  "Home All": "Home All"
-  "Home X": "Home X"
-  "Home Y": "Home Y"
-  "Home Z": "Home Z"
   "Horizontal Progress (Leveling Wizard)": "Horizontal Progress (Leveling Wizard)"
   "Host": "Host"
   "Hotend": "Hotend"
   "Hotend Fan": "Hotend Fan"
   "Hotend Heater": "Hotend Heater"
+  How Z-axis movement is displayed: How Z-axis movement is displayed
   "How often to check Spoolman for weight updates": "How often to check Spoolman for weight updates"
   "Humidity": "Humidity"
   "Humidity Sensors": "Humidity Sensors"
@@ -328,14 +331,15 @@ translations:
   "Ignore": "Ignore"
   In Progress: In Progress
   Indexing G-code...: Indexing G-code...
-  "Initializing...": "Initializing..."
   "Input": "Input"
   "Input Shaper": "Input Shaper"
   "Input Shaping": "Input Shaping"
   "Input shaper calibration sensors": "Input shaper calibration sensors"
   "Input shaping reduces vibration artifacts (ringing) in your prints.": "Input shaping reduces vibration artifacts (ringing) in your prints."
+  Install: Install
   "Install HelixPrint Plugin": "Install HelixPrint Plugin"
   "Install Plugin": "Install Plugin"
+  Install Update: Install Update
   "Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:": "Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:"
   Installation Failed: Installation Failed
   "Installation takes about 30 seconds.": "Installation takes about 30 seconds."
@@ -344,6 +348,7 @@ translations:
   "Interactive 3D G-code during prints": "Interactive 3D G-code during prints"
   "Interactive probe calibration": "Interactive probe calibration"
   "Issue description": "Issue description"
+  Italiano: Italiano
   Just now: Just now
   "Kd:": "Kd:"
   "Keep Printing": "Keep Printing"
@@ -360,11 +365,9 @@ translations:
   "LED on at Start": "LED on at Start"
   "LOADED": "LOADED"
   "Language": "Language"
-  "Last 7 days": "Last 7 days"
   Last print cancelled: Last print cancelled
   Last print failed: Last print failed
   "Later": "Later"
-  "Layer": "Layer"
   "Layer Height": "Layer Height"
   "Layer mode captures one frame per layer change. Best for most prints.": "Layer mode captures one frame per layer change. Best for most prints."
   "Layer:": "Layer:"
@@ -383,6 +386,7 @@ translations:
   Locked during print: Locked during print
   "M to toggle": "M to toggle"
   'MAC:': 'MAC:'
+  MCU, host, and auxiliary temperature monitoring: MCU, host, and auxiliary temperature monitoring
   "MDI Icons": "MDI Icons"
   "MISSING CONFIGURED": "MISSING CONFIGURED"
   "MOTION": "MOTION"
@@ -400,6 +404,7 @@ translations:
   "Macro to resume a paused print": "Macro to resume a paused print"
   "Macro to unload filament from extruder": "Macro to unload filament from extruder"
   "Macros": "Macros"
+  Main LED: Main LED
   "Main LED Strip": "Main LED Strip"
   "Make Optional": "Make Optional"
   "Make bed mesh and QGL skippable": "Make bed mesh and QGL skippable"
@@ -424,14 +429,12 @@ translations:
   "Motion": "Motion"
   "Motion: XYZ": "Motion: XYZ"
   "Motors Off": "Motors Off"
-  "Move": "Move"
   "Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.": "Move paper back and forth while adjusting. Stop when paper catches slightly but still slides."
   "Movement speed": "Movement speed"
   "Multi-Filament": "Multi-Filament"
   "Multi-Material": "Multi-Material"
   "My Custom Theme": "My Custom Theme"
   "My Panel": "My Panel"
-  "My Printer": "My Printer"
   "NEWLY DISCOVERED": "NEWLY DISCOVERED"
   "NOTIFICATIONS": "NOTIFICATIONS"
   "Name": "Name"
@@ -440,9 +443,8 @@ translations:
   "Network Name (SSID)": "Network Name (SSID)"
   "Network Settings": "Network Settings"
   "Network Test": "Network Test"
-  "Never": "Never"
   "New PID Values": "New PID Values"
-  'New Z-Offset: 0.000': 'New Z-Offset: 0.000'
+  New Version Available: New Version Available
   "New profile name": "New profile name"
   "Next": "Next"
   "No AMS system connected.": "No AMS system connected."
@@ -456,7 +458,6 @@ translations:
   "No networks found": "No networks found"
   "No notifications": "No notifications"
   "No plugins found": "No plugins found"
-  "No printers found": "No printers found"
   "No preview": "No preview"
   "No print history yet": "No print history yet"
   No print start macro found: No print start macro found
@@ -469,14 +470,12 @@ translations:
   "Notify when print finishes": "Notify when print finishes"
   "Nozzle": "Nozzle"
   "Nozzle Priming": "Nozzle Priming"
-  "Nozzle Temp": "Nozzle Temp"
   "Nozzle Temperature": "Nozzle Temperature"
   "Nozzle °C": "Nozzle °C"
   "Nozzle:": "Nozzle:"
   "OK": "OK"
+  OS: OS
   "Off": "Off"
-  "Offline": "Offline"
-  "of": "of"
   "On": "On"
   "Open": "Open"
   "Operations": "Operations"
@@ -509,12 +508,11 @@ translations:
   "Plugins are discovered on application startup": "Plugins are discovered on application startup"
   "Polymaker": "Polymaker"
   "Port": "Port"
+  Português: Português
   "Position": "Position"
   "Power": "Power"
   "Power Control": "Power Control"
-  "Preheat": "Preheat"
   "Preparing Print": "Preparing Print"
-  "Preparing...": "Preparing..."
   "Presets": "Presets"
   "Previous": "Previous"
   "Primary": "Primary"
@@ -524,10 +522,12 @@ translations:
   "Print Complete!": "Print Complete!"
   "Print Completion Alert": "Print Completion Alert"
   "Print Details": "Print Details"
+  Print Failed: Print Failed
   "Print File": "Print File"
   "Print Files": "Print Files"
   "Print History": "Print History"
   "Print Hours": "Print Hours"
+  Print Objects: Print Objects
   "Print Speed": "Print Speed"
   "Print Status": "Print Status"
   "Print Time": "Print Time"
@@ -546,14 +546,10 @@ translations:
   "Probing Bed Screws...": "Probing Bed Screws..."
   "Probing Bed...": "Probing Bed..."
   "Probing Failed": "Probing Failed"
-  "Processing...": "Processing..."
-  "Profile": "Profile"
   "Profile name (e.g., default)": "Profile name (e.g., default)"
   "Profiles": "Profiles"
-  "Progress": "Progress"
   "Progress Bar Tests": "Progress Bar Tests"
   "Purge": "Purge"
-  "Purge 50mm": "Purge 50mm"
   "QUICK BUTTONS": "QUICK BUTTONS"
   "Quad Gantry Level": "Quad Gantry Level"
   "Quick Actions": "Quick Actions"
@@ -570,7 +566,6 @@ translations:
   "Recording Mode": "Recording Mode"
   "Recover": "Recover"
   "Reduce Ringing": "Reduce Ringing"
-  "Refresh": "Refresh"
   "Refresh Interval": "Refresh Interval"
   "Remaining": "Remaining"
   "Remove plugin from printer": "Remove plugin from printer"
@@ -581,7 +576,6 @@ translations:
   "Requires Moonraker-Timelapse plugin": "Requires Moonraker-Timelapse plugin"
   "Reset": "Reset"
   Reset Speed & Flow to 100%: Reset Speed & Flow to 100%
-  "Reset Speed &amp; Flow to 100%": "Reset Speed &amp; Flow to 100%"
   "Reset all settings and restart wizard": "Reset all settings and restart wizard"
   Resetting...: Resetting...
   "Resonance compensation tuning": "Resonance compensation tuning"
@@ -592,7 +586,6 @@ translations:
   "Restart the display application": "Restart the display application"
   "Resume": "Resume"
   "Resume Print": "Resume Print"
-  "Retract": "Retract"
   "Retract Length": "Retract Length"
   "Retract Speed": "Retract Speed"
   "Retraction Settings": "Retraction Settings"
@@ -607,7 +600,6 @@ translations:
   "SYSTEM": "SYSTEM"
   "Save": "Save"
   Save & Restart: Save & Restart
-  "Save &amp; Restart": "Save &amp; Restart"
   "Save As New": "Save As New"
   "Save Config": "Save Config"
   "Save Printer Configuration": "Save Printer Configuration"
@@ -615,6 +607,7 @@ translations:
   "Save Z-Offset": "Save Z-Offset"
   "Save Z-Offset?": "Save Z-Offset?"
   "Save changes to persist them across restarts?": "Save changes to persist them across restarts?"
+  Saved Z-Offset: Saved Z-Offset
   "Saving Configuration...": "Saving Configuration..."
   "Saving will restart Klipper and CANCEL any active print!": "Saving will restart Klipper and CANCEL any active print!"
   "Scanning for networks...": "Scanning for networks..."
@@ -629,11 +622,11 @@ translations:
   "Select 'None' if you don't have a filament sensor, or if you don't want to pause on runout.": "Select 'None' if you don't have a filament sensor, or if you don't want to pause on runout."
   "Select 'None' if you have a dedicated probe, or don't use bed mesh leveling.": "Select 'None' if you have a dedicated probe, or don't use bed mesh leveling."
   "Select Filament": "Select Filament"
-  "Select File": "Select File"
   Select G-Code File: Select G-Code File
   "Select Heater": "Select Heater"
   "Select macro for first button": "Select macro for first button"
   "Select macro for second button": "Select macro for second button"
+  Select which LED to control: Select which LED to control
   Selecting slot...: Selecting slot...
   "Semantic Size Parameter Tests": "Semantic Size Parameter Tests"
   "Send commands directly to printer": "Send commands directly to printer"
@@ -647,21 +640,20 @@ translations:
   "Side": "Side"
   "Size": "Size"
   "Skip": "Skip"
-  "Skip for now": "Skip for now"
+  Sleep While Printing: Sleep While Printing
   "Slot 1": "Slot 1"
   "Small labels help keep controls calm and focused.": "Small labels help keep controls calm and focused."
   "Some settings will take effect after restart.": "Some settings will take effect after restart."
   "Sounds": "Sounds"
   'Specular:': 'Specular:'
-  "Speed": "Speed"
   "Speed Settings": "Speed Settings"
   "Speed of prime movement": "Speed of prime movement"
   "Speed of retraction movement": "Speed of retraction movement"
-  "Speed:": "Speed:"
   "Spool Visualization (Pseudo-3D Canvas)": "Spool Visualization (Pseudo-3D Canvas)"
   "Spoolman": "Spoolman"
   "Spoolman has no spools configured": "Spoolman has no spools configured"
   "Square Corner Velocity": "Square Corner Velocity"
+  Stable\nBeta\nDev: Stable\nBeta\nDev
   Standby: Standby
   "Start Calibration": "Start Calibration"
   "Start Probing": "Start Probing"
@@ -674,6 +666,7 @@ translations:
   "Stop Drying": "Stop Drying"
   "Stop Print?": "Stop Print?"
   "Stops all motion. Requires firmware restart.": "Stops all motion. Requires firmware restart."
+  Styled (value=75): Styled (value=75)
   "Success Rate": "Success Rate"
   "Success!": "Success!"
   "Surfaces inherit app background tokens for light and dark modes.": "Surfaces inherit app background tokens for light and dark modes."
@@ -687,9 +680,9 @@ translations:
   "THEME COLORS": "THEME COLORS"
   "TPU": "TPU"
   "Tap to show keyboard...": "Tap to show keyboard..."
-  "Target": "Target"
   "Target Temperature": "Target Temperature"
   "Temperature": "Temperature"
+  Temperature Sensors: Temperature Sensors
   "Temperatures": "Temperatures"
   "Temporary adjustment for this print, unless saved on Controls panel": "Temporary adjustment for this print, unless saved on Controls panel"
   "Tertiary": "Tertiary"
@@ -703,8 +696,8 @@ translations:
   "Theme Colors": "Theme Colors"
   "Theme Preset": "Theme Preset"
   "Theme changes apply after restart.": "Theme changes apply after restart."
-  "Theme changes will take effect after restart.": "Theme changes will take effect after restart."
   "Theme, brightness, and sleep settings": "Theme, brightness, and sleep settings"
+  Thin bar (height=8): Thin bar (height=8)
   "This calibration uses the paper friction method to set your Z-offset.": "This calibration uses the paper friction method to set your Z-offset."
   "This may take 1-2 minutes": "This may take 1-2 minutes"
   "This may take up to 30 seconds": "This may take up to 30 seconds"
@@ -746,16 +739,22 @@ translations:
   Unloading filament...: Unloading filament...
   "Unretract Extra": "Unretract Extra"
   "Unretract Speed": "Unretract Speed"
+  Update Available: Update Available
+  Update Channel: Update Channel
+  Update Failed: Update Failed
+  Update Installed: Update Installed
   "Upload gcode files to get started": "Upload gcode files to get started"
   "Use G10/G11 firmware retraction": "Use G10/G11 firmware retraction"
   ValgACE (ACE Pro): ValgACE (ACE Pro)
   "Values have been saved to printer configuration.": "Values have been saved to printer configuration."
   "Velocity and acceleration limits": "Velocity and acceleration limits"
   "Vendor": "Vendor"
+  Verifying...: Verifying...
   "Version": "Version"
   "Vertical Progress (Retract Wizard)": "Vertical Progress (Retract Wizard)"
   "Vibration": "Vibration"
   "Video playback speed": "Video playback speed"
+  View Changelog: View Changelog
   "View Full History": "View Full History"
   "View Presets": "View Presets"
   "View Timelapse": "View Timelapse"
@@ -776,58 +775,32 @@ translations:
   "Width": "Width"
   "Width Sensors": "Width Sensors"
   'X:': 'X:'
+  XY: XY
   'Y:': 'Y:'
   "Year": "Year"
+  You can skip this and calibrate later in Settings.: You can skip this and calibrate later in Settings.
   "Your completed prints will appear here": "Your completed prints will appear here"
+  Z: Z
   "Z Calibration": "Z Calibration"
+  Z Movement: Z Movement
   "Z Range": "Z Range"
   "Z probes for bed leveling and mesh generation": "Z probes for bed leveling and mesh generation"
   "Z-Offset": "Z-Offset"
   "Z-Offset Calibration": "Z-Offset Calibration"
   "Z-Offset:": "Z-Offset:"
   "Z-Tilt Adjust": "Z-Tilt Adjust"
+  'Z:': 'Z:'
+  'Z: 0.000': 'Z: 0.000'
   "Zoom": "Zoom"
-  "hour": "hour"
-  "hours": "hours"
-  "minute": "minute"
-  "minutes": "minutes"
-  "seconds": "seconds"
-  size="large": size="large"
-  size="medium": size="medium"
-  size="medium" width="100": size="medium" width="100"
-  size="small": size="small"
-  size="tiny": size="tiny"
-  "Authentication failed": "Authentication failed"
-  "Calibrate input shaping to reduce ringing artifacts in prints": "Calibrate input shaping to reduce ringing artifacts in prints"
-  "Calibrate your touchscreen for accurate input": "Calibrate your touchscreen for accurate input"
-  "Configure WiFi for this device, or skip if you're using Ethernet": "Configure WiFi for this device, or skip if you're using Ethernet"
-  "Configure your printer's cooling fans": "Configure your printer's cooling fans"
-  "Connected to ": "Connected to "
-  "Connecting to ": "Connecting to "
-  "Connection timeout": "Connection timeout"
-  "Detecting printer type...": "Detecting printer type..."
-  "Enter 127.0.0.1 if Moonraker is local, or the hostname/IP of a remote printer": "Use 127.0.0.1 if local, or remote hostname/IP"
-  "Multi-Material System Detected": "Multi-Material System Detected"
-  "Not configured": "Not configured"
-  "Optional - select your main lighting source, or skip if your printer doesn't have one": "Optional - select your main lighting source, or skip if your printer doesn't have one"
-  "Printer Setup: Connection": "Printer Setup: Connection"
-  "Printer Setup: Fans": "Printer Setup: Fans"
-  "Printer Setup: Filament Sensor": "Printer Setup: Filament Sensor"
-  "Printer Setup: Heaters": "Printer Setup: Heaters"
-  "Printer Setup: Identity": "Printer Setup: Identity"
-  "Printer Setup: Input Shaping": "Printer Setup: Input Shaping"
-  "Printer Setup: LEDs": "Printer Setup: LEDs"
-  "Printer Setup: Language": "Printer Setup: Language"
-  "Printer Setup: Network": "Printer Setup: Network"
-  "Printer Setup: Review": "Printer Setup: Review"
-  "Printer Setup: Touch Calibration": "Printer Setup: Touch Calibration"
-  "Printer Setup: Z Probe": "Printer Setup: Z Probe"
-  "Review your configuration below, then click Finish to save": "Review your configuration below, then click Finish to save"
-  "Scanning...": "Scanning..."
-  "Select the heaters Klipper uses for your bed and hotend": "Select the heaters Klipper uses for your bed and hotend"
-  "Select which sensor triggers pause on filament runout": "Select which sensor triggers pause on filament runout"
-  "Select your preferred language": "Select your preferred language"
-  "Skip if using dedicated probe (BLTouch, Klicky, etc.)": "Skip if using dedicated probe (BLTouch, Klicky, etc.)"
-  "WiFi Disabled": "WiFi Disabled"
-  "WiFi Enabled": "WiFi Enabled"
-  "Your printer has an automatic filament changer": "Your printer has an automatic filament changer"
+  ^ FRONT: ^ FRONT
+  min_value=0, max_value=100, value=25: min_value=0, max_value=100, value=25
+  mzv @ 36.7 Hz: mzv @ 36.7 Hz
+  "of": "of"
+  value=0 (shows FULL - BUG!): value=0 (shows FULL - BUG!)
+  value=1 (tiny sliver?): value=1 (tiny sliver?)
+  value=100 (should be full): value=100 (should be full)
+  Русский: Русский
+  —: —
+  •: •
+  中文: 中文
+  日本語: 日本語

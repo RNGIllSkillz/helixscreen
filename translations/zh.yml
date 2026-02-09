@@ -1,18 +1,30 @@
 locale: zh
 translations:
+  ' / ': ' / '
+  ' 0 / 0': ' 0 / 0'
+  ' elapsed · ': ' elapsed · '
+  ' left': ' left'
   (0): (0)
   (2.4GHz): (2.4GHz)
-  +0.01mm: +0.01mm
-  +0.05mm: +0.05mm
-  +0.1mm: +0.1mm
-  +1mm: +1mm
+  +: '+'
+  '+.005': '+.005'
+  '+.01': '+.01'
+  '+.05': '+.05'
+  '+.1': '+.1'
+  '+0': '+0'
+  '+1': '+1'
+  '-': '-'
   "- Check [resonance_tester] in printer.cfg": "- 检查 printer.cfg 中的 [resonance_tester]"
   "- Ensure ADXL345 is connected": "- 确保 ADXL345 已连接"
   "- Try Measure Noise first": "- 先尝试测量噪声"
-  -0.01mm: -0.01mm
-  -0.05mm: -0.05mm
-  -0.1mm: -0.1mm
-  -1mm: -1mm
+  --: '--'
+  '---': '---'
+  '-.005': '-.005'
+  '-.01': '-.01'
+  '-.05': '-.05'
+  '-.1': '-.1'
+  '-1': '-1'
+  /: '/'
   "0.4-2mm direct drive, 4-6mm bowden": "直驱 0.4-2mm，远程挤出 4-6mm"
   "1. Printer homes and probes the bed": "1. 打印机归位并探测热床"
   "1. Printer will home and probe each screw": "1. 打印机将归位并探测每个螺丝位置"
@@ -37,21 +49,21 @@ translations:
   850g: 850g
   "= Loosen": "= 松开"
   "= Tighten": "= 拧紧"
-  "ABOUT": "关于"
+  '?': '?'
   "ABS": "ABS"
   "AMS Settings": "AMS 设置"
   "APPEARANCE": "外观"
   "AUTOMATION": "自动化"
   "Abort": "中止"
-  "About": "关于"
+  About HelixScreen: '关于 HelixScreen'
   "Accel to Decel": "加速到减速"
   "Acceleration to deceleration limit (mm/s²)": "加速到减速限制 (mm/s²)"
   "Accelerometers": "加速度计"
   "Accept": "接受"
+  'Accepted Z Position: 0.000': '已接受 Z 位置: 0.000'
   "Action Required": "需要操作"
   "Actions": "操作"
   "Active": "活动"
-  "Actual": "实际"
   "Add Hidden Network": "添加隐藏网络"
   "Adjust screen brightness level": "调整屏幕亮度"
   "Adjust screws, then re-probe.": "调整螺丝，然后重新探测。"
@@ -59,8 +71,8 @@ translations:
   "Advanced Setting": "高级设置"
   "All": "全部"
   "All screws are within tolerance.": "所有螺丝都在公差范围内。"
+  Allow display to sleep during active prints: '打印时允许屏幕休眠'
   Allwinner: Allwinner
-  "Amount:": "数量："
   "An accelerometer was detected on your printer.": "在您的打印机上检测到加速度计。"
   "An error occurred during calibration.": "校准过程中发生错误。"
   "An error occurred during probing.": "探测过程中发生错误。"
@@ -75,7 +87,6 @@ translations:
   "Assign Spool": "分配料盘"
   "Assign a role to enable sensor monitoring": "分配角色以启用传感器监控"
   "Assigning to Slot 1": "正在分配到料仓 1"
-  "Authentication failed": "认证失败"
   "Auto": "自动"
   "Auto Bed Mesh": "自动热床网格"
   "Auto-Heat on Load": "加载时自动加热"
@@ -85,6 +96,7 @@ translations:
   "Automatically poll Spoolman for weight updates": "自动从 Spoolman 获取重量更新"
   "Available Networks": "可用网络"
   "Available networks": "可用网络"
+  BETA: 'BETA'
   "Back": "返回"
   "Backup": "备份"
   "Bed": "热床"
@@ -98,6 +110,7 @@ translations:
   "Bed is Level!": "热床已水平！"
   "Bed °C": "热床 °C"
   "Bed:": "热床："
+  Beta features are enabled: '已启用测试版功能'
   Black: 黑色
   "Bluetooth": "蓝牙"
   "Body text supports longer guidance while staying readable.": "正文支持更长的说明同时保持可读性。"
@@ -107,33 +120,30 @@ translations:
   "Border transparency (0 = invisible, 255 = solid)": "边框透明度（0 = 不可见，255 = 实心）"
   "Brightness": "亮度"
   "Browse": "浏览"
-  "Busy": "忙碌"
   "Bypass": "旁路"
   "Bypass Mode": "旁路模式"
   "CALIBRATION": "校准"
   "CHANGED FROM LAST SESSION": "与上次会话相比有更改"
   "COLORS REQUIRED": "所需颜色"
   "CRITICAL": "严重"
-  "Calibrate": "校准"
   "Calibrate X": "校准 X 轴"
   "Calibrate Y": "校准 Y 轴"
   "Calibrate resonance compensation": "校准共振补偿"
-  "Calibrate input shaping to reduce ringing artifacts in prints": "校准输入整形以减少打印件中的振纹"
-  "Calibrate your touchscreen for accurate input": "校准触摸屏以获得准确的输入"
   "Calibrating...": "正在校准..."
   "Calibration": "校准"
-  "Calibration &amp; Tools": "校准和工具"
+  Calibration & Tools: '校准与工具'
   "Calibration Complete!": "校准完成！"
   "Calibration Failed": "校准失败"
   "Cancel": "取消"
   "Cancel Print": "取消打印"
   Cancelled: 已取消
-  "Chamber": "仓室"
   "Chamber Fan": "仓室风扇"
   "Chamber and dryer humidity monitoring": "仓室和干燥器湿度监控"
   "Chamber:": "仓室："
+  Change Printer Host: '更改打印机主机'
   "Changes apply immediately. Adjust during print for tuning.": "更改立即生效。可在打印时调整进行调优。"
   "Changes are temporary and reset on printer reboot": "更改是临时的，打印机重启后会重置"
+  Check for Updates: '检查更新'
   "Check the filament path and try again.": "检查耗材路径并重试。"
   Checking slots...: 正在检查料仓...
   "Choose 12-hour or 24-hour time display": "选择 12 小时制或 24 小时制"
@@ -147,10 +157,12 @@ translations:
   "Clear Assignment": "清除分配"
   Clipboard unavailable - use SSH: 剪贴板不可用 - 请使用 SSH
   "Close": "关闭"
+  Closer: '更近'
   "Closer = more squish | Farther = less squish": "更近 = 更多挤压 | 更远 = 更少挤压"
   "Color Sensors": "颜色传感器"
   "Complete": "完成"
   Completed: 已完成
+  Completed in 3 probes: '已完成 3 次探测'
   "Config-defined (read-only)": "配置定义（只读）"
   "Configure G10/G11 firmware retraction": "配置 G10/G11 固件回抽"
   "Configure PRINT_START": "配置 PRINT_START"
@@ -158,30 +170,16 @@ translations:
   "Configure devices in Moonraker": "在 Moonraker 中配置设备"
   "Configure filament detection sensors": "配置耗材检测传感器"
   "Configure quick buttons and standard macros": "配置快捷按钮和标准宏"
-  "Configure WiFi for this device, or skip if you're using Ethernet": "为此设备配置 WiFi，或者如果您使用以太网则跳过"
-  "Configure your printer's cooling fans": "配置打印机的冷却风扇"
   "Configure timelapse recording": "配置延时录像"
   "Connect": "连接"
   "Connected": "已连接"
-  "Connected (%s)": "已连接 (%s)"
-  "Connected (no discovery)": "已连接（无发现）"
-  "Connected, discovering...": "已连接，正在发现..."
-  "Connected to ": "已连接到 "
-  "Connected!": "已连接！"
-  "Connected! Discovering printer...": "已连接！正在发现打印机..."
-  "Connecting": "正在连接"
-  "Connecting to ": "正在连接到 "
   "Connecting to network...": "正在连接网络..."
   "Connecting...": "正在连接..."
   "Connection": "连接"
   Connection failed. Check password.: 连接失败。请检查密码。
-  "Connection must be tested successfully to continue": "必须成功测试连接才能继续"
-  "Connection successful!": "连接成功！"
-  "Connection timeout": "连接超时"
   "Console": "控制台"
   "Control optional print start features": "控制可选的打印启动功能"
   "Cool Down": "冷却"
-  "Cooldown": "冷却"
   "Cooling": "冷却中"
   "Copy Command": "复制命令"
   "Corner roundness (0 = sharp, 40 = very round)": "圆角程度（0 = 尖锐，40 = 非常圆润）"
@@ -189,6 +187,7 @@ translations:
   Current / Target: 当前 / 目标
   "Current Mesh": "当前网格"
   "Current Temperature": "当前温度"
+  Current Version: '当前版本'
   "Current Z Position": "当前 Z 位置"
   "Current name:": "当前名称："
   "Currently Loaded": "当前已加载"
@@ -200,26 +199,27 @@ translations:
   "Danger": "危险"
   "Dark Mode": "深色模式"
   "Day": "日"
+  Default (value=50): 'Default (value=50)'
   "Default border thickness": "默认边框厚度"
   "Define macros in your printer.cfg": "在 printer.cfg 中定义宏"
   "Delete": "删除"
   "Delta:": "差值："
-  "Detecting printer type...": "正在检测打印机类型..."
+  Deutsch: 'Deutsch'
   "Device Operations": "设备操作"
   "Disable": "禁用"
   "Discovered Printers": "已发现的打印机"
   "Dismiss": "忽略"
-  "Display": "显示"
   "Display Settings": "显示设置"
   "Display Sleep": "显示休眠"
+  Do not power off your printer.: '请勿关闭打印机电源。'
   "Don't Save": "不保存"
   "Don't ask again": "不再询问"
   "Done": "完成"
+  Downloading...: '下载中...'
   "Drop shadow strength (0 = disabled)": "阴影强度（0 = 禁用）"
   "Dryer": "干燥器"
   "Dryer Control": "干燥器控制"
   "Duration": "持续时间"
-  "E-Stop": "急停"
   "E-Stop Confirmation": "急停确认"
   "EMERGENCY CONTROLS": "紧急控制"
   "EMERGENCY STOP": "紧急停止"
@@ -229,7 +229,6 @@ translations:
   "Edit Slot 1": "编辑料仓 1"
   "Edit Theme Colors": "编辑主题颜色"
   Edit Theme Colors (Modified): 编辑主题颜色（已修改）
-  "Elapsed": "已用时间"
   "Emergency Stop": "紧急停止"
   "Emergency Stop (M112)": "紧急停止 (M112)"
   "Emergency Stop?": "紧急停止？"
@@ -246,28 +245,25 @@ translations:
   "Enable detailed print preparation tracking (Recommended)": "启用详细打印准备跟踪（推荐）"
   "Enabled": "已启用"
   "Ended": "已结束"
+  English: 'English'
   "Enhancement Complete!": "增强完成！"
   "Enhancement Failed": "增强失败"
-  "Enter G-code command...": "输入 G-code 命令..."
   "Enter WiFi Password": "输入 WiFi 密码"
   "Enter a name for your custom theme:": "输入自定义主题名称："
   "Enter a name to save this profile": "输入名称以保存此配置"
-  "Enter network name": "输入网络名称"
   "Enter password": "输入密码"
-  "Enter 127.0.0.1 if Moonraker is local, or the hostname/IP of a remote printer": "本地用127.0.0.1，或远程主机名/IP"
   "Error": "错误"
   Error state: 错误状态
+  Español: 'Español'
   "Ethernet": "以太网"
   "Exclude": "排除"
+  Excluded: '已排除'
   "Execute printer macros": "执行打印机宏"
   "Exhaust Fan": "排气扇"
   "Explore how the selected palette shapes text, controls, and status colors.": "探索所选调色板如何影响文本、控件和状态颜色。"
   "Explore palette and preview": "探索调色板和预览"
   "Extra prime to compensate ooze": "额外挤出以补偿溢料"
-  "Extrude": "挤出"
-  "Extrude / Retract": "挤出 / 回抽"
   Extruder: 挤出机
-  "Extruder PID Tuning": "挤出机 PID 调优"
   "Extruder heats automatically based on material": "挤出机根据材料自动加热"
   "Extrusion rate": "挤出速率"
   "FAILED": "失败"
@@ -275,6 +271,7 @@ translations:
   "Factory Reset": "恢复出厂设置"
   Failed: 失败
   Failed to save theme file: 保存主题文件失败
+  Farther: '更远'
   "Feed filament directly to extruder": "将耗材直接送入挤出机"
   "Filament": "耗材"
   "Filament Sensor": "耗材传感器"
@@ -287,7 +284,6 @@ translations:
   "File": "文件"
   "File Info": "文件信息"
   "Filename": "文件名"
-  "Files": "文件"
   "Fill: 100% / 75% / 40% / 10%": "填充：100% / 75% / 40% / 10%"
   "Finish": "完成"
   "Firmware Restart": "固件重启"
@@ -295,6 +291,7 @@ translations:
   "Flow Rate": "流量"
   Forming tip...: 正在成型尖端...
   "Framerate": "帧率"
+  Français: 'Français'
   "Freq": "频率"
   "Front": "前"
   "G-code Console": "G-code 控制台"
@@ -313,7 +310,6 @@ translations:
   : "如果您的热床不是用旋钮或其他内置机构调整的，请准备好热床调整工具（螺丝刀、内六角扳手等）。"
   "Heading": "标题"
   "Heat Soak": "预热浸泡"
-  "Heat to 170°C to extrude": "加热到 170°C 以挤出"
   "Heatbed Temperature": "热床温度"
   "Heated Bed": "加热床"
   Heating...: 正在加热...
@@ -321,15 +317,12 @@ translations:
   "HelixScreen will integrate with your filament changer for multi-spool/color print operations.": "HelixScreen 将与您的耗材更换器集成，用于多料盘/多色打印操作。"
   "Higher = faster": "越高 = 越快"
   "Home": "归位"
-  "Home All": "全部归位"
-  "Home X": "X 轴归位"
-  "Home Y": "Y 轴归位"
-  "Home Z": "Z 轴归位"
   "Horizontal Progress (Leveling Wizard)": "水平进度（调平向导）"
   "Host": "主机"
   "Hotend": "热端"
   "Hotend Fan": "热端风扇"
   "Hotend Heater": "热端加热器"
+  How Z-axis movement is displayed: 'Z 轴移动的显示方式'
   "How often to check Spoolman for weight updates": "检查 Spoolman 重量更新的频率"
   "Humidity": "湿度"
   "Humidity Sensors": "湿度传感器"
@@ -338,14 +331,15 @@ translations:
   "Ignore": "忽略"
   In Progress: 进行中
   Indexing G-code...: 正在索引 G-code...
-  "Initializing...": "正在初始化..."
   "Input": "输入"
   "Input Shaper": "输入整形器"
   "Input Shaping": "输入整形"
   "Input shaper calibration sensors": "输入整形器校准传感器"
   "Input shaping reduces vibration artifacts (ringing) in your prints.": "输入整形可减少打印件中的振动伪影（振纹）。"
+  Install: '安装'
   "Install HelixPrint Plugin": "安装 HelixPrint 插件"
   "Install Plugin": "安装插件"
+  Install Update: '安装更新'
   "Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:": "安装 HelixPrint 插件以启用快速 G-code 修改。通过 SSH 在打印机上运行此命令："
   Installation Failed: 安装失败
   "Installation takes about 30 seconds.": "安装大约需要 30 秒。"
@@ -354,6 +348,7 @@ translations:
   "Interactive 3D G-code during prints": "打印期间的交互式 3D G-code"
   "Interactive probe calibration": "交互式探针校准"
   "Issue description": "问题描述"
+  Italiano: 'Italiano'
   Just now: 刚刚
   "Kd:": "Kd："
   "Keep Printing": "继续打印"
@@ -370,11 +365,9 @@ translations:
   "LED on at Start": "启动时开启 LED"
   "LOADED": "已加载"
   "Language": "语言"
-  "Last 7 days": "最近 7 天"
   Last print cancelled: 上次打印已取消
   Last print failed: 上次打印失败
   "Later": "稍后"
-  "Layer": "层"
   "Layer Height": "层高"
   "Layer mode captures one frame per layer change. Best for most prints.": "层模式在每次换层时捕获一帧。适用于大多数打印。"
   "Layer:": "层："
@@ -393,6 +386,7 @@ translations:
   Locked during print: 打印期间锁定
   "M to toggle": "按 M 切换"
   'MAC:': 'MAC：'
+  MCU, host, and auxiliary temperature monitoring: 'MCU、主机及辅助温度监控'
   "MDI Icons": "MDI 图标"
   "MISSING CONFIGURED": "缺少配置"
   "MOTION": "运动"
@@ -410,6 +404,7 @@ translations:
   "Macro to resume a paused print": "恢复暂停打印的宏"
   "Macro to unload filament from extruder": "从挤出机卸载耗材的宏"
   "Macros": "宏"
+  Main LED: '主 LED'
   "Main LED Strip": "主 LED 灯带"
   "Make Optional": "设为可选"
   "Make bed mesh and QGL skippable": "使热床网格和 QGL 可跳过"
@@ -434,15 +429,12 @@ translations:
   "Motion": "运动"
   "Motion: XYZ": "运动：XYZ"
   "Motors Off": "关闭电机"
-  "Move": "移动"
   "Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.": "调整时前后移动纸张。当纸张有轻微阻力但仍能滑动时停止。"
   "Movement speed": "移动速度"
   "Multi-Filament": "多耗材"
   "Multi-Material": "多材料"
-  "Multi-Material System Detected": "检测到多材料系统"
   "My Custom Theme": "我的自定义主题"
   "My Panel": "我的面板"
-  "My Printer": "我的打印机"
   "NEWLY DISCOVERED": "新发现"
   "NOTIFICATIONS": "通知"
   "Name": "名称"
@@ -451,9 +443,8 @@ translations:
   "Network Name (SSID)": "网络名称 (SSID)"
   "Network Settings": "网络设置"
   "Network Test": "网络测试"
-  "Never": "从不"
   "New PID Values": "新 PID 值"
-  'New Z-Offset: 0.000': '新 Z 偏移：0.000'
+  New Version Available: '发现新版本'
   "New profile name": "新配置名称"
   "Next": "下一步"
   "No AMS system connected.": "未连接 AMS 系统。"
@@ -467,32 +458,27 @@ translations:
   "No networks found": "未找到网络"
   "No notifications": "无通知"
   "No plugins found": "未找到插件"
-  "No printers found": "未找到打印机"
   "No preview": "无预览"
   "No print history yet": "暂无打印历史"
   No print start macro found: 未找到打印启动宏
   "No profiles available": "无可用配置"
   "No sensors detected": "未检测到传感器"
   "No spools available": "无可用料盘"
-  "Not configured": "未配置"
   "Not Now": "暂不"
   "Not connected": "未连接"
   "Notifications": "通知"
   "Notify when print finishes": "打印完成时通知"
   "Nozzle": "喷嘴"
   "Nozzle Priming": "喷嘴预挤"
-  "Nozzle Temp": "喷嘴温度"
   "Nozzle Temperature": "喷嘴温度"
   "Nozzle °C": "喷嘴 °C"
   "Nozzle:": "喷嘴："
   "OK": "确定"
-  "of": "的"
+  OS: 'OS'
   "Off": "关"
-  "Offline": "离线"
   "On": "开"
   "Open": "打开"
   "Operations": "操作"
-  "Optional - select your main lighting source, or skip if your printer doesn't have one": "可选 - 选择您的主照明光源，或者如果您的打印机没有则跳过"
   "Optimize Your Printing": "优化您的打印"
   "Or Enter Manually": "或手动输入"
   "PETG": "PETG"
@@ -522,12 +508,11 @@ translations:
   "Plugins are discovered on application startup": "插件在应用程序启动时被发现"
   "Polymaker": "Polymaker"
   "Port": "端口"
+  Português: 'Português'
   "Position": "位置"
   "Power": "电源"
   "Power Control": "电源控制"
-  "Preheat": "预热"
   "Preparing Print": "准备打印"
-  "Preparing...": "正在准备..."
   "Presets": "预设"
   "Previous": "上一步"
   "Primary": "主要"
@@ -537,28 +522,18 @@ translations:
   "Print Complete!": "打印完成！"
   "Print Completion Alert": "打印完成提醒"
   "Print Details": "打印详情"
+  Print Failed: '打印失败'
   "Print File": "打印文件"
   "Print Files": "打印文件"
   "Print History": "打印历史"
   "Print Hours": "打印时长"
+  Print Objects: '打印对象'
   "Print Speed": "打印速度"
   "Print Status": "打印状态"
   "Print Time": "打印时间"
   "Print Tuning": "打印调优"
   "Printer": "打印机"
   "Printer Name": "打印机名称"
-  "Printer Setup: Connection": "打印机设置：连接"
-  "Printer Setup: Fans": "打印机设置：风扇"
-  "Printer Setup: Filament Sensor": "打印机设置：耗材传感器"
-  "Printer Setup: Heaters": "打印机设置：加热器"
-  "Printer Setup: Identity": "打印机设置：身份"
-  "Printer Setup: Input Shaping": "打印机设置：输入整形"
-  "Printer Setup: Language": "打印机设置：语言"
-  "Printer Setup: LEDs": "打印机设置：LED"
-  "Printer Setup: Network": "打印机设置：网络"
-  "Printer Setup: Review": "打印机设置：审核"
-  "Printer Setup: Touch Calibration": "打印机设置：触摸校准"
-  "Printer Setup: Z Probe": "打印机设置：Z 探针"
   "Printer Shutdown": "打印机关机"
   "Printer Type": "打印机类型"
   "Printing": "正在打印"
@@ -571,14 +546,10 @@ translations:
   "Probing Bed Screws...": "正在探测热床螺丝..."
   "Probing Bed...": "正在探测热床..."
   "Probing Failed": "探测失败"
-  "Processing...": "正在处理..."
-  "Profile": "配置"
   "Profile name (e.g., default)": "配置名称（例如：default）"
   "Profiles": "配置"
-  "Progress": "进度"
   "Progress Bar Tests": "进度条测试"
   "Purge": "排料"
-  "Purge 50mm": "排料 50mm"
   "QUICK BUTTONS": "快捷按钮"
   "Quad Gantry Level": "四角龙门调平"
   "Quick Actions": "快捷操作"
@@ -595,7 +566,6 @@ translations:
   "Recording Mode": "录制模式"
   "Recover": "恢复"
   "Reduce Ringing": "减少振纹"
-  "Refresh": "刷新"
   "Refresh Interval": "刷新间隔"
   "Remaining": "剩余"
   "Remove plugin from printer": "从打印机移除插件"
@@ -606,7 +576,6 @@ translations:
   "Requires Moonraker-Timelapse plugin": "需要 Moonraker-Timelapse 插件"
   "Reset": "重置"
   Reset Speed & Flow to 100%: 重置速度和流量为 100%
-  "Reset Speed &amp; Flow to 100%": "重置速度和流量为 100%"
   "Reset all settings and restart wizard": "重置所有设置并重新启动向导"
   Resetting...: 正在重置...
   "Resonance compensation tuning": "共振补偿调优"
@@ -617,14 +586,12 @@ translations:
   "Restart the display application": "重启显示应用程序"
   "Resume": "恢复"
   "Resume Print": "恢复打印"
-  "Retract": "回抽"
   "Retract Length": "回抽长度"
   "Retract Speed": "回抽速度"
   "Retraction Settings": "回抽设置"
   "Retry": "重试"
   "Review detected hardware validation issues": "查看检测到的硬件验证问题"
   "Review your changes": "查看您的更改"
-  "Review your configuration below, then click Finish to save": "查看下方的配置，然后点击完成以保存"
   "Role:": "角色："
   "Runout Sensor": "断料传感器"
   "STANDARD MACROS": "标准宏"
@@ -633,7 +600,6 @@ translations:
   "SYSTEM": "系统"
   "Save": "保存"
   Save & Restart: 保存并重启
-  "Save &amp; Restart": "保存并重启"
   "Save As New": "另存为新配置"
   "Save Config": "保存配置"
   "Save Printer Configuration": "保存打印机配置"
@@ -641,10 +607,10 @@ translations:
   "Save Z-Offset": "保存 Z 偏移"
   "Save Z-Offset?": "保存 Z 偏移？"
   "Save changes to persist them across restarts?": "保存更改以便在重启后保留？"
+  Saved Z-Offset: '已保存 Z 偏移'
   "Saving Configuration...": "正在保存配置..."
   "Saving will restart Klipper and CANCEL any active print!": "保存将重启 Klipper 并取消任何正在进行的打印！"
   "Scanning for networks...": "正在扫描网络..."
-  "Scanning...": "正在扫描..."
   "Screen Dim": "屏幕变暗"
   "Screen dims to lower brightness after period of inactivity": "一段时间不活动后屏幕会降低亮度"
   "Screen will dim after the selected period of inactivity": "在选定的不活动时间后屏幕将变暗"
@@ -656,14 +622,11 @@ translations:
   "Select 'None' if you don't have a filament sensor, or if you don't want to pause on runout.": "如果您没有耗材传感器，或不想在断料时暂停，请选择「无」。"
   "Select 'None' if you have a dedicated probe, or don't use bed mesh leveling.": "如果您有专用探针，或不使用热床网格调平，请选择「无」。"
   "Select Filament": "选择耗材"
-  "Select File": "选择文件"
   Select G-Code File: 选择 G-Code 文件
   "Select Heater": "选择加热器"
-  "Select the heaters Klipper uses for your bed and hotend": "选择 Klipper 用于热床和热端的加热器"
-  "Select which sensor triggers pause on filament runout": "选择断料时触发暂停的传感器"
-  "Select your preferred language": "选择您的首选语言"
   "Select macro for first button": "为第一个按钮选择宏"
   "Select macro for second button": "为第二个按钮选择宏"
+  Select which LED to control: '选择要控制的 LED'
   Selecting slot...: 正在选择料仓...
   "Semantic Size Parameter Tests": "语义大小参数测试"
   "Send commands directly to printer": "直接向打印机发送命令"
@@ -677,22 +640,20 @@ translations:
   "Side": "侧面"
   "Size": "大小"
   "Skip": "跳过"
-  "Skip for now": "暂时跳过"
-  "Skip if using dedicated probe (BLTouch, Klicky, etc.)": "如果使用专用探针（BLTouch、Klicky 等）则跳过"
+  Sleep While Printing: '打印时休眠'
   "Slot 1": "料仓 1"
   "Small labels help keep controls calm and focused.": "小标签有助于保持控件简洁专注。"
   "Some settings will take effect after restart.": "某些设置将在重启后生效。"
   "Sounds": "声音"
   'Specular:': '镜面反射：'
-  "Speed": "速度"
   "Speed Settings": "速度设置"
   "Speed of prime movement": "预挤移动速度"
   "Speed of retraction movement": "回抽移动速度"
-  "Speed:": "速度："
   "Spool Visualization (Pseudo-3D Canvas)": "料盘可视化（伪 3D 画布）"
   "Spoolman": "Spoolman"
   "Spoolman has no spools configured": "Spoolman 未配置料盘"
   "Square Corner Velocity": "直角转弯速度"
+  Stable\nBeta\nDev: '稳定版\n测试版\n开发版'
   Standby: 待机
   "Start Calibration": "开始校准"
   "Start Probing": "开始探测"
@@ -705,6 +666,7 @@ translations:
   "Stop Drying": "停止干燥"
   "Stop Print?": "停止打印？"
   "Stops all motion. Requires firmware restart.": "停止所有运动。需要固件重启。"
+  Styled (value=75): 'Styled (value=75)'
   "Success Rate": "成功率"
   "Success!": "成功！"
   "Surfaces inherit app background tokens for light and dark modes.": "表面继承应用背景色用于浅色和深色模式。"
@@ -718,9 +680,9 @@ translations:
   "THEME COLORS": "主题颜色"
   "TPU": "TPU"
   "Tap to show keyboard...": "点击显示键盘..."
-  "Target": "目标"
   "Target Temperature": "目标温度"
   "Temperature": "温度"
+  Temperature Sensors: '温度传感器'
   "Temperatures": "温度"
   "Temporary adjustment for this print, unless saved on Controls panel": "此打印的临时调整，除非在控制面板上保存"
   "Tertiary": "第三"
@@ -734,8 +696,8 @@ translations:
   "Theme Colors": "主题颜色"
   "Theme Preset": "主题预设"
   "Theme changes apply after restart.": "主题更改在重启后生效。"
-  "Theme changes will take effect after restart.": "主题更改将在重启后生效。"
   "Theme, brightness, and sleep settings": "主题、亮度和休眠设置"
+  Thin bar (height=8): 'Thin bar (height=8)'
   "This calibration uses the paper friction method to set your Z-offset.": "此校准使用纸张摩擦法设置 Z 偏移。"
   "This may take 1-2 minutes": "这可能需要 1-2 分钟"
   "This may take up to 30 seconds": "这可能需要 30 秒"
@@ -777,16 +739,22 @@ translations:
   Unloading filament...: 正在卸载耗材...
   "Unretract Extra": "回抽恢复额外量"
   "Unretract Speed": "回抽恢复速度"
+  Update Available: '有可用更新'
+  Update Channel: '更新通道'
+  Update Failed: '更新失败'
+  Update Installed: '更新已安装'
   "Upload gcode files to get started": "上传 gcode 文件开始使用"
   "Use G10/G11 firmware retraction": "使用 G10/G11 固件回抽"
   ValgACE (ACE Pro): ValgACE (ACE Pro)
   "Values have been saved to printer configuration.": "值已保存到打印机配置。"
   "Velocity and acceleration limits": "速度和加速度限制"
   "Vendor": "供应商"
+  Verifying...: '验证中...'
   "Version": "版本"
   "Vertical Progress (Retract Wizard)": "垂直进度（回抽向导）"
   "Vibration": "振动"
   "Video playback speed": "视频播放速度"
+  View Changelog: '查看更新日志'
   "View Full History": "查看完整历史"
   "View Presets": "查看预设"
   "View Timelapse": "查看延时摄影"
@@ -799,8 +767,6 @@ translations:
   "Weight sync settings": "重量同步设置"
   White: 白色
   "WiFi": "WiFi"
-  "WiFi Disabled": "WiFi 已禁用"
-  "WiFi Enabled": "WiFi 已启用"
   "WiFi Network": "WiFi 网络"
   "WiFi and Ethernet": "WiFi 和以太网"
   "WiFi and Ethernet configuration": "WiFi 和以太网配置"
@@ -809,25 +775,32 @@ translations:
   "Width": "宽度"
   "Width Sensors": "宽度传感器"
   'X:': 'X：'
+  XY: 'XY'
   'Y:': 'Y：'
   "Year": "年"
+  You can skip this and calibrate later in Settings.: '您可以跳过此步骤，稍后在设置中进行校准。'
   "Your completed prints will appear here": "您完成的打印将显示在此处"
-  "Your printer has an automatic filament changer": "您的打印机有自动耗材更换器"
+  Z: 'Z'
   "Z Calibration": "Z 轴校准"
+  Z Movement: 'Z 轴移动'
   "Z Range": "Z 范围"
   "Z probes for bed leveling and mesh generation": "用于热床调平和网格生成的 Z 探针"
   "Z-Offset": "Z 偏移"
   "Z-Offset Calibration": "Z 偏移校准"
   "Z-Offset:": "Z 偏移："
   "Z-Tilt Adjust": "Z 倾斜调整"
+  'Z:': 'Z:'
+  'Z: 0.000': 'Z: 0.000'
   "Zoom": "缩放"
-  "hour": "小时"
-  "hours": "小时"
-  "minute": "分钟"
-  "minutes": "分钟"
-  "seconds": "秒"
-  size="large": size="large"
-  size="medium": size="medium"
-  size="medium" width="100": size="medium" width="100"
-  size="small": size="small"
-  size="tiny": size="tiny"
+  ^ FRONT: '^ FRONT'
+  min_value=0, max_value=100, value=25: 'min_value=0, max_value=100, value=25'
+  mzv @ 36.7 Hz: 'mzv @ 36.7 Hz'
+  "of": "的"
+  value=0 (shows FULL - BUG!): 'value=0 (shows FULL - BUG!)'
+  value=1 (tiny sliver?): 'value=1 (tiny sliver?)'
+  value=100 (should be full): 'value=100 (should be full)'
+  Русский: 'Русский'
+  —: '—'
+  •: '•'
+  中文: '中文'
+  日本語: '日本語'
