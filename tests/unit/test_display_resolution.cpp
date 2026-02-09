@@ -140,32 +140,32 @@ TEST_CASE("Screen size constants: size ordering", "[display_resolution][constant
 // ============================================================================
 
 TEST_CASE("Breakpoint mapping: SMALL max boundary", "[display_resolution][breakpoint]") {
-    // UI_BREAKPOINT_SMALL_MAX = 480 (max(width, height) for small breakpoint)
-    REQUIRE(UI_BREAKPOINT_SMALL_MAX == 480);
+    // UI_BREAKPOINT_SMALL_MAX = 460 (screen height for small breakpoint)
+    REQUIRE(UI_BREAKPOINT_SMALL_MAX == 460);
 
-    SECTION("480 maps to SMALL breakpoint") {
-        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(480), "_small") == 0);
+    SECTION("460 maps to SMALL breakpoint") {
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(460), "_small") == 0);
     }
 
-    SECTION("479 also maps to SMALL breakpoint") {
-        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(479), "_small") == 0);
+    SECTION("459 also maps to SMALL breakpoint") {
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(459), "_small") == 0);
     }
 
-    SECTION("481 maps to MEDIUM breakpoint") {
-        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(481), "_medium") == 0);
+    SECTION("461 maps to MEDIUM breakpoint") {
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(461), "_medium") == 0);
     }
 }
 
 TEST_CASE("Breakpoint mapping: MEDIUM max boundary", "[display_resolution][breakpoint]") {
-    // UI_BREAKPOINT_MEDIUM_MAX = 800
-    REQUIRE(UI_BREAKPOINT_MEDIUM_MAX == 800);
+    // UI_BREAKPOINT_MEDIUM_MAX = 700 (screen height for medium breakpoint)
+    REQUIRE(UI_BREAKPOINT_MEDIUM_MAX == 700);
 
-    SECTION("800 maps to MEDIUM breakpoint") {
-        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(800), "_medium") == 0);
+    SECTION("700 maps to MEDIUM breakpoint") {
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(700), "_medium") == 0);
     }
 
-    SECTION("801 maps to LARGE breakpoint") {
-        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(801), "_large") == 0);
+    SECTION("701 maps to LARGE breakpoint") {
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(701), "_large") == 0);
     }
 }
 
@@ -174,45 +174,51 @@ TEST_CASE("Breakpoint mapping: MEDIUM max boundary", "[display_resolution][break
 // ============================================================================
 
 TEST_CASE("Breakpoint mapping: TINY screen size", "[display_resolution][breakpoint]") {
-    // TINY is 480x320, max=480, should map to SMALL breakpoint
-    int max_dim = (UI_SCREEN_TINY_W > UI_SCREEN_TINY_H) ? UI_SCREEN_TINY_W : UI_SCREEN_TINY_H;
+    // TINY is 480x320, height=320 → SMALL breakpoint
+    int height = UI_SCREEN_TINY_H;
 
-    REQUIRE(max_dim == 480);
-    REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(max_dim), "_small") == 0);
+    REQUIRE(height == 320);
+    REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(height), "_small") == 0);
 }
 
 TEST_CASE("Breakpoint mapping: TINY_ALT screen size", "[display_resolution][breakpoint]") {
-    // TINY_ALT is 480x400, max=480, should map to SMALL breakpoint
-    int max_dim =
-        (UI_SCREEN_TINY_ALT_W > UI_SCREEN_TINY_ALT_H) ? UI_SCREEN_TINY_ALT_W : UI_SCREEN_TINY_ALT_H;
+    // TINY_ALT is 480x400, height=400 → SMALL breakpoint
+    int height = UI_SCREEN_TINY_ALT_H;
 
-    REQUIRE(max_dim == 480);
-    REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(max_dim), "_small") == 0);
+    REQUIRE(height == 400);
+    REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(height), "_small") == 0);
 }
 
 TEST_CASE("Breakpoint mapping: SMALL screen size", "[display_resolution][breakpoint]") {
-    // SMALL is 800x480, max=800, should map to MEDIUM breakpoint
-    int max_dim = (UI_SCREEN_SMALL_W > UI_SCREEN_SMALL_H) ? UI_SCREEN_SMALL_W : UI_SCREEN_SMALL_H;
+    // SMALL is 800x480, height=480 → MEDIUM breakpoint
+    int height = UI_SCREEN_SMALL_H;
 
-    REQUIRE(max_dim == 800);
-    REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(max_dim), "_medium") == 0);
+    REQUIRE(height == 480);
+    REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(height), "_medium") == 0);
 }
 
 TEST_CASE("Breakpoint mapping: MEDIUM screen size", "[display_resolution][breakpoint]") {
-    // MEDIUM is 1024x600, max=1024, should map to LARGE breakpoint
-    int max_dim =
-        (UI_SCREEN_MEDIUM_W > UI_SCREEN_MEDIUM_H) ? UI_SCREEN_MEDIUM_W : UI_SCREEN_MEDIUM_H;
+    // MEDIUM is 1024x600, height=600 → MEDIUM breakpoint (was LARGE with max-based)
+    int height = UI_SCREEN_MEDIUM_H;
 
-    REQUIRE(max_dim == 1024);
-    REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(max_dim), "_large") == 0);
+    REQUIRE(height == 600);
+    REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(height), "_medium") == 0);
 }
 
 TEST_CASE("Breakpoint mapping: LARGE screen size", "[display_resolution][breakpoint]") {
-    // LARGE is 1280x720, max=1280, should map to LARGE breakpoint
-    int max_dim = (UI_SCREEN_LARGE_W > UI_SCREEN_LARGE_H) ? UI_SCREEN_LARGE_W : UI_SCREEN_LARGE_H;
+    // LARGE is 1280x720, height=720 → LARGE breakpoint
+    int height = UI_SCREEN_LARGE_H;
 
-    REQUIRE(max_dim == 1280);
-    REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(max_dim), "_large") == 0);
+    REQUIRE(height == 720);
+    REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(height), "_large") == 0);
+}
+
+TEST_CASE("Breakpoint mapping: ultra-wide display", "[display_resolution][breakpoint]") {
+    // 1920x440 ultra-wide, height=440 → SMALL (not LARGE — vertical space is the constraint)
+    int height = 440;
+
+    REQUIRE(height <= UI_BREAKPOINT_SMALL_MAX);
+    REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(height), "_small") == 0);
 }
 
 // ============================================================================
@@ -220,34 +226,34 @@ TEST_CASE("Breakpoint mapping: LARGE screen size", "[display_resolution][breakpo
 // ============================================================================
 
 TEST_CASE("Breakpoint mapping: arbitrary resolutions", "[display_resolution][breakpoint]") {
-    SECTION("480x400 (tiny_alt) maps to SMALL breakpoint") {
-        // max(480, 400) = 480 <= 480 → SMALL
-        int max_dim = 480;
-        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(max_dim), "_small") == 0);
+    SECTION("480x400 (tiny_alt) → SMALL (height=400)") {
+        // height=400 ≤460 → SMALL
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(400), "_small") == 0);
     }
 
-    SECTION("1920x1080 maps to LARGE breakpoint") {
-        // max(1920, 1080) = 1920 > 800 → LARGE
-        int max_dim = 1920;
-        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(max_dim), "_large") == 0);
+    SECTION("1920x1080 → LARGE (height=1080)") {
+        // height=1080 >700 → LARGE
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(1080), "_large") == 0);
     }
 
-    SECTION("640x480 maps to MEDIUM breakpoint") {
-        // max(640, 480) = 640, which is > 480 and <= 800 → MEDIUM
-        int max_dim = 640;
-        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(max_dim), "_medium") == 0);
+    SECTION("640x480 → MEDIUM (height=480)") {
+        // height=480, 461-700 → MEDIUM
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(480), "_medium") == 0);
     }
 
-    SECTION("320x240 maps to SMALL breakpoint") {
-        // max(320, 240) = 320 <= 480 → SMALL
-        int max_dim = 320;
-        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(max_dim), "_small") == 0);
+    SECTION("320x240 → SMALL (height=240)") {
+        // height=240 ≤460 → SMALL
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(240), "_small") == 0);
     }
 
-    SECTION("800x600 maps to MEDIUM breakpoint") {
-        // max(800, 600) = 800 <= 800 → MEDIUM
-        int max_dim = 800;
-        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(max_dim), "_medium") == 0);
+    SECTION("800x600 → MEDIUM (height=600)") {
+        // height=600, 461-700 → MEDIUM
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(600), "_medium") == 0);
+    }
+
+    SECTION("1920x440 ultra-wide → SMALL (height=440)") {
+        // height=440 ≤460 → SMALL (the whole point of height-based breakpoints)
+        REQUIRE(strcmp(theme_manager_get_breakpoint_suffix(440), "_small") == 0);
     }
 }
 

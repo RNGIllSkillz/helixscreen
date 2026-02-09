@@ -27,8 +27,8 @@
     <!-- Unified Responsive Spacing System (space_*)                         -->
     <!-- ===================================================================== -->
     <!-- Runtime selects appropriate variant via ui_theme_register_responsive_spacing()
-         based on max(width, height): SMALL (≤480px), MEDIUM (481-800px), LARGE (>800px)
-         Target hardware: 480x320 (SMALL), 800x480 (MEDIUM), 1024x600+ (LARGE)
+         based on screen height: SMALL (≤460px), MEDIUM (461-700px), LARGE (>700px)
+         Target hardware: 480x320, 1920x440 (SMALL), 800x480, 1024x600 (MEDIUM), 1280x720+ (LARGE)
 
          CRITICAL: Base constants (space_xxs, space_xs, etc.) are registered at
          runtime by ui_theme.cpp - do NOT define them here or responsive overrides
@@ -196,7 +196,42 @@
     <px name="button_height_lg_large" value="96"/>
 
     <!-- Other component dimensions -->
-    <px name="header_height" value="60"/>
+    <!-- header_height is responsive: _small/_medium/_large registered as header_height based on screen height -->
+    <px name="header_height_small" value="48"/>
+    <px name="header_height_medium" value="56"/>
+    <px name="header_height_large" value="60"/>
+
+    <!-- ===================================================================== -->
+    <!-- Responsive Panel Heights (print status, file detail, history)         -->
+    <!-- ===================================================================== -->
+    <!-- temp_card_height: Temperature card height in print status panel -->
+    <px name="temp_card_height_small" value="64"/>
+    <px name="temp_card_height_medium" value="72"/>
+    <px name="temp_card_height_large" value="80"/>
+    <!-- metadata_clip_height: Clip container for print status metadata overlay -->
+    <px name="metadata_clip_height_small" value="85"/>
+    <px name="metadata_clip_height_medium" value="95"/>
+    <px name="metadata_clip_height_large" value="103"/>
+    <!-- metadata_overlay_height: Inner metadata overlay (slightly taller than clip) -->
+    <px name="metadata_overlay_height_small" value="91"/>
+    <px name="metadata_overlay_height_medium" value="101"/>
+    <px name="metadata_overlay_height_large" value="109"/>
+    <!-- detail_metadata_clip_height: Clip container for print file detail overlay -->
+    <px name="detail_metadata_clip_height_small" value="92"/>
+    <px name="detail_metadata_clip_height_medium" value="102"/>
+    <px name="detail_metadata_clip_height_large" value="112"/>
+    <!-- detail_metadata_overlay_height: Inner overlay for print file detail -->
+    <px name="detail_metadata_overlay_height_small" value="100"/>
+    <px name="detail_metadata_overlay_height_medium" value="110"/>
+    <px name="detail_metadata_overlay_height_large" value="120"/>
+    <!-- history_clip_height: Clip container for history detail overlay -->
+    <px name="history_clip_height_small" value="44"/>
+    <px name="history_clip_height_medium" value="50"/>
+    <px name="history_clip_height_large" value="55"/>
+    <!-- history_overlay_height: Inner overlay for history detail -->
+    <px name="history_overlay_height_small" value="50"/>
+    <px name="history_overlay_height_medium" value="57"/>
+    <px name="history_overlay_height_large" value="63"/>
 
     <!-- Row height for button containers -->
     <px name="input_height" value="48"/>

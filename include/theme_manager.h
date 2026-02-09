@@ -202,12 +202,12 @@ class ThemeManager {
 // Calculate nav width based on actual screen
 #define UI_NAV_WIDTH(screen_w) ((screen_w) / 10)
 
-// Responsive breakpoints (based on max(width, height))
-// Optimized for our target hardware: 480x320, 800x480, 1024x600, 1280x720
-#define UI_BREAKPOINT_SMALL_MAX 480 // 480x320 and below → SMALL
+// Responsive breakpoints (based on screen height — vertical space is the constraint)
+// Target hardware: 480x320, 480x400, 1920x440, 800x480, 1024x600, 1280x720
+#define UI_BREAKPOINT_SMALL_MAX 460 // height ≤460 → SMALL
 #define UI_BREAKPOINT_MEDIUM_MAX                                                                   \
-    800 // 481-800: 800x480, up to 800x600 → MEDIUM
-        // >800: 1024x600, 1280x720+ → LARGE
+    700 // height 461-700 → MEDIUM
+        // height >700 → LARGE
 
 // Screen size targets (reference only, use breakpoints above for logic)
 #define UI_SCREEN_LARGE_W 1280
@@ -258,10 +258,10 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode);
  * Returns the suffix string used to select responsive variants from globals.xml.
  * Useful for testing and debugging responsive behavior.
  *
- * @param max_resolution Maximum of horizontal and vertical resolution
- * @return "_small" (≤480), "_medium" (481-800), or "_large" (>800)
+ * @param resolution Screen height (vertical resolution)
+ * @return "_small" (≤460), "_medium" (461-700), or "_large" (>700)
  */
-const char* theme_manager_get_breakpoint_suffix(int32_t max_resolution);
+const char* theme_manager_get_breakpoint_suffix(int32_t resolution);
 
 /**
  * @brief Register responsive spacing tokens (space_* system)

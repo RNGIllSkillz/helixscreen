@@ -631,13 +631,13 @@ static void theme_manager_register_static_constants(lv_xml_component_scope_t* sc
 /**
  * Get the breakpoint suffix for a given resolution
  *
- * @param max_resolution The maximum of horizontal and vertical resolution
- * @return Suffix string: "_small" (≤480), "_medium" (481-800), or "_large" (>800)
+ * @param resolution Screen height (vertical resolution)
+ * @return Suffix string: "_small" (≤460), "_medium" (461-700), or "_large" (>700)
  */
-const char* theme_manager_get_breakpoint_suffix(int32_t max_resolution) {
-    if (max_resolution <= UI_BREAKPOINT_SMALL_MAX) {
+const char* theme_manager_get_breakpoint_suffix(int32_t resolution) {
+    if (resolution <= UI_BREAKPOINT_SMALL_MAX) {
         return "_small";
-    } else if (max_resolution <= UI_BREAKPOINT_MEDIUM_MAX) {
+    } else if (resolution <= UI_BREAKPOINT_MEDIUM_MAX) {
         return "_medium";
     } else {
         return "_large";
@@ -659,12 +659,12 @@ const char* theme_manager_get_breakpoint_suffix(int32_t max_resolution) {
 void theme_manager_register_responsive_spacing(lv_display_t* display) {
     int32_t hor_res = lv_display_get_horizontal_resolution(display);
     int32_t ver_res = lv_display_get_vertical_resolution(display);
-    int32_t greater_res = LV_MAX(hor_res, ver_res);
 
-    const char* size_suffix = theme_manager_get_breakpoint_suffix(greater_res);
-    const char* size_label = (greater_res <= UI_BREAKPOINT_SMALL_MAX)    ? "SMALL"
-                             : (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) ? "MEDIUM"
-                                                                         : "LARGE";
+    // Use screen height for breakpoint selection — vertical space is the constraint
+    const char* size_suffix = theme_manager_get_breakpoint_suffix(ver_res);
+    const char* size_label = (ver_res <= UI_BREAKPOINT_SMALL_MAX)    ? "SMALL"
+                             : (ver_res <= UI_BREAKPOINT_MEDIUM_MAX) ? "MEDIUM"
+                                                                     : "LARGE";
 
     lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
     if (!scope) {
@@ -699,23 +699,21 @@ void theme_manager_register_responsive_spacing(lv_display_t* display) {
         }
     }
 
-    spdlog::trace("[Theme] Responsive spacing: {} ({}px) - auto-registered {} tokens", size_label,
-                  greater_res, registered);
+    spdlog::trace("[Theme] Responsive spacing: {} (height={}px) - auto-registered {} tokens",
+                  size_label, ver_res, registered);
 
     // ========================================================================
     // Register computed layout constants (not from globals.xml variants)
     // ========================================================================
 
-    // Select responsive nav_width based on breakpoint
-    // Nav width macros: TINY=64, SMALL=76, MEDIUM=94, LARGE=102
-    // Mapping: breakpoint SMALL→64, MEDIUM→94, LARGE→102
+    // Nav width is a horizontal concern — use screen width, not height breakpoint
     int32_t nav_width;
-    if (greater_res <= UI_BREAKPOINT_SMALL_MAX) {
-        nav_width = UI_NAV_WIDTH_TINY; // 64px for 480x320
-    } else if (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) {
+    if (hor_res <= 520) {
+        nav_width = UI_NAV_WIDTH_TINY; // 64px for narrow screens (480x320, 480x400)
+    } else if (hor_res <= 900) {
         nav_width = UI_NAV_WIDTH_MEDIUM; // 94px for 800x480
     } else {
-        nav_width = UI_NAV_WIDTH_LARGE; // 102px for 1024x600, 1280x720+
+        nav_width = UI_NAV_WIDTH_LARGE; // 102px for 1024x600, 1280x720, 1920x440+
     }
 
     // Get space_lg value (already registered above)
@@ -753,14 +751,13 @@ void theme_manager_register_responsive_spacing(lv_display_t* display) {
  * @param display The LVGL display to get resolution from
  */
 void theme_manager_register_responsive_fonts(lv_display_t* display) {
-    int32_t hor_res = lv_display_get_horizontal_resolution(display);
     int32_t ver_res = lv_display_get_vertical_resolution(display);
-    int32_t greater_res = LV_MAX(hor_res, ver_res);
 
-    const char* size_suffix = theme_manager_get_breakpoint_suffix(greater_res);
-    const char* size_label = (greater_res <= UI_BREAKPOINT_SMALL_MAX)    ? "SMALL"
-                             : (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) ? "MEDIUM"
-                                                                         : "LARGE";
+    // Use screen height for breakpoint selection — vertical space is the constraint
+    const char* size_suffix = theme_manager_get_breakpoint_suffix(ver_res);
+    const char* size_label = (ver_res <= UI_BREAKPOINT_SMALL_MAX)    ? "SMALL"
+                             : (ver_res <= UI_BREAKPOINT_MEDIUM_MAX) ? "MEDIUM"
+                                                                     : "LARGE";
 
     lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
     if (!scope) {
@@ -795,8 +792,8 @@ void theme_manager_register_responsive_fonts(lv_display_t* display) {
         }
     }
 
-    spdlog::trace("[Theme] Responsive fonts: {} ({}px) - auto-registered {} tokens", size_label,
-                  greater_res, registered);
+    spdlog::trace("[Theme] Responsive fonts: {} (height={}px) - auto-registered {} tokens",
+                  size_label, ver_res, registered);
 }
 
 /**
@@ -1043,10 +1040,9 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     // Read responsive font based on current breakpoint
     // NOTE: We read the variant directly because base constants are removed to enable
     // responsive overrides (LVGL ignores lv_xml_register_const for existing constants)
-    int32_t hor_res = lv_display_get_horizontal_resolution(display);
     int32_t ver_res = lv_display_get_vertical_resolution(display);
-    int32_t greater_res = LV_MAX(hor_res, ver_res);
-    const char* size_suffix = theme_manager_get_breakpoint_suffix(greater_res);
+    // Use screen height for breakpoint selection — vertical space is the constraint
+    const char* size_suffix = theme_manager_get_breakpoint_suffix(ver_res);
 
     char font_variant_name[64];
     snprintf(font_variant_name, sizeof(font_variant_name), "font_body%s", size_suffix);
