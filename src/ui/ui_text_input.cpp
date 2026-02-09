@@ -113,7 +113,7 @@ static void* ui_text_input_create(lv_xml_parser_state_t* state, const char** att
     lv_obj_t* textarea = lv_textarea_create(parent);
 
     // Apply responsive padding for consistent height across screen sizes
-    const char* pad_ver = lv_xml_get_const(nullptr, "space_lg");
+    const char* pad_ver = lv_xml_get_const(nullptr, "space_md");
     if (pad_ver) {
         int32_t padding = std::atoi(pad_ver);
         lv_obj_set_style_pad_ver(textarea, padding, 0);

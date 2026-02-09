@@ -46,10 +46,8 @@
         <!-- Hide password field when security == 0 (None) -->
         <bind_flag_if_eq subject="hidden_security" flag="hidden" ref_value="0"/>
         <text_body width="100%" text="Password" translation_tag="Password" style_text_align="left"/>
-        <lv_textarea name="password_input"
-                     width="100%" height="#input_height" placeholder_text="Enter password" placeholder_tag="Enter password" translation_tag="Enter password" password_mode="true"
-                     one_line="true" style_pad_all="#space_md"
-                     style_text_font="#font_body"/>
+        <text_input name="password_input"
+                    width="100%" height="#input_height" placeholder_text="Enter password" placeholder_tag="Enter password" translation_tag="Enter password" password_mode="true"/>
       </lv_obj>
       <!-- Error message (hidden when empty) -->
       <text_small name="error_label"

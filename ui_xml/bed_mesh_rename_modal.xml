@@ -23,10 +23,9 @@
         <text_small name="rename_current_name" bind_text="bed_mesh_rename_old_name" style_text_color="#success"/>
       </lv_obj>
       <!-- New name input -->
-      <lv_textarea name="rename_new_name_input"
-                   width="100%" height="#input_height" placeholder_text="New profile name" placeholder_tag="New profile name" translation_tag="New profile name" one_line="true"
-                   style_pad_all="#space_md" style_text_font="#font_body"
-                   style_margin_top="#space_sm"/>
+      <text_input name="rename_new_name_input"
+                  width="100%" height="#input_height" placeholder_text="New profile name" placeholder_tag="New profile name" translation_tag="New profile name"
+                  style_margin_top="#space_sm"/>
       <!-- Status message (hidden by default) -->
       <text_small name="rename_status"
                   width="100%" text="" style_text_align="center" style_text_color="#danger" hidden="true"/>

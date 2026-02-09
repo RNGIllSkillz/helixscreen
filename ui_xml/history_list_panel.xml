@@ -14,11 +14,11 @@
             style_pad_column="#space_md" style_pad_left="#space_md" style_pad_right="#space_md"
             style_pad_top="#space_sm" style_pad_bottom="#space_sm">
       <!-- Search box - fills remaining space -->
-      <lv_textarea name="search_box"
-                   placeholder_text="Search filename..." placeholder_tag="Search filename..." translation_tag="Search filename..." one_line="true" flex_grow="1" style_min_width="120"
-                   style_max_height="#input_height">
+      <text_input name="search_box"
+                  placeholder_text="Search filename..." placeholder_tag="Search filename..." translation_tag="Search filename..." flex_grow="1" style_min_width="120"
+                  style_max_height="#input_height">
         <event_cb trigger="value_changed" callback="history_search_changed"/>
-      </lv_textarea>
+      </text_input>
       <!-- Status filter dropdown -->
       <lv_dropdown name="filter_status" options="All&#10;Completed&#10;Failed&#10;Cancelled" style_min_width="100">
         <event_cb trigger="value_changed" callback="history_filter_status_changed"/>

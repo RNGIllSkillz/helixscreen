@@ -75,8 +75,8 @@
             </lv_obj>
           </lv_obj>
           <text_small name="preview_label_input" text="Input" translation_tag="Input"/>
-          <lv_textarea name="preview_text_input"
-                       width="100%" height="#input_height" placeholder_text="Type to preview input field..." placeholder_tag="Type to preview input field..." translation_tag="Type to preview input field..." one_line="true"/>
+          <text_input name="preview_text_input"
+                      width="100%" height="#input_height" placeholder_text="Type to preview input field..." placeholder_tag="Type to preview input field..." translation_tag="Type to preview input field..."/>
           <text_small name="preview_label_intensity" text="Intensity" translation_tag="Intensity"/>
           <lv_obj width="100%"
                   height="content" flex_flow="row" style_pad_top="#space_sm" style_pad_bottom="#space_sm"
