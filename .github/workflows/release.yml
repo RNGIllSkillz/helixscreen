@@ -76,6 +76,9 @@ jobs:
     - name: Fix build directory ownership
       run: sudo chown -R $(id -u):$(id -g) build/
 
+    - name: Generate pre-rendered images
+      run: pip install Pillow && make gen-all-images
+
     - name: Package Pi release
       run: make release-pi
 
@@ -137,6 +140,9 @@ jobs:
 
     - name: Fix build directory ownership
       run: sudo chown -R $(id -u):$(id -g) build/
+
+    - name: Generate pre-rendered images
+      run: pip install Pillow && make gen-all-images
 
     - name: Package Pi 32-bit release
       run: make release-pi32
@@ -200,6 +206,9 @@ jobs:
     - name: Fix build directory ownership
       run: sudo chown -R $(id -u):$(id -g) build/
 
+    - name: Generate pre-rendered images
+      run: pip install Pillow && make gen-all-images
+
     - name: Package AD5M release
       run: make release-ad5m
 
@@ -261,6 +270,9 @@ jobs:
 
     - name: Fix build directory ownership
       run: sudo chown -R $(id -u):$(id -g) build/
+
+    - name: Generate pre-rendered images
+      run: pip install Pillow && make gen-all-images
 
     - name: Package K1 release
       run: make release-k1
@@ -437,14 +449,34 @@ jobs:
         echo "tag=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
         echo "Version: $VERSION (tag: $GITHUB_REF_NAME)"
 
-    - name: Generate release notes
+    - name: Extract changelog for version
       id: notes
       run: |
-        TAG_MESSAGE=$(git tag -l --format='%(contents:subject)' "$GITHUB_REF_NAME" 2>/dev/null || echo "")
-        if [ -z "$TAG_MESSAGE" ]; then
-          TAG_MESSAGE="Release $GITHUB_REF_NAME"
+        VERSION="${{ steps.version.outputs.version }}"
+
+        # Extract the section for this version from CHANGELOG.md
+        # Matches from "## [VERSION]" to the next "## [" or end of file
+        if [ -f CHANGELOG.md ]; then
+          NOTES=$(awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]")) found=1
+              next
+            }
+            found { print }
+          ' CHANGELOG.md)
         fi
-        echo "notes=$TAG_MESSAGE" >> $GITHUB_OUTPUT
+
+        if [ -z "$NOTES" ]; then
+          NOTES="Release $GITHUB_REF_NAME"
+        fi
+
+        # Use delimiter for multiline output
+        {
+          echo "notes<<CHANGELOG_EOF"
+          echo "$NOTES"
+          echo "CHANGELOG_EOF"
+        } >> $GITHUB_OUTPUT
 
     - name: Validate R2 configuration
       run: |
