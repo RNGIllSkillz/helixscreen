@@ -183,6 +183,7 @@ void register_xml_components() {
     lv_xml_register_component_from_file("A:ui_xml/connecting_state.xml");
     lv_xml_register_component_from_file("A:ui_xml/info_note.xml");
     lv_xml_register_component_from_file("A:ui_xml/form_field.xml");
+    lv_xml_register_component_from_file("A:ui_xml/ui_multiselect.xml");
 
     // Beta feature indicators (badge before wrapper - dependency order)
     lv_xml_register_component_from_file("A:ui_xml/beta_badge.xml");
