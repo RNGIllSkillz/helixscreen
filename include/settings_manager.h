@@ -640,6 +640,21 @@ class SettingsManager {
     }
 
     // =========================================================================
+    // TELEMETRY SETTINGS
+    // =========================================================================
+
+    /** @brief Get telemetry enabled state */
+    bool get_telemetry_enabled() const;
+
+    /** @brief Set telemetry enabled state (persists to config + notifies TelemetryManager) */
+    void set_telemetry_enabled(bool enabled);
+
+    /** @brief Telemetry enabled subject (integer: 0=off, 1=on) */
+    lv_subject_t* subject_telemetry_enabled() {
+        return &telemetry_enabled_subject_;
+    }
+
+    // =========================================================================
     // UPDATE SETTINGS
     // =========================================================================
 
@@ -733,6 +748,7 @@ class SettingsManager {
     lv_subject_t scroll_limit_subject_;
     lv_subject_t update_channel_subject_;
     lv_subject_t z_movement_style_subject_;
+    lv_subject_t telemetry_enabled_subject_;
 
     // External references
     MoonrakerClient* moonraker_client_ = nullptr;

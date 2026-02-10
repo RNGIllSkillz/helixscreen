@@ -171,6 +171,17 @@
                           description="View installed plugins and status"
                           description_tag="View installed plugins and status" callback="on_plugins_clicked"/>
     </beta_feature>
+    <!-- Telemetry -->
+    <setting_toggle_row name="row_telemetry"
+                        label="Share Usage Data" label_tag="Share Usage Data" icon="chart_line"
+                        description="Anonymous data to help improve HelixScreen"
+                        description_tag="Anonymous data to help improve HelixScreen"
+                        callback="on_telemetry_changed"/>
+    <setting_action_row name="row_telemetry_view_data"
+                        label="View Telemetry Data" label_tag="View Telemetry Data" icon="list"
+                        description="See exactly what data would be sent"
+                        description_tag="See exactly what data would be sent"
+                        callback="on_telemetry_view_data"/>
     <!-- About HelixScreen (opens overlay with version info, updates, component versions) -->
     <!-- Description bound to about_version_description subject in C++ setup() -->
     <setting_action_row name="row_about"

@@ -96,6 +96,8 @@ class SettingsPanel : public PanelBase {
     lv_obj_t* led_light_switch_ = nullptr;
     lv_obj_t* sounds_switch_ = nullptr;
     lv_obj_t* estop_confirm_switch_ = nullptr;
+    lv_obj_t* telemetry_switch_ = nullptr;
+
     // Dropdowns
     lv_obj_t* completion_alert_dropdown_ = nullptr;
     lv_obj_t* display_sleep_dropdown_ = nullptr;
@@ -216,6 +218,9 @@ class SettingsPanel : public PanelBase {
     void handle_led_light_changed(bool enabled);
     void handle_sounds_changed(bool enabled);
     void handle_estop_confirm_changed(bool enabled);
+    void handle_telemetry_changed(bool enabled);
+    void handle_telemetry_view_data_clicked();
+
     void handle_led_select_changed(int index);
     void handle_about_clicked();
     void handle_display_settings_clicked();
@@ -265,6 +270,7 @@ class SettingsPanel : public PanelBase {
     static void on_sounds_changed(lv_event_t* e);
     static void on_estop_confirm_changed(lv_event_t* e);
     static void on_about_clicked(lv_event_t* e);
+    static void on_telemetry_changed(lv_event_t* e);
     static void on_display_settings_clicked(lv_event_t* e);
     static void on_filament_sensors_clicked(lv_event_t* e);
     static void on_ams_settings_clicked(lv_event_t* e);
@@ -277,6 +283,7 @@ class SettingsPanel : public PanelBase {
     static void on_factory_reset_clicked(lv_event_t* e);
     static void on_hardware_health_clicked(lv_event_t* e);
     static void on_plugins_clicked(lv_event_t* e);
+    static void on_telemetry_view_data(lv_event_t* e);
     static void on_restart_helix_settings_clicked(lv_event_t* e);
 
   private:

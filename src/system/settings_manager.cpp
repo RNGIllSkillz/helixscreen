@@ -15,6 +15,7 @@
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "spdlog/spdlog.h"
+#include "system/telemetry_manager.h"
 #include "system/update_checker.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
@@ -230,6 +231,12 @@ void SettingsManager::init_subjects() {
     int update_channel = config->get<int>("/update/channel", 0);
     update_channel = std::clamp(update_channel, 0, 2);
     UI_MANAGED_SUBJECT_INT(update_channel_subject_, update_channel, "update_channel", subjects_);
+
+    // Telemetry (opt-in, default OFF)
+    bool telemetry_enabled = config->get<bool>("/telemetry_enabled", false);
+    UI_MANAGED_SUBJECT_INT(telemetry_enabled_subject_, telemetry_enabled ? 1 : 0,
+                           "settings_telemetry_enabled", subjects_);
+    spdlog::debug("[SettingsManager] telemetry_enabled: {}", telemetry_enabled);
 
     subjects_initialized_ = true;
     spdlog::debug("[SettingsManager] Subjects initialized: dark_mode={}, theme={}, "
@@ -969,6 +976,29 @@ void SettingsManager::set_update_channel(int channel) {
 
 const char* SettingsManager::get_update_channel_options() {
     return "Stable\nBeta\nDev";
+}
+
+// =============================================================================
+// TELEMETRY SETTINGS
+// =============================================================================
+
+bool SettingsManager::get_telemetry_enabled() const {
+    return lv_subject_get_int(const_cast<lv_subject_t*>(&telemetry_enabled_subject_)) != 0;
+}
+
+void SettingsManager::set_telemetry_enabled(bool enabled) {
+    spdlog::info("[SettingsManager] set_telemetry_enabled({})", enabled);
+
+    // Update subject (UI reacts)
+    lv_subject_set_int(&telemetry_enabled_subject_, enabled ? 1 : 0);
+
+    // Persist to config
+    Config* config = Config::get_instance();
+    config->set<bool>("/telemetry_enabled", enabled);
+    config->save();
+
+    // Apply to TelemetryManager
+    TelemetryManager::instance().set_enabled(enabled);
 }
 
 // =============================================================================

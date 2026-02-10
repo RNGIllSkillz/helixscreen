@@ -92,6 +92,8 @@
 
 #include "printer_detector.h"
 #include "settings_manager.h"
+#include "system/crash_handler.h"
+#include "system/telemetry_manager.h"
 #include "system/update_checker.h"
 #include "theme_manager.h"
 #include "wifi_manager.h"
@@ -193,6 +195,10 @@ int Application::run(int argc, char** argv) {
         return 0; // Help shown or parse error
     }
 
+    // Install crash handler early (before other init that could crash)
+    // Uses the config directory for the crash file so TelemetryManager can find it on next startup
+    crash_handler::install("config/crash.txt");
+
     // Phase 2: Initialize config system
     if (!init_config()) {
         return 1;
@@ -268,12 +274,22 @@ int Application::run(int argc, char** argv) {
     // Initialize UpdateChecker before panel subjects (subjects must exist for XML binding)
     UpdateChecker::instance().init();
 
+    // Initialize TelemetryManager (opt-in, default OFF)
+    // Note: record_session() is called after init_panel_subjects() so that
+    // SettingsManager subjects are ready and the enabled state can be synced.
+    TelemetryManager::instance().init();
+
     // Phase 9c: Initialize panel subjects with API injection
     // Panels receive API at construction - no deferred set_api() needed
     if (!init_panel_subjects()) {
         shutdown();
         return 1;
     }
+
+    // Sync telemetry enabled state from SettingsManager (now that its subjects are initialized)
+    // and record the session event if telemetry is enabled
+    TelemetryManager::instance().set_enabled(SettingsManager::instance().get_telemetry_enabled());
+    TelemetryManager::instance().record_session();
 
     // Update SettingsManager with theme mode support (must be after both theme and settings init)
     SettingsManager::instance().on_theme_changed();
@@ -1522,6 +1538,9 @@ bool Application::connect_moonraker() {
     // Initialize action prompt system (Klipper action:prompt protocol)
     init_action_prompt();
 
+    // Start telemetry auto-send timer (periodic try_send)
+    TelemetryManager::instance().start_auto_send();
+
     return true;
 }
 
@@ -1891,6 +1910,9 @@ void Application::shutdown() {
     }
     m_shutdown_complete = true;
 
+    // Uninstall crash handler (clean shutdown is not a crash)
+    crash_handler::uninstall();
+
     // Stop memory monitor first
     helix::MemoryMonitor::instance().stop();
 
@@ -1911,6 +1933,9 @@ void Application::shutdown() {
     UpdateChecker::instance().stop_auto_check();
     // Shutdown UpdateChecker (cancels pending checks)
     UpdateChecker::instance().shutdown();
+
+    // Shutdown TelemetryManager (persists queue, joins send thread)
+    TelemetryManager::instance().shutdown();
 
     // Unload plugins before destroying managers they depend on
     if (m_plugin_manager) {
