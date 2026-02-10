@@ -27,6 +27,7 @@
 #include "version.h"
 
 #include <chrono>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>
@@ -866,15 +867,38 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
 
     report_download_status(DownloadStatus::Installing, 100, "Installing update...");
 
-    // Find install.sh — production installs put it in the install root,
-    // not in scripts/. Development builds use scripts/install.sh.
+    // Find install.sh — resolve dynamically from exe location first,
+    // then fall back to well-known paths. The installer is placed at
+    // the install root (e.g., /opt/helixscreen/install.sh).
     std::string install_script;
-    const std::vector<std::string> search_paths = {
-        "/opt/helixscreen/install.sh",
-        "/root/printer_software/helixscreen/install.sh",
-        "/usr/data/helixscreen/install.sh",
-        "scripts/install.sh", // development fallback
-    };
+
+    // Build search paths dynamically — exe-relative path first so it works
+    // for any install location (Pi: /home/biqu/helixscreen, /home/pi/helixscreen, etc.)
+    std::vector<std::string> search_paths;
+
+    // Try resolving from /proc/self/exe → strip /bin/helix-screen → install root
+    char exe_buf[PATH_MAX] = {};
+    ssize_t exe_len = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf) - 1);
+    if (exe_len > 0) {
+        exe_buf[exe_len] = '\0';
+        std::string exe_dir(exe_buf);
+        auto slash = exe_dir.rfind('/');
+        if (slash != std::string::npos) {
+            exe_dir = exe_dir.substr(0, slash); // strip binary name → bin/
+            if (exe_dir.size() >= 4 && exe_dir.substr(exe_dir.size() - 4) == "/bin") {
+                std::string install_root = exe_dir.substr(0, exe_dir.size() - 4);
+                search_paths.push_back(install_root + "/install.sh");
+            }
+        }
+    }
+
+    // Well-known install locations as fallback
+    search_paths.push_back("/opt/helixscreen/install.sh");
+    search_paths.push_back("/root/printer_software/helixscreen/install.sh");
+    search_paths.push_back("/usr/data/helixscreen/install.sh");
+    search_paths.push_back("/home/biqu/helixscreen/install.sh");
+    search_paths.push_back("/home/pi/helixscreen/install.sh");
+    search_paths.push_back("scripts/install.sh"); // development fallback
 
     for (const auto& path : search_paths) {
         if (access(path.c_str(), X_OK) == 0) {
