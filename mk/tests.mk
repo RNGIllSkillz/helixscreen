@@ -181,6 +181,21 @@ test-all: test-build
 tests: test-run
 
 # ============================================================================
+# KIAUH Extension Tests
+# ============================================================================
+# Tests that our KIAUH extension is discoverable by KIAUH's discover_extensions().
+# Catches the class of bug where KIAUH crashes with IndexError because extension
+# code doesn't match KIAUH's discovery conventions.
+
+test-kiauh:
+	$(ECHO) "$(CYAN)$(BOLD)Running KIAUH extension tests...$(RESET)"
+	@START_TIME=$$(date +%s); \
+	python3 -m unittest scripts.kiauh.tests.test_kiauh_extension -v && \
+	END_TIME=$$(date +%s); \
+	DURATION=$$((END_TIME - START_TIME)); \
+	echo "$(GREEN)$(BOLD)✓ KIAUH extension tests passed in $${DURATION}s$(RESET)"
+
+# ============================================================================
 # Shell/Bats Tests
 # ============================================================================
 
@@ -188,7 +203,16 @@ tests: test-run
 test-shell:
 	$(ECHO) "$(CYAN)$(BOLD)Running shell tests (bats)...$(RESET)"
 	@if command -v bats >/dev/null 2>&1; then \
-		bats tests/shell/; \
+		START_TIME=$$(date +%s); \
+		if command -v parallel >/dev/null 2>&1; then \
+			NPROC=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); \
+			bats --jobs "$$NPROC" tests/shell/; \
+		else \
+			bats tests/shell/; \
+		fi; \
+		END_TIME=$$(date +%s); \
+		DURATION=$$((END_TIME - START_TIME)); \
+		echo "$(GREEN)$(BOLD)✓ Shell tests passed in $${DURATION}s$(RESET)"; \
 	else \
 		echo "$(YELLOW)⚠ bats not found - skipping shell tests$(RESET)"; \
 		echo "  Install with: brew install bats-core (macOS) or apt install bats (Linux)"; \
@@ -880,7 +904,7 @@ clean-sanitizers:
 # Test Help
 # ============================================================================
 
-.PHONY: help-test test-shell test-serial test-asan test-tsan test-asan-one test-tsan-one clean-sanitizers
+.PHONY: help-test test-kiauh test-shell test-serial test-asan test-tsan test-asan-one test-tsan-one clean-sanitizers
 help-test:
 	@if [ -t 1 ] && [ -n "$(TERM)" ] && [ "$(TERM)" != "dumb" ]; then \
 		B='$(BOLD)'; G='$(GREEN)'; Y='$(YELLOW)'; C='$(CYAN)'; X='$(RESET)'; \
