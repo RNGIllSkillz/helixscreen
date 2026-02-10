@@ -3,7 +3,10 @@
 
 #include "ui_wizard_summary.h"
 
+#include "ui_event_safety.h"
+#include "ui_modal.h"
 #include "ui_subject_registry.h"
+#include "ui_toast.h"
 #include "ui_wizard.h"
 #include "ui_wizard_input_shaper.h"
 
@@ -13,6 +16,7 @@
 #include "config.h"
 #include "filament_sensor_manager.h"
 #include "lvgl/lvgl.h"
+#include "settings_manager.h"
 #include "static_panel_registry.h"
 #include "wizard_config_paths.h"
 
@@ -56,6 +60,7 @@ WizardSummaryStep::WizardSummaryStep() {
     std::memset(filament_sensor_buffer_, 0, sizeof(filament_sensor_buffer_));
     std::memset(ams_type_buffer_, 0, sizeof(ams_type_buffer_));
     std::memset(input_shaper_buffer_, 0, sizeof(input_shaper_buffer_));
+    std::memset(telemetry_info_text_buffer_, 0, sizeof(telemetry_info_text_buffer_));
 
     spdlog::debug("[{}] Instance created", get_name());
 }
@@ -81,6 +86,7 @@ WizardSummaryStep::WizardSummaryStep(WizardSummaryStep&& other) noexcept
       filament_sensor_visible_(other.filament_sensor_visible_), ams_type_(other.ams_type_),
       ams_visible_(other.ams_visible_), input_shaper_(other.input_shaper_),
       input_shaper_visible_(other.input_shaper_visible_),
+      telemetry_info_text_(other.telemetry_info_text_),
       subjects_initialized_(other.subjects_initialized_) {
     // Move buffers
     std::memcpy(printer_name_buffer_, other.printer_name_buffer_, sizeof(printer_name_buffer_));
@@ -97,6 +103,8 @@ WizardSummaryStep::WizardSummaryStep(WizardSummaryStep&& other) noexcept
                 sizeof(filament_sensor_buffer_));
     std::memcpy(ams_type_buffer_, other.ams_type_buffer_, sizeof(ams_type_buffer_));
     std::memcpy(input_shaper_buffer_, other.input_shaper_buffer_, sizeof(input_shaper_buffer_));
+    std::memcpy(telemetry_info_text_buffer_, other.telemetry_info_text_buffer_,
+                sizeof(telemetry_info_text_buffer_));
 
     // Null out other
     other.screen_root_ = nullptr;
@@ -124,6 +132,7 @@ WizardSummaryStep& WizardSummaryStep::operator=(WizardSummaryStep&& other) noexc
         ams_visible_ = other.ams_visible_;
         input_shaper_ = other.input_shaper_;
         input_shaper_visible_ = other.input_shaper_visible_;
+        telemetry_info_text_ = other.telemetry_info_text_;
         subjects_initialized_ = other.subjects_initialized_;
 
         // Move buffers
@@ -141,6 +150,8 @@ WizardSummaryStep& WizardSummaryStep::operator=(WizardSummaryStep&& other) noexc
                     sizeof(filament_sensor_buffer_));
         std::memcpy(ams_type_buffer_, other.ams_type_buffer_, sizeof(ams_type_buffer_));
         std::memcpy(input_shaper_buffer_, other.input_shaper_buffer_, sizeof(input_shaper_buffer_));
+        std::memcpy(telemetry_info_text_buffer_, other.telemetry_info_text_buffer_,
+                    sizeof(telemetry_info_text_buffer_));
 
         // Null out other
         other.screen_root_ = nullptr;
@@ -335,6 +346,31 @@ void WizardSummaryStep::init_subjects() {
     UI_SUBJECT_INIT_AND_REGISTER_INT(input_shaper_visible_, input_shaper_visible,
                                      "summary_input_shaper_visible");
 
+    // Telemetry info modal content
+    static const char* telemetry_info_md =
+        "**HelixScreen is a free, open-source project** built by a tiny team. "
+        "Anonymous telemetry helps us understand how the app is actually used "
+        "so we can focus on what matters.\n\n"
+        "## What we collect\n"
+        "- **App version** and platform (Pi model, screen size)\n"
+        "- **Printer type** (kinematics, build volume — NOT your printer name)\n"
+        "- **Print outcomes** (completed vs failed, duration, temps)\n"
+        "- **Crash reports** (stack traces to fix bugs)\n"
+        "- **Feature usage** (which panels you use, AMS, input shaper, etc.)\n\n"
+        "## What we NEVER collect\n"
+        "- Your name, location, or IP address\n"
+        "- File names or G-code content\n"
+        "- Camera images or thumbnails\n"
+        "- WiFi passwords or network details\n"
+        "- Anything that could identify you personally\n\n"
+        "## Why it matters\n"
+        "With just a few hundred users reporting anonymously, we can see which "
+        "printers crash most, which features nobody uses, and where to spend our "
+        "limited time. **You can view the exact data in Settings > View Telemetry "
+        "Data anytime.**";
+    UI_SUBJECT_INIT_AND_REGISTER_STRING(telemetry_info_text_, telemetry_info_text_buffer_,
+                                        telemetry_info_md, "telemetry_info_text");
+
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized with config values", get_name());
 }
@@ -344,8 +380,11 @@ void WizardSummaryStep::init_subjects() {
 // ============================================================================
 
 void WizardSummaryStep::register_callbacks() {
-    spdlog::debug("[{}] No callbacks to register (read-only screen)", get_name());
-    // No interactive callbacks for summary screen
+    spdlog::debug("[{}] Registering callbacks", get_name());
+    lv_xml_register_event_cb(nullptr, "on_wizard_telemetry_changed",
+                             WizardSummaryStep::on_wizard_telemetry_changed);
+    lv_xml_register_event_cb(nullptr, "on_wizard_telemetry_info",
+                             WizardSummaryStep::on_wizard_telemetry_info);
 }
 
 // ============================================================================
@@ -372,6 +411,8 @@ lv_obj_t* WizardSummaryStep::create(lv_obj_t* parent) {
         return nullptr;
     }
 
+    // Toggle state synced via bind_state_if_eq on settings_telemetry_enabled subject
+
     spdlog::debug("[{}] Screen created successfully", get_name());
     return screen_root_;
 }
@@ -395,4 +436,41 @@ void WizardSummaryStep::cleanup() {
 bool WizardSummaryStep::is_validated() const {
     // Summary screen is always validated (no user input required)
     return true;
+}
+
+// ============================================================================
+// Static Callbacks
+// ============================================================================
+
+void WizardSummaryStep::on_wizard_telemetry_changed(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[WizardSummary] on_wizard_telemetry_changed");
+    auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
+    spdlog::info("[WizardSummary] Telemetry toggled: {}", enabled ? "ON" : "OFF");
+    SettingsManager::instance().set_telemetry_enabled(enabled);
+    if (enabled) {
+        ui_toast_show(ToastSeverity::SUCCESS,
+                      lv_tr("Thanks! Anonymous usage data helps improve HelixScreen."), 4000);
+    }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void WizardSummaryStep::on_wizard_telemetry_info(lv_event_t* /*e*/) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[WizardSummary] on_wizard_telemetry_info");
+    spdlog::debug("[WizardSummary] Showing telemetry info modal");
+    lv_obj_t* dialog = Modal::show("telemetry_info_modal");
+    if (dialog) {
+        // Wire the OK button to close the modal
+        lv_obj_t* ok_btn = lv_obj_find_by_name(dialog, "btn_primary");
+        if (ok_btn) {
+            lv_obj_add_event_cb(
+                ok_btn,
+                [](lv_event_t* ev) {
+                    auto* dlg = static_cast<lv_obj_t*>(lv_event_get_user_data(ev));
+                    Modal::hide(dlg);
+                },
+                LV_EVENT_CLICKED, dialog);
+        }
+    }
+    LVGL_SAFE_EVENT_CB_END();
 }

@@ -105,6 +105,12 @@ class WizardSummaryStep {
         return "Wizard Summary";
     }
 
+    /** @brief Telemetry toggle callback (wired from XML) */
+    static void on_wizard_telemetry_changed(lv_event_t* e);
+
+    /** @brief "Learn more" link callback — shows telemetry info modal */
+    static void on_wizard_telemetry_info(lv_event_t* e);
+
   private:
     // Screen instance
     lv_obj_t* screen_root_ = nullptr;
@@ -142,6 +148,10 @@ class WizardSummaryStep {
     char filament_sensor_buffer_[128];
     char ams_type_buffer_[64];
     char input_shaper_buffer_[128];
+
+    // Telemetry info modal text
+    lv_subject_t telemetry_info_text_;
+    char telemetry_info_text_buffer_[2048];
 
     // Track initialization
     bool subjects_initialized_ = false;

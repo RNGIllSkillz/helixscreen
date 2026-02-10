@@ -300,6 +300,7 @@ void register_xml_components() {
     lv_xml_register_component_from_file("A:ui_xml/network_test_modal.xml");
     lv_xml_register_component_from_file("A:ui_xml/filament_preset_edit_modal.xml");
     lv_xml_register_component_from_file("A:ui_xml/wifi_network_item.xml");
+    lv_xml_register_component_from_file("A:ui_xml/telemetry_data_overlay.xml");
 
     // Development tools
     lv_xml_register_component_from_file("A:ui_xml/memory_stats_overlay.xml");
@@ -332,6 +333,7 @@ void register_xml_components() {
     lv_xml_register_component_from_file("A:ui_xml/wizard_input_shaper.xml");
     lv_xml_register_component_from_file("A:ui_xml/wizard_language_chooser.xml");
     lv_xml_register_component_from_file("A:ui_xml/wizard_summary.xml");
+    lv_xml_register_component_from_file("A:ui_xml/telemetry_info_modal.xml");
 
     spdlog::trace("[XML Registration] XML component registration complete");
 }
