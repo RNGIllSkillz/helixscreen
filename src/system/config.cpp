@@ -193,12 +193,41 @@ bool migrate_config_keys(json& data,
     return any_migrated;
 }
 
+// ============================================================================
+// Versioned config migrations
+// ============================================================================
+
+/// Migration v0→v1: Sound support added — default sounds OFF for existing configs.
+/// Before sound actually worked, configs had sounds_enabled: true as a harmless default.
+/// Force it off so upgrading users don't get surprise beeps.
+static void migrate_v0_to_v1(json& config) {
+    if (config.contains("sounds_enabled")) {
+        config["sounds_enabled"] = false;
+        spdlog::info("[Config] Migration v1: disabled sounds_enabled for existing config");
+    }
+}
+
+/// Run all versioned migrations in sequence from current version to CURRENT_CONFIG_VERSION
+static void run_versioned_migrations(json& config) {
+    int version = 0;
+    if (config.contains("config_version")) {
+        version = config["config_version"].get<int>();
+    }
+
+    if (version < 1)
+        migrate_v0_to_v1(config);
+    // Future: if (version < 2) migrate_v1_to_v2(config);
+
+    config["config_version"] = CURRENT_CONFIG_VERSION;
+}
+
 /// Default root-level config - shared between init() and reset_to_defaults()
 /// @param moonraker_host Host address for printer
 /// @param include_user_prefs Include user preference fields (brightness, sounds, etc.)
 json get_default_config(const std::string& moonraker_host, bool include_user_prefs) {
     // log_level intentionally absent - test_mode provides fallback to DEBUG
-    json config = {{"log_path", "/tmp/helixscreen.log"},
+    json config = {{"config_version", CURRENT_CONFIG_VERSION},
+                   {"log_path", "/tmp/helixscreen.log"},
                    {"dark_mode", true},
                    {"theme", {{"preset", 0}}},
                    {"display", get_default_display_config()},
@@ -219,7 +248,7 @@ json get_default_config(const std::string& moonraker_host, bool include_user_pre
 
     if (include_user_prefs) {
         config["brightness"] = 50;
-        config["sounds_enabled"] = true;
+        config["sounds_enabled"] = false;
         config["completion_alert"] = true;
         config["wizard_completed"] = false;
         config["wifi_expected"] = false;
@@ -295,6 +324,13 @@ void Config::init(const std::string& config_path) {
         // Migrate touch settings from /display/ to /input/
         if (migrate_config_keys(data, {{"/display/calibration", "/input/calibration"},
                                        {"/display/touch_device", "/input/touch_device"}})) {
+            config_modified = true;
+        }
+
+        // Run versioned migrations (v0→v1: disable sounds for existing configs, etc.)
+        int version_before = data.value("config_version", 0);
+        run_versioned_migrations(data);
+        if (data["config_version"].get<int>() != version_before) {
             config_modified = true;
         }
     } else {

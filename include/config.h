@@ -53,6 +53,9 @@ struct MacroConfig {
  * cfg->save();
  * ```
  */
+/// Current config schema version — bump when adding new migrations
+static constexpr int CURRENT_CONFIG_VERSION = 1;
+
 class Config {
   private:
     static Config* instance;

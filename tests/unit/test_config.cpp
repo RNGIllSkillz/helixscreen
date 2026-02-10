@@ -1509,3 +1509,127 @@ TEST_CASE_METHOD(ConfigTestFixture, "Config: language supports all planned langu
         REQUIRE(config.get_language() == lang);
     }
 }
+
+// ============================================================================
+// Config Versioning & Migration Tests
+// ============================================================================
+
+TEST_CASE_METHOD(ConfigTestFixture,
+                 "Config: v0 config with sounds_enabled=true gets migrated to false",
+                 "[core][config][migration][versioning]") {
+    // Simulate an existing config from before sound support (no config_version)
+    set_data_for_plural_test(
+        {{"sounds_enabled", true},
+         {"brightness", 50},
+         {"printer", {{"moonraker_host", "192.168.1.100"}, {"moonraker_port", 7125}}}});
+
+    // No config_version means v0
+    REQUIRE_FALSE(data_contains("config_version"));
+    REQUIRE(config.get<bool>("/sounds_enabled") == true);
+
+    // Run init on a temp file to trigger migrations
+    std::string temp_dir = std::filesystem::temp_directory_path().string() +
+                           "/helix_migration_test_" + std::to_string(rand());
+    std::filesystem::create_directories(temp_dir);
+    std::string temp_path = temp_dir + "/test_config.json";
+
+    // Write v0 config to disk
+    {
+        std::ofstream o(temp_path);
+        o << get_data().dump(2);
+    }
+
+    // Run init which triggers migrations
+    Config test_config;
+    test_config.init(temp_path);
+
+    // Verify migration ran
+    REQUIRE(test_config.get<bool>("/sounds_enabled") == false);
+    REQUIRE(test_config.get<int>("/config_version") == CURRENT_CONFIG_VERSION);
+
+    std::filesystem::remove_all(temp_dir);
+}
+
+TEST_CASE_METHOD(ConfigTestFixture,
+                 "Config: config already at version 1 does NOT get sounds flipped",
+                 "[core][config][migration][versioning]") {
+    // Config that was already migrated — user may have re-enabled sounds
+    std::string temp_dir = std::filesystem::temp_directory_path().string() +
+                           "/helix_migration_test_" + std::to_string(rand());
+    std::filesystem::create_directories(temp_dir);
+    std::string temp_path = temp_dir + "/test_config.json";
+
+    json v1_config = {{"config_version", 1},
+                      {"sounds_enabled", true},
+                      {"brightness", 50},
+                      {"printer", {{"moonraker_host", "192.168.1.100"}, {"moonraker_port", 7125}}}};
+
+    {
+        std::ofstream o(temp_path);
+        o << v1_config.dump(2);
+    }
+
+    Config test_config;
+    test_config.init(temp_path);
+
+    // sounds_enabled should still be true — migration should NOT re-run
+    REQUIRE(test_config.get<bool>("/sounds_enabled") == true);
+    REQUIRE(test_config.get<int>("/config_version") == CURRENT_CONFIG_VERSION);
+
+    std::filesystem::remove_all(temp_dir);
+}
+
+TEST_CASE_METHOD(ConfigTestFixture,
+                 "Config: fresh config gets version stamp and sounds default to false",
+                 "[core][config][migration][versioning]") {
+    // Brand new config — no file exists
+    std::string temp_dir = std::filesystem::temp_directory_path().string() + "/helix_fresh_test_" +
+                           std::to_string(rand());
+    std::filesystem::create_directories(temp_dir);
+    std::string temp_path = temp_dir + "/fresh_config.json";
+
+    // Ensure file doesn't exist
+    std::filesystem::remove(temp_path);
+    REQUIRE_FALSE(std::filesystem::exists(temp_path));
+
+    Config test_config;
+    test_config.init(temp_path);
+
+    // Fresh config should have current version (skips all migrations)
+    REQUIRE(test_config.get<int>("/config_version") == CURRENT_CONFIG_VERSION);
+
+    // Fresh config should NOT have sounds_enabled set (it's a user pref, not in base defaults)
+    // But if accessed with default, should be false
+    REQUIRE(test_config.get<bool>("/sounds_enabled", false) == false);
+
+    std::filesystem::remove_all(temp_dir);
+}
+
+TEST_CASE_METHOD(ConfigTestFixture,
+                 "Config: v0 config without sounds_enabled key just gets version stamp",
+                 "[config][migration][versioning]") {
+    // Edge case: old config that somehow never had sounds_enabled
+    std::string temp_dir = std::filesystem::temp_directory_path().string() +
+                           "/helix_nosound_test_" + std::to_string(rand());
+    std::filesystem::create_directories(temp_dir);
+    std::string temp_path = temp_dir + "/test_config.json";
+
+    json minimal_v0 = {
+        {"brightness", 50},
+        {"printer", {{"moonraker_host", "192.168.1.100"}, {"moonraker_port", 7125}}}};
+
+    {
+        std::ofstream o(temp_path);
+        o << minimal_v0.dump(2);
+    }
+
+    Config test_config;
+    test_config.init(temp_path);
+
+    // Should get version stamp without errors
+    REQUIRE(test_config.get<int>("/config_version") == CURRENT_CONFIG_VERSION);
+    // sounds_enabled should not have been created by migration
+    REQUIRE(test_config.get<bool>("/sounds_enabled", false) == false);
+
+    std::filesystem::remove_all(temp_dir);
+}
