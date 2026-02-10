@@ -3,9 +3,11 @@
 
 #include "ui_panel_calibration_pid.h"
 
+#include "ui_emergency_stop.h"
 #include "ui_event_safety.h"
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
+#include "ui_panel_temp_control.h"
 #include "ui_update_queue.h"
 
 #include "filament_database.h"
@@ -36,7 +38,6 @@ PIDCalibrationPanel::PIDCalibrationPanel() {
     // Zero out buffers
     std::memset(buf_temp_display_, 0, sizeof(buf_temp_display_));
     std::memset(buf_temp_hint_, 0, sizeof(buf_temp_hint_));
-    std::memset(buf_current_temp_display_, 0, sizeof(buf_current_temp_display_));
     std::memset(buf_calibrating_heater_, 0, sizeof(buf_calibrating_heater_));
     std::memset(buf_pid_kp_, 0, sizeof(buf_pid_kp_));
     std::memset(buf_pid_ki_, 0, sizeof(buf_pid_ki_));
@@ -82,9 +83,6 @@ void PIDCalibrationPanel::init_subjects() {
 
     UI_MANAGED_SUBJECT_STRING(subj_temp_hint_, buf_temp_hint_, "Recommended: 200°C for extruder",
                               "pid_temp_hint", subjects_);
-
-    UI_MANAGED_SUBJECT_STRING(subj_current_temp_display_, buf_current_temp_display_, "0.0°C / 0°C",
-                              "pid_current_temp", subjects_);
 
     UI_MANAGED_SUBJECT_STRING(subj_calibrating_heater_, buf_calibrating_heater_,
                               "Extruder PID Tuning", "pid_calibrating_heater", subjects_);
@@ -246,6 +244,9 @@ void PIDCalibrationPanel::on_activate() {
 void PIDCalibrationPanel::on_deactivate() {
     spdlog::debug("[PIDCal] on_deactivate()");
 
+    // Teardown graph before deactivating
+    teardown_pid_graph();
+
     // Turn off fan if it was running
     turn_off_fan();
 
@@ -263,6 +264,9 @@ void PIDCalibrationPanel::on_deactivate() {
 
 void PIDCalibrationPanel::cleanup() {
     spdlog::debug("[PIDCal] Cleaning up");
+
+    // Teardown graph before cleanup
+    teardown_pid_graph();
 
     // Unregister from NavigationManager before cleaning up
     if (overlay_root_) {
@@ -298,6 +302,12 @@ void PIDCalibrationPanel::turn_off_fan() {
 void PIDCalibrationPanel::set_state(State new_state) {
     spdlog::debug("[PIDCal] State change: {} -> {}", static_cast<int>(state_),
                   static_cast<int>(new_state));
+
+    // Teardown graph when leaving CALIBRATING state
+    if (state_ == State::CALIBRATING && new_state != State::CALIBRATING) {
+        teardown_pid_graph();
+    }
+
     state_ = new_state;
 
     // Update subjects - XML bindings handle visibility automatically
@@ -305,6 +315,11 @@ void PIDCalibrationPanel::set_state(State new_state) {
     lv_subject_set_int(&s_pid_cal_state, static_cast<int>(new_state));
     // Disable Start button in header when not idle
     lv_subject_set_int(&subj_cal_not_idle_, new_state != State::IDLE ? 1 : 0);
+
+    // Setup graph when entering CALIBRATING state
+    if (new_state == State::CALIBRATING) {
+        setup_pid_graph();
+    }
 }
 
 // ============================================================================
@@ -351,10 +366,78 @@ void PIDCalibrationPanel::update_temp_hint() {
     lv_subject_copy_string(&subj_temp_hint_, hint);
 }
 
-void PIDCalibrationPanel::update_temperature(float current, float target) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%.1f°C / %.0f°C", current, target);
-    lv_subject_copy_string(&subj_current_temp_display_, buf);
+// ============================================================================
+// TEMPERATURE GRAPH
+// ============================================================================
+
+void PIDCalibrationPanel::set_temp_control_panel(TempControlPanel* tcp) {
+    temp_control_panel_ = tcp;
+    spdlog::trace("[{}] TempControlPanel set", get_name());
+}
+
+void PIDCalibrationPanel::setup_pid_graph() {
+    if (pid_graph_)
+        return; // Already set up
+
+    lv_obj_t* container = lv_obj_find_by_name(overlay_root_, "pid_temp_graph_container");
+    if (!container) {
+        spdlog::warn("[{}] pid_temp_graph_container not found", get_name());
+        return;
+    }
+
+    pid_graph_ = ui_temp_graph_create(container);
+    if (!pid_graph_) {
+        spdlog::error("[{}] Failed to create PID temp graph", get_name());
+        return;
+    }
+
+    // Size chart to fill container
+    lv_obj_t* chart = ui_temp_graph_get_chart(pid_graph_);
+    lv_obj_set_size(chart, lv_pct(100), lv_pct(100));
+
+    // Configure for PID calibration view
+    bool is_extruder = (selected_heater_ == Heater::EXTRUDER);
+    float max_temp = is_extruder ? 300.0f : 150.0f;
+    ui_temp_graph_set_temp_range(pid_graph_, 0.0f, max_temp);
+    ui_temp_graph_set_point_count(pid_graph_, 300); // 5 min at 1Hz
+    ui_temp_graph_set_y_axis(pid_graph_, is_extruder ? 100.0f : 50.0f, true);
+    ui_temp_graph_set_axis_size(pid_graph_, "xs");
+
+    // Add single series for the active heater
+    const char* heater_name = is_extruder ? "Nozzle" : "Bed";
+    lv_color_t color = is_extruder ? lv_color_hex(0xFF4444) : lv_color_hex(0x00CED1);
+    pid_graph_series_id_ = ui_temp_graph_add_series(pid_graph_, heater_name, color);
+
+    if (pid_graph_series_id_ >= 0) {
+        // Show target temperature line
+        ui_temp_graph_set_series_target(pid_graph_, pid_graph_series_id_,
+                                        static_cast<float>(target_temp_), true);
+
+        // Register with TempControlPanel for live updates
+        if (temp_control_panel_) {
+            std::string klipper_heater = is_extruder ? "extruder" : "heater_bed";
+            temp_control_panel_->register_heater_graph(pid_graph_, pid_graph_series_id_,
+                                                       klipper_heater);
+        }
+    }
+
+    spdlog::debug("[{}] PID temp graph created for {}", get_name(), heater_name);
+}
+
+void PIDCalibrationPanel::teardown_pid_graph() {
+    if (!pid_graph_)
+        return;
+
+    // Unregister from TempControlPanel first
+    if (temp_control_panel_) {
+        temp_control_panel_->unregister_heater_graph(pid_graph_);
+    }
+
+    ui_temp_graph_destroy(pid_graph_);
+    pid_graph_ = nullptr;
+    pid_graph_series_id_ = -1;
+
+    spdlog::debug("[{}] PID temp graph destroyed", get_name());
 }
 
 // ============================================================================
@@ -410,6 +493,12 @@ void PIDCalibrationPanel::send_pid_calibrate() {
 void PIDCalibrationPanel::send_save_config() {
     if (!api_)
         return;
+
+    // Suppress shutdown/disconnect modals — SAVE_CONFIG triggers an expected Klipper restart
+    EmergencyStopOverlay::instance().suppress_recovery_dialog(15000);
+    if (client_) {
+        client_->suppress_disconnect_modal(15000);
+    }
 
     spdlog::info("[PIDCal] Sending SAVE_CONFIG");
     api_->save_config(

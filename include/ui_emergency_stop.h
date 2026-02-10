@@ -10,6 +10,8 @@
 #include "printer_state.h"
 #include "subject_managed_panel.h"
 
+#include <chrono>
+
 /**
  * @brief Emergency stop visibility coordinator
  *
@@ -98,6 +100,17 @@ class EmergencyStopOverlay {
      */
     void set_require_confirmation(bool require);
 
+    /**
+     * @brief Temporarily suppress recovery dialog for expected restarts
+     *
+     * Call before operations that intentionally trigger a Klipper restart
+     * (e.g., SAVE_CONFIG) to prevent the "Printer Shutdown" recovery dialog
+     * from flashing. Suppression auto-expires after the specified duration.
+     *
+     * @param duration_ms How long to suppress (default 15000ms)
+     */
+    void suppress_recovery_dialog(uint32_t duration_ms = 15000);
+
   private:
     EmergencyStopOverlay() = default;
     ~EmergencyStopOverlay() = default;
@@ -119,6 +132,9 @@ class EmergencyStopOverlay {
 
     // Restart operation tracking - prevents recovery dialog during expected SHUTDOWN
     bool restart_in_progress_ = false;
+
+    // Time-based suppression for expected restarts (e.g., SAVE_CONFIG)
+    std::chrono::steady_clock::time_point suppress_recovery_until_{};
 
     // Visibility subject (1=visible, 0=hidden) - drives XML bindings
     lv_subject_t estop_visible_;

@@ -154,6 +154,27 @@ class TempControlPanel {
      */
     void setup_mini_combined_graph(lv_obj_t* container);
 
+    /**
+     * @brief Register an external graph for live temperature updates
+     *
+     * The graph will receive temperature data alongside internal graphs.
+     * Call unregister_heater_graph() before destroying the graph.
+     *
+     * @param graph The temperature graph widget
+     * @param series_id Series ID within the graph
+     * @param heater Klipper heater name ("extruder" or "heater_bed")
+     */
+    void register_heater_graph(ui_temp_graph_t* graph, int series_id, const std::string& heater);
+
+    /**
+     * @brief Unregister an external graph from temperature updates
+     *
+     * Removes all series registrations for the given graph.
+     *
+     * @param graph The temperature graph widget to unregister
+     */
+    void unregister_heater_graph(ui_temp_graph_t* graph);
+
     // XML event callbacks (public static for XML registration)
     static void on_nozzle_confirm_clicked(lv_event_t* e);
     static void on_bed_confirm_clicked(lv_event_t* e);

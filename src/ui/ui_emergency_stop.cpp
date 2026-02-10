@@ -33,6 +33,12 @@ void EmergencyStopOverlay::set_require_confirmation(bool require) {
     spdlog::debug("[EmergencyStop] Confirmation requirement set to: {}", require);
 }
 
+void EmergencyStopOverlay::suppress_recovery_dialog(uint32_t duration_ms) {
+    suppress_recovery_until_ =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(duration_ms);
+    spdlog::debug("[KlipperRecovery] Recovery dialog suppressed for {}ms", duration_ms);
+}
+
 void EmergencyStopOverlay::init_subjects() {
     if (subjects_initialized_) {
         return;
@@ -108,6 +114,12 @@ void EmergencyStopOverlay::create() {
                 // (Klipper briefly enters SHUTDOWN during firmware/klipper restart)
                 if (self->restart_in_progress_) {
                     spdlog::debug("[KlipperRecovery] Ignoring SHUTDOWN during restart operation");
+                    return;
+                }
+                // Don't show recovery dialog during expected restart (e.g., SAVE_CONFIG)
+                if (std::chrono::steady_clock::now() < self->suppress_recovery_until_) {
+                    spdlog::debug(
+                        "[KlipperRecovery] Ignoring SHUTDOWN - recovery dialog suppressed");
                     return;
                 }
                 // Don't show recovery dialog if AbortManager is handling controlled shutdown

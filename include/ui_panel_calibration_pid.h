@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_temp_graph.h"
+
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
@@ -11,6 +13,7 @@
 
 class MoonrakerAPI;
 class MoonrakerClient;
+class TempControlPanel;
 
 /**
  * @file ui_panel_calibration_pid.h
@@ -147,14 +150,11 @@ class PIDCalibrationPanel : public OverlayBase {
     }
 
     /**
-     * @brief Update current temperature display during calibration
+     * @brief Set TempControlPanel for graph registration
      *
-     * Called from temperature update callbacks to show live temp.
-     *
-     * @param current Current temperature reading
-     * @param target Target temperature
+     * @param tcp TempControlPanel that manages temperature graph updates
      */
-    void update_temperature(float current, float target);
+    void set_temp_control_panel(TempControlPanel* tcp);
 
     /**
      * @brief Called when calibration completes with results
@@ -205,9 +205,6 @@ class PIDCalibrationPanel : public OverlayBase {
     lv_subject_t subj_temp_hint_;
     char buf_temp_hint_[64];
 
-    lv_subject_t subj_current_temp_display_;
-    char buf_current_temp_display_[32];
-
     lv_subject_t subj_calibrating_heater_;
     char buf_calibrating_heater_[32];
 
@@ -233,6 +230,11 @@ class PIDCalibrationPanel : public OverlayBase {
     lv_obj_t* fan_slider_ = nullptr;
     lv_obj_t* fan_speed_label_ = nullptr;
 
+    // Temperature graph for calibrating state
+    TempControlPanel* temp_control_panel_ = nullptr;
+    ui_temp_graph_t* pid_graph_ = nullptr;
+    int pid_graph_series_id_ = -1;
+
     // State management
     void set_state(State new_state);
 
@@ -241,6 +243,10 @@ class PIDCalibrationPanel : public OverlayBase {
 
     // UI setup (called by create())
     void setup_widgets();
+
+    // Temperature graph management
+    void setup_pid_graph();
+    void teardown_pid_graph();
 
     // UI updates
     void update_fan_slider(int speed);

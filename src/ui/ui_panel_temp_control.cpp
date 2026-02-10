@@ -1198,6 +1198,27 @@ void TempControlPanel::setup_mini_combined_graph(lv_obj_t* container) {
                   MINI_GRAPH_POINTS, nozzle_temp_graphs_.size(), bed_temp_graphs_.size());
 }
 
+void TempControlPanel::register_heater_graph(ui_temp_graph_t* graph, int series_id,
+                                             const std::string& heater) {
+    if (heater == "extruder") {
+        nozzle_temp_graphs_.push_back({graph, series_id});
+    } else if (heater == "heater_bed") {
+        bed_temp_graphs_.push_back({graph, series_id});
+    }
+    spdlog::debug("[TempPanel] Registered external graph for {}", heater);
+}
+
+void TempControlPanel::unregister_heater_graph(ui_temp_graph_t* graph) {
+    auto remove_from = [graph](std::vector<RegisteredGraph>& vec) {
+        vec.erase(std::remove_if(vec.begin(), vec.end(),
+                                 [graph](const RegisteredGraph& rg) { return rg.graph == graph; }),
+                  vec.end());
+    };
+    remove_from(nozzle_temp_graphs_);
+    remove_from(bed_temp_graphs_);
+    spdlog::debug("[TempPanel] Unregistered external graph");
+}
+
 void TempControlPanel::replay_history_to_mini_graph() {
     if (!mini_graph_) {
         return;
