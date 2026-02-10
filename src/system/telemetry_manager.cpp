@@ -507,6 +507,7 @@ void TelemetryManager::do_send(const nlohmann::json& batch) {
         req->timeout = 30;
         req->content_type = APPLICATION_JSON;
         req->headers["User-Agent"] = std::string("HelixScreen/") + HELIX_VERSION;
+        req->headers["X-API-Key"] = API_KEY;
         req->body = batch.dump();
 
         auto resp = requests::request(req);

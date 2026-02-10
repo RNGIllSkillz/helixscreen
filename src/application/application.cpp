@@ -274,8 +274,9 @@ int Application::run(int argc, char** argv) {
     UpdateChecker::instance().init();
 
     // Initialize TelemetryManager (opt-in, default OFF)
+    // Note: record_session() is called after init_panel_subjects() so that
+    // SettingsManager subjects are ready and the enabled state can be synced.
     TelemetryManager::instance().init();
-    TelemetryManager::instance().record_session();
 
     // Phase 9c: Initialize panel subjects with API injection
     // Panels receive API at construction - no deferred set_api() needed
@@ -283,6 +284,11 @@ int Application::run(int argc, char** argv) {
         shutdown();
         return 1;
     }
+
+    // Sync telemetry enabled state from SettingsManager (now that its subjects are initialized)
+    // and record the session event if telemetry is enabled
+    TelemetryManager::instance().set_enabled(SettingsManager::instance().get_telemetry_enabled());
+    TelemetryManager::instance().record_session();
 
     // Update SettingsManager with theme mode support (must be after both theme and settings init)
     SettingsManager::instance().on_theme_changed();

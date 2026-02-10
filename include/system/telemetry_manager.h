@@ -374,6 +374,9 @@ class TelemetryManager {
     /** @brief HTTPS endpoint for telemetry submission */
     static constexpr const char* ENDPOINT_URL = "https://telemetry.helixscreen.org/v1/events";
 
+    /** @brief API key for telemetry ingestion authentication */
+    static constexpr const char* API_KEY = "hx-tel-v1-a7f3c9e2d1b84056";
+
     /** @brief Minimum interval between transmission attempts */
     static constexpr auto SEND_INTERVAL = std::chrono::hours{24};
 
