@@ -2,6 +2,8 @@
 #pragma once
 #include <string>
 
+class LayoutManagerTestAccess;
+
 namespace helix {
 
 enum class LayoutType {
@@ -25,10 +27,8 @@ class LayoutManager {
     bool has_override(const std::string& filename) const;
     bool is_standard() const;
 
-    // Testing only: reset state so singleton can be re-initialized
-    void reset_for_testing();
-
   private:
+    friend class ::LayoutManagerTestAccess;
     LayoutManager() = default;
     LayoutType detect(int width, int height) const;
     static const char* type_to_name(LayoutType type);

@@ -30,9 +30,12 @@ void LayoutManager::set_override(const std::string& name) {
         override_name_.clear();
         return;
     }
+    // Normalize hyphens to underscores (CLI uses tiny-portrait, internal uses tiny_portrait)
+    std::string normalized = name;
+    std::replace(normalized.begin(), normalized.end(), '-', '_');
     // Validate the name by converting (logs warning if unknown)
-    name_to_type(name);
-    override_name_ = name;
+    name_to_type(normalized);
+    override_name_ = normalized;
 }
 
 LayoutType LayoutManager::type() const {
@@ -114,13 +117,6 @@ LayoutType LayoutManager::name_to_type(const std::string& name) {
 
     spdlog::warn("LayoutManager: unknown layout name '{}', defaulting to standard", name);
     return LayoutType::STANDARD;
-}
-
-void LayoutManager::reset_for_testing() {
-    type_ = LayoutType::STANDARD;
-    name_ = "standard";
-    override_name_.clear();
-    initialized_ = false;
 }
 
 } // namespace helix

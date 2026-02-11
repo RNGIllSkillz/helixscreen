@@ -7,13 +7,24 @@
 using helix::LayoutManager;
 using helix::LayoutType;
 
+// Friend class for test-only access to LayoutManager internals
+class LayoutManagerTestAccess {
+  public:
+    static void reset(LayoutManager& lm) {
+        lm.type_ = LayoutType::STANDARD;
+        lm.name_ = "standard";
+        lm.override_name_.clear();
+        lm.initialized_ = false;
+    }
+};
+
 // Reset singleton state between tests
 struct LayoutFixture {
     LayoutFixture() {
-        LayoutManager::instance().reset_for_testing();
+        LayoutManagerTestAccess::reset(LayoutManager::instance());
     }
     ~LayoutFixture() {
-        LayoutManager::instance().reset_for_testing();
+        LayoutManagerTestAccess::reset(LayoutManager::instance());
     }
 };
 
@@ -106,6 +117,22 @@ TEST_CASE_METHOD(LayoutFixture, "Override forces layout type", "[layout-manager]
     lm.init(800, 480);
     REQUIRE(lm.type() == LayoutType::ULTRAWIDE);
     REQUIRE(lm.name() == "ultrawide");
+}
+
+TEST_CASE_METHOD(LayoutFixture, "Override normalizes hyphens to underscores", "[layout-manager]") {
+    auto& lm = LayoutManager::instance();
+    lm.set_override("tiny-portrait");
+    lm.init(800, 480);
+    REQUIRE(lm.type() == LayoutType::TINY_PORTRAIT);
+    REQUIRE(lm.name() == "tiny_portrait");
+}
+
+TEST_CASE_METHOD(LayoutFixture, "Unknown override name defaults to standard", "[layout-manager]") {
+    auto& lm = LayoutManager::instance();
+    lm.set_override("bogus");
+    lm.init(800, 480);
+    REQUIRE(lm.type() == LayoutType::STANDARD);
+    REQUIRE(lm.name() == "standard");
 }
 
 TEST_CASE_METHOD(LayoutFixture, "Empty override clears override", "[layout-manager]") {
