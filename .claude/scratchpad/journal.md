@@ -1,24 +1,36 @@
 # Autonomous Session Journal
 
-## 2026-02-10 Session
+## 2026-02-11 Session (completed)
 
-**Starting:** Unified Error Recovery Modal
-**Why:** Two separate error modals fire during SAVE_CONFIG and other Klipper restarts - confusing UX. Merging into one adaptive modal.
-**Branch:** feature/unified-error-modal (worktree: .worktrees/unified-error-modal)
+**Completed:** Print Completion Stats Enhancement
+**Branch:** feature/print-completion-stats → merged to main (5a0afc96)
 
-### Plan
-1. Add RecoveryReason enum to EmergencyStopOverlay (SHUTDOWN vs DISCONNECTED)
-2. Update recovery dialog XML - add name attrs to title/message for programmatic updates
-3. Expand show_recovery_dialog() to accept reason, update content dynamically
-4. Replace KLIPPY_DISCONNECTED → NOTIFY_ERROR_MODAL in moonraker_manager with call to EmergencyStopOverlay
-5. Remove disconnect modal auto-close code from moonraker_manager (recovery dialog handles it)
-6. Unified suppression: both suppress calls feed into same modal suppression
-7. Write tests
-8. Build + verify
+### What was built
+- Filament usage subject (`print_filament_used_`) wired from Moonraker's `print_stats.filament_used`
+- `format_filament_length()` utility (mm→human-readable: 850mm, 12.5m, 1.23km)
+- Completion modal now shows 4 stats: duration, slicer estimate, layers, filament used
+- Live filament consumption on print status panel (updates during active printing)
+- Mock simulation with proportional filament consumption and estimated_time in status
+- All user-visible strings wrapped in `lv_tr()` for i18n
+- 15 new tests, full suite passes (105 tests, 277K assertions)
 
-### Progress
-- [x] Research complete - understand both modals fully
-- [ ] Implement unified modal
-- [ ] Update moonraker_manager
-- [ ] Write tests
-- [ ] Build + verify
+### Commits (4 atomic)
+- `02af691e` feat(print): add filament usage subject and format_filament_length utility
+- `52a47f1d` feat(print): show filament usage and slicer estimate on completion modal
+- `80913bb7` feat(mock): simulate filament consumption and slicer estimate in mock mode
+- `51882fe7` feat(print-status): display live filament consumption during active printing
+
+### Decisions Made
+- Used `progress_clock` icon for estimate stat (no `timer` icon in font set)
+- Filament/estimate stats hidden when data unavailable (0mm / no slicer estimate)
+- Kept imperative lv_label_set_text in completion modal (one-shot dialog)
+- Filament updates in both `update_all_displays()` (state changes) and `on_print_progress_changed()` (active printing)
+
+## 2026-02-10 Session (completed)
+
+**Completed:** Unified Error Recovery Modal
+**Branch:** feature/unified-error-modal → merged to main (47a2dbdb)
+- Merged SHUTDOWN + DISCONNECTED modals into single adaptive dialog
+- Fully declarative with subjects + XML bindings
+- Consolidated dual suppression to single mechanism
+- 20 recovery tests, 75 assertions

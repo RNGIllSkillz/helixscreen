@@ -23,6 +23,32 @@
 
 ## Recently Completed
 
+### Print Completion Stats ✅
+**Completed:** 2026-02-11
+
+Enhanced print completion modal and live print status with detailed statistics:
+- **Filament usage subject**: Real-time `filament_used` tracking from Moonraker's print_stats
+- **format_filament_length()**: Human-readable filament display (850mm, 12.5m, 1.23km)
+- **Completion modal**: Shows duration, slicer estimate, layers, and filament used
+- **Live filament on print status**: Evolving consumption displayed during active printing
+- **Mock improvements**: Simulated filament consumption proportional to progress
+
+**Files:** `format_utils.cpp`, `print_completion.cpp`, `printer_print_state.cpp`, `ui_panel_print_status.cpp`
+**Tests:** 15 test cases for filament formatting
+
+### Pre-Print ETA Prediction ✅
+**Completed:** 2026-02-11
+
+Predicts how long the preparation phase (heating, homing, leveling) will take based on historical timing data:
+- **PreprintPredictor**: Pure-logic weighted-average predictor using last 3 print start timings
+- Phase-level timing history stored in config (`/print_start_history/entries`)
+- Real-time "time remaining" display during PRINT_START with per-phase weighting
+- FIFO entry management with 15-minute anomaly rejection
+- Integration with PrintStartCollector for automatic timing capture
+
+**Files:** `preprint_predictor.h`, `print_start_collector.h`, `printer_print_state.h`
+**Tests:** 18 test cases covering weighting, FIFO, edge cases
+
 ### Comprehensive AFC Support ✅
 **Completed:** 2026-02-07
 
@@ -102,21 +128,7 @@ Major architectural improvements:
 
 ## Current Priorities
 
-### 1. Pre-Print ETA Prediction
-
-**Status:** In progress
-
-Predict how long the preparation phase (heating, homing, leveling) will take based on historical timing data:
-- **PreprintPredictor**: Pure-logic weighted-average predictor using last 3 print start timings
-- Phase-level timing history stored in config (`/print_start_history/entries`)
-- Real-time "time remaining" display during PRINT_START with per-phase weighting
-- FIFO entry management with 15-minute anomaly rejection
-- Integration with PrintStartCollector for automatic timing capture
-
-**Files:** `preprint_predictor.h`, `print_start_collector.h`, `printer_print_state.h`
-**Tests:** 18 test cases covering weighting, FIFO, edge cases
-
-### 2. Plugin Ecosystem
+### 1. Plugin Ecosystem
 
 **Status:** Core infrastructure complete, expanding ecosystem
 
@@ -129,7 +141,7 @@ The plugin system launched with version checking, UI injection points, and async
 
 **Files:** `src/plugin_manager.cpp`, `docs/PLUGIN_DEVELOPMENT.md`
 
-### 3. Production Hardening
+### 2. Production Hardening
 
 Remaining items for production readiness:
 - [ ] Structured logging with log rotation
