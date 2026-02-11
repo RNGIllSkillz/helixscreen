@@ -523,8 +523,8 @@ TEST_CASE_METHOD(InputShaperTestFixture, "start_resonance_test returns all shape
 TEST_CASE_METHOD(InputShaperTestFixture, "measure_axes_noise returns noise level",
                  "[calibration][input_shaper]") {
     // measure_axes_noise() runs MEASURE_AXES_NOISE G-code
-    // Klipper output format: "axes_noise = 0.012345"
-    // The mock should return a realistic noise value (~0.012)
+    // Klipper output: "Axes noise for xy-axis accelerometer: 12.3 (x), 15.7 (y), 8.2 (z)"
+    // Returns max(x, y) as overall noise level
 
     std::atomic<bool> complete_called{false};
     float captured_noise = -1.0f;
@@ -609,14 +609,13 @@ TEST_CASE_METHOD(InputShaperTestFixture, "get_input_shaper_config returns curren
 
     REQUIRE(complete_called);
 
-    // The mock should return a configured shaper state
-    // Typical mock values: mzv@36.7Hz for X, ei@47.6Hz for Y
-    if (captured_config.is_configured) {
-        CHECK_FALSE(captured_config.shaper_type_x.empty());
-        CHECK(captured_config.shaper_freq_x > 0.0f);
-        CHECK_FALSE(captured_config.shaper_type_y.empty());
-        CHECK(captured_config.shaper_freq_y > 0.0f);
-    }
+    // Mock returns config from configfile.config.input_shaper (string values)
+    // Expected: mzv@36.7Hz for X, ei@47.6Hz for Y
+    REQUIRE(captured_config.is_configured);
+    CHECK(captured_config.shaper_type_x == "mzv");
+    CHECK(captured_config.shaper_freq_x == Catch::Approx(36.7f).margin(0.1f));
+    CHECK(captured_config.shaper_type_y == "ei");
+    CHECK(captured_config.shaper_freq_y == Catch::Approx(47.6f).margin(0.1f));
 }
 
 TEST_CASE_METHOD(InputShaperTestFixture, "get_input_shaper_config handles unconfigured shaper",

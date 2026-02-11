@@ -866,7 +866,7 @@ class InputShaperCollector : public std::enable_shared_from_this<InputShaperColl
  * This class collects and parses those lines to extract the noise level.
  *
  * Expected output format:
- *   "axes_noise = 0.012345"
+ *   "Axes noise for xy-axis accelerometer: 57.956 (x), 103.543 (y), 45.396 (z)"
  *
  * Error handling:
  *   - "Unknown command" - MEASURE_AXES_NOISE not available (no accelerometer)
@@ -926,8 +926,8 @@ class NoiseCheckCollector : public std::enable_shared_from_this<NoiseCheckCollec
             return;
         }
 
-        // Parse noise level line: "axes_noise = 0.012345"
-        if (line.find("axes_noise") != std::string::npos) {
+        // Parse noise level line: "Axes noise for xy-axis accelerometer: 57.956 (x), ..."
+        if (line.find("Axes noise") != std::string::npos) {
             parse_noise_line(line);
             return;
         }
@@ -942,14 +942,22 @@ class NoiseCheckCollector : public std::enable_shared_from_this<NoiseCheckCollec
 
   private:
     void parse_noise_line(const std::string& line) {
-        // Format: "axes_noise = 0.012345"
-        static const std::regex noise_regex(R"(axes_noise\s*=\s*([\d.]+))");
+        // Klipper output format:
+        // "Axes noise for xy-axis accelerometer: 57.956 (x), 103.543 (y), 45.396 (z)"
+        static const std::regex noise_regex(
+            R"(Axes noise.*:\s*([\d.]+)\s*\(x\),\s*([\d.]+)\s*\(y\),\s*([\d.]+)\s*\(z\))");
 
         std::smatch match;
-        if (std::regex_search(line, match, noise_regex) && match.size() == 2) {
+        if (std::regex_search(line, match, noise_regex) && match.size() == 4) {
             try {
-                float noise = std::stof(match[1].str());
-                spdlog::info("[NoiseCheckCollector] Noise level: {:.6f}", noise);
+                float noise_x = std::stof(match[1].str());
+                float noise_y = std::stof(match[2].str());
+                float noise_z = std::stof(match[3].str());
+                // Report max of x,y as the overall noise level
+                float noise = std::max(noise_x, noise_y);
+                spdlog::info(
+                    "[NoiseCheckCollector] Noise: x={:.2f}, y={:.2f}, z={:.2f} (max={:.2f})",
+                    noise_x, noise_y, noise_z, noise);
                 complete_success(noise);
             } catch (const std::exception& e) {
                 spdlog::warn("[NoiseCheckCollector] Failed to parse noise value: {}", e.what());
@@ -1313,8 +1321,9 @@ void MoonrakerAPI::get_input_shaper_config(InputShaperConfigCallback on_success,
                                            ErrorCallback on_error) {
     spdlog::debug("[Moonraker API] Querying input shaper configuration");
 
-    // Query input_shaper object from Klipper
-    json params = {{"objects", {{"input_shaper", nullptr}}}};
+    // Query configfile to get saved input_shaper settings from printer.cfg
+    // (the input_shaper runtime object is empty — config lives in configfile)
+    json params = {{"objects", {{"configfile", {{"config", true}}}}}};
 
     client_.send_jsonrpc(
         "printer.objects.query", params,
@@ -1323,15 +1332,36 @@ void MoonrakerAPI::get_input_shaper_config(InputShaperConfigCallback on_success,
                 InputShaperConfig config;
 
                 if (response.contains("result") && response["result"].contains("status") &&
-                    response["result"]["status"].contains("input_shaper")) {
-                    const auto& shaper = response["result"]["status"]["input_shaper"];
+                    response["result"]["status"].contains("configfile") &&
+                    response["result"]["status"]["configfile"].contains("config") &&
+                    response["result"]["status"]["configfile"]["config"].contains("input_shaper")) {
+                    const auto& shaper =
+                        response["result"]["status"]["configfile"]["config"]["input_shaper"];
 
                     config.shaper_type_x = shaper.value("shaper_type_x", "");
-                    config.shaper_freq_x = shaper.value("shaper_freq_x", 0.0f);
                     config.shaper_type_y = shaper.value("shaper_type_y", "");
-                    config.shaper_freq_y = shaper.value("shaper_freq_y", 0.0f);
-                    config.damping_ratio_x = shaper.value("damping_ratio_x", 0.1f);
-                    config.damping_ratio_y = shaper.value("damping_ratio_y", 0.1f);
+
+                    // configfile returns frequencies as strings
+                    if (shaper.contains("shaper_freq_x")) {
+                        auto& val = shaper["shaper_freq_x"];
+                        config.shaper_freq_x =
+                            val.is_string() ? std::stof(val.get<std::string>()) : val.get<float>();
+                    }
+                    if (shaper.contains("shaper_freq_y")) {
+                        auto& val = shaper["shaper_freq_y"];
+                        config.shaper_freq_y =
+                            val.is_string() ? std::stof(val.get<std::string>()) : val.get<float>();
+                    }
+                    if (shaper.contains("damping_ratio_x")) {
+                        auto& val = shaper["damping_ratio_x"];
+                        config.damping_ratio_x =
+                            val.is_string() ? std::stof(val.get<std::string>()) : val.get<float>();
+                    }
+                    if (shaper.contains("damping_ratio_y")) {
+                        auto& val = shaper["damping_ratio_y"];
+                        config.damping_ratio_y =
+                            val.is_string() ? std::stof(val.get<std::string>()) : val.get<float>();
+                    }
 
                     // Input shaper is configured if at least one axis has a type set
                     config.is_configured =
@@ -1342,7 +1372,8 @@ void MoonrakerAPI::get_input_shaper_config(InputShaperConfigCallback on_success,
                         config.shaper_type_x, config.shaper_freq_x, config.shaper_type_y,
                         config.shaper_freq_y);
                 } else {
-                    spdlog::debug("[Moonraker API] Input shaper object not found in response");
+                    spdlog::debug(
+                        "[Moonraker API] Input shaper section not found in printer config");
                     config.is_configured = false;
                 }
 

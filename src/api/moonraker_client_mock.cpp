@@ -3421,9 +3421,10 @@ void MoonrakerClientMock::dispatch_measure_axes_noise_response() {
     }
 
     // Dispatch realistic noise measurement response matching Klipper output format
-    // Simulates MEASURE_AXES_NOISE command output
-    // A typical good noise level is around 0.01 (< 100 is considered acceptable)
-    dispatch_gcode_response("axes_noise = 0.012345");
+    // Real Klipper format: "Axes noise for xy-axis accelerometer: 57.956 (x), 103.543 (y), 45.396
+    // (z)"
+    dispatch_gcode_response(
+        "Axes noise for xy-axis accelerometer: 12.345678 (x), 15.678901 (y), 8.234567 (z)");
 
     spdlog::info("[MoonrakerClientMock] Dispatched MEASURE_AXES_NOISE response");
 }

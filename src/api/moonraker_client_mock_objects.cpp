@@ -70,8 +70,17 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["print_stats"] = {{"state", state_str}};
             }
 
-            // configfile.settings (for update_safety_limits_from_printer)
+            // configfile (for update_safety_limits_from_printer + input shaper config)
             if (objects.contains("configfile")) {
+                // Build config section with input_shaper if configured
+                json config_section = {};
+                if (self->is_input_shaper_configured()) {
+                    config_section["input_shaper"] = {
+                        {"shaper_type_x", "mzv"},   {"shaper_freq_x", "36.7"},
+                        {"shaper_type_y", "ei"},    {"shaper_freq_y", "47.6"},
+                        {"damping_ratio_x", "0.1"}, {"damping_ratio_y", "0.1"}};
+                }
+
                 status_obj["configfile"] = {
                     {"settings",
                      {{"printer", {{"max_velocity", 500.0}, {"max_accel", 10000.0}}},
@@ -97,7 +106,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         {"control", "pid"},
                         {"pid_kp", 73.517},
                         {"pid_ki", 1.132},
-                        {"pid_kd", 1194.093}}}}}};
+                        {"pid_kd", 1194.093}}}}},
+                    {"config", config_section}};
             }
 
             // toolhead (for get_machine_limits)
@@ -374,8 +384,17 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         {"pid_ki", 1.132},
                         {"pid_kd", 1194.093}}}}},
                     // config section contains raw Klipper config keys (used for sensor discovery)
-                    {"config",
-                     {{"adxl345", json::object()}, {"resonance_tester", json::object()}}}};
+                    {"config", [&]() {
+                         json cfg = {{"adxl345", json::object()},
+                                     {"resonance_tester", json::object()}};
+                         if (self->is_input_shaper_configured()) {
+                             cfg["input_shaper"] = {
+                                 {"shaper_type_x", "mzv"},   {"shaper_freq_x", "36.7"},
+                                 {"shaper_type_y", "ei"},    {"shaper_freq_y", "47.6"},
+                                 {"damping_ratio_x", "0.1"}, {"damping_ratio_y", "0.1"}};
+                         }
+                         return cfg;
+                     }()}};
             }
         }
 

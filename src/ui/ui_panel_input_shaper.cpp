@@ -107,6 +107,10 @@ static void on_input_shaper_row_clicked(lv_event_t* e) {
 
 void ui_panel_input_shaper_register_callbacks() {
     // Register event callbacks for XML
+    lv_xml_register_event_cb(nullptr, "input_shaper_calibrate_all_cb", [](lv_event_t* /*e*/) {
+        get_global_input_shaper_panel().handle_calibrate_all_clicked();
+    });
+
     lv_xml_register_event_cb(nullptr, "input_shaper_calibrate_x_cb", [](lv_event_t* /*e*/) {
         get_global_input_shaper_panel().handle_calibrate_x_clicked();
     });
@@ -192,6 +196,49 @@ void InputShaperPanel::init_subjects() {
         UI_MANAGED_SUBJECT_STRING_N(shaper_vib_subjects_[i], shaper_vib_bufs_[i],
                                     SHAPER_VALUE_BUF_SIZE, "", vib_name, subjects_);
     }
+
+    // Current config display subjects
+    UI_MANAGED_SUBJECT_INT(is_shaper_configured_, 0, "is_shaper_configured", subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_current_x_type_, is_current_x_type_buf_, "", "is_current_x_type",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_current_x_freq_, is_current_x_freq_buf_, "", "is_current_x_freq",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_current_y_type_, is_current_y_type_buf_, "", "is_current_y_type",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_current_y_freq_, is_current_y_freq_buf_, "", "is_current_y_freq",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_current_max_accel_, is_current_max_accel_buf_, "",
+                              "is_current_max_accel", subjects_);
+
+    // Measuring state labels
+    UI_MANAGED_SUBJECT_STRING(is_measuring_axis_label_, is_measuring_axis_label_buf_,
+                              "Calibrating...", "is_measuring_axis_label", subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_measuring_step_label_, is_measuring_step_label_buf_, "",
+                              "is_measuring_step_label", subjects_);
+
+    // Per-axis result display subjects
+    UI_MANAGED_SUBJECT_INT(is_results_has_x_, 0, "is_results_has_x", subjects_);
+    UI_MANAGED_SUBJECT_INT(is_results_has_y_, 0, "is_results_has_y", subjects_);
+
+    UI_MANAGED_SUBJECT_STRING(is_result_x_shaper_, is_result_x_shaper_buf_, "",
+                              "is_result_x_shaper", subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_result_x_explanation_, is_result_x_explanation_buf_, "",
+                              "is_result_x_explanation", subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_result_x_vibration_, is_result_x_vibration_buf_, "",
+                              "is_result_x_vibration", subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_result_x_max_accel_, is_result_x_max_accel_buf_, "",
+                              "is_result_x_max_accel", subjects_);
+    UI_MANAGED_SUBJECT_INT(is_result_x_quality_, 0, "is_result_x_quality", subjects_);
+
+    UI_MANAGED_SUBJECT_STRING(is_result_y_shaper_, is_result_y_shaper_buf_, "",
+                              "is_result_y_shaper", subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_result_y_explanation_, is_result_y_explanation_buf_, "",
+                              "is_result_y_explanation", subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_result_y_vibration_, is_result_y_vibration_buf_, "",
+                              "is_result_y_vibration", subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_result_y_max_accel_, is_result_y_max_accel_buf_, "",
+                              "is_result_y_max_accel", subjects_);
+    UI_MANAGED_SUBJECT_INT(is_result_y_quality_, 0, "is_result_y_quality", subjects_);
 
     subjects_initialized_ = true;
     spdlog::debug("[InputShaper] Subjects initialized and registered");
@@ -292,11 +339,31 @@ void InputShaperPanel::on_activate() {
     // Reset to idle state
     set_state(State::IDLE);
     clear_results();
+    calibrate_all_mode_ = false;
+
+    // Query current input shaper configuration from printer
+    if (api_) {
+        auto alive = alive_;
+        api_->get_input_shaper_config(
+            [this, alive](const InputShaperConfig& config) {
+                if (!alive->load())
+                    return;
+                populate_current_config(config);
+            },
+            [this, alive](const MoonrakerError& err) {
+                if (!alive->load())
+                    return;
+                spdlog::debug("[InputShaper] Could not query config: {}", err.message);
+                // Not an error - just means config not available
+                InputShaperConfig empty;
+                populate_current_config(empty);
+            });
+    }
 
     // Auto-start calibration for testing (env var)
     if (std::getenv("INPUT_SHAPER_AUTO_START")) {
         spdlog::info("[InputShaper] Auto-starting X calibration (INPUT_SHAPER_AUTO_START set)");
-        start_calibration('X');
+        start_with_preflight('X');
     }
 }
 
@@ -353,9 +420,8 @@ void InputShaperPanel::set_state(State new_state) {
 // CALIBRATION COMMANDS (using MoonrakerAPI)
 // ============================================================================
 
-void InputShaperPanel::start_calibration(char axis) {
+void InputShaperPanel::start_with_preflight(char axis) {
     if (!calibrator_) {
-        spdlog::error("[InputShaper] No calibrator - cannot calibrate");
         on_calibration_error("Internal error: calibrator not available");
         return;
     }
@@ -366,10 +432,91 @@ void InputShaperPanel::start_calibration(char axis) {
     recommended_type_.clear();
     recommended_freq_ = 0.0f;
 
-    // Update status label
-    char status[64];
-    snprintf(status, sizeof(status), "Calibrating %c axis...", axis);
-    update_status_label(status);
+    // Show checking accelerometer status
+    snprintf(is_measuring_axis_label_buf_, sizeof(is_measuring_axis_label_buf_),
+             "Checking accelerometer...");
+    lv_subject_copy_string(&is_measuring_axis_label_, is_measuring_axis_label_buf_);
+    lv_subject_copy_string(&is_measuring_step_label_, "");
+
+    set_state(State::MEASURING);
+    spdlog::info("[InputShaper] Starting pre-flight noise check before {} axis calibration", axis);
+
+    auto alive = alive_;
+    calibrator_->check_accelerometer(
+        [this, alive](float noise_level) {
+            if (!alive->load())
+                return;
+            on_preflight_complete(noise_level);
+        },
+        [this, alive](const std::string& err) {
+            if (!alive->load())
+                return;
+            on_preflight_error(err);
+        });
+}
+
+void InputShaperPanel::on_preflight_complete(float noise_level) {
+    if (state_ != State::MEASURING)
+        return; // User cancelled
+
+    spdlog::info("[InputShaper] Pre-flight passed, noise={:.4f}", noise_level);
+
+    // Proceed to actual calibration
+    start_calibration(current_axis_);
+}
+
+void InputShaperPanel::on_preflight_error(const std::string& message) {
+    if (state_ != State::MEASURING)
+        return;
+
+    spdlog::error("[InputShaper] Pre-flight failed: {}", message);
+    on_calibration_error("Accelerometer not responding. Check wiring and connection.");
+}
+
+void InputShaperPanel::calibrate_all() {
+    calibrate_all_mode_ = true;
+    x_result_ = InputShaperResult{}; // Clear stored X result
+    start_with_preflight('X');
+}
+
+void InputShaperPanel::continue_calibrate_all_y() {
+    spdlog::info("[InputShaper] Calibrate All: X complete, starting Y");
+    // Don't reset calibrate_all_mode_ - still in multi-axis flow
+    // Skip pre-flight for Y (accelerometer just verified for X)
+    start_calibration('Y');
+}
+
+void InputShaperPanel::start_calibration(char axis) {
+    if (!calibrator_) {
+        spdlog::error("[InputShaper] No calibrator - cannot calibrate");
+        on_calibration_error("Internal error: calibrator not available");
+        return;
+    }
+
+    current_axis_ = axis;
+    last_calibrated_axis_ = axis;
+
+    // Only clear results for first axis in Calibrate All, or for single-axis
+    if (!calibrate_all_mode_ || axis == 'X') {
+        shaper_results_.clear();
+        recommended_type_.clear();
+        recommended_freq_ = 0.0f;
+    }
+
+    // Update measuring labels
+    snprintf(is_measuring_axis_label_buf_, sizeof(is_measuring_axis_label_buf_),
+             "Calibrating %c axis...", axis);
+    lv_subject_copy_string(&is_measuring_axis_label_, is_measuring_axis_label_buf_);
+
+    if (calibrate_all_mode_) {
+        const char* step = (axis == 'X') ? "Step 1 of 2" : "Step 2 of 2";
+        lv_subject_copy_string(&is_measuring_step_label_, step);
+    } else {
+        lv_subject_copy_string(&is_measuring_step_label_, "");
+    }
+
+    // Update status label (legacy widget path)
+    update_status_label(is_measuring_axis_label_buf_);
 
     set_state(State::MEASURING);
     spdlog::info("[InputShaper] Starting calibration for axis {}", axis);
@@ -427,6 +574,7 @@ void InputShaperPanel::measure_noise() {
 
 void InputShaperPanel::cancel_calibration() {
     spdlog::info("[InputShaper] Calibration cancelled by user");
+    calibrate_all_mode_ = false;
 
     // Cancel calibrator operations
     if (calibrator_) {
@@ -437,36 +585,106 @@ void InputShaperPanel::cancel_calibration() {
 }
 
 void InputShaperPanel::apply_recommendation() {
-    if (!calibrator_ || recommended_type_.empty() || recommended_freq_ <= 0) {
-        spdlog::error("[InputShaper] Cannot apply - no valid recommendation");
+    if (!calibrator_) {
+        spdlog::error("[InputShaper] Cannot apply - no calibrator");
         return;
     }
 
-    spdlog::info("[InputShaper] Applying {} axis shaper: {} @ {:.1f} Hz", last_calibrated_axis_,
-                 recommended_type_, recommended_freq_);
-
-    // Construct ApplyConfig from stored recommendation
-    helix::calibration::ApplyConfig config;
-    config.axis = last_calibrated_axis_;
-    config.shaper_type = recommended_type_;
-    config.frequency = recommended_freq_;
-
-    // Capture alive for async callback safety [L012]
     auto alive = alive_;
 
+    // If we have stored X result from Calibrate All, apply X first then chain Y
+    if (x_result_.is_valid()) {
+        spdlog::info("[InputShaper] Applying X axis shaper: {} @ {:.1f} Hz", x_result_.shaper_type,
+                     x_result_.shaper_freq);
+
+        helix::calibration::ApplyConfig x_config;
+        x_config.axis = 'X';
+        x_config.shaper_type = x_result_.shaper_type;
+        x_config.frequency = x_result_.shaper_freq;
+
+        calibrator_->apply_settings(
+            x_config,
+            [this, alive]() {
+                if (!alive->load())
+                    return;
+                spdlog::info("[InputShaper] X axis settings applied");
+                // Chain Y apply if we have a recommendation
+                if (!recommended_type_.empty() && recommended_freq_ > 0) {
+                    apply_y_after_x();
+                } else {
+                    ui_toast_show(ToastSeverity::SUCCESS, lv_tr("Input shaper settings applied!"),
+                                  2500);
+                }
+            },
+            [alive](const std::string& err) {
+                if (!alive->load())
+                    return;
+                spdlog::error("[InputShaper] Failed to apply X settings: {}", err);
+                ui_toast_show(ToastSeverity::ERROR, lv_tr("Failed to apply settings"), 3000);
+            });
+    } else if (!recommended_type_.empty() && recommended_freq_ > 0) {
+        // Single axis apply
+        spdlog::info("[InputShaper] Applying {} axis shaper: {} @ {:.1f} Hz", last_calibrated_axis_,
+                     recommended_type_, recommended_freq_);
+
+        helix::calibration::ApplyConfig config;
+        config.axis = last_calibrated_axis_;
+        config.shaper_type = recommended_type_;
+        config.frequency = recommended_freq_;
+
+        calibrator_->apply_settings(
+            config,
+            [alive]() {
+                if (!alive->load())
+                    return;
+                spdlog::info("[InputShaper] Settings applied successfully");
+                ui_toast_show(ToastSeverity::SUCCESS, lv_tr("Input shaper settings applied!"),
+                              2500);
+            },
+            [alive](const std::string& err) {
+                if (!alive->load())
+                    return;
+                spdlog::error("[InputShaper] Failed to apply settings: {}", err);
+                ui_toast_show(ToastSeverity::ERROR, lv_tr("Failed to apply settings"), 3000);
+            });
+    } else {
+        spdlog::error("[InputShaper] Cannot apply - no valid recommendation");
+    }
+}
+
+void InputShaperPanel::apply_y_after_x() {
+    spdlog::info("[InputShaper] Applying Y axis shaper: {} @ {:.1f} Hz", recommended_type_,
+                 recommended_freq_);
+
+    helix::calibration::ApplyConfig y_config;
+    y_config.axis = 'Y';
+    y_config.shaper_type = recommended_type_;
+    y_config.frequency = recommended_freq_;
+
+    auto alive = alive_;
     calibrator_->apply_settings(
-        config,
-        [alive]() {
+        y_config,
+        [this, alive]() {
             if (!alive->load())
                 return;
-            spdlog::info("[InputShaper] Settings applied successfully");
+            spdlog::info("[InputShaper] Both axis settings applied");
             ui_toast_show(ToastSeverity::SUCCESS, lv_tr("Input shaper settings applied!"), 2500);
+            // Refresh the current config display
+            if (api_) {
+                api_->get_input_shaper_config(
+                    [this, alive](const InputShaperConfig& config) {
+                        if (!alive->load())
+                            return;
+                        populate_current_config(config);
+                    },
+                    [](const MoonrakerError&) {});
+            }
         },
         [alive](const std::string& err) {
             if (!alive->load())
                 return;
-            spdlog::error("[InputShaper] Failed to apply settings: {}", err);
-            ui_toast_show(ToastSeverity::ERROR, lv_tr("Failed to apply settings"), 3000);
+            spdlog::error("[InputShaper] Failed to apply Y settings: {}", err);
+            ui_toast_show(ToastSeverity::WARNING, lv_tr("X axis applied, but Y axis failed"), 4000);
         });
 }
 
@@ -509,13 +727,29 @@ void InputShaperPanel::on_calibration_result(const InputShaperResult& result) {
     spdlog::info("[InputShaper] Calibration complete: {} @ {:.1f} Hz (vib: {:.1f}%)",
                  result.shaper_type, result.shaper_freq, result.vibrations);
 
-    // Store recommendation
+    // If Calibrate All and this was X, store result and continue to Y
+    if (calibrate_all_mode_ && result.axis == 'X') {
+        x_result_ = result;
+        continue_calibrate_all_y();
+        return;
+    }
+
+    // Store recommendation (from latest axis, or Y if Calibrate All)
     recommended_type_ = result.shaper_type;
     recommended_freq_ = result.shaper_freq;
 
-    // Create a single result entry for display
-    // Note: The collector currently only provides the recommended shaper
-    // A future enhancement could collect all fitted shapers
+    // Build results list
+    // If Calibrate All, include both X and Y results
+    if (calibrate_all_mode_ && x_result_.is_valid()) {
+        ShaperFit x_fit;
+        x_fit.type = x_result_.shaper_type;
+        x_fit.frequency = x_result_.shaper_freq;
+        x_fit.vibrations = x_result_.vibrations;
+        x_fit.smoothing = x_result_.smoothing;
+        x_fit.is_recommended = true;
+        shaper_results_.push_back(x_fit);
+    }
+
     ShaperFit fit;
     fit.type = result.shaper_type;
     fit.frequency = result.shaper_freq;
@@ -523,6 +757,20 @@ void InputShaperPanel::on_calibration_result(const InputShaperResult& result) {
     fit.smoothing = result.smoothing;
     fit.is_recommended = true;
     shaper_results_.push_back(fit);
+
+    // Reset calibrate_all_mode (save before clearing for populate_axis_result)
+    bool was_calibrate_all = calibrate_all_mode_;
+    calibrate_all_mode_ = false;
+
+    // Clear per-axis results
+    lv_subject_set_int(&is_results_has_x_, 0);
+    lv_subject_set_int(&is_results_has_y_, 0);
+
+    // Populate per-axis result cards
+    if (was_calibrate_all && x_result_.is_valid()) {
+        populate_axis_result('X', x_result_);
+    }
+    populate_axis_result(result.axis, result);
 
     populate_results();
     set_state(State::RESULTS);
@@ -536,6 +784,9 @@ void InputShaperPanel::on_calibration_error(const std::string& message) {
     }
 
     spdlog::error("[InputShaper] Calibration error: {}", message);
+
+    // Reset Calibrate All mode on error to prevent stale state on retry
+    calibrate_all_mode_ = false;
 
     if (error_message_) {
         lv_label_set_text(error_message_, message.c_str());
@@ -582,10 +833,56 @@ void InputShaperPanel::populate_results() {
     }
 }
 
+void InputShaperPanel::populate_current_config(const InputShaperConfig& config) {
+    lv_subject_set_int(&is_shaper_configured_, config.is_configured ? 1 : 0);
+
+    if (config.is_configured) {
+        // Uppercase X type
+        std::string x_upper = config.shaper_type_x;
+        for (auto& c : x_upper)
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        snprintf(is_current_x_type_buf_, sizeof(is_current_x_type_buf_), "%s", x_upper.c_str());
+        lv_subject_copy_string(&is_current_x_type_, is_current_x_type_buf_);
+
+        // X frequency
+        helix::fmt::format_frequency_hz(config.shaper_freq_x, is_current_x_freq_buf_,
+                                        sizeof(is_current_x_freq_buf_));
+        lv_subject_copy_string(&is_current_x_freq_, is_current_x_freq_buf_);
+
+        // Uppercase Y type
+        std::string y_upper = config.shaper_type_y;
+        for (auto& c : y_upper)
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        snprintf(is_current_y_type_buf_, sizeof(is_current_y_type_buf_), "%s", y_upper.c_str());
+        lv_subject_copy_string(&is_current_y_type_, is_current_y_type_buf_);
+
+        // Y frequency
+        helix::fmt::format_frequency_hz(config.shaper_freq_y, is_current_y_freq_buf_,
+                                        sizeof(is_current_y_freq_buf_));
+        lv_subject_copy_string(&is_current_y_freq_, is_current_y_freq_buf_);
+
+        // Max accel - leave empty for now (populated from results in Chunk 3)
+        lv_subject_copy_string(&is_current_max_accel_, "");
+
+        spdlog::debug("[InputShaper] Config: X={} @ {}, Y={} @ {}", is_current_x_type_buf_,
+                      is_current_x_freq_buf_, is_current_y_type_buf_, is_current_y_freq_buf_);
+    } else {
+        lv_subject_copy_string(&is_current_x_type_, "");
+        lv_subject_copy_string(&is_current_x_freq_, "");
+        lv_subject_copy_string(&is_current_y_type_, "");
+        lv_subject_copy_string(&is_current_y_freq_, "");
+        lv_subject_copy_string(&is_current_max_accel_, "");
+        spdlog::debug("[InputShaper] No shaper configured");
+    }
+}
+
 void InputShaperPanel::clear_results() {
     for (size_t i = 0; i < MAX_SHAPERS; i++) {
         lv_subject_set_int(&shaper_visible_subjects_[i], 0);
     }
+    // Clear per-axis result cards
+    lv_subject_set_int(&is_results_has_x_, 0);
+    lv_subject_set_int(&is_results_has_y_, 0);
 }
 
 void InputShaperPanel::update_status_label(const std::string& text) {
@@ -595,23 +892,123 @@ void InputShaperPanel::update_status_label(const std::string& text) {
 }
 
 // ============================================================================
+// PER-AXIS RESULT HELPERS
+// ============================================================================
+
+const char* InputShaperPanel::get_shaper_explanation(const std::string& type) {
+    if (type == "zv")
+        return "Fast but minimal smoothing — best for well-built printers";
+    if (type == "mzv")
+        return "Good balance of speed and vibration reduction";
+    if (type == "ei")
+        return "Strong vibration reduction with moderate speed impact";
+    if (type == "2hump_ei")
+        return "Heavy smoothing — significant vibration issues detected";
+    if (type == "3hump_ei")
+        return "Maximum smoothing — consider checking mechanical issues";
+    return "Vibration compensation active";
+}
+
+int InputShaperPanel::get_vibration_quality(float vibrations) {
+    if (vibrations < 5.0f)
+        return 0; // excellent (green)
+    if (vibrations < 15.0f)
+        return 1; // good (yellow)
+    if (vibrations < 25.0f)
+        return 2; // fair (orange)
+    return 3;     // poor (red)
+}
+
+const char* InputShaperPanel::get_quality_description(float vibrations) {
+    if (vibrations < 5.0f)
+        return "Excellent — minimal residual vibration";
+    if (vibrations < 15.0f)
+        return "Good — acceptable vibration level";
+    if (vibrations < 25.0f)
+        return "Fair — mechanical improvements could help";
+    return "Poor — check for mechanical issues";
+}
+
+void InputShaperPanel::populate_axis_result(char axis, const InputShaperResult& result) {
+    // Uppercase the shaper type for display
+    std::string type_upper = result.shaper_type;
+    for (auto& c : type_upper)
+        c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+
+    // Format frequency
+    char freq_buf[16];
+    helix::fmt::format_frequency_hz(result.shaper_freq, freq_buf, sizeof(freq_buf));
+
+    if (axis == 'X') {
+        lv_subject_set_int(&is_results_has_x_, 1);
+
+        snprintf(is_result_x_shaper_buf_, sizeof(is_result_x_shaper_buf_), "%s at %s",
+                 type_upper.c_str(), freq_buf);
+        lv_subject_copy_string(&is_result_x_shaper_, is_result_x_shaper_buf_);
+
+        snprintf(is_result_x_explanation_buf_, sizeof(is_result_x_explanation_buf_), "%s",
+                 get_shaper_explanation(result.shaper_type));
+        lv_subject_copy_string(&is_result_x_explanation_, is_result_x_explanation_buf_);
+
+        snprintf(is_result_x_vibration_buf_, sizeof(is_result_x_vibration_buf_),
+                 "Remaining vibration: %.1f%% — %s", result.vibrations,
+                 get_quality_description(result.vibrations));
+        lv_subject_copy_string(&is_result_x_vibration_, is_result_x_vibration_buf_);
+
+        snprintf(is_result_x_max_accel_buf_, sizeof(is_result_x_max_accel_buf_),
+                 "Max accel: %.0f mm/s²", result.max_accel);
+        lv_subject_copy_string(&is_result_x_max_accel_, is_result_x_max_accel_buf_);
+
+        lv_subject_set_int(&is_result_x_quality_, get_vibration_quality(result.vibrations));
+    } else {
+        lv_subject_set_int(&is_results_has_y_, 1);
+
+        snprintf(is_result_y_shaper_buf_, sizeof(is_result_y_shaper_buf_), "%s at %s",
+                 type_upper.c_str(), freq_buf);
+        lv_subject_copy_string(&is_result_y_shaper_, is_result_y_shaper_buf_);
+
+        snprintf(is_result_y_explanation_buf_, sizeof(is_result_y_explanation_buf_), "%s",
+                 get_shaper_explanation(result.shaper_type));
+        lv_subject_copy_string(&is_result_y_explanation_, is_result_y_explanation_buf_);
+
+        snprintf(is_result_y_vibration_buf_, sizeof(is_result_y_vibration_buf_),
+                 "Remaining vibration: %.1f%% — %s", result.vibrations,
+                 get_quality_description(result.vibrations));
+        lv_subject_copy_string(&is_result_y_vibration_, is_result_y_vibration_buf_);
+
+        snprintf(is_result_y_max_accel_buf_, sizeof(is_result_y_max_accel_buf_),
+                 "Max accel: %.0f mm/s²", result.max_accel);
+        lv_subject_copy_string(&is_result_y_max_accel_, is_result_y_max_accel_buf_);
+
+        lv_subject_set_int(&is_result_y_quality_, get_vibration_quality(result.vibrations));
+    }
+}
+
+// ============================================================================
 // EVENT HANDLERS
 // ============================================================================
 
+void InputShaperPanel::handle_calibrate_all_clicked() {
+    if (state_ != State::IDLE)
+        return;
+    spdlog::debug("[InputShaper] Calibrate All clicked");
+    calibrate_all();
+}
+
 void InputShaperPanel::handle_calibrate_x_clicked() {
-    if (state_ != State::IDLE) {
-        return; // Prevent double-click during operation
-    }
+    if (state_ != State::IDLE)
+        return;
     spdlog::debug("[InputShaper] Calibrate X clicked");
-    start_calibration('X');
+    calibrate_all_mode_ = false;
+    start_with_preflight('X');
 }
 
 void InputShaperPanel::handle_calibrate_y_clicked() {
-    if (state_ != State::IDLE) {
+    if (state_ != State::IDLE)
         return;
-    }
     spdlog::debug("[InputShaper] Calibrate Y clicked");
-    start_calibration('Y');
+    calibrate_all_mode_ = false;
+    start_with_preflight('Y');
 }
 
 void InputShaperPanel::handle_measure_noise_clicked() {
@@ -641,7 +1038,8 @@ void InputShaperPanel::handle_close_clicked() {
 
 void InputShaperPanel::handle_retry_clicked() {
     spdlog::debug("[InputShaper] Retry clicked");
-    start_calibration(current_axis_);
+    calibrate_all_mode_ = false;
+    start_with_preflight(current_axis_);
 }
 
 void InputShaperPanel::handle_save_config_clicked() {

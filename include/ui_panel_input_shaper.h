@@ -155,6 +155,7 @@ class InputShaperPanel : public OverlayBase {
 
     void handle_calibrate_x_clicked();
     void handle_calibrate_y_clicked();
+    void handle_calibrate_all_clicked();
     void handle_measure_noise_clicked();
     void handle_cancel_clicked();
     void handle_apply_clicked();
@@ -179,14 +180,29 @@ class InputShaperPanel : public OverlayBase {
     void apply_recommendation();
     void save_configuration();
 
+    // Pre-flight noise check + calibration chain
+    void start_with_preflight(char axis);
+    void calibrate_all();
+    void on_preflight_complete(float noise_level);
+    void on_preflight_error(const std::string& message);
+    void continue_calibrate_all_y();
+    void apply_y_after_x();
+
     // Result callbacks (from MoonrakerAPI)
     void on_calibration_result(const InputShaperResult& result);
     void on_calibration_error(const std::string& message);
 
     // UI update helpers
     void populate_results();
+    void populate_current_config(const InputShaperConfig& config);
     void clear_results();
     void update_status_label(const std::string& text);
+
+    // Per-axis result helpers
+    static const char* get_shaper_explanation(const std::string& type);
+    static int get_vibration_quality(float vibrations);
+    static const char* get_quality_description(float vibrations);
+    void populate_axis_result(char axis, const InputShaperResult& result);
 
     // Widget/client references (overlay_root_ inherited from OverlayBase)
     lv_obj_t* parent_screen_ = nullptr;
@@ -215,6 +231,55 @@ class InputShaperPanel : public OverlayBase {
     char shaper_type_bufs_[MAX_SHAPERS][SHAPER_TYPE_BUF_SIZE] = {};
     char shaper_freq_bufs_[MAX_SHAPERS][SHAPER_VALUE_BUF_SIZE] = {};
     char shaper_vib_bufs_[MAX_SHAPERS][SHAPER_VALUE_BUF_SIZE] = {};
+
+    // Current config display subjects
+    lv_subject_t is_shaper_configured_{};
+    char is_current_x_type_buf_[32] = {};
+    lv_subject_t is_current_x_type_{};
+    char is_current_x_freq_buf_[32] = {};
+    lv_subject_t is_current_x_freq_{};
+    char is_current_y_type_buf_[32] = {};
+    lv_subject_t is_current_y_type_{};
+    char is_current_y_freq_buf_[32] = {};
+    lv_subject_t is_current_y_freq_{};
+    char is_current_max_accel_buf_[32] = {};
+    lv_subject_t is_current_max_accel_{};
+
+    // Measuring state labels
+    char is_measuring_axis_label_buf_[64] = {};
+    lv_subject_t is_measuring_axis_label_{};
+    char is_measuring_step_label_buf_[64] = {};
+    lv_subject_t is_measuring_step_label_{};
+
+    // Per-axis result subjects
+    lv_subject_t is_results_has_x_{};
+    lv_subject_t is_results_has_y_{};
+
+    // X axis result display
+    char is_result_x_shaper_buf_[48] = {};
+    lv_subject_t is_result_x_shaper_{};
+    char is_result_x_explanation_buf_[128] = {};
+    lv_subject_t is_result_x_explanation_{};
+    char is_result_x_vibration_buf_[96] = {};
+    lv_subject_t is_result_x_vibration_{};
+    char is_result_x_max_accel_buf_[32] = {};
+    lv_subject_t is_result_x_max_accel_{};
+    lv_subject_t is_result_x_quality_{};
+
+    // Y axis result display
+    char is_result_y_shaper_buf_[48] = {};
+    lv_subject_t is_result_y_shaper_{};
+    char is_result_y_explanation_buf_[128] = {};
+    lv_subject_t is_result_y_explanation_{};
+    char is_result_y_vibration_buf_[96] = {};
+    lv_subject_t is_result_y_vibration_{};
+    char is_result_y_max_accel_buf_[32] = {};
+    lv_subject_t is_result_y_max_accel_{};
+    lv_subject_t is_result_y_quality_{};
+
+    // Calibrate All flow tracking
+    bool calibrate_all_mode_ = false; ///< True when doing X+Y sequential calibration
+    InputShaperResult x_result_;      ///< Stored X result when doing Calibrate All
 
     // Results data
     char current_axis_ = 'X';
