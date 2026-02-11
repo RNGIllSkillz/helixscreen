@@ -305,6 +305,9 @@ void register_xml_components() {
     lv_xml_register_component_from_file("A:ui_xml/wifi_network_item.xml");
     lv_xml_register_component_from_file("A:ui_xml/telemetry_data_overlay.xml");
 
+    // Printer manager overlay (launched from home screen printer image)
+    lv_xml_register_component_from_file("A:ui_xml/printer_manager_overlay.xml");
+
     // Development tools
     lv_xml_register_component_from_file("A:ui_xml/memory_stats_overlay.xml");
 

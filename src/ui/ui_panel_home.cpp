@@ -13,6 +13,7 @@
 #include "ui_panel_ams.h"
 #include "ui_panel_print_status.h"
 #include "ui_panel_temp_control.h"
+#include "ui_printer_manager_overlay.h"
 #include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
 #include "ui_update_queue.h"
@@ -188,6 +189,7 @@ void HomePanel::init_subjects() {
     lv_xml_register_event_cb(nullptr, "temp_clicked_cb", temp_clicked_cb);
     lv_xml_register_event_cb(nullptr, "printer_status_clicked_cb", printer_status_clicked_cb);
     lv_xml_register_event_cb(nullptr, "network_clicked_cb", network_clicked_cb);
+    lv_xml_register_event_cb(nullptr, "printer_manager_clicked_cb", printer_manager_clicked_cb);
     lv_xml_register_event_cb(nullptr, "ams_clicked_cb", ams_clicked_cb);
 
     // Computed subject for filament status visibility:
@@ -664,6 +666,21 @@ void HomePanel::handle_network_clicked() {
     overlay.show();
 }
 
+void HomePanel::handle_printer_manager_clicked() {
+    spdlog::info("[{}] Printer image clicked - opening Printer Manager overlay", get_name());
+
+    auto& overlay = get_printer_manager_overlay();
+
+    if (!overlay.are_subjects_initialized()) {
+        overlay.init_subjects();
+        overlay.register_callbacks();
+        overlay.create(parent_screen_);
+    }
+
+    // Push overlay onto navigation stack
+    ui_nav_push_overlay(overlay.get_root());
+}
+
 void HomePanel::handle_ams_clicked() {
     spdlog::info("[{}] AMS indicator clicked - opening AMS panel overlay", get_name());
 
@@ -913,6 +930,14 @@ void HomePanel::network_clicked_cb(lv_event_t* e) {
     (void)e;
     extern HomePanel& get_global_home_panel();
     get_global_home_panel().handle_network_clicked();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void HomePanel::printer_manager_clicked_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] printer_manager_clicked_cb");
+    (void)e;
+    extern HomePanel& get_global_home_panel();
+    get_global_home_panel().handle_printer_manager_clicked();
     LVGL_SAFE_EVENT_CB_END();
 }
 
