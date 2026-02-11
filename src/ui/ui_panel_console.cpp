@@ -15,7 +15,6 @@
 
 #include "app_globals.h"
 #include "moonraker_api.h"
-#include "moonraker_client.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -286,9 +285,9 @@ void ConsolePanel::on_deactivate() {
 // ============================================================================
 
 void ConsolePanel::fetch_history() {
-    MoonrakerClient* client = get_moonraker_client();
-    if (!client) {
-        spdlog::warn("[{}] No MoonrakerClient available", get_name());
+    MoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        spdlog::warn("[{}] No MoonrakerAPI available", get_name());
         std::snprintf(status_buf_, sizeof(status_buf_), "Not connected to printer");
         lv_subject_copy_string(&status_subject_, status_buf_);
         update_visibility();
@@ -300,9 +299,9 @@ void ConsolePanel::fetch_history() {
     lv_subject_copy_string(&status_subject_, status_buf_);
 
     // Request gcode history from Moonraker
-    client->get_gcode_store(
+    api->get_gcode_store(
         FETCH_COUNT,
-        [this](const std::vector<MoonrakerClient::GcodeStoreEntry>& entries) {
+        [this](const std::vector<GcodeStoreEntry>& entries) {
             spdlog::info("[{}] Received {} gcode entries", get_name(), entries.size());
 
             // Convert to our entry format

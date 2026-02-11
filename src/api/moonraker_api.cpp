@@ -247,6 +247,12 @@ void MoonrakerAPI::suppress_disconnect_modal(uint32_t duration_ms) {
     client_.suppress_disconnect_modal(duration_ms);
 }
 
+void MoonrakerAPI::get_gcode_store(
+    int count, std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
+    std::function<void(const MoonrakerError&)> on_error) {
+    client_.get_gcode_store(count, std::move(on_success), std::move(on_error));
+}
+
 // ============================================================================
 // Helix Plugin Operations
 // ============================================================================

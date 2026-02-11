@@ -97,7 +97,7 @@ TEST_CASE("Console: is_error_message() with boundary cases", "[ui][error_detecti
 // ============================================================================
 
 TEST_CASE("Console: command vs response type classification", "[ui][entry_type]") {
-    // These would come from MoonrakerClient::GcodeStoreEntry.type field
+    // These would come from GcodeStoreEntry.type field (moonraker_types.h)
 
     // Commands are user input
     REQUIRE(std::string("command") == "command");

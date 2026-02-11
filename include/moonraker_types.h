@@ -259,6 +259,22 @@ struct RestResponse {
 };
 
 // ============================================================================
+// G-code Store Types
+// ============================================================================
+
+/**
+ * @brief Entry from Moonraker's gcode_store endpoint
+ *
+ * Represents a single G-code command or response from the
+ * server.gcode_store history buffer.
+ */
+struct GcodeStoreEntry {
+    std::string message; ///< G-code command or response text
+    double time = 0.0;   ///< Unix timestamp
+    std::string type;    ///< "command" or "response"
+};
+
+// ============================================================================
 // Bed Mesh Types
 // ============================================================================
 

@@ -1011,6 +1011,11 @@ class MoonrakerAPI {
     /// Temporarily suppress disconnect modal notifications
     virtual void suppress_disconnect_modal(uint32_t duration_ms);
 
+    /// Retrieve recent G-code commands/responses from Moonraker's store
+    virtual void
+    get_gcode_store(int count, std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
+                    std::function<void(const MoonrakerError&)> on_error);
+
     // ========================================================================
     // Helix Plugin Operations
     // ========================================================================

@@ -40,6 +40,7 @@
 #include "moonraker_error.h"
 #include "moonraker_events.h"
 #include "moonraker_request.h"
+#include "moonraker_types.h"
 #include "printer_detector.h" // For BuildVolume struct
 #include "printer_discovery.h"
 #include "spdlog/spdlog.h"
@@ -105,14 +106,9 @@ class MoonrakerClient : public hv::WebSocketClient {
     MoonrakerClient(const MoonrakerClient&) = delete;
     MoonrakerClient& operator=(const MoonrakerClient&) = delete;
 
-    /**
-     * @brief Entry from Moonraker gcode_store
-     */
-    struct GcodeStoreEntry {
-        std::string message; ///< G-code command or response text
-        double time = 0.0;   ///< Unix timestamp
-        std::string type;    ///< "command" or "response"
-    };
+    // GcodeStoreEntry is defined in moonraker_types.h
+    // Kept as a type alias for backward compatibility
+    using GcodeStoreEntry = ::GcodeStoreEntry;
 
     /**
      * @brief Connect to Moonraker WebSocket server

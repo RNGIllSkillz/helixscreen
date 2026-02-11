@@ -1780,7 +1780,8 @@ void MoonrakerAPI::get_heater_pid_values(const std::string& heater,
                     spdlog::debug("[Moonraker API] configfile.settings not available in response");
                     if (on_error) {
                         on_error(MoonrakerError{MoonrakerErrorType::UNKNOWN, 0,
-                                                "configfile.settings not available"});
+                                                "configfile.settings not available",
+                                                "get_pid_values"});
                     }
                     return;
                 }
@@ -1790,7 +1791,8 @@ void MoonrakerAPI::get_heater_pid_values(const std::string& heater,
                 if (!settings.contains(heater)) {
                     if (on_error) {
                         on_error(MoonrakerError{MoonrakerErrorType::UNKNOWN, 0,
-                                                "Heater '" + heater + "' not in config"});
+                                                "Heater '" + heater + "' not in config",
+                                                "get_pid_values"});
                     }
                     return;
                 }
@@ -1809,14 +1811,16 @@ void MoonrakerAPI::get_heater_pid_values(const std::string& heater,
                 } else {
                     if (on_error) {
                         on_error(MoonrakerError{MoonrakerErrorType::UNKNOWN, 0,
-                                                "No PID values for heater '" + heater + "'"});
+                                                "No PID values for heater '" + heater + "'",
+                                                "get_pid_values"});
                     }
                 }
             } catch (const std::exception& ex) {
                 spdlog::warn("[Moonraker API] Error parsing PID values: {}", ex.what());
                 if (on_error) {
                     on_error(MoonrakerError{MoonrakerErrorType::UNKNOWN, 0,
-                                            std::string("Parse error: ") + ex.what()});
+                                            std::string("Parse error: ") + ex.what(),
+                                            "get_pid_values"});
                 }
             }
         },

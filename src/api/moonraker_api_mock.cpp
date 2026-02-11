@@ -59,6 +59,14 @@ void MoonrakerAPIMock::suppress_disconnect_modal(uint32_t /*duration_ms*/) {
     // No-op in mock
 }
 
+void MoonrakerAPIMock::get_gcode_store(
+    int /*count*/, std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
+    std::function<void(const MoonrakerError&)> /*on_error*/) {
+    if (on_success) {
+        on_success({}); // Empty store in mock
+    }
+}
+
 void MoonrakerAPIMock::database_get_item(const std::string& /*namespace_name*/,
                                          const std::string& /*key*/,
                                          std::function<void(const json&)> on_success,
