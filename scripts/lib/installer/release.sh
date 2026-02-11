@@ -124,30 +124,30 @@ show_manual_install_instructions() {
     echo ""
     log_info "To install HelixScreen, download the release on another computer"
     log_info "and copy it to this device:"
-    echo ""
-    echo "  1. Download the release:"
+    printf '\n'
+    printf '%b\n' "  1. Download the release:"
     if [ "$version" = "latest" ]; then
-        echo "     ${CYAN}https://github.com/${GITHUB_REPO}/releases/latest${NC}"
+        printf '%b\n' "     ${CYAN}https://github.com/${GITHUB_REPO}/releases/latest${NC}"
     else
-        echo "     ${CYAN}https://github.com/${GITHUB_REPO}/releases/tag/${version}${NC}"
+        printf '%b\n' "     ${CYAN}https://github.com/${GITHUB_REPO}/releases/tag/${version}${NC}"
     fi
-    echo ""
-    echo "  2. Download: ${BOLD}helixscreen-${platform}-${version}.tar.gz${NC}"
-    echo ""
-    echo "  3. Copy to this device (note: AD5M needs -O flag):"
+    printf '\n'
+    printf '%b\n' "  2. Download: ${BOLD}helixscreen-${platform}-${version}.tar.gz${NC}"
+    printf '\n'
+    printf '%b\n' "  3. Copy to this device (note: AD5M needs -O flag):"
     if [ "$platform" = "ad5m" ]; then
         # AD5M /tmp is a tiny tmpfs (~54MB), use /data/ instead
-        echo "     ${CYAN}scp -O helixscreen-${platform}.tar.gz root@<this-ip>:/data/${NC}"
-        echo ""
-        echo "  4. Run the installer with the local file:"
-        echo "     ${CYAN}sh /data/install.sh --local /data/helixscreen-${platform}.tar.gz${NC}"
+        printf '%b\n' "     ${CYAN}scp -O helixscreen-${platform}.tar.gz root@<this-ip>:/data/${NC}"
+        printf '\n'
+        printf '%b\n' "  4. Run the installer with the local file:"
+        printf '%b\n' "     ${CYAN}sh /data/install.sh --local /data/helixscreen-${platform}.tar.gz${NC}"
     else
-        echo "     ${CYAN}scp helixscreen-${platform}.tar.gz root@<this-ip>:/tmp/${NC}"
-        echo ""
-        echo "  4. Run the installer with the local file:"
-        echo "     ${CYAN}sh /tmp/install.sh --local /tmp/helixscreen-${platform}.tar.gz${NC}"
+        printf '%b\n' "     ${CYAN}scp helixscreen-${platform}.tar.gz root@<this-ip>:/tmp/${NC}"
+        printf '\n'
+        printf '%b\n' "  4. Run the installer with the local file:"
+        printf '%b\n' "     ${CYAN}sh /tmp/install.sh --local /tmp/helixscreen-${platform}.tar.gz${NC}"
     fi
-    echo ""
+    printf '\n'
     exit 1
 }
 

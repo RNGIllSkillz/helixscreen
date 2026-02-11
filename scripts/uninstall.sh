@@ -78,11 +78,11 @@ setup_colors() {
 # Initialize colors immediately
 setup_colors
 
-# Logging functions
-log_info() { echo "${CYAN}[INFO]${NC} $1" >&2; }
-log_success() { echo "${GREEN}[OK]${NC} $1" >&2; }
-log_warn() { echo "${YELLOW}[WARN]${NC} $1" >&2; }
-log_error() { echo "${RED}[ERROR]${NC} $1" >&2; }
+# Logging functions (printf %b interprets \033 escapes; BusyBox echo does not)
+log_info() { printf '%b\n' "${CYAN}[INFO]${NC} $1" >&2; }
+log_success() { printf '%b\n' "${GREEN}[OK]${NC} $1" >&2; }
+log_warn() { printf '%b\n' "${YELLOW}[WARN]${NC} $1" >&2; }
+log_error() { printf '%b\n' "${RED}[ERROR]${NC} $1" >&2; }
 
 # Error handler - cleanup and report what went wrong
 # Usage: trap 'error_handler $LINENO' ERR
@@ -187,7 +187,7 @@ print_post_install_commands() {
 #
 # Default paths (may be overridden by set_install_paths)
 : "${INSTALL_DIR:=/opt/helixscreen}"
-: "${TMP_DIR:=/tmp/helixscreen-install}"
+: "${TMP_DIR:=}"
 
 # Capture user-provided INSTALL_DIR before we potentially override it.
 # If the user explicitly set INSTALL_DIR (and it's not the default),
@@ -456,6 +456,52 @@ detect_pi_install_dir() {
     return 0
 }
 
+# Detect best temp directory for extraction
+# Mirrors get_helix_cache_dir() heuristic from app_globals.cpp:
+# tries candidates in order, picks first writable dir with >= 100MB free.
+# User can override via TMP_DIR env var.
+# Sets: TMP_DIR
+detect_tmp_dir() {
+    # User already set TMP_DIR — respect it
+    if [ -n "${TMP_DIR:-}" ]; then
+        log_info "Temp directory (user override): $TMP_DIR"
+        return 0
+    fi
+
+    local required_mb=100
+    local candidates="/data/helixscreen-install /mnt/data/helixscreen-install /usr/data/helixscreen-install /var/tmp/helixscreen-install /tmp/helixscreen-install"
+
+    for candidate in $candidates; do
+        local check_dir
+        check_dir=$(dirname "$candidate")
+
+        # Must exist (or be creatable) and be writable
+        if [ ! -d "$check_dir" ]; then
+            continue
+        fi
+        if [ ! -w "$check_dir" ] && ! $SUDO test -w "$check_dir" 2>/dev/null; then
+            continue
+        fi
+
+        # Check free space (BusyBox df: KB in $4)
+        local available_mb
+        available_mb=$(df "$check_dir" 2>/dev/null | tail -1 | awk '{print int($4/1024)}')
+        if [ -z "$available_mb" ] || [ "$available_mb" -lt "$required_mb" ]; then
+            continue
+        fi
+
+        TMP_DIR="$candidate"
+        if [ "$check_dir" != "/tmp" ]; then
+            log_info "Temp directory: $TMP_DIR (${available_mb}MB free)"
+        fi
+        return 0
+    done
+
+    # Last resort — /tmp even if small (will fail later at extraction with a clear error)
+    TMP_DIR="/tmp/helixscreen-install"
+    log_warn "No temp directory with ${required_mb}MB+ free found, using /tmp"
+}
+
 # Set installation paths based on platform and firmware
 # Sets: INSTALL_DIR, INIT_SCRIPT_DEST, PREVIOUS_UI_SCRIPT, TMP_DIR
 set_install_paths() {
@@ -468,18 +514,13 @@ set_install_paths() {
                 INSTALL_DIR="/root/printer_software/helixscreen"
                 INIT_SCRIPT_DEST="/etc/init.d/S80helixscreen"
                 PREVIOUS_UI_SCRIPT="/etc/init.d/S80klipperscreen"
-                # Klipper Mod has small tmpfs (~54MB), package is ~70MB
-                # Use /mnt/data which has 4+ GB available
-                TMP_DIR="/mnt/data/helixscreen-install"
                 log_info "AD5M firmware: Klipper Mod"
                 log_info "Install directory: ${INSTALL_DIR}"
-                log_info "Using /mnt/data for temp files (tmpfs too small)"
                 ;;
             forge_x|*)
                 INSTALL_DIR="/opt/helixscreen"
                 INIT_SCRIPT_DEST="/etc/init.d/S90helixscreen"
                 PREVIOUS_UI_SCRIPT="/opt/config/mod/.root/S80guppyscreen"
-                TMP_DIR="/tmp/helixscreen-install"
                 log_info "AD5M firmware: Forge-X"
                 log_info "Install directory: ${INSTALL_DIR}"
                 ;;
@@ -491,7 +532,6 @@ set_install_paths() {
                 INSTALL_DIR="/usr/data/helixscreen"
                 INIT_SCRIPT_DEST="/etc/init.d/S99helixscreen"
                 PREVIOUS_UI_SCRIPT="/etc/init.d/S99guppyscreen"
-                TMP_DIR="/tmp/helixscreen-install"
                 log_info "K1 firmware: Simple AF"
                 log_info "Install directory: ${INSTALL_DIR}"
                 ;;
@@ -500,10 +540,12 @@ set_install_paths() {
         # Pi and other platforms — detect klipper user, then auto-detect install dir
         INIT_SCRIPT_DEST="/etc/init.d/S90helixscreen"
         PREVIOUS_UI_SCRIPT=""
-        TMP_DIR="/tmp/helixscreen-install"
         detect_klipper_user
         detect_pi_install_dir
     fi
+
+    # Auto-detect best temp directory (all platforms)
+    detect_tmp_dir
 }
 
 # Create symlink from printer_data/config/helixscreen → INSTALL_DIR/config
