@@ -608,6 +608,9 @@ class GCodeLayerRenderer {
     /// Software Bresenham line drawing to raw ARGB8888 buffer (ghost)
     void draw_line_bresenham(int x0, int y0, int x1, int y1, uint32_t color);
 
+    /// Thick line drawing using parallel Bresenham lines (ghost buffer)
+    void draw_thick_line_bresenham(int x0, int y0, int x1, int y1, uint32_t color, int width);
+
     /// Blend a pixel with alpha into the ghost raw buffer
     void blend_pixel(int x, int y, uint32_t color);
 
@@ -615,8 +618,14 @@ class GCodeLayerRenderer {
     /// Used for solid layer rendering, bypassing LVGL draw API for AD5M compatibility
     void draw_line_bresenham_solid(int x0, int y0, int x1, int y1, uint32_t color);
 
+    /// Thick line drawing using parallel Bresenham lines (solid cache)
+    void draw_thick_line_bresenham_solid(int x0, int y0, int x1, int y1, uint32_t color, int width);
+
     /// Blend a pixel directly into the solid LVGL cache buffer
     void blend_pixel_solid(int x, int y, uint32_t color);
+
+    /// Compute line width in pixels from extrusion width metadata and current scale
+    int get_extrusion_pixel_width() const;
 };
 
 } // namespace gcode
