@@ -25,6 +25,7 @@
 #include "filament_sensor_manager.h"
 #include "format_utils.h"
 #include "injection_point_manager.h"
+#include "led/ui_led_control_overlay.h"
 #include "moonraker_api.h"
 #include "observer_factory.h"
 #include "prerendered_images.h"
@@ -199,6 +200,7 @@ void HomePanel::init_subjects() {
     // Register event callbacks BEFORE loading XML
     // Note: These use static trampolines that will look up the global instance
     lv_xml_register_event_cb(nullptr, "light_toggle_cb", light_toggle_cb);
+    lv_xml_register_event_cb(nullptr, "light_long_press_cb", light_long_press_cb);
     lv_xml_register_event_cb(nullptr, "print_card_clicked_cb", print_card_clicked_cb);
     lv_xml_register_event_cb(nullptr, "tip_text_clicked_cb", tip_text_clicked_cb);
     lv_xml_register_event_cb(nullptr, "temp_clicked_cb", temp_clicked_cb);
@@ -577,6 +579,34 @@ void HomePanel::handle_light_toggle() {
     }
 }
 
+void HomePanel::handle_light_long_press() {
+    spdlog::info("[{}] Light long-press: opening LED control overlay", get_name());
+
+    // Lazy-create overlay on first access
+    if (!led_control_panel_ && parent_screen_) {
+        auto& overlay = get_led_control_overlay();
+
+        if (!overlay.are_subjects_initialized()) {
+            overlay.init_subjects();
+        }
+        overlay.register_callbacks();
+        overlay.set_api(api_);
+
+        led_control_panel_ = overlay.create(parent_screen_);
+        if (!led_control_panel_) {
+            NOTIFY_ERROR("Failed to load LED control overlay");
+            return;
+        }
+
+        NavigationManager::instance().register_overlay_instance(led_control_panel_, &overlay);
+    }
+
+    if (led_control_panel_) {
+        get_led_control_overlay().set_api(api_);
+        ui_nav_push_overlay(led_control_panel_);
+    }
+}
+
 void HomePanel::handle_print_card_clicked() {
     // Check if a print is in progress
     if (!printer_state_.can_start_new_print()) {
@@ -907,6 +937,14 @@ void HomePanel::light_toggle_cb(lv_event_t* e) {
     // This will be fixed when main.cpp switches to class-based instantiation
     extern HomePanel& get_global_home_panel();
     get_global_home_panel().handle_light_toggle();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void HomePanel::light_long_press_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] light_long_press_cb");
+    (void)e;
+    extern HomePanel& get_global_home_panel();
+    get_global_home_panel().handle_light_long_press();
     LVGL_SAFE_EVENT_CB_END();
 }
 

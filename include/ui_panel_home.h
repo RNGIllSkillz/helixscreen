@@ -129,6 +129,7 @@ class HomePanel : public PanelBase {
 
     // Lazily-created overlay panels (owned by LVGL parent, not us)
     lv_obj_t* nozzle_temp_panel_ = nullptr;
+    lv_obj_t* led_control_panel_ = nullptr;
 
     void update_tip_of_day();
     void start_tip_fade_transition(const PrintingTip& new_tip);
@@ -139,6 +140,7 @@ class HomePanel : public PanelBase {
     static void signal_poll_timer_cb(lv_timer_t* timer);
 
     void handle_light_toggle();
+    void handle_light_long_press();
     void handle_print_card_clicked();
     void handle_tip_text_clicked();
     void handle_tip_rotation_timer();
@@ -153,6 +155,7 @@ class HomePanel : public PanelBase {
     void update_light_icon();
 
     static void light_toggle_cb(lv_event_t* e);
+    static void light_long_press_cb(lv_event_t* e);
     static void print_card_clicked_cb(lv_event_t* e);
     static void tip_text_clicked_cb(lv_event_t* e);
     static void temp_clicked_cb(lv_event_t* e);

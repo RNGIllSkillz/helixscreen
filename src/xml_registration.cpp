@@ -233,6 +233,9 @@ void register_xml_components() {
     register_fan_dial_callbacks(); // Register FanDial event callbacks
     register_xml("fan_status_card.xml");
     register_xml("fan_control_overlay.xml");
+    register_xml("led_action_chip.xml");
+    register_xml("led_color_swatch.xml");
+    register_xml("led_control_overlay.xml");
     register_xml("ams_current_tool.xml");
     register_xml("exclude_objects_list_overlay.xml");
     register_xml("print_status_panel.xml");

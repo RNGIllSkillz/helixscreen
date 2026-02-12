@@ -93,6 +93,7 @@
 #include "ui_wizard_wifi.h"
 
 #include "data_root_resolver.h"
+#include "led/ui_led_control_overlay.h"
 #include "printer_detector.h"
 #include "settings_manager.h"
 #include "system/crash_handler.h"
@@ -1113,6 +1114,26 @@ void Application::create_overlays() {
         overlay.register_callbacks();
 
         // Pass API reference for fan commands
+        overlay.set_api(get_moonraker_api());
+
+        // Create overlay UI
+        auto* p = overlay.create(m_screen);
+        if (p) {
+            NavigationManager::instance().register_overlay_instance(p, &overlay);
+            ui_nav_push_overlay(p);
+        }
+    }
+
+    if (m_args.overlays.led) {
+        auto& overlay = get_led_control_overlay();
+
+        // Initialize subjects and callbacks if not already done
+        if (!overlay.are_subjects_initialized()) {
+            overlay.init_subjects();
+        }
+        overlay.register_callbacks();
+
+        // Pass API reference for LED commands
         overlay.set_api(get_moonraker_api());
 
         // Create overlay UI
