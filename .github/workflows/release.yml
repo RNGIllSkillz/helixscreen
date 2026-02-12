@@ -86,21 +86,8 @@ jobs:
           helixscreen/toolchain-pi \
           make PLATFORM_TARGET=pi SKIP_OPTIONAL_DEPS=1 -j$(nproc)
 
-    - name: Extract symbol map
-      run: |
-        docker run --rm \
-          -v "${{ github.workspace }}":/src \
-          -w /src \
-          helixscreen/toolchain-pi \
-          make symbols PLATFORM_TARGET=pi SKIP_OPTIONAL_DEPS=1
-
-    - name: Strip binary
-      run: |
-        docker run --rm \
-          -v "${{ github.workspace }}":/src \
-          -w /src \
-          helixscreen/toolchain-pi \
-          make strip PLATFORM_TARGET=pi SKIP_OPTIONAL_DEPS=1
+    # Symbol extraction and stripping are handled by the 'all' target
+    # (all → strip → symbols → nm, then strip). No separate steps needed.
 
     - name: Fix build directory ownership
       run: sudo chown -R $(id -u):$(id -g) build/
@@ -174,22 +161,6 @@ jobs:
           helixscreen/toolchain-pi32 \
           make PLATFORM_TARGET=pi32 SKIP_OPTIONAL_DEPS=1 -j$(nproc)
 
-    - name: Extract symbol map
-      run: |
-        docker run --rm \
-          -v "${{ github.workspace }}":/src \
-          -w /src \
-          helixscreen/toolchain-pi32 \
-          make symbols PLATFORM_TARGET=pi32 SKIP_OPTIONAL_DEPS=1
-
-    - name: Strip binary
-      run: |
-        docker run --rm \
-          -v "${{ github.workspace }}":/src \
-          -w /src \
-          helixscreen/toolchain-pi32 \
-          make strip PLATFORM_TARGET=pi32 SKIP_OPTIONAL_DEPS=1
-
     - name: Fix build directory ownership
       run: sudo chown -R $(id -u):$(id -g) build/
 
@@ -261,22 +232,6 @@ jobs:
           -w /src \
           helixscreen/toolchain-ad5m \
           make PLATFORM_TARGET=ad5m SKIP_OPTIONAL_DEPS=1 -j$(nproc)
-
-    - name: Extract symbol map
-      run: |
-        docker run --rm \
-          -v "${{ github.workspace }}":/src \
-          -w /src \
-          helixscreen/toolchain-ad5m \
-          make symbols PLATFORM_TARGET=ad5m SKIP_OPTIONAL_DEPS=1
-
-    - name: Strip binary
-      run: |
-        docker run --rm \
-          -v "${{ github.workspace }}":/src \
-          -w /src \
-          helixscreen/toolchain-ad5m \
-          make strip PLATFORM_TARGET=ad5m SKIP_OPTIONAL_DEPS=1
 
     - name: Fix build directory ownership
       run: sudo chown -R $(id -u):$(id -g) build/
@@ -350,22 +305,6 @@ jobs:
           helixscreen/toolchain-k1 \
           make PLATFORM_TARGET=k1 SKIP_OPTIONAL_DEPS=1 -j$(nproc)
 
-    - name: Extract symbol map
-      run: |
-        docker run --rm \
-          -v "${{ github.workspace }}":/src \
-          -w /src \
-          helixscreen/toolchain-k1 \
-          make symbols PLATFORM_TARGET=k1 SKIP_OPTIONAL_DEPS=1
-
-    - name: Strip binary
-      run: |
-        docker run --rm \
-          -v "${{ github.workspace }}":/src \
-          -w /src \
-          helixscreen/toolchain-k1 \
-          make strip PLATFORM_TARGET=k1 SKIP_OPTIONAL_DEPS=1
-
     - name: Fix build directory ownership
       run: sudo chown -R $(id -u):$(id -g) build/
 
@@ -437,22 +376,6 @@ jobs:
           -w /src \
           helixscreen/toolchain-k2 \
           make PLATFORM_TARGET=k2 SKIP_OPTIONAL_DEPS=1 -j$(nproc)
-
-    - name: Extract symbol map
-      run: |
-        docker run --rm \
-          -v "${{ github.workspace }}":/src \
-          -w /src \
-          helixscreen/toolchain-k2 \
-          make symbols PLATFORM_TARGET=k2 SKIP_OPTIONAL_DEPS=1
-
-    - name: Strip binary
-      run: |
-        docker run --rm \
-          -v "${{ github.workspace }}":/src \
-          -w /src \
-          helixscreen/toolchain-k2 \
-          make strip PLATFORM_TARGET=k2 SKIP_OPTIONAL_DEPS=1
 
     - name: Fix build directory ownership
       run: sudo chown -R $(id -u):$(id -g) build/
