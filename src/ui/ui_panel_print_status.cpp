@@ -49,6 +49,7 @@
 #include <cstring>
 #include <fstream>
 #include <memory>
+#include <vector>
 
 // Global instance for legacy API and resize callback
 static std::unique_ptr<PrintStatusPanel> g_print_status_panel;
@@ -166,16 +167,33 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, MoonrakerAPI* ap
 
     spdlog::debug("[{}] Subscribed to PrinterState subjects", get_name());
 
-    // Load configured LED from wizard settings and pass to light controls
+    // Load configured LEDs from wizard settings and pass to light controls
     Config* config = Config::get_instance();
     if (config) {
-        std::string configured_led = config->get<std::string>(helix::wizard::LED_STRIP, "");
-        if (!configured_led.empty()) {
-            light_timelapse_controls_.set_configured_led(configured_led);
+        // Load configured LEDs (multi-LED support)
+        std::vector<std::string> configured_leds;
+        auto& leds_json = config->get_json(helix::wizard::LED_SELECTED);
+        if (leds_json.is_array()) {
+            for (const auto& led : leds_json) {
+                if (led.is_string() && !led.get<std::string>().empty()) {
+                    configured_leds.push_back(led.get<std::string>());
+                }
+            }
+        }
+        // Fallback: legacy single LED path
+        if (configured_leds.empty()) {
+            std::string single_led = config->get<std::string>(helix::wizard::LED_STRIP, "");
+            if (!single_led.empty()) {
+                configured_leds.push_back(single_led);
+            }
+        }
+        if (!configured_leds.empty()) {
+            light_timelapse_controls_.set_configured_leds(configured_leds);
             led_state_observer_ = observe_int_sync<PrintStatusPanel>(
                 printer_state_.get_led_state_subject(), this,
                 [](PrintStatusPanel* self, int state) { self->on_led_state_changed(state); });
-            spdlog::debug("[{}] Configured LED: {} (observing state)", get_name(), configured_led);
+            spdlog::debug("[{}] Configured {} LED(s) (observing state)", get_name(),
+                          configured_leds.size());
         }
     }
 
@@ -227,6 +245,8 @@ void PrintStatusPanel::init_subjects() {
                               "print_progress_text", subjects_);
     UI_MANAGED_SUBJECT_STRING(layer_text_subject_, layer_text_buf_, "Layer 0 / 0",
                               "print_layer_text", subjects_);
+    UI_MANAGED_SUBJECT_STRING(filament_used_text_subject_, filament_used_text_buf_, "",
+                              "print_filament_used_text", subjects_);
     UI_MANAGED_SUBJECT_STRING(elapsed_subject_, elapsed_buf_, "0h 00m", "print_elapsed", subjects_);
     UI_MANAGED_SUBJECT_STRING(remaining_subject_, remaining_buf_, "0h 00m", "print_remaining",
                               subjects_);
@@ -745,6 +765,18 @@ void PrintStatusPanel::update_all_displays() {
                   total_layers_);
     lv_subject_copy_string(&layer_text_subject_, layer_text_buf_);
 
+    // Filament used text
+    int filament_mm = lv_subject_get_int(get_printer_state().get_print_filament_used_subject());
+    if (filament_mm > 0) {
+        std::string fil_str = helix::fmt::format_filament_length(static_cast<double>(filament_mm)) +
+                              " " + lv_tr("used");
+        std::strncpy(filament_used_text_buf_, fil_str.c_str(), sizeof(filament_used_text_buf_) - 1);
+        filament_used_text_buf_[sizeof(filament_used_text_buf_) - 1] = '\0';
+    } else {
+        filament_used_text_buf_[0] = '\0';
+    }
+    lv_subject_copy_string(&filament_used_text_subject_, filament_used_text_buf_);
+
     // Time displays - Preparing: preprint observers own these.
     // Complete: on_print_state_changed sets frozen final values, don't overwrite.
     if (current_state_ != PrintState::Preparing && current_state_ != PrintState::Complete) {
@@ -1150,6 +1182,18 @@ void PrintStatusPanel::on_print_progress_changed(int progress) {
             SettingsManager::instance().get_animations_enabled() ? LV_ANIM_ON : LV_ANIM_OFF;
         lv_bar_set_value(progress_bar_, current_progress_, anim_enable);
     }
+
+    // Update filament used text (evolves during active printing)
+    int filament_mm = lv_subject_get_int(get_printer_state().get_print_filament_used_subject());
+    if (filament_mm > 0) {
+        std::string fil_str = helix::fmt::format_filament_length(static_cast<double>(filament_mm)) +
+                              " " + lv_tr("used");
+        std::strncpy(filament_used_text_buf_, fil_str.c_str(), sizeof(filament_used_text_buf_) - 1);
+        filament_used_text_buf_[sizeof(filament_used_text_buf_) - 1] = '\0';
+    } else {
+        filament_used_text_buf_[0] = '\0';
+    }
+    lv_subject_copy_string(&filament_used_text_subject_, filament_used_text_buf_);
 
     spdlog::trace("[{}] Progress updated: {}%", get_name(), current_progress_);
 }

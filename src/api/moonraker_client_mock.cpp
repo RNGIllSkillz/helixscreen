@@ -13,11 +13,14 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <map>
 #include <random>
+#include <sstream>
 
 // Delegating constructor - uses default speedup of 1.0
 MoonrakerClientMock::MoonrakerClientMock(PrinterType type) : MoonrakerClientMock(type, 1.0) {}
@@ -571,7 +574,7 @@ void MoonrakerClientMock::populate_hardware() {
         fans_ = {"heater_fan hotend_fan",
                  "fan", // Part cooling fan
                  "fan_generic nevermore", "controller_fan controller_fan"};
-        leds_ = {"neopixel chamber_light", "neopixel status_led"};
+        leds_ = {"neopixel chamber_light", "neopixel status_led", "led caselight"};
         break;
 
     case PrinterType::VORON_TRIDENT:
@@ -1391,11 +1394,21 @@ int MoonrakerClientMock::gcode_script(const std::string& gcode) {
                 s->cycle++;
 
                 if (s->cycle <= 5) {
-                    // Simulate temperature cycling progress
+                    // Simulate Kalico PID sample output (matches pid_calibrate.py format)
                     char buf[128];
-                    float temp = static_cast<float>(s->target) + (s->cycle % 2 == 0 ? 2.5f : -2.5f);
-                    snprintf(buf, sizeof(buf), "// Heating cycle %d of 5, temp: %.1f", s->cycle,
-                             temp);
+                    float pwm = 0.5f - (s->cycle * 0.02f);
+                    float asymmetry = 0.3f - (s->cycle * 0.05f);
+                    // First two samples have n/a tolerance, then converging values
+                    if (s->cycle <= 2) {
+                        snprintf(buf, sizeof(buf),
+                                 "sample:%d pwm:%.3f asymmetry:%.3f tolerance:n/a", s->cycle, pwm,
+                                 asymmetry);
+                    } else {
+                        float tolerance = 0.1f / s->cycle;
+                        snprintf(buf, sizeof(buf),
+                                 "sample:%d pwm:%.3f asymmetry:%.3f tolerance:%.4f", s->cycle, pwm,
+                                 asymmetry, tolerance);
+                    }
                     s->mock->dispatch_gcode_response(buf);
                 } else {
                     // Emit final PID result matching real Klipper format
@@ -1955,7 +1968,8 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
             (meta.first_layer_bed_temp > 0) ? meta.first_layer_bed_temp : 60.0;
         print_metadata_.target_nozzle_temp =
             (meta.first_layer_nozzle_temp > 0) ? meta.first_layer_nozzle_temp : 210.0;
-        print_metadata_.filament_mm = meta.filament_used_mm;
+        print_metadata_.filament_mm =
+            (meta.filament_used_mm > 0) ? meta.filament_used_mm : 5400.0; // Default: ~5.4m
     }
 
     // Set temperature targets for preheat
@@ -2292,10 +2306,18 @@ void MoonrakerClientMock::dispatch_enhanced_print_status() {
     double elapsed = progress * total_time;
 
     std::string filename;
+    double filament_total_mm;
     {
         std::lock_guard<std::mutex> lock(print_mutex_);
         filename = print_filename_;
     }
+    {
+        std::lock_guard<std::mutex> lock(metadata_mutex_);
+        filament_total_mm = print_metadata_.filament_mm;
+    }
+
+    // Simulate filament consumption proportional to progress
+    double filament_used = (filament_total_mm > 0) ? progress * filament_total_mm : 0.0;
 
     MockPrintPhase phase = print_phase_.load();
     bool is_active = (phase == MockPrintPhase::PRINTING || phase == MockPrintPhase::PREHEAT);
@@ -2304,8 +2326,9 @@ void MoonrakerClientMock::dispatch_enhanced_print_status() {
                     {{"state", get_print_state_string()},
                      {"filename", filename},
                      {"print_duration", elapsed},
-                     {"total_duration", elapsed}, // Wall-clock elapsed (matches real Moonraker)
-                     {"filament_used", 0.0},
+                     {"total_duration", elapsed},    // Wall-clock elapsed (matches real Moonraker)
+                     {"estimated_time", total_time}, // Slicer estimate (for completion modal)
+                     {"filament_used", filament_used},
                      {"message", ""},
                      {"info", {{"current_layer", current_layer}, {"total_layer", total_layers}}}}},
                    {"virtual_sdcard",
@@ -3068,6 +3091,14 @@ void MoonrakerClientMock::temperature_simulation_loop() {
         double progress = print_progress_.load();
         double elapsed = progress * total_time;
 
+        // Simulate filament consumption proportional to progress
+        double filament_total_mm;
+        {
+            std::lock_guard<std::mutex> lock(metadata_mutex_);
+            filament_total_mm = print_metadata_.filament_mm;
+        }
+        double filament_used = (filament_total_mm > 0) ? progress * filament_total_mm : 0.0;
+
         // Get Z offset for gcode_move
         double z_offset = gcode_offset_z_.load();
 
@@ -3089,8 +3120,9 @@ void MoonrakerClientMock::temperature_simulation_loop() {
              {{"state", print_state_str},
               {"filename", filename},
               {"print_duration", elapsed},
-              {"total_duration", elapsed}, // Wall-clock elapsed (matches real Moonraker)
-              {"filament_used", 0.0},
+              {"total_duration", elapsed},    // Wall-clock elapsed (matches real Moonraker)
+              {"estimated_time", total_time}, // Slicer estimate (for completion modal)
+              {"filament_used", filament_used},
               {"message", ""},
               {"info", {{"current_layer", current_layer}, {"total_layer", total_layers}}}}},
             {"virtual_sdcard",
@@ -3381,22 +3413,208 @@ void MoonrakerClientMock::dispatch_gcode_response(const std::string& line) {
     spdlog::trace("[MoonrakerClientMock] Dispatched G-code response: {}", line);
 }
 
+namespace {
+
+/**
+ * @brief Write a mock Klipper-format shaper calibration CSV
+ *
+ * Generates ~50 frequency bins from 5-200 Hz with a realistic spectrum:
+ * base noise floor, a resonance peak, and shaper attenuation curves.
+ */
+void write_mock_shaper_csv(const std::string& path, char axis) {
+    std::ofstream ofs(path);
+    if (!ofs.is_open()) {
+        spdlog::warn("[MoonrakerClientMock] Failed to write mock CSV to {}", path);
+        return;
+    }
+
+    // Shaper definitions: name, fitted frequency
+    struct ShaperDef {
+        const char* name;
+        float freq;
+    };
+    static const ShaperDef shapers[] = {
+        {"zv", 59.0f}, {"mzv", 53.8f}, {"ei", 56.2f}, {"2hump_ei", 71.8f}, {"3hump_ei", 89.6f},
+    };
+    constexpr int num_shapers = 5;
+
+    // Write header line
+    ofs << "freq,psd_x,psd_y,psd_z,psd_xyz";
+    for (int i = 0; i < num_shapers; ++i) {
+        ofs << "," << shapers[i].name << "(" << std::fixed << std::setprecision(1)
+            << shapers[i].freq << ")";
+    }
+    ofs << "\n";
+
+    // RNG for noise variation
+    std::mt19937 rng(42 + static_cast<unsigned>(axis)); // Deterministic per-axis
+    std::uniform_real_distribution<float> noise_dist(0.8f, 1.2f);
+
+    // Resonance peak parameters — should agree with optimal shaper frequencies above
+    const float peak_freq = (axis == 'x' || axis == 'X') ? 53.8f : 48.2f;
+    const float peak_width = 8.0f; // Hz bandwidth of resonance
+    const float peak_amp = 0.02f;  // Peak amplitude
+    const float noise_floor = 5e-4f;
+
+    // Generate ~50 bins from 5 to 200 Hz (step ~4 Hz)
+    for (float freq = 5.0f; freq <= 200.0f; freq += 4.0f) {
+        // Raw PSD: noise floor + Lorentzian resonance peak
+        float df = freq - peak_freq;
+        float resonance = peak_amp / (1.0f + (df * df) / (peak_width * peak_width));
+        float base_psd = noise_floor * noise_dist(rng) + resonance;
+
+        // High-frequency rolloff above 120 Hz
+        if (freq > 120.0f) {
+            base_psd *= std::exp(-(freq - 120.0f) / 60.0f);
+        }
+
+        // PSD for each axis direction (main axis gets full signal)
+        float psd_main = base_psd;
+        float psd_cross = base_psd * 0.15f * noise_dist(rng); // Cross-axis coupling
+        float psd_z = base_psd * 0.08f * noise_dist(rng);
+        float psd_xyz = psd_main + psd_cross + psd_z;
+
+        float psd_x = (axis == 'x' || axis == 'X') ? psd_main : psd_cross;
+        float psd_y = (axis == 'y' || axis == 'Y') ? psd_main : psd_cross;
+
+        ofs << std::scientific << std::setprecision(3) << freq << "," << psd_x << "," << psd_y
+            << "," << psd_z << "," << psd_xyz;
+
+        // Shaper response curves: attenuate near their fitted frequencies
+        for (int i = 0; i < num_shapers; ++i) {
+            float shaper_freq_val = shapers[i].freq;
+            // Simple notch-filter model: strong attenuation near fitted freq
+            float dist = std::abs(freq - shaper_freq_val);
+            float attenuation;
+            if (dist < 15.0f) {
+                // Near the notch: strong attenuation
+                attenuation = 0.05f + 0.95f * (dist / 15.0f) * (dist / 15.0f);
+            } else {
+                attenuation = 1.0f;
+            }
+            float shaper_val = psd_xyz * attenuation;
+            ofs << "," << shaper_val;
+        }
+        ofs << "\n";
+    }
+
+    ofs.close();
+    spdlog::info("[MoonrakerClientMock] Wrote mock shaper CSV to {}", path);
+}
+
+} // anonymous namespace
+
 void MoonrakerClientMock::dispatch_shaper_calibrate_response(char axis) {
-    // Dispatch realistic calibration response sequence matching Klipper output format
-    // These lines simulate what Klipper's SHAPER_CALIBRATE command outputs
+    // Timer-based dispatch for realistic progress animation
+    // Matches PID_CALIBRATE timer pattern (line 1389)
+    char axis_lower = static_cast<char>(std::tolower(static_cast<unsigned char>(axis)));
 
-    // Fitted shaper results (matching real Klipper format)
-    dispatch_gcode_response(
-        "Fitted shaper 'zv' frequency = 35.8 Hz (vibrations = 22.7%, smoothing ~= 0.100)");
-    dispatch_gcode_response(
-        "Fitted shaper 'mzv' frequency = 36.7 Hz (vibrations = 7.2%, smoothing ~= 0.140)");
-    dispatch_gcode_response(
-        "Fitted shaper 'ei' frequency = 47.6 Hz (vibrations = 5.9%, smoothing ~= 0.096)");
+    struct ShaperSimState {
+        MoonrakerClientMock* mock;
+        char axis_lower;
+        int step;       // Overall step counter
+        int sweep_freq; // Current sweep frequency
+    };
 
-    // Recommendation line
-    dispatch_gcode_response("Recommended shaper is mzv @ 36.7 Hz");
+    auto* sim = new ShaperSimState{this, axis_lower, 0, 5};
 
-    spdlog::info("[MoonrakerClientMock] Dispatched SHAPER_CALIBRATE response for axis {}", axis);
+    // Total steps: 20 sweep (5-100 by 5) + ~15 calc lines + 2 final = ~37
+    // At 100ms per step = ~3.7 seconds total
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* s = static_cast<ShaperSimState*>(lv_timer_get_user_data(t));
+            char buf[256];
+
+            // Phase 1: Frequency sweep (steps 0-19)
+            if (s->sweep_freq <= 100) {
+                snprintf(buf, sizeof(buf), "Testing frequency %.2f Hz",
+                         static_cast<float>(s->sweep_freq));
+                s->mock->dispatch_gcode_response(buf);
+                s->sweep_freq += 5;
+                s->step++;
+                return;
+            }
+
+            // Phase 2: Fitted shapers with max_accel
+            // Steps 20+: shaper calculation lines
+            int calc_step = s->step - 20;
+
+            struct ShaperData {
+                const char* type;
+                float freq;
+                float vibrations;
+                float smoothing;
+                int max_accel;
+            };
+
+            static const ShaperData shapers[] = {
+                {"zv", 59.0f, 5.2f, 0.045f, 13400},      {"mzv", 53.8f, 1.6f, 0.130f, 4000},
+                {"ei", 56.2f, 0.7f, 0.120f, 4600},       {"2hump_ei", 71.8f, 0.0f, 0.076f, 8800},
+                {"3hump_ei", 89.6f, 0.0f, 0.076f, 8800},
+            };
+
+            // Each shaper has 3 lines: "Wait for calculations..", fitted, max_accel
+            // So calc_step 0-2 = zv, 3-5 = mzv, 6-8 = ei, 9-11 = 2hump, 12-14 = 3hump
+            int shaper_idx = calc_step / 3;
+            int sub_step = calc_step % 3;
+
+            if (shaper_idx < 5) {
+                const auto& sh = shapers[shaper_idx];
+                if (sub_step == 0) {
+                    s->mock->dispatch_gcode_response("Wait for calculations..");
+                } else if (sub_step == 1) {
+                    snprintf(buf, sizeof(buf),
+                             "Fitted shaper '%s' frequency = %.1f Hz (vibrations = %.1f%%, "
+                             "smoothing ~= %.3f)",
+                             sh.type, sh.freq, sh.vibrations, sh.smoothing);
+                    s->mock->dispatch_gcode_response(buf);
+                } else {
+                    snprintf(buf, sizeof(buf),
+                             "To avoid too much smoothing with '%s' (scv: 25), suggested max_accel "
+                             "<= %d mm/sec^2",
+                             sh.type, sh.max_accel);
+                    s->mock->dispatch_gcode_response(buf);
+                }
+                s->step++;
+                return;
+            }
+
+            // Phase 3: Recommendation + CSV path
+            int final_step = calc_step - 15; // 5 shapers * 3 lines = 15
+            if (final_step == 0) {
+                snprintf(buf, sizeof(buf),
+                         "Recommended shaper_type_%c = mzv, shaper_freq_%c = 53.8 Hz",
+                         s->axis_lower, s->axis_lower);
+                s->mock->dispatch_gcode_response(buf);
+                s->step++;
+                return;
+            }
+
+            if (final_step == 1) {
+                // Write actual CSV file so frequency response chart has data
+                std::string csv_path = std::string("/tmp/calibration_data_") + s->axis_lower +
+                                       std::string("_mock.csv");
+                write_mock_shaper_csv(csv_path, s->axis_lower);
+
+                snprintf(
+                    buf, sizeof(buf),
+                    "Shaper calibration data written to /tmp/calibration_data_%c_mock.csv file",
+                    s->axis_lower);
+                s->mock->dispatch_gcode_response(buf);
+            }
+
+            spdlog::info(
+                "[MoonrakerClientMock] Dispatched SHAPER_CALIBRATE response for axis {}",
+                static_cast<char>(std::toupper(static_cast<unsigned char>(s->axis_lower))));
+            delete s;
+            lv_timer_delete(t);
+        },
+        100, sim); // 100ms between lines for snappy animation
+
+    // Total: 20 sweep + 15 calc + 2 final = 37 steps
+    lv_timer_set_repeat_count(timer, 37);
+
+    spdlog::info("[MoonrakerClientMock] Started SHAPER_CALIBRATE timer for axis {}", axis);
 }
 
 void MoonrakerClientMock::dispatch_measure_axes_noise_response() {
@@ -3411,9 +3629,10 @@ void MoonrakerClientMock::dispatch_measure_axes_noise_response() {
     }
 
     // Dispatch realistic noise measurement response matching Klipper output format
-    // Simulates MEASURE_AXES_NOISE command output
-    // A typical good noise level is around 0.01 (< 100 is considered acceptable)
-    dispatch_gcode_response("axes_noise = 0.012345");
+    // Real Klipper format: "Axes noise for xy-axis accelerometer: 57.956 (x), 103.543 (y), 45.396
+    // (z)"
+    dispatch_gcode_response(
+        "Axes noise for xy-axis accelerometer: 12.345678 (x), 15.678901 (y), 8.234567 (z)");
 
     spdlog::info("[MoonrakerClientMock] Dispatched MEASURE_AXES_NOISE response");
 }

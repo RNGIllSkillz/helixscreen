@@ -5,6 +5,8 @@
 
 #include "ui_test_utils.h"
 
+#include "test_helpers/update_queue_test_access.h"
+
 #include <chrono>
 #include <thread>
 
@@ -57,7 +59,7 @@ LVGLTestFixture::~LVGLTestFixture() {
     }
 
     // Per L053/L054: Drain pending callbacks before shutdown
-    helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
     // Shutdown queue
     ui_update_queue_shutdown();
@@ -108,11 +110,13 @@ void LVGLTestFixture::process_lvgl(int ms) {
     int elapsed = 0;
 
     while (elapsed < ms) {
-        // Advance LVGL tick
+        // Advance LVGL tick (needed for animations and time-based logic)
         lv_tick_inc(tick_interval_ms);
 
-        // Process timers and tasks
-        lv_timer_handler();
+        // Use the safe timer handler which drains the UpdateQueue,
+        // normalizes timer timestamps, and pauses the queue timer
+        // during lv_timer_handler() to prevent infinite loops.
+        lv_timer_handler_safe();
 
         elapsed += tick_interval_ms;
 

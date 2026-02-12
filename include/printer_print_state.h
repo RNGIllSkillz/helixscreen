@@ -19,7 +19,7 @@ namespace helix {
  * @brief Manages print-related subjects for printer state
  *
  * Tracks print progress, state, timing, layers, and print start phases.
- * Provides 17 subjects for reactive UI updates during printing.
+ * Provides 18 subjects for reactive UI updates during printing.
  * Extracted from PrinterState as part of god class decomposition.
  *
  * @note This class manages only the subjects and their values. The enums
@@ -53,11 +53,6 @@ class PrinterPrintState {
     void update_from_status(const nlohmann::json& status);
 
     /**
-     * @brief Reset state for testing - clears subjects and reinitializes
-     */
-    void reset_for_testing();
-
-    /**
      * @brief Reset UI state when starting a new print
      *
      * Clears progress, layers, and timing but preserves filename.
@@ -65,7 +60,7 @@ class PrinterPrintState {
     void reset_for_new_print();
 
     // ========================================================================
-    // Subject accessors (17 subjects)
+    // Subject accessors (18 subjects)
     // ========================================================================
 
     /// Print progress as 0-100 percent
@@ -136,6 +131,11 @@ class PrinterPrintState {
     /// Estimated remaining time in seconds
     lv_subject_t* get_print_time_left_subject() {
         return &print_time_left_;
+    }
+
+    /// Filament used during current print (in mm, from Moonraker print_stats.filament_used)
+    lv_subject_t* get_print_filament_used_subject() {
+        return &print_filament_used_;
     }
 
     /// Current PrintStartPhase enum value
@@ -306,6 +306,8 @@ class PrinterPrintState {
     [[nodiscard]] bool is_in_print_start() const;
 
   private:
+    friend class PrinterPrintStateTestAccess;
+
     /**
      * @brief Update print_show_progress_ combined subject
      *
@@ -339,9 +341,10 @@ class PrinterPrintState {
     lv_subject_t print_layer_total_{};   // Total layers
 
     // Print time tracking subjects (in seconds)
-    lv_subject_t print_duration_{};  // Extrusion-only elapsed time (Moonraker print_duration)
-    lv_subject_t print_elapsed_{};   // Wall-clock elapsed time (Moonraker total_duration)
-    lv_subject_t print_time_left_{}; // Estimated remaining
+    lv_subject_t print_duration_{};      // Extrusion-only elapsed time (Moonraker print_duration)
+    lv_subject_t print_elapsed_{};       // Wall-clock elapsed time (Moonraker total_duration)
+    lv_subject_t print_time_left_{};     // Estimated remaining
+    lv_subject_t print_filament_used_{}; // Filament used in mm (from Moonraker print_stats)
 
     // Print start progress subjects
     lv_subject_t print_start_phase_{};    // Integer: PrintStartPhase enum

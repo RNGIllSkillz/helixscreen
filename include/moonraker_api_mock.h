@@ -117,6 +117,35 @@ class MoonrakerAPIMock : public MoonrakerAPI {
     ~MoonrakerAPIMock() override = default;
 
     // ========================================================================
+    // Overridden Connection/Subscription/Database Proxies (no-ops for mock)
+    // ========================================================================
+
+    SubscriptionId subscribe_notifications(std::function<void(json)> callback) override;
+    bool unsubscribe_notifications(SubscriptionId id) override;
+    void register_method_callback(const std::string& method, const std::string& name,
+                                  std::function<void(json)> callback) override;
+    bool unregister_method_callback(const std::string& method, const std::string& name) override;
+    void suppress_disconnect_modal(uint32_t duration_ms) override;
+    void get_gcode_store(int count,
+                         std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
+                         std::function<void(const MoonrakerError&)> on_error) override;
+    void database_get_item(const std::string& namespace_name, const std::string& key,
+                           std::function<void(const json&)> on_success,
+                           ErrorCallback on_error = nullptr) override;
+    void database_post_item(const std::string& namespace_name, const std::string& key,
+                            const json& value, std::function<void()> on_success = nullptr,
+                            ErrorCallback on_error = nullptr) override;
+
+    // ========================================================================
+    // Overridden Helix Plugin Methods (return mock data)
+    // ========================================================================
+
+    void get_phase_tracking_status(std::function<void(bool enabled)> on_success,
+                                   ErrorCallback on_error = nullptr) override;
+    void set_phase_tracking_enabled(bool enabled, std::function<void(bool success)> on_success,
+                                    ErrorCallback on_error = nullptr) override;
+
+    // ========================================================================
     // Overridden HTTP File Transfer Methods (use local files instead of HTTP)
     // ========================================================================
 
@@ -475,6 +504,9 @@ class MoonrakerAPIMock : public MoonrakerAPI {
 
     /// Mock bed state for screws tilt simulation
     MockScrewsTiltState mock_bed_state_;
+
+    // Mock subscription ID counter
+    SubscriptionId mock_next_subscription_id_ = 100;
 
     // Mock Spoolman state
     bool mock_spoolman_enabled_ = true;  ///< Whether Spoolman is "connected"

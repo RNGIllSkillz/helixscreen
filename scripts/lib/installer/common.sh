@@ -56,11 +56,11 @@ setup_colors() {
 # Initialize colors immediately
 setup_colors
 
-# Logging functions
-log_info() { echo "${CYAN}[INFO]${NC} $1" >&2; }
-log_success() { echo "${GREEN}[OK]${NC} $1" >&2; }
-log_warn() { echo "${YELLOW}[WARN]${NC} $1" >&2; }
-log_error() { echo "${RED}[ERROR]${NC} $1" >&2; }
+# Logging functions (printf %b interprets \033 escapes; BusyBox echo does not)
+log_info() { printf '%b\n' "${CYAN}[INFO]${NC} $1" >&2; }
+log_success() { printf '%b\n' "${GREEN}[OK]${NC} $1" >&2; }
+log_warn() { printf '%b\n' "${YELLOW}[WARN]${NC} $1" >&2; }
+log_error() { printf '%b\n' "${RED}[ERROR]${NC} $1" >&2; }
 
 # Error handler - cleanup and report what went wrong
 # Usage: trap 'error_handler $LINENO' ERR

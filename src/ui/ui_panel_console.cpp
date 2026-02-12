@@ -14,7 +14,7 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
-#include "moonraker_client.h"
+#include "moonraker_api.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -285,9 +285,9 @@ void ConsolePanel::on_deactivate() {
 // ============================================================================
 
 void ConsolePanel::fetch_history() {
-    MoonrakerClient* client = get_moonraker_client();
-    if (!client) {
-        spdlog::warn("[{}] No MoonrakerClient available", get_name());
+    MoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        spdlog::warn("[{}] No MoonrakerAPI available", get_name());
         std::snprintf(status_buf_, sizeof(status_buf_), "Not connected to printer");
         lv_subject_copy_string(&status_subject_, status_buf_);
         update_visibility();
@@ -299,9 +299,9 @@ void ConsolePanel::fetch_history() {
     lv_subject_copy_string(&status_subject_, status_buf_);
 
     // Request gcode history from Moonraker
-    client->get_gcode_store(
+    api->get_gcode_store(
         FETCH_COUNT,
-        [this](const std::vector<MoonrakerClient::GcodeStoreEntry>& entries) {
+        [this](const std::vector<GcodeStoreEntry>& entries) {
             spdlog::info("[{}] Received {} gcode entries", get_name(), entries.size());
 
             // Convert to our entry format
@@ -498,9 +498,9 @@ void ConsolePanel::subscribe_to_gcode_responses() {
         return;
     }
 
-    MoonrakerClient* client = get_moonraker_client();
-    if (!client) {
-        spdlog::debug("[{}] Cannot subscribe - no client", get_name());
+    MoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        spdlog::debug("[{}] Cannot subscribe - no API", get_name());
         return;
     }
 
@@ -510,8 +510,8 @@ void ConsolePanel::subscribe_to_gcode_responses() {
 
     // Register for notify_gcode_response notifications
     // Capture 'this' safely since we unregister in on_deactivate()
-    client->register_method_callback("notify_gcode_response", gcode_handler_name_,
-                                     [this](const nlohmann::json& msg) { on_gcode_response(msg); });
+    api->register_method_callback("notify_gcode_response", gcode_handler_name_,
+                                  [this](const nlohmann::json& msg) { on_gcode_response(msg); });
 
     is_subscribed_ = true;
     spdlog::debug("[{}] Subscribed to notify_gcode_response (handler: {})", get_name(),
@@ -523,9 +523,9 @@ void ConsolePanel::unsubscribe_from_gcode_responses() {
         return;
     }
 
-    MoonrakerClient* client = get_moonraker_client();
-    if (client) {
-        client->unregister_method_callback("notify_gcode_response", gcode_handler_name_);
+    MoonrakerAPI* api = get_moonraker_api();
+    if (api) {
+        api->unregister_method_callback("notify_gcode_response", gcode_handler_name_);
         spdlog::debug("[{}] Unsubscribed from notify_gcode_response", get_name());
     }
 
@@ -619,21 +619,12 @@ void ConsolePanel::send_gcode_command() {
     cmd_entry.is_error = false;
     add_entry(cmd_entry);
 
-    // Send via MoonrakerClient
-    MoonrakerClient* client = get_moonraker_client();
-    if (client) {
-        int result = client->gcode_script(command);
-        if (result < 0) {
-            spdlog::error("[{}] Failed to send G-code command", get_name());
-            // Add error response to console
-            GcodeEntry err_entry;
-            err_entry.message = "!! Failed to send command";
-            err_entry.type = GcodeEntry::Type::RESPONSE;
-            err_entry.is_error = true;
-            add_entry(err_entry);
-        }
+    // Send via MoonrakerAPI (fire-and-forget for console commands)
+    MoonrakerAPI* api = get_moonraker_api();
+    if (api) {
+        api->execute_gcode(command, nullptr, nullptr);
     } else {
-        spdlog::warn("[{}] No MoonrakerClient available", get_name());
+        spdlog::warn("[{}] No MoonrakerAPI available", get_name());
     }
 }
 

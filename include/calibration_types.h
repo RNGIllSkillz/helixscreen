@@ -145,6 +145,18 @@ enum class BedLevelingMethod {
 struct ShaperOption;
 
 /**
+ * @brief Per-shaper frequency response curve from calibration CSV
+ *
+ * Contains the filtered PSD response for one shaper type at all frequency bins.
+ * Used for overlaying shaper response on the raw frequency spectrum chart.
+ */
+struct ShaperResponseCurve {
+    std::string name;          ///< Shaper type (e.g., "zv", "mzv", "ei")
+    float frequency = 0.0f;    ///< Fitted frequency in Hz (from CSV header)
+    std::vector<float> values; ///< Filtered PSD values at each frequency bin
+};
+
+/**
  * @brief Result from resonance testing (TEST_RESONANCES or Klippain)
  *
  * Contains the recommended shaper configuration for one axis, plus
@@ -158,11 +170,22 @@ struct InputShaperResult {
     float smoothing = 0.0f;   ///< Smoothing value (0.0-1.0, lower is better)
     float vibrations = 0.0f;  ///< Remaining vibrations percentage
 
+    /// Path to CSV calibration data file (e.g., /tmp/calibration_data_x_*.csv)
+    std::string csv_path;
+
     /// Frequency response data for graphing (frequency Hz, amplitude)
     std::vector<std::pair<float, float>> freq_response;
 
+    /// Per-shaper filtered response curves (for chart overlay)
+    std::vector<ShaperResponseCurve> shaper_curves;
+
     /// All fitted shaper options from calibration (not just recommended)
     std::vector<ShaperOption> all_shapers;
+
+    /// Check if frequency response data is available for charting
+    [[nodiscard]] bool has_freq_data() const {
+        return !freq_response.empty();
+    }
 
     /**
      * @brief Check if result contains valid data

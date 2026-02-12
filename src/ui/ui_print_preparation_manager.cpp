@@ -149,7 +149,7 @@ void PrintPreparationManager::analyze_print_start_macro_internal() {
     }
 
     // Check if WebSocket connection is actually established
-    if (api_->get_client().get_connection_state() != ConnectionState::CONNECTED) {
+    if (api_->get_connection_state() != ConnectionState::CONNECTED) {
         spdlog::debug("[PrintPreparationManager] Deferring PRINT_START analysis - not connected");
         return;
     }
@@ -378,11 +378,6 @@ void PrintPreparationManager::set_cached_scan_result(const gcode::ScanResult& sc
                                                      const std::string& filename) {
     cached_scan_result_ = scan;
     cached_scan_filename_ = filename;
-}
-
-std::vector<std::pair<std::string, std::string>>
-PrintPreparationManager::get_skip_params_for_testing() const {
-    return collect_macro_skip_params();
 }
 
 // ============================================================================

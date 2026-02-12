@@ -454,6 +454,9 @@ void GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
     int layer_count = get_layer_count();
     size_t segments_rendered = 0;
 
+    // Compute extrusion line width in pixels (scale-dependent)
+    int line_width = get_extrusion_pixel_width();
+
     // Compute base color once (full filament color with full alpha)
     uint8_t base_r = color_extrusion_.red;
     uint8_t base_g = color_extrusion_.green;
@@ -518,7 +521,7 @@ void GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
                     g = 0x6B;
                     b = 0x35;
                     uint32_t color = (153u << 24) | (r << 16) | (g << 8) | b; // 60% alpha
-                    draw_line_bresenham_solid(p1.x, p1.y, p2.x, p2.y, color);
+                    draw_thick_line_bresenham_solid(p1.x, p1.y, p2.x, p2.y, color, line_width);
                     ++segments_rendered;
                     continue;
                 }
@@ -534,7 +537,7 @@ void GCodeLayerRenderer::render_layers_to_cache(int from_layer, int to_layer) {
             uint32_t color = (255u << 24) | (r << 16) | (g << 8) | b;
 
             // Draw using software Bresenham - bypasses LVGL draw API for AD5M compatibility
-            draw_line_bresenham_solid(p1.x, p1.y, p2.x, p2.y, color);
+            draw_thick_line_bresenham_solid(p1.x, p1.y, p2.x, p2.y, color, line_width);
             ++segments_rendered;
         }
     }
@@ -1272,6 +1275,9 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
     // Color (can be changed via set_extrusion_color() on main thread)
     const lv_color_t local_color_extrusion = color_extrusion_;
 
+    // Capture extrusion pixel width (uses scale_ which may change on main thread)
+    const int local_line_width = get_extrusion_pixel_width();
+
     // Capture excluded objects for ghost rendering (thread-safe copy)
     const auto local_excluded = excluded_objects_;
 
@@ -1344,8 +1350,8 @@ void GCodeLayerRenderer::background_ghost_render_thread() {
                 seg_color = (255u << 24) | (ex_r << 16) | (ex_g << 8) | ex_b;
             }
 
-            // Draw line using Bresenham algorithm
-            draw_line_bresenham(p1.x, p1.y, p2.x, p2.y, seg_color);
+            // Draw line using Bresenham algorithm (width-aware)
+            draw_thick_line_bresenham(p1.x, p1.y, p2.x, p2.y, seg_color, local_line_width);
             ++segments_rendered;
         }
     }
@@ -1441,6 +1447,85 @@ void GCodeLayerRenderer::blend_pixel_solid(int x, int y, uint32_t color) {
     pixel[1] = (color >> 8) & 0xFF;  // G
     pixel[2] = (color >> 16) & 0xFF; // R
     pixel[3] = (color >> 24) & 0xFF; // A
+}
+
+int GCodeLayerRenderer::get_extrusion_pixel_width() const {
+    float width_mm = 0.4f; // Default fallback
+
+    if (gcode_) {
+        // Full-file mode: prefer extrusion_width_mm, then nozzle_diameter_mm
+        if (gcode_->extrusion_width_mm > 0.0f) {
+            width_mm = gcode_->extrusion_width_mm;
+        } else if (gcode_->nozzle_diameter_mm > 0.0f) {
+            width_mm = gcode_->nozzle_diameter_mm;
+        }
+    }
+    // Streaming mode: no metadata available, use default 0.4mm
+
+    int pixel_width = static_cast<int>(std::round(width_mm * scale_));
+    return std::clamp(pixel_width, 1, 8);
+}
+
+void GCodeLayerRenderer::draw_thick_line_bresenham(int x0, int y0, int x1, int y1, uint32_t color,
+                                                   int width) {
+    if (width <= 1) {
+        draw_line_bresenham(x0, y0, x1, y1, color);
+        return;
+    }
+
+    // Compute perpendicular direction to the line
+    float dx = static_cast<float>(x1 - x0);
+    float dy = static_cast<float>(y1 - y0);
+    float len = std::sqrt(dx * dx + dy * dy);
+
+    if (len < 0.001f) {
+        draw_line_bresenham(x0, y0, x1, y1, color);
+        return;
+    }
+
+    // Perpendicular unit vector (rotated 90 degrees)
+    float px = -dy / len;
+    float py = dx / len;
+
+    // Draw parallel lines offset by [-width/2, +width/2]
+    float half = static_cast<float>(width - 1) * 0.5f;
+    for (int i = 0; i < width; ++i) {
+        float offset = static_cast<float>(i) - half;
+        int ox = static_cast<int>(std::round(px * offset));
+        int oy = static_cast<int>(std::round(py * offset));
+        draw_line_bresenham(x0 + ox, y0 + oy, x1 + ox, y1 + oy, color);
+    }
+}
+
+void GCodeLayerRenderer::draw_thick_line_bresenham_solid(int x0, int y0, int x1, int y1,
+                                                         uint32_t color, int width) {
+    if (width <= 1) {
+        draw_line_bresenham_solid(x0, y0, x1, y1, color);
+        return;
+    }
+
+    // Compute perpendicular direction to the line
+    float dx = static_cast<float>(x1 - x0);
+    float dy = static_cast<float>(y1 - y0);
+    float len = std::sqrt(dx * dx + dy * dy);
+
+    if (len < 0.001f) {
+        draw_line_bresenham_solid(x0, y0, x1, y1, color);
+        return;
+    }
+
+    // Perpendicular unit vector (rotated 90 degrees)
+    float px = -dy / len;
+    float py = dx / len;
+
+    // Draw parallel lines offset by [-width/2, +width/2]
+    float half = static_cast<float>(width - 1) * 0.5f;
+    for (int i = 0; i < width; ++i) {
+        float offset = static_cast<float>(i) - half;
+        int ox = static_cast<int>(std::round(px * offset));
+        int oy = static_cast<int>(std::round(py * offset));
+        draw_line_bresenham_solid(x0 + ox, y0 + oy, x1 + ox, y1 + oy, color);
+    }
 }
 
 void GCodeLayerRenderer::draw_line_bresenham_solid(int x0, int y0, int x1, int y1, uint32_t color) {

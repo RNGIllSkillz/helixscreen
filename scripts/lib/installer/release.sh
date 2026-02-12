@@ -124,30 +124,30 @@ show_manual_install_instructions() {
     echo ""
     log_info "To install HelixScreen, download the release on another computer"
     log_info "and copy it to this device:"
-    echo ""
-    echo "  1. Download the release:"
+    printf '\n'
+    printf '%b\n' "  1. Download the release:"
     if [ "$version" = "latest" ]; then
-        echo "     ${CYAN}https://github.com/${GITHUB_REPO}/releases/latest${NC}"
+        printf '%b\n' "     ${CYAN}https://github.com/${GITHUB_REPO}/releases/latest${NC}"
     else
-        echo "     ${CYAN}https://github.com/${GITHUB_REPO}/releases/tag/${version}${NC}"
+        printf '%b\n' "     ${CYAN}https://github.com/${GITHUB_REPO}/releases/tag/${version}${NC}"
     fi
-    echo ""
-    echo "  2. Download: ${BOLD}helixscreen-${platform}-${version}.tar.gz${NC}"
-    echo ""
-    echo "  3. Copy to this device (note: AD5M needs -O flag):"
+    printf '\n'
+    printf '%b\n' "  2. Download: ${BOLD}helixscreen-${platform}-${version}.tar.gz${NC}"
+    printf '\n'
+    printf '%b\n' "  3. Copy to this device (note: AD5M needs -O flag):"
     if [ "$platform" = "ad5m" ]; then
         # AD5M /tmp is a tiny tmpfs (~54MB), use /data/ instead
-        echo "     ${CYAN}scp -O helixscreen-${platform}.tar.gz root@<this-ip>:/data/${NC}"
-        echo ""
-        echo "  4. Run the installer with the local file:"
-        echo "     ${CYAN}sh /data/install.sh --local /data/helixscreen-${platform}.tar.gz${NC}"
+        printf '%b\n' "     ${CYAN}scp -O helixscreen-${platform}.tar.gz root@<this-ip>:/data/${NC}"
+        printf '\n'
+        printf '%b\n' "  4. Run the installer with the local file:"
+        printf '%b\n' "     ${CYAN}sh /data/install.sh --local /data/helixscreen-${platform}.tar.gz${NC}"
     else
-        echo "     ${CYAN}scp helixscreen-${platform}.tar.gz root@<this-ip>:/tmp/${NC}"
-        echo ""
-        echo "  4. Run the installer with the local file:"
-        echo "     ${CYAN}sh /tmp/install.sh --local /tmp/helixscreen-${platform}.tar.gz${NC}"
+        printf '%b\n' "     ${CYAN}scp helixscreen-${platform}.tar.gz root@<this-ip>:/tmp/${NC}"
+        printf '\n'
+        printf '%b\n' "  4. Run the installer with the local file:"
+        printf '%b\n' "     ${CYAN}sh /tmp/install.sh --local /tmp/helixscreen-${platform}.tar.gz${NC}"
     fi
-    echo ""
+    printf '\n'
     exit 1
 }
 
@@ -398,6 +398,27 @@ extract_release() {
     local extract_dir="${TMP_DIR}/extract"
     local new_install="${extract_dir}/helixscreen"
 
+    # Pre-flight: check TMP_DIR has enough space for extraction
+    # Tarball expands ~3x, so require 3x tarball size + margin
+    local tarball_mb extract_required_mb tmp_available_mb
+    tarball_mb=$(du -m "$tarball" 2>/dev/null | awk '{print $1}')
+    [ -z "$tarball_mb" ] && tarball_mb=$(ls -l "$tarball" | awk '{print int($5/1048576)}')
+    extract_required_mb=$(( (tarball_mb * 3) + 20 ))
+
+    local tmp_check_dir
+    tmp_check_dir=$(dirname "$TMP_DIR")
+    while [ ! -d "$tmp_check_dir" ] && [ "$tmp_check_dir" != "/" ]; do
+        tmp_check_dir=$(dirname "$tmp_check_dir")
+    done
+    tmp_available_mb=$(df "$tmp_check_dir" 2>/dev/null | tail -1 | awk '{print int($4/1024)}')
+
+    if [ -n "$tmp_available_mb" ] && [ "$tmp_available_mb" -lt "$extract_required_mb" ]; then
+        log_error "Not enough space in temp directory for extraction."
+        log_error "Temp directory: $tmp_check_dir (${tmp_available_mb}MB free, need ${extract_required_mb}MB)"
+        log_error "Try: TMP_DIR=/path/with/space sh install.sh ..."
+        exit 1
+    fi
+
     log_info "Extracting release..."
 
     # Phase 1: Extract to temporary directory
@@ -406,16 +427,33 @@ extract_release() {
 
     if [ "$platform" = "ad5m" ] || [ "$platform" = "k1" ]; then
         # BusyBox tar doesn't support -z
-        if ! gunzip -c "$tarball" | $SUDO tar xf -; then
-            log_error "Failed to extract tarball."
-            log_error "The archive may be corrupted."
+        if ! gunzip -c "$tarball" | tar xf -; then
+            # Check if it was a space issue vs actual corruption
+            local post_mb
+            post_mb=$(df "$tmp_check_dir" 2>/dev/null | tail -1 | awk '{print int($4/1024)}')
+            if [ -n "$post_mb" ] && [ "$post_mb" -lt 5 ]; then
+                log_error "Failed to extract tarball: no space left on device."
+                log_error "Filesystem $(df "$tmp_check_dir" | tail -1 | awk '{print $1}') is full."
+                log_error "Try: TMP_DIR=/path/with/space sh install.sh ..."
+            else
+                log_error "Failed to extract tarball."
+                log_error "The archive may be corrupted. Try re-downloading."
+            fi
             rm -rf "$extract_dir"
             exit 1
         fi
     else
-        if ! $SUDO tar -xzf "$tarball"; then
-            log_error "Failed to extract tarball."
-            log_error "The archive may be corrupted."
+        if ! tar -xzf "$tarball"; then
+            local post_mb
+            post_mb=$(df "$tmp_check_dir" 2>/dev/null | tail -1 | awk '{print int($4/1024)}')
+            if [ -n "$post_mb" ] && [ "$post_mb" -lt 5 ]; then
+                log_error "Failed to extract tarball: no space left on device."
+                log_error "Filesystem $(df "$tmp_check_dir" | tail -1 | awk '{print $1}') is full."
+                log_error "Try: TMP_DIR=/path/with/space sh install.sh ..."
+            else
+                log_error "Failed to extract tarball."
+                log_error "The archive may be corrupted. Try re-downloading."
+            fi
             rm -rf "$extract_dir"
             exit 1
         fi

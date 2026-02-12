@@ -31,8 +31,8 @@
     <header_bar name="overlay_header" title="Bed Screw Adjustment" title_tag="Bed Screw Adjustment"/>
     <!-- Content Area -->
     <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_md"
-            style_pad_bottom="#space_md" flex_flow="column" style_pad_gap="#space_md" scrollable="false">
+            width="100%" flex_grow="1" style_pad_all="#space_lg"
+            flex_flow="column" style_pad_gap="#space_md" scrollable="false">
       <!-- ================================================================== -->
       <!-- STATE: IDLE - Instructions and Start Button -->
       <!-- ================================================================== -->
@@ -175,7 +175,7 @@
             <ui_button name="btn_done_results" width="100" height="#button_height_sm" text="Done" translation_tag="Done">
               <event_cb trigger="clicked" callback="screws_tilt_done_cb"/>
             </ui_button>
-            <ui_button name="btn_reprobe" width="120" height="#button_height_sm" text="Re-probe" translation_tag="Re-probe">
+            <ui_button name="btn_reprobe" width="25%" height="#button_height_sm" text="Re-probe" translation_tag="Re-probe">
               <event_cb trigger="clicked" callback="screws_tilt_reprobe_cb"/>
             </ui_button>
           </lv_obj>

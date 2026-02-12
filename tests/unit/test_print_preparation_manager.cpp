@@ -2,7 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_print_preparation_manager.h"
-#include "ui_update_queue.h"
+
+#include "../test_helpers/printer_state_test_access.h"
+
+class PrintPreparationManagerTestAccess {
+  public:
+    static std::vector<std::pair<std::string, std::string>>
+    get_skip_params(const helix::ui::PrintPreparationManager& m) {
+        return m.collect_macro_skip_params();
+    }
+};
 
 #include "../mocks/mock_websocket_server.h"
 #include "../ui_test_utils.h"
@@ -587,7 +596,7 @@ TEST_CASE("PrintPreparationManager: move assignment", "[print_preparation][lifec
  *
  * The printer_database.json uses capability keys that match category_to_string() output:
  *   - category_to_string(PrintStartOpCategory::BED_MESH) returns "bed_mesh"
- *   - Database entry: "bed_mesh": { "param": "FORCE_LEVELING", ... }
+ *   - Database entry: "bed_mesh": { "param": "SKIP_LEVELING", ... }
  *
  * But collect_macro_skip_params() at line 878 uses has_capability("bed_leveling")
  * which will always return false because the key doesn't exist in the database.
@@ -753,7 +762,7 @@ TEST_CASE("PrintPreparationManager: capabilities come from PrinterState",
 
     // Create PrinterState and initialize subjects (without XML registration for tests)
     PrinterState& printer_state = get_printer_state();
-    printer_state.reset_for_testing();
+    PrinterStateTestAccess::reset(printer_state);
     printer_state.init_subjects(false);
 
     // Create manager and set dependencies
@@ -810,7 +819,7 @@ TEST_CASE("PrintPreparationManager: capabilities update when PrinterState type c
 
     // Create PrinterState and initialize subjects
     PrinterState& printer_state = get_printer_state();
-    printer_state.reset_for_testing();
+    PrinterStateTestAccess::reset(printer_state);
     printer_state.init_subjects(false);
 
     // Create manager and set dependencies
@@ -1001,7 +1010,7 @@ TEST_CASE("PrintPreparationManager: priority order consistency",
         // AD5M Pro has bed_mesh capability
         REQUIRE(caps.has_capability("bed_mesh"));
 
-        // The capability should have a param name (FORCE_LEVELING)
+        // The capability should have a param name (SKIP_LEVELING)
         auto* bed_cap = caps.get_capability("bed_mesh");
         REQUIRE(bed_cap != nullptr);
         REQUIRE_FALSE(bed_cap->param.empty());
@@ -1193,7 +1202,7 @@ class MacroAnalysisRetryFixture {
         server_.reset();
 
         // Drain pending callbacks
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         // Shutdown queue
         ui_update_queue_shutdown();
@@ -1206,16 +1215,20 @@ class MacroAnalysisRetryFixture {
      * @brief Drain pending UI updates (simulates main loop iteration)
      */
     void drain_queue() {
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
-        lv_timer_handler(); // Process LVGL timers for retry scheduling
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+        lv_timer_handler_safe(); // Process LVGL timers for retry scheduling
     }
 
     /**
-     * @brief Wait for condition with queue draining
+     * @brief Wait for condition with queue draining and tick advancement
+     *
+     * Advances LVGL tick counter alongside real time so timer-based
+     * retries (lv_timer_create) fire at the right moment.
      */
     bool wait_for(std::function<bool()> condition, int timeout_ms = 5000) {
         auto start = std::chrono::steady_clock::now();
         while (!condition()) {
+            lv_tick_inc(10); // Advance LVGL tick to allow timer-based retries
             drain_queue();
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -1356,6 +1369,7 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
         // Wait for callback - use longer timeout and debug
         auto start = std::chrono::steady_clock::now();
         while (!callback_invoked.load()) {
+            lv_tick_inc(10);
             drain_queue();
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -1375,7 +1389,9 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
         REQUIRE(get_list_files_call_count() == 1);
         REQUIRE(callback_found == false); // No config files = no macro found
         REQUIRE(manager_.is_macro_analysis_in_progress() == false);
-        REQUIRE(manager_.has_macro_analysis() == true); // Has result, just found=false
+        // Analysis completed but found=false; has_macro_analysis() requires found==true
+        // so verify completion via get_macro_analysis() instead
+        REQUIRE(manager_.get_macro_analysis().has_value());
     }
 }
 
@@ -1404,7 +1420,7 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
         REQUIRE(get_list_files_call_count() == 2);
         REQUIRE(callback_found == false); // Empty list = no macro found
         REQUIRE(manager_.is_macro_analysis_in_progress() == false);
-        REQUIRE(manager_.has_macro_analysis() == true);
+        REQUIRE(manager_.get_macro_analysis().has_value());
     }
 }
 
@@ -1433,7 +1449,7 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
         REQUIRE(get_list_files_call_count() == 3);
         REQUIRE(callback_found == false); // All attempts failed
         REQUIRE(manager_.is_macro_analysis_in_progress() == false);
-        REQUIRE(manager_.has_macro_analysis() == true); // Has result with found=false
+        REQUIRE(manager_.get_macro_analysis().has_value()); // Has result with found=false
     }
 }
 
@@ -1494,6 +1510,7 @@ TEST_CASE_METHOD(MacroAnalysisRetryFixture,
 
         // Wait a short time for first failure to process (but not for retry to complete)
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        lv_tick_inc(500); // Advance LVGL tick to match real time elapsed
         drain_queue();
 
         // During retry delay, should STILL be in progress
@@ -1849,7 +1866,7 @@ TEST_CASE("PrintPreparationManager: hidden options don't produce macro skip para
         lv_subject_set_int(&subjects.can_show_bed_mesh, 0); // hidden (plugin not installed)
         lv_subject_set_int(&subjects.preprint_bed_mesh, 0); // unchecked
 
-        auto skip_params = manager.get_skip_params_for_testing();
+        auto skip_params = PrintPreparationManagerTestAccess::get_skip_params(manager);
 
         // Should be EMPTY - hidden means not applicable, not "user disabled"
         REQUIRE(skip_params.empty());
@@ -1859,7 +1876,7 @@ TEST_CASE("PrintPreparationManager: hidden options don't produce macro skip para
         lv_subject_set_int(&subjects.can_show_bed_mesh, 0); // hidden
         lv_subject_set_int(&subjects.preprint_bed_mesh, 1); // checked (irrelevant)
 
-        auto skip_params = manager.get_skip_params_for_testing();
+        auto skip_params = PrintPreparationManagerTestAccess::get_skip_params(manager);
         REQUIRE(skip_params.empty());
     }
 
@@ -1867,7 +1884,7 @@ TEST_CASE("PrintPreparationManager: hidden options don't produce macro skip para
         lv_subject_set_int(&subjects.can_show_bed_mesh, 1); // visible
         lv_subject_set_int(&subjects.preprint_bed_mesh, 0); // unchecked = user wants to skip
 
-        auto skip_params = manager.get_skip_params_for_testing();
+        auto skip_params = PrintPreparationManagerTestAccess::get_skip_params(manager);
 
         REQUIRE(skip_params.size() == 1);
         REQUIRE(skip_params[0].first == "SKIP_BED_MESH");
@@ -1878,7 +1895,7 @@ TEST_CASE("PrintPreparationManager: hidden options don't produce macro skip para
         lv_subject_set_int(&subjects.can_show_bed_mesh, 1); // visible
         lv_subject_set_int(&subjects.preprint_bed_mesh, 1); // checked = user wants operation
 
-        auto skip_params = manager.get_skip_params_for_testing();
+        auto skip_params = PrintPreparationManagerTestAccess::get_skip_params(manager);
         REQUIRE(skip_params.empty());
     }
 }
@@ -2019,7 +2036,7 @@ TEST_CASE("PrintPreparationManager: build_capability_matrix", "[print_preparatio
     SECTION("Includes database capabilities when printer detected") {
         // Set up manager with PrinterState that has a known printer type
         PrinterState& printer_state = get_printer_state();
-        printer_state.reset_for_testing();
+        PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false); // No XML registration for tests
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
 
@@ -2035,7 +2052,7 @@ TEST_CASE("PrintPreparationManager: build_capability_matrix", "[print_preparatio
         auto source = matrix.get_best_source(OperationCategory::BED_MESH);
         REQUIRE(source.has_value());
         REQUIRE(source->origin == CapabilityOrigin::DATABASE);
-        REQUIRE(source->param_name == "FORCE_LEVELING");
+        REQUIRE(source->param_name == "SKIP_LEVELING");
     }
 
     SECTION("Includes macro analysis when available") {
@@ -2106,7 +2123,7 @@ TEST_CASE("PrintPreparationManager: capability priority ordering", "[print_prepa
     SECTION("Database takes priority over macro analysis") {
         // Set up PrinterState with AD5M Pro (has database bed_mesh capability)
         PrinterState& printer_state = get_printer_state();
-        printer_state.reset_for_testing();
+        PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2130,11 +2147,11 @@ TEST_CASE("PrintPreparationManager: capability priority ordering", "[print_prepa
 
         auto matrix = manager.build_capability_matrix();
 
-        // Database should win - FORCE_LEVELING, not SKIP_BED_MESH
+        // Database should win - SKIP_LEVELING, not SKIP_BED_MESH
         auto source = matrix.get_best_source(OperationCategory::BED_MESH);
         REQUIRE(source.has_value());
         REQUIRE(source->origin == CapabilityOrigin::DATABASE);
-        REQUIRE(source->param_name == "FORCE_LEVELING");
+        REQUIRE(source->param_name == "SKIP_LEVELING");
 
         // But both sources should exist
         auto all_sources = matrix.get_all_sources(OperationCategory::BED_MESH);
@@ -2205,7 +2222,7 @@ TEST_CASE("PrintPreparationManager: collect_macro_skip_params with matrix",
     SECTION("Returns skip params from best source") {
         // Set up PrinterState with AD5M Pro (database source)
         PrinterState& printer_state = get_printer_state();
-        printer_state.reset_for_testing();
+        PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2215,24 +2232,24 @@ TEST_CASE("PrintPreparationManager: collect_macro_skip_params with matrix",
         lv_subject_set_int(&subjects.preprint_bed_mesh, 0); // unchecked = skip
 
         // NOTE: collect_macro_skip_params() is private. This test uses the new
-        // public test accessor method: get_skip_params_for_testing()
+        // Test accessor: PrintPreparationManagerTestAccess::get_skip_params()
         // Implementation should add this method or make collect_macro_skip_params public.
-        auto skip_params = manager.get_skip_params_for_testing();
+        auto skip_params = PrintPreparationManagerTestAccess::get_skip_params(manager);
 
         // Should have one param for bed_mesh using database source
         REQUIRE(skip_params.size() >= 1);
 
         // Find the bed_mesh param
-        bool found_force_leveling = false;
+        bool found_skip_leveling = false;
         for (const auto& [param, value] : skip_params) {
-            if (param == "FORCE_LEVELING") {
-                found_force_leveling = true;
-                // AD5M uses FORCE_LEVELING which is OPT_IN semantic
-                // When user unchecks, we need to set to skip_value ("false")
-                REQUIRE(value == "false");
+            if (param == "SKIP_LEVELING") {
+                found_skip_leveling = true;
+                // AD5M uses SKIP_LEVELING with OPT_OUT semantic
+                // When user unchecks, we set to skip_value ("1")
+                REQUIRE(value == "1");
             }
         }
-        REQUIRE(found_force_leveling);
+        REQUIRE(found_skip_leveling);
     }
 
     SECTION("Handles OPT_IN semantic correctly") {
@@ -2255,7 +2272,7 @@ TEST_CASE("PrintPreparationManager: collect_macro_skip_params with matrix",
         lv_subject_set_int(&subjects.can_show_bed_mesh, 1);
         lv_subject_set_int(&subjects.preprint_bed_mesh, 0); // unchecked
 
-        auto skip_params = manager.get_skip_params_for_testing();
+        auto skip_params = PrintPreparationManagerTestAccess::get_skip_params(manager);
 
         // Find the param
         bool found_force_bed_mesh = false;
@@ -2289,7 +2306,7 @@ TEST_CASE("PrintPreparationManager: collect_macro_skip_params with matrix",
         lv_subject_set_int(&subjects.can_show_bed_mesh, 1);
         lv_subject_set_int(&subjects.preprint_bed_mesh, 0); // unchecked
 
-        auto skip_params = manager.get_skip_params_for_testing();
+        auto skip_params = PrintPreparationManagerTestAccess::get_skip_params(manager);
 
         // Find the param
         bool found_skip_bed_mesh = false;
@@ -2346,7 +2363,7 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability", "[print_prepar
     SECTION("Returns skip param when operation disabled (visible + unchecked)") {
         // Set up PrinterState with AD5M Pro (has database capability for BED_MESH)
         PrinterState& printer_state = get_printer_state();
-        printer_state.reset_for_testing();
+        PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2361,16 +2378,16 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability", "[print_prepar
         // Should return a result with skip parameters
         REQUIRE(result.has_value());
         REQUIRE(result->should_skip == true);
-        REQUIRE(result->param_name == "FORCE_LEVELING");
-        // AD5M uses OPT_IN semantic: skip_value is "false" (FORCE_LEVELING=false means skip)
-        REQUIRE(result->skip_value == "false");
+        REQUIRE(result->param_name == "SKIP_LEVELING");
+        // AD5M uses OPT_OUT semantic: skip_value is "1" (SKIP_LEVELING=1 means skip)
+        REQUIRE(result->skip_value == "1");
         REQUIRE(result->source == CapabilityOrigin::DATABASE);
     }
 
     SECTION("Returns nullopt when operation hidden (visibility = 0)") {
         // Set up PrinterState with known printer
         PrinterState& printer_state = get_printer_state();
-        printer_state.reset_for_testing();
+        PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2389,7 +2406,7 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability", "[print_prepar
     SECTION("Returns nullopt when operation enabled (visible + checked)") {
         // Set up PrinterState with known printer
         PrinterState& printer_state = get_printer_state();
-        printer_state.reset_for_testing();
+        PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2455,7 +2472,7 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability", "[print_prepar
     SECTION("Uses best source based on priority (database over macro)") {
         // Set up PrinterState with AD5M Pro (database source)
         PrinterState& printer_state = get_printer_state();
-        printer_state.reset_for_testing();
+        PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2484,7 +2501,7 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability", "[print_prepar
         // Database should win over macro analysis
         REQUIRE(result.has_value());
         REQUIRE(result->source == CapabilityOrigin::DATABASE);
-        REQUIRE(result->param_name == "FORCE_LEVELING"); // Database param, not SKIP_BED_MESH
+        REQUIRE(result->param_name == "SKIP_LEVELING"); // Database param, not SKIP_BED_MESH
     }
 
     SECTION("Uses file scan as capability source when no other sources") {
@@ -2528,7 +2545,7 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability edge cases",
 
         // Set up a capability source
         PrinterState& printer_state = get_printer_state();
-        printer_state.reset_for_testing();
+        PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);
@@ -2643,7 +2660,7 @@ TEST_CASE("PrintPreparationManager: lookup_operation_capability with visibility-
     SECTION("Returns nullopt when checkbox subjects not set") {
         // Set up capability source
         PrinterState& printer_state = get_printer_state();
-        printer_state.reset_for_testing();
+        PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);
         printer_state.set_printer_type_sync("FlashForge Adventurer 5M Pro");
         manager.set_dependencies(nullptr, &printer_state);

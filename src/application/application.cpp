@@ -22,6 +22,7 @@
 #include "hardware_validator.h"
 #include "helix_version.h"
 #include "keyboard_shortcuts.h"
+#include "layout_manager.h"
 #include "moonraker_manager.h"
 #include "panel_factory.h"
 #include "print_history_manager.h"
@@ -589,6 +590,21 @@ bool Application::init_display() {
     m_screen_width = m_display->width();
     m_screen_height = m_display->height();
 
+    // Initialize layout manager (after display dimensions are known)
+    auto& layout_mgr = helix::LayoutManager::instance();
+    if (!m_args.layout.empty() && m_args.layout != "auto") {
+        layout_mgr.set_override(m_args.layout);
+    } else {
+        // Check config file for display.layout
+        std::string config_layout = m_config->get<std::string>("/display/layout", "auto");
+        if (config_layout != "auto") {
+            layout_mgr.set_override(config_layout);
+        }
+    }
+    layout_mgr.init(m_screen_width, m_screen_height);
+    spdlog::info("[Application] Layout: {} ({})", layout_mgr.name(),
+                 layout_mgr.is_standard() ? "default" : "override");
+
     // Register LVGL log handler AFTER lv_init() (called inside display->init())
     // Must be after lv_init() because it resets global state and clears callbacks
     helix::logging::register_lvgl_log_handler();
@@ -1141,7 +1157,6 @@ void Application::create_overlays() {
     if (m_args.overlays.pid) {
         auto& overlay = get_global_pid_cal_panel();
         // init_subjects already called by SubjectInitializer
-        overlay.set_client(m_moonraker->client());
         overlay.set_api(m_moonraker->api());
         if (overlay.create(m_screen)) {
             overlay.show();
@@ -1421,8 +1436,8 @@ void Application::setup_discovery_callbacks() {
                 get_printer_state().set_os_version(c->hardware.os_version());
             }
 
-            // Populate LED dropdown now that hardware is discovered
-            get_global_settings_panel().populate_led_dropdown();
+            // Populate LED chips now that hardware is discovered
+            get_global_settings_panel().populate_led_chips();
 
             // Fetch print hours now that connection is live, and refresh on job changes
             get_global_settings_panel().fetch_print_hours();

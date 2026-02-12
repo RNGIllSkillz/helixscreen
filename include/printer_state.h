@@ -202,12 +202,12 @@ class PrinterState {
     void init_subjects(bool register_xml = true);
 
     /**
-     * @brief Reset initialization state for testing
+     * @brief Deinitialize all subjects across all state components
      *
-     * FOR TESTING ONLY. Clears the initialization flag so init_subjects()
-     * can be called again after lv_init() creates a new LVGL context.
+     * Cascades to all 13 sub-component deinit_subjects() methods and
+     * then deinitializes PrinterState's own subjects.
      */
-    void reset_for_testing();
+    void deinit_subjects();
 
     /**
      * @brief Re-register temperature subjects with LVGL XML system
@@ -453,6 +453,12 @@ class PrinterState {
      */
     lv_subject_t* get_print_in_progress_subject() {
         return print_domain_.get_print_in_progress_subject();
+    }
+
+    // Filament used subject (from print_stats.filament_used, in mm)
+    // Delegated to PrinterPrintState component
+    lv_subject_t* get_print_filament_used_subject() {
+        return print_domain_.get_print_filament_used_subject();
     }
 
     // Layer tracking subjects (from print_stats.info.current_layer/total_layer)
@@ -1603,6 +1609,7 @@ class PrinterState {
     // from the main thread. The public methods (set_hardware, etc.) use
     // lv_async_call to defer to these internal methods, ensuring thread safety.
 
+    friend class PrinterStateTestAccess;
     friend void async_klipper_version_callback(void* user_data);
     friend void async_moonraker_version_callback(void* user_data);
     friend void async_klippy_state_callback(void* user_data);

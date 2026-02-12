@@ -5,7 +5,9 @@
 
 #include "ui_update_queue.h"
 
+#include "lib/lvgl/src/misc/lv_timer_private.h"
 #include "spdlog/spdlog.h"
+#include "test_helpers/update_queue_test_access.h"
 
 #include <chrono>
 #include <filesystem>
@@ -19,10 +21,62 @@ void lv_init_safe() {
     if (!lv_is_initialized()) {
         lv_init();
     }
-    // Initialize UI update queue for async operations in tests
-    // This must be called inside lv_init_safe() because drain_queue_for_testing()
-    // depends on the queue being initialized
-    ui_update_queue_init();
+    // UpdateQueue init is handled by LVGLTestFixture constructor per-test,
+    // NOT here. Having it here (called once via call_once) conflicts with
+    // the per-test shutdown/reinit lifecycle in the fixture destructor.
+}
+
+uint32_t lv_timer_handler_safe() {
+    // Drain the UpdateQueue — executes pending callbacks which set subjects.
+    // Subject observers fire synchronously during drain, propagating bindings.
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    // Pause ALL timers to prevent infinite handler loops, then selectively
+    // execute one-shot timers (lv_async_call, retry timers) manually.
+    //
+    // Background: LVGL's test fixture leaks display refresh timers with stale
+    // last_run timestamps. When lv_timer_handler()'s do-while loop processes
+    // them all simultaneously, any timer fire that creates/deletes a timer
+    // restarts the loop from the head — infinite loop.
+    lv_timer_t* t = lv_timer_get_next(nullptr);
+    while (t) {
+        lv_timer_pause(t);
+        t = lv_timer_get_next(t);
+    }
+
+    // Execute one-shot timers (repeat_count >= 1) that are ready.
+    // These include lv_async_call (period=0, repeat=1) and scheduled
+    // retry timers. Process in a loop since callbacks may create new ones.
+    uint32_t now = lv_tick_get();
+    for (int safety = 0; safety < 100; safety++) {
+        bool found = false;
+        t = lv_timer_get_next(nullptr);
+        while (t) {
+            lv_timer_t* next = lv_timer_get_next(t); // Save next before potential deletion
+            if (t->repeat_count > 0 && (now - t->last_run >= t->period)) {
+                if (t->timer_cb) {
+                    t->timer_cb(t);
+                    found = true;
+                    break; // Restart iteration since list may have changed
+                }
+            }
+            t = next;
+        }
+        if (!found)
+            break; // No more ready one-shot timers
+    }
+
+    // Call lv_timer_handler() with all timers paused (no-op, just updates state)
+    uint32_t result = lv_timer_handler();
+
+    // Resume all timers
+    t = lv_timer_get_next(nullptr);
+    while (t) {
+        lv_timer_resume(t);
+        t = lv_timer_get_next(t);
+    }
+
+    return result;
 }
 
 namespace UITest {
@@ -103,13 +157,13 @@ bool click_at(int32_t x, int32_t y) {
     last_data.point.x = x;
     last_data.point.y = y;
     last_data.state = LV_INDEV_STATE_PRESSED;
-    lv_timer_handler(); // Process press event
-    wait_ms(50);        // Minimum press duration
+    lv_indev_read(virtual_indev); // Directly read indev to process press
+    wait_ms(50);                  // Minimum press duration
 
     // Simulate release
     last_data.state = LV_INDEV_STATE_RELEASED;
-    lv_timer_handler(); // Process release event
-    wait_ms(50);        // Allow click handlers to execute
+    lv_indev_read(virtual_indev); // Directly read indev to process release
+    wait_ms(50);                  // Allow click handlers to execute
 
     spdlog::debug("[UITest] Click simulation complete");
     return true;
@@ -133,7 +187,7 @@ bool type_text(const std::string& text) {
 
     // Add text directly to textarea
     lv_textarea_add_text(focused, text.c_str());
-    lv_timer_handler();
+    lv_timer_handler_safe();
     wait_ms(50); // Allow text processing
 
     return true;
@@ -155,7 +209,7 @@ bool type_text(lv_obj_t* textarea, const std::string& text) {
 
     // Add text directly to textarea
     lv_textarea_add_text(textarea, text.c_str());
-    lv_timer_handler();
+    lv_timer_handler_safe();
     wait_ms(50); // Allow text processing
 
     return true;
@@ -179,7 +233,7 @@ bool send_key(uint32_t key) {
             // Trigger READY event on textarea
             lv_obj_send_event(focused, LV_EVENT_READY, nullptr);
         }
-        lv_timer_handler();
+        lv_timer_handler_safe();
         wait_ms(50);
         return true;
     }
@@ -193,7 +247,7 @@ void wait_ms(uint32_t ms) {
     auto end = start + std::chrono::milliseconds(ms);
 
     while (std::chrono::steady_clock::now() < end) {
-        lv_timer_handler(); // Process LVGL tasks
+        lv_timer_handler_safe(); // Process LVGL tasks
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 }
@@ -203,7 +257,7 @@ bool wait_until(std::function<bool()> condition, uint32_t timeout_ms) {
     auto end = start + std::chrono::milliseconds(timeout_ms);
 
     while (std::chrono::steady_clock::now() < end) {
-        lv_timer_handler(); // Process LVGL tasks
+        lv_timer_handler_safe(); // Process LVGL tasks
 
         if (condition()) {
             return true; // Condition met
@@ -241,7 +295,7 @@ bool wait_for_timers(uint32_t timeout_ms) {
     auto end = start + std::chrono::milliseconds(timeout_ms);
 
     while (std::chrono::steady_clock::now() < end) {
-        uint32_t next_timer = lv_timer_handler();
+        uint32_t next_timer = lv_timer_handler_safe();
 
         // If next timer is in the far future (> 1 second), no active timers
         if (next_timer > 1000) {
@@ -459,27 +513,143 @@ bool ToastManager::is_visible() const {
 // Stub implementations for EmergencyStopOverlay (tests don't use the overlay)
 #include "ui_emergency_stop.h"
 
-// Minimal stub EmergencyStopOverlay singleton for test linking
-class EmergencyStopOverlayStub {
-  public:
-    static EmergencyStopOverlayStub& instance() {
-        static EmergencyStopOverlayStub stub;
-        return stub;
-    }
-    void set_require_confirmation(bool /* require */) {
-        // No-op in tests
-    }
-};
+// The real EmergencyStopOverlay singleton is used - all methods are provided
+// as stubs that satisfy the linker. Tests that need real behavior should
+// call the methods directly (they're safe with LVGL initialized).
 
-// Provide the real EmergencyStopOverlay interface as stubs
 EmergencyStopOverlay& EmergencyStopOverlay::instance() {
-    // Cast is safe because we only use no-op methods that match the interface
-    return reinterpret_cast<EmergencyStopOverlay&>(EmergencyStopOverlayStub::instance());
+    static EmergencyStopOverlay inst;
+    return inst;
 }
 
-void EmergencyStopOverlay::set_require_confirmation(bool /* require */) {
-    // No-op in tests
+void EmergencyStopOverlay::init(PrinterState& /* printer_state */, MoonrakerAPI* /* api */) {}
+
+void EmergencyStopOverlay::init_subjects() {
+    if (subjects_initialized_)
+        return;
+    UI_MANAGED_SUBJECT_INT(estop_visible_, 0, "estop_visible", subjects_);
+    UI_MANAGED_SUBJECT_STRING(recovery_title_subject_, recovery_title_buf_, "Printer Shutdown",
+                              "recovery_title", subjects_);
+    UI_MANAGED_SUBJECT_STRING(recovery_message_subject_, recovery_message_buf_, "",
+                              "recovery_message", subjects_);
+    UI_MANAGED_SUBJECT_INT(recovery_can_restart_, 1, "recovery_can_restart", subjects_);
+    subjects_initialized_ = true;
 }
+
+void EmergencyStopOverlay::deinit_subjects() {
+    if (!subjects_initialized_)
+        return;
+    // Reset dialog state — screen destruction invalidates these pointers
+    recovery_dialog_ = nullptr;
+    confirmation_dialog_ = nullptr;
+    recovery_reason_ = RecoveryReason::NONE;
+    suppress_recovery_until_ = 0;
+    restart_in_progress_ = false;
+    subjects_.deinit_all();
+    subjects_initialized_ = false;
+}
+void EmergencyStopOverlay::create() {}
+void EmergencyStopOverlay::update_visibility() {}
+void EmergencyStopOverlay::set_require_confirmation(bool /* require */) {}
+
+void EmergencyStopOverlay::show_recovery_for(RecoveryReason reason) {
+    if (is_recovery_suppressed())
+        return;
+
+    // If dialog already showing, update reason if connection dropped
+    if (recovery_dialog_) {
+        if (reason == RecoveryReason::DISCONNECTED &&
+            recovery_reason_ == RecoveryReason::SHUTDOWN) {
+            recovery_reason_ = RecoveryReason::DISCONNECTED;
+            ui_async_call(
+                [](void*) { EmergencyStopOverlay::instance().update_recovery_dialog_content(); },
+                nullptr);
+        }
+        return;
+    }
+
+    recovery_reason_ = reason;
+    ui_async_call(
+        [](void*) {
+            auto& inst = EmergencyStopOverlay::instance();
+            if (inst.recovery_dialog_)
+                return;
+            inst.show_recovery_dialog();
+            inst.update_recovery_dialog_content();
+        },
+        nullptr);
+}
+
+void EmergencyStopOverlay::suppress_recovery_dialog(uint32_t duration_ms) {
+    suppress_recovery_until_ = lv_tick_get() + duration_ms;
+}
+
+bool EmergencyStopOverlay::is_recovery_suppressed() const {
+    if (suppress_recovery_until_ == 0)
+        return false;
+    return lv_tick_elaps(suppress_recovery_until_) > (UINT32_MAX / 2);
+}
+
+void EmergencyStopOverlay::show_recovery_dialog() {
+    if (recovery_dialog_)
+        return;
+    lv_obj_t* screen = lv_screen_active();
+    recovery_dialog_ =
+        static_cast<lv_obj_t*>(lv_xml_create(screen, "klipper_recovery_dialog", nullptr));
+    if (recovery_dialog_) {
+        lv_obj_set_name(recovery_dialog_, "klipper_recovery_backdrop");
+        lv_obj_move_foreground(recovery_dialog_);
+    }
+    if (recovery_dialog_) {
+        lv_obj_move_foreground(recovery_dialog_);
+    }
+}
+
+void EmergencyStopOverlay::dismiss_recovery_dialog() {
+    if (recovery_dialog_) {
+        lv_obj_delete(recovery_dialog_);
+        recovery_dialog_ = nullptr;
+        recovery_reason_ = RecoveryReason::NONE;
+    }
+}
+
+void EmergencyStopOverlay::update_recovery_dialog_content() {
+    const char* title = "Printer Error";
+    const char* message = "An unexpected printer error occurred.";
+
+    if (recovery_reason_ == RecoveryReason::SHUTDOWN) {
+        title = "Printer Shutdown";
+        message = "Klipper has entered shutdown state.";
+    } else if (recovery_reason_ == RecoveryReason::DISCONNECTED) {
+        title = "Printer Firmware Disconnected";
+        message = "Klipper firmware has disconnected from the host.";
+    }
+
+    // Update subjects — XML bindings react automatically
+    lv_subject_copy_string(&recovery_title_subject_, title);
+    lv_subject_copy_string(&recovery_message_subject_, message);
+    lv_subject_set_int(&recovery_can_restart_,
+                       recovery_reason_ != RecoveryReason::DISCONNECTED ? 1 : 0);
+}
+
+// Remaining methods are no-ops (button handlers, etc.)
+void EmergencyStopOverlay::handle_click() {}
+void EmergencyStopOverlay::execute_emergency_stop() {}
+void EmergencyStopOverlay::show_confirmation_dialog() {}
+void EmergencyStopOverlay::dismiss_confirmation_dialog() {}
+void EmergencyStopOverlay::restart_klipper() {}
+void EmergencyStopOverlay::firmware_restart() {}
+
+void EmergencyStopOverlay::emergency_stop_clicked(lv_event_t*) {}
+void EmergencyStopOverlay::estop_dialog_cancel_clicked(lv_event_t*) {}
+void EmergencyStopOverlay::estop_dialog_confirm_clicked(lv_event_t*) {}
+void EmergencyStopOverlay::recovery_restart_klipper_clicked(lv_event_t*) {}
+void EmergencyStopOverlay::recovery_firmware_restart_clicked(lv_event_t*) {}
+void EmergencyStopOverlay::recovery_dismiss_clicked(lv_event_t*) {}
+void EmergencyStopOverlay::advanced_estop_clicked(lv_event_t*) {}
+void EmergencyStopOverlay::advanced_restart_klipper_clicked(lv_event_t*) {}
+void EmergencyStopOverlay::advanced_firmware_restart_clicked(lv_event_t*) {}
+void EmergencyStopOverlay::home_firmware_restart_clicked(lv_event_t*) {}
 
 // Text input widget implementation for tests
 // This is a full implementation, not a stub, because tests need to actually

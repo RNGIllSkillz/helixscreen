@@ -3,9 +3,12 @@
 
 #pragma once
 
+#include "ui_frequency_response_chart.h"
+
 #include "calibration_types.h" // For InputShaperResult
 #include "input_shaper_calibrator.h"
 #include "overlay_base.h"
+#include "platform_capabilities.h"
 #include "subject_managed_panel.h"
 
 #include <array>
@@ -56,17 +59,6 @@ class InputShaperPanel : public OverlayBase {
         MEASURING, ///< SHAPER_CALIBRATE or MEASURE_AXES_NOISE running
         RESULTS,   ///< Showing calibration recommendations
         ERROR      ///< Error occurred
-    };
-
-    /**
-     * @brief Parsed shaper result for display
-     */
-    struct ShaperFit {
-        std::string type;            ///< Shaper type (zv, mzv, ei, 2hump_ei, 3hump_ei)
-        float frequency = 0.0f;      ///< Recommended frequency in Hz
-        float vibrations = 0.0f;     ///< Remaining vibrations percentage
-        float smoothing = 0.0f;      ///< Smoothing value (lower is better)
-        bool is_recommended = false; ///< True if this is the recommended shaper
     };
 
     InputShaperPanel() = default;
@@ -155,14 +147,18 @@ class InputShaperPanel : public OverlayBase {
 
     void handle_calibrate_x_clicked();
     void handle_calibrate_y_clicked();
+    void handle_calibrate_all_clicked();
     void handle_measure_noise_clicked();
     void handle_cancel_clicked();
     void handle_apply_clicked();
     void handle_close_clicked();
     void handle_retry_clicked();
     void handle_save_config_clicked();
+    void handle_save_clicked();
     void handle_print_test_pattern_clicked();
     void handle_help_clicked();
+    void handle_chip_x_clicked(int index);
+    void handle_chip_y_clicked(int index);
 
   private:
     // Subject manager for RAII cleanup
@@ -179,14 +175,27 @@ class InputShaperPanel : public OverlayBase {
     void apply_recommendation();
     void save_configuration();
 
+    // Pre-flight noise check + calibration chain
+    void start_with_preflight(char axis);
+    void calibrate_all();
+    void on_preflight_complete(float noise_level);
+    void on_preflight_error(const std::string& message);
+    void continue_calibrate_all_y();
+    void apply_y_after_x();
+
     // Result callbacks (from MoonrakerAPI)
     void on_calibration_result(const InputShaperResult& result);
     void on_calibration_error(const std::string& message);
 
     // UI update helpers
-    void populate_results();
+    void populate_current_config(const InputShaperConfig& config);
     void clear_results();
-    void update_status_label(const std::string& text);
+
+    // Per-axis result helpers
+    static const char* get_shaper_explanation(const std::string& type);
+    static int get_vibration_quality(float vibrations);
+    static const char* get_quality_description(float vibrations);
+    void populate_axis_result(char axis, const InputShaperResult& result);
 
     // Widget/client references (overlay_root_ inherited from OverlayBase)
     lv_obj_t* parent_screen_ = nullptr;
@@ -196,32 +205,135 @@ class InputShaperPanel : public OverlayBase {
     // Private setup helper (called by create())
     void setup_widgets();
 
-    // Display elements
-    lv_obj_t* status_label_ = nullptr;
-    lv_obj_t* error_message_ = nullptr;
-    lv_obj_t* recommendation_label_ = nullptr;
-
-    // Subjects for reactive bindings
+    // Per-axis comparison table subjects (5 rows per axis, bound in XML)
     static constexpr size_t MAX_SHAPERS = 5;
-    static constexpr size_t SHAPER_TYPE_BUF_SIZE = 16;
-    static constexpr size_t SHAPER_VALUE_BUF_SIZE = 16;
+    static constexpr size_t CMP_TYPE_BUF = 24;
+    static constexpr size_t CMP_VALUE_BUF = 24;
 
-    std::array<lv_subject_t, MAX_SHAPERS> shaper_visible_subjects_;
-    std::array<lv_subject_t, MAX_SHAPERS> shaper_type_subjects_;
-    std::array<lv_subject_t, MAX_SHAPERS> shaper_freq_subjects_;
-    std::array<lv_subject_t, MAX_SHAPERS> shaper_vib_subjects_;
+    struct ComparisonRow {
+        char type_buf[CMP_TYPE_BUF] = {};
+        lv_subject_t type{};
+        char freq_buf[CMP_VALUE_BUF] = {};
+        lv_subject_t freq{};
+        char vib_buf[CMP_VALUE_BUF] = {};
+        lv_subject_t vib{};
+        char accel_buf[CMP_VALUE_BUF] = {};
+        lv_subject_t accel{};
+    };
 
-    // Fixed char arrays for string subjects
-    char shaper_type_bufs_[MAX_SHAPERS][SHAPER_TYPE_BUF_SIZE] = {};
-    char shaper_freq_bufs_[MAX_SHAPERS][SHAPER_VALUE_BUF_SIZE] = {};
-    char shaper_vib_bufs_[MAX_SHAPERS][SHAPER_VALUE_BUF_SIZE] = {};
+    std::array<ComparisonRow, MAX_SHAPERS> x_cmp_;
+    std::array<ComparisonRow, MAX_SHAPERS> y_cmp_;
+
+    // Error message subject (replaces imperative lv_label_set_text)
+    char is_error_message_buf_[128] = {};
+    lv_subject_t is_error_message_{};
+
+    // Current config display subjects
+    lv_subject_t is_shaper_configured_{};
+    char is_current_x_type_buf_[32] = {};
+    lv_subject_t is_current_x_type_{};
+    char is_current_x_freq_buf_[32] = {};
+    lv_subject_t is_current_x_freq_{};
+    char is_current_y_type_buf_[32] = {};
+    lv_subject_t is_current_y_type_{};
+    char is_current_y_freq_buf_[32] = {};
+    lv_subject_t is_current_y_freq_{};
+    char is_current_max_accel_buf_[32] = {};
+    lv_subject_t is_current_max_accel_{};
+
+    // Measuring state labels
+    char is_measuring_axis_label_buf_[64] = {};
+    lv_subject_t is_measuring_axis_label_{};
+    char is_measuring_step_label_buf_[64] = {};
+    lv_subject_t is_measuring_step_label_{};
+    lv_subject_t is_measuring_progress_{};
+
+    // Per-axis result subjects
+    lv_subject_t is_results_has_x_{};
+    lv_subject_t is_results_has_y_{};
+
+    // Header button disabled state (1 = disabled, 0 = enabled)
+    lv_subject_t is_calibrate_all_disabled_{};
+
+    // Recommended row index per axis (for table highlight)
+    lv_subject_t is_x_recommended_row_{};
+    lv_subject_t is_y_recommended_row_{};
+
+    // X axis result display
+    char is_result_x_shaper_buf_[48] = {};
+    lv_subject_t is_result_x_shaper_{};
+    char is_result_x_explanation_buf_[128] = {};
+    lv_subject_t is_result_x_explanation_{};
+    char is_result_x_vibration_buf_[96] = {};
+    lv_subject_t is_result_x_vibration_{};
+    char is_result_x_max_accel_buf_[32] = {};
+    lv_subject_t is_result_x_max_accel_{};
+    lv_subject_t is_result_x_quality_{};
+
+    // Y axis result display
+    char is_result_y_shaper_buf_[48] = {};
+    lv_subject_t is_result_y_shaper_{};
+    char is_result_y_explanation_buf_[128] = {};
+    lv_subject_t is_result_y_explanation_{};
+    char is_result_y_vibration_buf_[96] = {};
+    lv_subject_t is_result_y_vibration_{};
+    char is_result_y_max_accel_buf_[32] = {};
+    lv_subject_t is_result_y_max_accel_{};
+    lv_subject_t is_result_y_quality_{};
+
+    // Calibrate All flow tracking
+    bool calibrate_all_mode_ = false; ///< True when doing X+Y sequential calibration
+    InputShaperResult x_result_;      ///< Stored X result when doing Calibrate All
 
     // Results data
     char current_axis_ = 'X';
     char last_calibrated_axis_ = 'X'; ///< Axis most recently calibrated (for apply)
-    std::vector<ShaperFit> shaper_results_;
     std::string recommended_type_;
     float recommended_freq_ = 0.0f;
+
+    // Frequency response chart data per axis
+    struct AxisChartData {
+        std::vector<std::pair<float, float>> freq_response; // (freq, psd)
+        std::vector<ShaperResponseCurve> shaper_curves;
+        ui_frequency_response_chart_t* chart = nullptr;
+        int raw_series_id = -1;
+        int shaper_series_ids[MAX_SHAPERS] = {-1, -1, -1, -1, -1};
+        bool shaper_visible[MAX_SHAPERS] = {false, false, false, false, false};
+    };
+
+    AxisChartData x_chart_;
+    AxisChartData y_chart_;
+
+    // Freq data availability subjects (gating chart visibility in XML)
+    lv_subject_t is_x_has_freq_data_{};
+    lv_subject_t is_y_has_freq_data_{};
+
+    // Chip label subjects (dynamically set from shaper names)
+    static constexpr size_t CHIP_LABEL_BUF = 16;
+    struct ChipRow {
+        char label_buf[CHIP_LABEL_BUF] = {};
+        lv_subject_t label{};
+        lv_subject_t active{}; // 0=off, 1=on
+    };
+    std::array<ChipRow, MAX_SHAPERS> x_chips_;
+    std::array<ChipRow, MAX_SHAPERS> y_chips_;
+
+    // Legend subjects (shaper name label, updated on chip toggle)
+    char is_x_legend_shaper_label_buf_[CHIP_LABEL_BUF] = {};
+    lv_subject_t is_x_legend_shaper_label_{};
+    char is_y_legend_shaper_label_buf_[CHIP_LABEL_BUF] = {};
+    lv_subject_t is_y_legend_shaper_label_{};
+
+    // Legend dot widget pointers (for programmatic color updates)
+    lv_obj_t* legend_x_shaper_dot_ = nullptr;
+    lv_obj_t* legend_y_shaper_dot_ = nullptr;
+
+    // Chart management helpers
+    void populate_chart(char axis, const InputShaperResult& result);
+    void clear_chart(char axis);
+    void toggle_shaper_overlay(char axis, int index);
+    void create_chart_widgets();
+    void update_legend(char axis);
 
     // Calibrator for delegating operations
     std::unique_ptr<helix::calibration::InputShaperCalibrator> calibrator_;

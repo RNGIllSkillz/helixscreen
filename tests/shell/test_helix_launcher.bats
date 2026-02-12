@@ -318,13 +318,16 @@ exit 0
 WDEOF
     chmod +x "$MOCK_INSTALL/bin/helix-watchdog"
 
+    # Copy the launcher into the mock bin/ so SCRIPT_DIR resolves to mock
+    # layout (otherwise it finds the real build/bin/helix-screen via $0)
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+
     # Run the launcher with HELIX_SPLASH_PID set
     export HELIX_SPLASH_PID=1476
     export HELIX_NO_SPLASH=0
 
-    # Run launcher (it will use the mock watchdog)
-    cd "$MOCK_INSTALL/bin"
-    HELIX_SPLASH_PID=1476 sh "$LAUNCHER" 2>/dev/null || true
+    # Run launcher from mock dir (SCRIPT_DIR will be $MOCK_INSTALL/bin)
+    HELIX_SPLASH_PID=1476 sh "$MOCK_INSTALL/bin/helix-launcher.sh" 2>/dev/null || true
 
     # Check that --splash-pid appears BEFORE -- in the watchdog args
     if [ -f "$MOCK_INSTALL/watchdog_args.txt" ]; then

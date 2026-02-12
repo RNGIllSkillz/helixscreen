@@ -47,7 +47,6 @@
 #include "advanced_panel_types.h"
 #include "calibration_types.h"
 #include "moonraker_client.h"
-#include "moonraker_domain_service.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
 #include "print_history_data.h"
@@ -462,7 +461,7 @@ class MoonrakerAPI {
      * @param on_error Error callback
      */
     void execute_gcode(const std::string& gcode, SuccessCallback on_success, ErrorCallback on_error,
-                       uint32_t timeout_ms = 0);
+                       uint32_t timeout_ms = 0, bool silent = false);
 
     /**
      * @brief Check if a string is safe to use as a G-code parameter
@@ -984,6 +983,67 @@ class MoonrakerAPI {
                                ErrorCallback on_error);
 
     // ========================================================================
+    // Connection and Subscription Proxies
+    // ========================================================================
+
+    /// Check if the client is currently connected to Moonraker
+    virtual bool is_connected() const;
+
+    /// Get current connection state
+    virtual ConnectionState get_connection_state() const;
+
+    /// Get the WebSocket URL used for the current connection
+    virtual std::string get_websocket_url() const;
+
+    /// Subscribe to status update notifications (mirrors MoonrakerClient::register_notify_update)
+    virtual SubscriptionId subscribe_notifications(std::function<void(json)> callback);
+
+    /// Unsubscribe from status update notifications
+    virtual bool unsubscribe_notifications(SubscriptionId id);
+
+    /// Register a persistent callback for a specific notification method
+    virtual void register_method_callback(const std::string& method, const std::string& name,
+                                          std::function<void(json)> callback);
+
+    /// Unregister a method-specific callback
+    virtual bool unregister_method_callback(const std::string& method, const std::string& name);
+
+    /// Temporarily suppress disconnect modal notifications
+    virtual void suppress_disconnect_modal(uint32_t duration_ms);
+
+    /// Retrieve recent G-code commands/responses from Moonraker's store
+    virtual void
+    get_gcode_store(int count, std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
+                    std::function<void(const MoonrakerError&)> on_error);
+
+    // ========================================================================
+    // Helix Plugin Operations
+    // ========================================================================
+
+    /// Get phase tracking plugin status
+    virtual void get_phase_tracking_status(std::function<void(bool enabled)> on_success,
+                                           ErrorCallback on_error = nullptr);
+
+    /// Enable or disable phase tracking plugin
+    virtual void set_phase_tracking_enabled(bool enabled,
+                                            std::function<void(bool success)> on_success,
+                                            ErrorCallback on_error = nullptr);
+
+    // ========================================================================
+    // Database Operations
+    // ========================================================================
+
+    /// Get a value from Moonraker's database
+    virtual void database_get_item(const std::string& namespace_name, const std::string& key,
+                                   std::function<void(const json&)> on_success,
+                                   ErrorCallback on_error = nullptr);
+
+    /// Store a value in Moonraker's database
+    virtual void database_post_item(const std::string& namespace_name, const std::string& key,
+                                    const json& value, std::function<void()> on_success = nullptr,
+                                    ErrorCallback on_error = nullptr);
+
+    // ========================================================================
     // Internal Access
     // ========================================================================
 
@@ -1297,8 +1357,24 @@ class MoonrakerAPI {
     // Advanced Panel Operations - PID Calibration
     // ========================================================================
 
+    /// Callback for PID calibration progress (sample number, tolerance value; -1.0 = n/a)
+    using PIDProgressCallback = std::function<void(int sample, float tolerance)>;
+
     /// Callback for PID calibration result
     using PIDCalibrateCallback = std::function<void(float kp, float ki, float kd)>;
+
+    /**
+     * @brief Fetch current PID values for a heater from printer configuration
+     *
+     * Queries configfile.settings to get the currently active PID parameters.
+     * Used to show old→new deltas after PID calibration.
+     *
+     * @param heater Heater name ("extruder" or "heater_bed")
+     * @param on_complete Called with current Kp, Ki, Kd values
+     * @param on_error Called if values cannot be retrieved
+     */
+    virtual void get_heater_pid_values(const std::string& heater, PIDCalibrateCallback on_complete,
+                                       ErrorCallback on_error);
 
     /**
      * @brief Start PID calibration for a heater
@@ -1312,7 +1388,8 @@ class MoonrakerAPI {
      * @param on_error Called on failure
      */
     virtual void start_pid_calibrate(const std::string& heater, int target_temp,
-                                     PIDCalibrateCallback on_complete, ErrorCallback on_error);
+                                     PIDCalibrateCallback on_complete, ErrorCallback on_error,
+                                     PIDProgressCallback on_progress = nullptr);
 
     // ========================================================================
     // Advanced Panel Operations - Macros

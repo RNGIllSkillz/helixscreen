@@ -31,12 +31,12 @@
  * - set_kinematics(string) - updates printer_bed_moves_
  */
 
-#include "ui_update_queue.h"
-
+#include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "runtime_config.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -54,9 +54,11 @@ static lv_subject_t* get_subject_by_name(const char* name) {
 TEST_CASE("Capabilities characterization: set_hardware updates capability subjects",
           "[characterization][capabilities][hardware]") {
     lv_init_safe();
+    // Enable test mode so beta-gated features (timelapse) are available
+    get_runtime_config()->test_mode = true;
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     // Create hardware discovery with various capabilities
@@ -77,7 +79,7 @@ TEST_CASE("Capabilities characterization: set_hardware updates capability subjec
 
     SECTION("set_hardware updates QGL from hardware discovery") {
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         lv_subject_t* subject = get_subject_by_name("printer_has_qgl");
         REQUIRE(lv_subject_get_int(subject) == 1);
@@ -85,7 +87,7 @@ TEST_CASE("Capabilities characterization: set_hardware updates capability subjec
 
     SECTION("set_hardware updates z_tilt from hardware discovery") {
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         lv_subject_t* subject = get_subject_by_name("printer_has_z_tilt");
         REQUIRE(lv_subject_get_int(subject) == 1);
@@ -93,7 +95,7 @@ TEST_CASE("Capabilities characterization: set_hardware updates capability subjec
 
     SECTION("set_hardware updates bed_mesh from hardware discovery") {
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         lv_subject_t* subject = get_subject_by_name("printer_has_bed_mesh");
         REQUIRE(lv_subject_get_int(subject) == 1);
@@ -101,7 +103,7 @@ TEST_CASE("Capabilities characterization: set_hardware updates capability subjec
 
     SECTION("set_hardware updates probe from hardware discovery") {
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         lv_subject_t* subject = get_subject_by_name("printer_has_probe");
         REQUIRE(lv_subject_get_int(subject) == 1);
@@ -110,7 +112,7 @@ TEST_CASE("Capabilities characterization: set_hardware updates capability subjec
 
     SECTION("set_hardware updates heater_bed from hardware discovery") {
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         lv_subject_t* subject = get_subject_by_name("printer_has_heater_bed");
         REQUIRE(lv_subject_get_int(subject) == 1);
@@ -118,7 +120,7 @@ TEST_CASE("Capabilities characterization: set_hardware updates capability subjec
 
     SECTION("set_hardware updates LED from hardware discovery") {
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         lv_subject_t* subject = get_subject_by_name("printer_has_led");
         REQUIRE(lv_subject_get_int(subject) == 1);
@@ -126,7 +128,7 @@ TEST_CASE("Capabilities characterization: set_hardware updates capability subjec
 
     SECTION("set_hardware updates accelerometer from hardware discovery") {
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         lv_subject_t* subject = get_subject_by_name("printer_has_accelerometer");
         REQUIRE(lv_subject_get_int(subject) == 1);
@@ -134,7 +136,7 @@ TEST_CASE("Capabilities characterization: set_hardware updates capability subjec
 
     SECTION("set_hardware updates speaker from output_pin beeper") {
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         lv_subject_t* subject = get_subject_by_name("printer_has_speaker");
         REQUIRE(lv_subject_get_int(subject) == 1);
@@ -142,7 +144,7 @@ TEST_CASE("Capabilities characterization: set_hardware updates capability subjec
 
     SECTION("set_hardware updates firmware_retraction from hardware discovery") {
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         lv_subject_t* subject = get_subject_by_name("printer_has_firmware_retraction");
         REQUIRE(lv_subject_get_int(subject) == 1);
@@ -150,7 +152,7 @@ TEST_CASE("Capabilities characterization: set_hardware updates capability subjec
 
     SECTION("set_hardware updates timelapse from hardware discovery") {
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         lv_subject_t* subject = state.get_printer_has_timelapse_subject();
         REQUIRE(lv_subject_get_int(subject) == 1);
@@ -162,7 +164,7 @@ TEST_CASE("Capabilities characterization: set_hardware with empty hardware sets 
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     // First set some capabilities
@@ -170,7 +172,7 @@ TEST_CASE("Capabilities characterization: set_hardware with empty hardware sets 
     nlohmann::json objects = {"quad_gantry_level", "probe", "heater_bed"};
     hardware_with_caps.parse_objects(objects);
     state.set_hardware(hardware_with_caps);
-    helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
     REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_qgl")) == 1);
     REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_probe")) == 1);
@@ -179,7 +181,7 @@ TEST_CASE("Capabilities characterization: set_hardware with empty hardware sets 
     PrinterDiscovery empty_hardware;
     empty_hardware.parse_objects(nlohmann::json::array());
     state.set_hardware(empty_hardware);
-    helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
     REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_qgl")) == 0);
     REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_z_tilt")) == 0);
@@ -202,7 +204,7 @@ TEST_CASE("Capabilities characterization: nozzle_clean is override-only",
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     // Nozzle clean macro in hardware won't set the subject directly
@@ -212,7 +214,7 @@ TEST_CASE("Capabilities characterization: nozzle_clean is override-only",
     hardware.parse_objects(objects);
 
     state.set_hardware(hardware);
-    helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
     // The subject value depends on capability_overrides_ configuration
     // By default, without user config, nozzle_clean remains 0 unless macro detected
@@ -233,7 +235,7 @@ TEST_CASE("Capabilities characterization: set_spoolman_available updates subject
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     lv_subject_t* subject = get_subject_by_name("printer_has_spoolman");
@@ -244,7 +246,7 @@ TEST_CASE("Capabilities characterization: set_spoolman_available updates subject
 
     SECTION("set_spoolman_available(true) sets to 1") {
         state.set_spoolman_available(true);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(lv_subject_get_int(subject) == 1);
     }
@@ -252,12 +254,12 @@ TEST_CASE("Capabilities characterization: set_spoolman_available updates subject
     SECTION("set_spoolman_available(false) sets to 0") {
         // First enable
         state.set_spoolman_available(true);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
         REQUIRE(lv_subject_get_int(subject) == 1);
 
         // Then disable
         state.set_spoolman_available(false);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
         REQUIRE(lv_subject_get_int(subject) == 0);
     }
 }
@@ -271,7 +273,7 @@ TEST_CASE("Capabilities characterization: set_kinematics updates printer_bed_mov
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     lv_subject_t* subject = state.get_printer_bed_moves_subject();
@@ -322,7 +324,7 @@ TEST_CASE("Capabilities characterization: printer_has_purge_line from printer ty
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     lv_subject_t* subject = state.get_printer_has_purge_line_subject();
@@ -349,7 +351,7 @@ TEST_CASE("Capabilities characterization: observer fires when capability changes
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     auto observer_cb = [](lv_observer_t* observer, lv_subject_t* subject) {
@@ -375,7 +377,7 @@ TEST_CASE("Capabilities characterization: observer fires when capability changes
         nlohmann::json objects = {"probe"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(user_data[0] >= 2);
         REQUIRE(user_data[1] == 1);
@@ -412,7 +414,7 @@ TEST_CASE("Capabilities characterization: capability subjects are independent",
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     SECTION("setting one capability does not affect others") {
@@ -421,7 +423,7 @@ TEST_CASE("Capabilities characterization: capability subjects are independent",
         nlohmann::json objects = {"probe"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_probe")) == 1);
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_qgl")) == 0);
@@ -435,7 +437,7 @@ TEST_CASE("Capabilities characterization: capability subjects are independent",
         nlohmann::json objects = {"probe", "heater_bed"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_probe")) == 1);
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_heater_bed")) == 1);
@@ -455,13 +457,13 @@ TEST_CASE("Capabilities characterization: capability subjects are independent",
         nlohmann::json objects = {"probe"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_probe")) == 1);
 
         // Set spoolman
         state.set_spoolman_available(true);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_spoolman")) == 1);
         // probe should still be set
@@ -478,7 +480,7 @@ TEST_CASE("Capabilities characterization: subjects survive reset_for_testing cyc
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     // Set some capabilities
@@ -486,11 +488,11 @@ TEST_CASE("Capabilities characterization: subjects survive reset_for_testing cyc
     nlohmann::json objects = {"probe", "heater_bed", "neopixel led_strip"};
     hardware.parse_objects(objects);
     state.set_hardware(hardware);
-    helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
     state.set_kinematics("corexy");
     state.set_spoolman_available(true);
-    helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
     // Verify values were set
     REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_probe")) == 1);
@@ -498,7 +500,7 @@ TEST_CASE("Capabilities characterization: subjects survive reset_for_testing cyc
     REQUIRE(lv_subject_get_int(state.get_printer_bed_moves_subject()) == 1);
 
     // Reset and reinitialize
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     // After reset, values should be back to defaults (0)
@@ -522,7 +524,7 @@ TEST_CASE("Capabilities characterization: has_probe() method",
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     SECTION("has_probe() returns false initially") {
@@ -534,7 +536,7 @@ TEST_CASE("Capabilities characterization: has_probe() method",
         nlohmann::json objects = {"probe"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(state.has_probe() == true);
     }
@@ -544,7 +546,7 @@ TEST_CASE("Capabilities characterization: has_probe() method",
         nlohmann::json objects = {"bltouch"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(state.has_probe() == true);
     }
@@ -559,7 +561,7 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     SECTION("LED detected from neopixel object") {
@@ -567,7 +569,7 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
         nlohmann::json objects = {"neopixel chamber_light"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_led")) == 1);
     }
@@ -577,7 +579,7 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
         nlohmann::json objects = {"dotstar status_leds"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_led")) == 1);
     }
@@ -587,7 +589,7 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
         nlohmann::json objects = {"output_pin relay"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         // "relay" doesn't contain LED/LIGHT/LAMP, so no LED detected
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_led")) == 0);
@@ -598,7 +600,7 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
         nlohmann::json objects = {"output_pin caselight"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         // "caselight" contains "LIGHT", so LED IS detected
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_led")) == 1);
@@ -609,7 +611,7 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
         nlohmann::json objects = {"output_pin beeper"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_speaker")) == 1);
     }
@@ -619,7 +621,7 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
         nlohmann::json objects = {"output_pin BUZZER"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_speaker")) == 1);
     }
@@ -629,7 +631,7 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
         nlohmann::json config = {{"resonance_tester", nlohmann::json::object()}};
         hardware.parse_config_keys(config);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_accelerometer")) == 1);
     }
@@ -639,7 +641,7 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
         nlohmann::json config = {{"adxl345", nlohmann::json::object()}};
         hardware.parse_config_keys(config);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_accelerometer")) == 1);
     }
@@ -649,7 +651,7 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
         nlohmann::json objects = {"probe_eddy_current btt_eddy"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
-        helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+        UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_probe")) == 1);
     }
@@ -664,7 +666,7 @@ TEST_CASE("Capabilities characterization: typical Voron 2.4 configuration",
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     // Typical Voron 2.4 objects
@@ -685,7 +687,7 @@ TEST_CASE("Capabilities characterization: typical Voron 2.4 configuration",
                              {"resonance_tester", nlohmann::json::object()}};
     hardware.parse_config_keys(config);
     state.set_hardware(hardware);
-    helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
     state.set_kinematics("corexy");
 
@@ -711,7 +713,7 @@ TEST_CASE("Capabilities characterization: typical Ender 3 configuration",
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
-    state.reset_for_testing();
+    PrinterStateTestAccess::reset(state);
     state.init_subjects(true);
 
     // Typical Ender 3 with BLTouch
@@ -719,7 +721,7 @@ TEST_CASE("Capabilities characterization: typical Ender 3 configuration",
     nlohmann::json objects = {"bed_mesh", "bltouch", "heater_bed"};
     hardware.parse_objects(objects);
     state.set_hardware(hardware);
-    helix::ui::UpdateQueue::instance().drain_queue_for_testing();
+    UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
     state.set_kinematics("cartesian");
 

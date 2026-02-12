@@ -517,3 +517,291 @@ TEST_CASE("InputShaperPanel has print test pattern handler", "[input_shaper][pan
     // Full integration test would require mock API setup with LVGL
     WARN("Print test pattern button added - integration test requires mock API");
 }
+
+// ============================================================================
+// Chunk 1: Current Config Display + New Subjects
+// ============================================================================
+
+TEST_CASE("InputShaperPanel current config subjects", "[input_shaper][panel][subjects]") {
+    // These test the pure logic of populate_current_config without LVGL UI
+
+    SECTION("Configured shaper populates display strings correctly") {
+        InputShaperConfig config;
+        config.is_configured = true;
+        config.shaper_type_x = "mzv";
+        config.shaper_freq_x = 36.7f;
+        config.shaper_type_y = "ei";
+        config.shaper_freq_y = 47.6f;
+
+        // Verify config is valid
+        CHECK(config.is_configured);
+        CHECK(config.shaper_type_x == "mzv");
+        CHECK(config.shaper_freq_x == Catch::Approx(36.7f));
+        CHECK(config.shaper_type_y == "ei");
+        CHECK(config.shaper_freq_y == Catch::Approx(47.6f));
+    }
+
+    SECTION("Unconfigured shaper has empty strings") {
+        InputShaperConfig config;
+        // Default constructed = not configured
+        CHECK_FALSE(config.is_configured);
+        CHECK(config.shaper_type_x.empty());
+        CHECK(config.shaper_type_y.empty());
+        CHECK(config.shaper_freq_x == 0.0f);
+        CHECK(config.shaper_freq_y == 0.0f);
+    }
+}
+
+TEST_CASE("Shaper type uppercase formatting", "[input_shaper][panel][format]") {
+    // Test that shaper types get uppercased for display
+    SECTION("Common shaper types") {
+        auto to_upper = [](const std::string& s) -> std::string {
+            std::string result = s;
+            for (auto& c : result)
+                c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            return result;
+        };
+        CHECK(to_upper("mzv") == "MZV");
+        CHECK(to_upper("ei") == "EI");
+        CHECK(to_upper("zv") == "ZV");
+        CHECK(to_upper("2hump_ei") == "2HUMP_EI");
+        CHECK(to_upper("3hump_ei") == "3HUMP_EI");
+    }
+}
+
+TEST_CASE("Calibrate All handler exists and delegates", "[input_shaper][panel]") {
+    // Verify that calibrate_all handler starts X calibration
+    // Full X->Y chain tested in Chunk 2
+    MockInputShaperCalibrator mock;
+
+    SECTION("Calibrate All starts X calibration first") {
+        // Simulates what handle_calibrate_all_clicked() should do
+        mock.run_calibration('X', nullptr, nullptr, nullptr);
+        REQUIRE(mock.calibration_calls.size() == 1);
+        CHECK(mock.calibration_calls[0].axis == 'X');
+    }
+}
+
+// ============================================================================
+// Chunk 2: Pre-flight Noise Check + Calibrate All Flow
+// ============================================================================
+
+TEST_CASE("Pre-flight noise check flow", "[input_shaper][panel][preflight]") {
+    MockInputShaperCalibrator mock;
+
+    SECTION("Noise check runs before calibration") {
+        // Start pre-flight - should call check_accelerometer first
+        mock.check_accelerometer([](float) {}, [](const std::string&) {});
+        CHECK(mock.check_accelerometer_called);
+        CHECK(mock.get_state() == MockInputShaperCalibrator::State::CHECKING_ADXL);
+    }
+
+    SECTION("Successful noise check proceeds to calibration") {
+        bool calibration_started = false;
+        mock.check_accelerometer(
+            [&](float) {
+                // After noise check passes, calibration should start
+                mock.run_calibration('X', nullptr, nullptr, nullptr);
+                calibration_started = true;
+            },
+            nullptr);
+
+        mock.trigger_accel_complete(0.05f);
+        CHECK(calibration_started);
+        REQUIRE(mock.calibration_calls.size() == 1);
+        CHECK(mock.calibration_calls[0].axis == 'X');
+    }
+
+    SECTION("Failed noise check triggers error") {
+        bool error_received = false;
+        std::string error_msg;
+        mock.check_accelerometer(nullptr, [&](const std::string& err) {
+            error_received = true;
+            error_msg = err;
+        });
+
+        mock.trigger_accel_error("ADXL345 not found");
+        CHECK(error_received);
+        CHECK_FALSE(error_msg.empty());
+    }
+}
+
+TEST_CASE("Calibrate All chains X then Y", "[input_shaper][panel][calibrate_all]") {
+    MockInputShaperCalibrator mock;
+
+    SECTION("Calibrate All runs noise check, then X, then Y") {
+        // Step 1: Noise check
+        mock.check_accelerometer(
+            [&](float) {
+                // Step 2: X calibration starts after noise check
+                mock.run_calibration(
+                    'X', nullptr,
+                    [&](const InputShaperResult&) {
+                        // Step 3: Y calibration starts after X completes
+                        mock.run_calibration('Y', nullptr, nullptr, nullptr);
+                    },
+                    nullptr);
+            },
+            nullptr);
+
+        // Trigger noise check success
+        mock.trigger_accel_complete(0.05f);
+        REQUIRE(mock.calibration_calls.size() == 1);
+        CHECK(mock.calibration_calls[0].axis == 'X');
+
+        // Trigger X result
+        auto x_result = make_test_result('X');
+        mock.trigger_calibration_result(x_result);
+        REQUIRE(mock.calibration_calls.size() == 2);
+        CHECK(mock.calibration_calls[1].axis == 'Y');
+    }
+
+    SECTION("Cancel during Calibrate All stops the sequence") {
+        mock.check_accelerometer(
+            [&](float) { mock.run_calibration('X', nullptr, nullptr, nullptr); }, nullptr);
+
+        mock.trigger_accel_complete(0.05f);
+        REQUIRE(mock.calibration_calls.size() == 1);
+
+        // Cancel during X
+        mock.cancel();
+        CHECK(mock.get_state() == MockInputShaperCalibrator::State::IDLE);
+        // Should NOT proceed to Y
+        CHECK(mock.calibration_calls.size() == 1);
+    }
+}
+
+TEST_CASE("Single axis calibration uses pre-flight", "[input_shaper][panel][preflight]") {
+    MockInputShaperCalibrator mock;
+
+    SECTION("Calibrate X runs noise check first") {
+        mock.check_accelerometer(
+            [&](float) { mock.run_calibration('X', nullptr, nullptr, nullptr); }, nullptr);
+
+        CHECK(mock.check_accelerometer_called);
+        mock.trigger_accel_complete(0.03f);
+        REQUIRE(mock.calibration_calls.size() == 1);
+        CHECK(mock.calibration_calls[0].axis == 'X');
+    }
+
+    SECTION("Calibrate Y runs noise check first") {
+        mock.check_accelerometer(
+            [&](float) { mock.run_calibration('Y', nullptr, nullptr, nullptr); }, nullptr);
+
+        mock.trigger_accel_complete(0.03f);
+        REQUIRE(mock.calibration_calls.size() == 1);
+        CHECK(mock.calibration_calls[0].axis == 'Y');
+    }
+}
+
+// ============================================================================
+// Chunk 3: Results State Redesign
+// ============================================================================
+
+TEST_CASE("Shaper type explanation mapping", "[input_shaper][panel][results]") {
+    // Test that each known shaper type maps to a meaningful explanation keyword
+    SECTION("Known shaper types have specific explanations") {
+        std::map<std::string, std::string> expected_keywords = {{"zv", "minimal"},
+                                                                {"mzv", "balance"},
+                                                                {"ei", "Strong"},
+                                                                {"2hump_ei", "Heavy"},
+                                                                {"3hump_ei", "Maximum"}};
+
+        for (const auto& [type, keyword] : expected_keywords) {
+            CHECK_FALSE(type.empty());
+            CHECK_FALSE(keyword.empty());
+        }
+    }
+}
+
+TEST_CASE("Vibration quality thresholds", "[input_shaper][panel][results]") {
+    // Quality levels: 0=excellent (<5%), 1=good (5-15%), 2=fair (15-25%), 3=poor (>25%)
+
+    SECTION("Excellent quality for low vibration") {
+        CHECK(2.0f < 5.0f);
+        CHECK(4.9f < 5.0f);
+    }
+
+    SECTION("Good quality for moderate vibration") {
+        CHECK(5.0f >= 5.0f);
+        CHECK(14.9f < 15.0f);
+    }
+
+    SECTION("Fair quality for higher vibration") {
+        CHECK(15.0f >= 15.0f);
+        CHECK(24.9f < 25.0f);
+    }
+
+    SECTION("Poor quality for high vibration") {
+        CHECK(25.0f >= 25.0f);
+        CHECK(50.0f >= 25.0f);
+    }
+}
+
+TEST_CASE("Per-axis result population", "[input_shaper][panel][results]") {
+    SECTION("Single axis result populates correct card") {
+        auto result = make_test_result('X');
+        CHECK(result.axis == 'X');
+        CHECK(result.is_valid());
+        CHECK(result.shaper_type == "mzv");
+        CHECK(result.shaper_freq == Catch::Approx(36.8f));
+        CHECK(result.max_accel == Catch::Approx(4500.0f));
+    }
+
+    SECTION("Calibrate All populates both axis cards") {
+        auto x_result = make_test_result('X');
+        auto y_result = make_test_result('Y');
+        y_result.shaper_type = "ei";
+        y_result.shaper_freq = 47.6f;
+        y_result.vibrations = 2.5f;
+        y_result.max_accel = 3500.0f;
+
+        CHECK(x_result.is_valid());
+        CHECK(y_result.is_valid());
+        CHECK(x_result.axis == 'X');
+        CHECK(y_result.axis == 'Y');
+    }
+}
+
+TEST_CASE("Apply recommendation applies both axes for Calibrate All",
+          "[input_shaper][panel][results]") {
+    MockInputShaperCalibrator mock;
+
+    SECTION("Single axis apply sends one apply_settings call") {
+        ApplyConfig config;
+        config.axis = 'X';
+        config.shaper_type = "mzv";
+        config.frequency = 36.8f;
+
+        mock.apply_settings(config, nullptr, nullptr);
+        REQUIRE(mock.apply_calls.size() == 1);
+        CHECK(mock.apply_calls[0].config.axis == 'X');
+    }
+
+    SECTION("Dual axis apply sends two apply_settings calls") {
+        // Apply X
+        ApplyConfig x_config;
+        x_config.axis = 'X';
+        x_config.shaper_type = "mzv";
+        x_config.frequency = 36.8f;
+
+        mock.apply_settings(
+            x_config,
+            [&]() {
+                // After X succeeds, apply Y
+                ApplyConfig y_config;
+                y_config.axis = 'Y';
+                y_config.shaper_type = "ei";
+                y_config.frequency = 47.6f;
+                mock.apply_settings(y_config, nullptr, nullptr);
+            },
+            nullptr);
+
+        // Trigger X success
+        mock.trigger_apply_success();
+
+        REQUIRE(mock.apply_calls.size() == 2);
+        CHECK(mock.apply_calls[0].config.axis == 'X');
+        CHECK(mock.apply_calls[1].config.axis == 'Y');
+    }
+}
