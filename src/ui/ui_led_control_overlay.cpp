@@ -10,6 +10,7 @@
 #include "ui_led_chip_factory.h"
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
+#include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "led/led_controller.h"
@@ -65,6 +66,16 @@ void LedControlOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(wled_brightness_subject_, 100, "led_wled_brightness", subjects_);
         UI_MANAGED_SUBJECT_STRING(wled_brightness_text_subject_, wled_brightness_text_buf_, "100%",
                                   "led_wled_brightness_text", subjects_);
+
+        // WLED toggle state (0=off, 1=on)
+        UI_MANAGED_SUBJECT_INT(wled_is_on_, 0, "led_wled_is_on", subjects_);
+
+        // Section visibility subjects (0=hidden, 1=visible)
+        UI_MANAGED_SUBJECT_INT(native_visible_, 0, "led_native_visible", subjects_);
+        UI_MANAGED_SUBJECT_INT(effects_visible_, 0, "led_effects_visible", subjects_);
+        UI_MANAGED_SUBJECT_INT(wled_visible_, 0, "led_wled_visible", subjects_);
+        UI_MANAGED_SUBJECT_INT(macro_visible_, 0, "led_macro_visible", subjects_);
+        UI_MANAGED_SUBJECT_INT(strip_selector_visible_, 0, "led_strip_selector_visible", subjects_);
     });
 }
 
@@ -75,26 +86,14 @@ lv_obj_t* LedControlOverlay::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Find all section containers
+    // Find widget containers needed for dynamic population (lv_obj_clean + repopulate)
+    // Section visibility is handled declaratively via bind_flag_if_eq subjects
     strip_selector_section_ = lv_obj_find_by_name(overlay_root_, "strip_selector_section");
-    native_section_ = lv_obj_find_by_name(overlay_root_, "native_section");
-    effects_section_ = lv_obj_find_by_name(overlay_root_, "effects_section");
-    wled_section_ = lv_obj_find_by_name(overlay_root_, "wled_section");
-    macro_section_ = lv_obj_find_by_name(overlay_root_, "macro_section");
     current_color_swatch_ = lv_obj_find_by_name(overlay_root_, "current_color_swatch");
     color_presets_container_ = lv_obj_find_by_name(overlay_root_, "color_presets_container");
     effects_container_ = lv_obj_find_by_name(overlay_root_, "effects_container");
     wled_presets_container_ = lv_obj_find_by_name(overlay_root_, "wled_presets_container");
     macro_buttons_container_ = lv_obj_find_by_name(overlay_root_, "macro_buttons_container");
-    brightness_slider_ = lv_obj_find_by_name(overlay_root_, "brightness_slider");
-    wled_brightness_slider_ = lv_obj_find_by_name(overlay_root_, "wled_brightness_slider");
-    wled_toggle_btn_ = lv_obj_find_by_name(overlay_root_, "wled_turn_off_btn");
-    divider_effects_wled_ = lv_obj_find_by_name(overlay_root_, "divider_effects_wled");
-    divider_wled_macro_ = lv_obj_find_by_name(overlay_root_, "divider_wled_macro");
-
-    if (!native_section_ || !effects_section_ || !wled_section_ || !macro_section_) {
-        spdlog::error("[{}] Failed to find one or more section widgets", get_name());
-    }
 
     // Populate based on available backends
     populate_sections();
@@ -108,6 +107,7 @@ void LedControlOverlay::register_callbacks() {
     lv_xml_register_event_cb(nullptr, "led_brightness_changed_cb", on_brightness_changed_cb);
     lv_xml_register_event_cb(nullptr, "led_native_turn_off_cb", on_native_turn_off_cb);
     lv_xml_register_event_cb(nullptr, "led_wled_toggle_cb", on_wled_toggle_cb);
+    lv_xml_register_event_cb(nullptr, "led_color_preset_cb", on_color_preset_cb);
     spdlog::trace("[{}] Callbacks registered", get_name());
 }
 
@@ -128,25 +128,33 @@ void LedControlOverlay::on_activate() {
         // Default to first WLED strip if no native strips and nothing selected
         if (active_strip.empty() && !controller.wled().strips().empty()) {
             active_strip = controller.wled().strips()[0].id;
-            selected_is_wled_ = true;
+            selected_backend_type_ = LedBackendType::WLED;
         }
 
-        // Determine if the active strip is a WLED strip
+        // Determine the backend type of the active strip
         if (!active_strip.empty()) {
-            selected_is_wled_ = false;
-            for (const auto& s : controller.wled().strips()) {
-                if (s.id == active_strip) {
-                    selected_is_wled_ = true;
-                    break;
+            selected_backend_type_ = LedBackendType::NATIVE;
+
+            // Check if it's a macro strip
+            if (active_strip.rfind("macro:", 0) == 0) {
+                selected_backend_type_ = LedBackendType::MACRO;
+            } else {
+                for (const auto& s : controller.wled().strips()) {
+                    if (s.id == active_strip) {
+                        selected_backend_type_ = LedBackendType::WLED;
+                        break;
+                    }
                 }
             }
         }
 
-        if (!selected_is_wled_ && !active_strip.empty() &&
+        if (selected_backend_type_ != LedBackendType::WLED &&
+            selected_backend_type_ != LedBackendType::MACRO && !active_strip.empty() &&
             controller.native().has_strip_color(active_strip)) {
             auto color = controller.native().get_strip_color(active_strip);
             color.decompose(current_color_, current_brightness_);
-        } else if (!selected_is_wled_) {
+        } else if (selected_backend_type_ != LedBackendType::WLED &&
+                   selected_backend_type_ != LedBackendType::MACRO) {
             current_brightness_ = controller.last_brightness();
             current_color_ = controller.last_color();
         }
@@ -155,7 +163,7 @@ void LedControlOverlay::on_activate() {
         update_section_visibility();
 
         // Poll WLED status on overlay activation for live state
-        if (selected_is_wled_) {
+        if (selected_backend_type_ == LedBackendType::WLED) {
             // Sync WLED brightness slider to active strip's brightness
             std::string wled_strip_id;
             if (!selected.empty()) {
@@ -174,26 +182,20 @@ void LedControlOverlay::on_activate() {
         }
     }
 
-    // Update visual state (no bind_value on brightness slider — managed in C++)
+    // Update visual state — brightness slider syncs via bind_value="led_brightness"
     update_brightness_text(current_brightness_);
     update_current_color_swatch();
 
-    // Sync slider positions to saved state
-    if (brightness_slider_)
-        lv_slider_set_value(brightness_slider_, current_brightness_, LV_ANIM_OFF);
-    if (wled_brightness_slider_)
-        lv_slider_set_value(wled_brightness_slider_, lv_subject_get_int(&wled_brightness_subject_),
-                            LV_ANIM_OFF);
+    // Sync slider position via subject (bind_value handles the visual update)
+    lv_subject_set_int(&brightness_subject_, current_brightness_);
 
     // Subscribe to WLED brightness slider changes
-    if (wled_brightness_slider_) {
-        wled_brightness_observer_ = helix::ui::observe_int_sync<LedControlOverlay>(
-            &wled_brightness_subject_, this, [](LedControlOverlay* self, int value) {
-                if (self->is_visible()) {
-                    self->handle_wled_brightness(value);
-                }
-            });
-    }
+    wled_brightness_observer_ = helix::ui::observe_int_sync<LedControlOverlay>(
+        &wled_brightness_subject_, this, [](LedControlOverlay* self, int value) {
+            if (self->is_visible()) {
+                self->handle_wled_brightness(value);
+            }
+        });
 
     // Sync effect highlight to current Moonraker state
     if (effects_container_ && controller.is_initialized()) {
@@ -226,13 +228,15 @@ void LedControlOverlay::on_activate() {
             if (strip_id != active_strip)
                 return;
 
-            // Update swatch directly from the raw color (not decomposed)
-            if (current_color_swatch_) {
-                uint8_t r = static_cast<uint8_t>(color.r * 255.0);
-                uint8_t g = static_cast<uint8_t>(color.g * 255.0);
-                uint8_t b = static_cast<uint8_t>(color.b * 255.0);
-                lv_obj_set_style_bg_color(current_color_swatch_, lv_color_make(r, g, b), 0);
-            }
+            // Queue UI update to main thread — this callback runs on background thread
+            uint8_t r = static_cast<uint8_t>(color.r * 255.0);
+            uint8_t g = static_cast<uint8_t>(color.g * 255.0);
+            uint8_t b = static_cast<uint8_t>(color.b * 255.0);
+            lv_obj_t* swatch = current_color_swatch_;
+            ui_queue_update([swatch, r, g, b]() {
+                if (swatch)
+                    lv_obj_set_style_bg_color(swatch, lv_color_make(r, g, b), 0);
+            });
         });
 
     spdlog::debug("[{}] Activated (brightness={}, color=0x{:06X})", get_name(), current_brightness_,
@@ -248,7 +252,6 @@ void LedControlOverlay::on_deactivate() {
         controller.native().clear_color_change_callback();
     }
 
-    brightness_observer_.reset();
     wled_brightness_observer_.reset();
 
     // Persist state
@@ -263,7 +266,6 @@ void LedControlOverlay::on_deactivate() {
 
 void LedControlOverlay::cleanup() {
     spdlog::debug("[{}] Cleanup", get_name());
-    brightness_observer_.reset();
     wled_brightness_observer_.reset();
     deinit_subjects_base(subjects_);
     OverlayBase::cleanup();
@@ -290,58 +292,51 @@ void LedControlOverlay::populate_sections() {
 }
 
 void LedControlOverlay::update_section_visibility() {
-    // Imperative visibility is acceptable here: sections are hidden based on
-    // runtime backend discovery and current strip type selection.
+    // Section visibility driven by subjects — XML bind_flag_if_eq handles the UI
     auto& controller = LedController::instance();
     bool ctrl_init = controller.is_initialized();
-
-    auto set_visible = [](lv_obj_t* obj, bool visible) {
-        if (!obj)
-            return;
-        if (visible)
-            lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
-    };
 
     bool has_native = ctrl_init && controller.native().is_available();
     bool has_effects = ctrl_init && controller.effects().is_available();
     bool has_wled = ctrl_init && controller.wled().is_available();
-    bool has_macros = ctrl_init && controller.macro().is_available();
 
-    // Section visibility depends on whether current selection is a WLED strip
-    if (selected_is_wled_) {
-        // WLED selected: hide native+effects, show WLED
-        set_visible(native_section_, false);
-        set_visible(effects_section_, false);
-        set_visible(wled_section_, has_wled);
-    } else {
-        // Native selected: show native+effects, hide WLED
-        set_visible(native_section_, has_native);
-        set_visible(effects_section_, has_effects);
-        set_visible(wled_section_, false);
+    bool native_vis = false;
+    bool effects_vis = false;
+    bool wled_vis = false;
+    bool macro_vis = false;
+
+    switch (selected_backend_type_) {
+    case LedBackendType::WLED:
+        wled_vis = has_wled;
+        break;
+    case LedBackendType::MACRO:
+        macro_vis = true;
+        break;
+    case LedBackendType::NATIVE:
+    case LedBackendType::LED_EFFECT:
+    default:
+        native_vis = has_native;
+        effects_vis = has_effects;
+        break;
     }
 
-    // Macros are always visible regardless of strip type (they're global)
-    set_visible(macro_section_, has_macros);
+    lv_subject_set_int(&native_visible_, native_vis ? 1 : 0);
+    lv_subject_set_int(&effects_visible_, effects_vis ? 1 : 0);
+    lv_subject_set_int(&wled_visible_, wled_vis ? 1 : 0);
+    lv_subject_set_int(&macro_visible_, macro_vis ? 1 : 0);
 
-    // Dividers: only between visible adjacent sections
-    bool native_or_effects_visible = !selected_is_wled_ && (has_native || has_effects);
-    bool wled_visible = selected_is_wled_ && has_wled;
-    set_visible(divider_effects_wled_, false); // No longer needed between switched sections
-    set_visible(divider_wled_macro_, (native_or_effects_visible || wled_visible) && has_macros);
-
-    // Strip selector visible when there are 2+ strips total (native + WLED)
+    // Strip selector visible when there are 2+ strips total
     size_t total_strips = 0;
     if (ctrl_init) {
-        total_strips = controller.native().strips().size() + controller.wled().strips().size();
+        total_strips = controller.native().strips().size() + controller.wled().strips().size() +
+                       controller.macro().macros().size();
     }
-    set_visible(strip_selector_section_, total_strips > 1);
+    lv_subject_set_int(&strip_selector_visible_, total_strips > 1 ? 1 : 0);
 
     spdlog::debug(
-        "[{}] Section visibility: native={}, effects={}, wled={}, macros={}, selected_is_wled={}",
-        get_name(), has_native && !selected_is_wled_, has_effects && !selected_is_wled_,
-        has_wled && selected_is_wled_, has_macros, selected_is_wled_);
+        "[{}] Section visibility: native={}, effects={}, wled={}, macros={}, backend_type={}",
+        get_name(), native_vis, effects_vis, wled_vis, macro_vis,
+        static_cast<int>(selected_backend_type_));
 }
 
 void LedControlOverlay::populate_strip_selector() {
@@ -350,12 +345,21 @@ void LedControlOverlay::populate_strip_selector() {
 
     auto& controller = LedController::instance();
 
-    // Build combined strip list (native + WLED)
+    // Build combined strip list (native + WLED + macro)
     std::vector<LedStripInfo> all_strips;
     for (const auto& s : controller.native().strips())
         all_strips.push_back(s);
     for (const auto& s : controller.wled().strips())
         all_strips.push_back(s);
+    for (const auto& m : controller.macro().macros()) {
+        LedStripInfo macro_strip;
+        macro_strip.name = m.display_name;
+        macro_strip.id = "macro:" + m.display_name;
+        macro_strip.backend = LedBackendType::MACRO;
+        macro_strip.supports_color = false;
+        macro_strip.supports_white = false;
+        all_strips.push_back(macro_strip);
+    }
 
     if (all_strips.empty())
         return;
@@ -385,26 +389,29 @@ void LedControlOverlay::populate_strip_selector() {
                 ? (&strip == &all_strips[0])
                 : (std::find(selected.begin(), selected.end(), strip.id) != selected.end());
 
-        // Add "(WLED)" suffix for WLED strips to visually distinguish them
+        // Add suffix for non-native strips to visually distinguish them
         std::string display_name = strip.name;
         if (strip.backend == LedBackendType::WLED)
             display_name += " (WLED)";
+        else if (strip.backend == LedBackendType::MACRO)
+            display_name += " (Macro)";
 
         helix::ui::create_led_chip(
             strip_selector_section_, strip.id, display_name, is_selected,
             [this](const std::string& strip_id) { handle_strip_selected(strip_id); });
     }
 
-    spdlog::trace("[{}] Populated strip selector with {} strips ({} native + {} WLED)", get_name(),
-                  all_strips.size(), controller.native().strips().size(),
-                  controller.wled().strips().size());
+    spdlog::trace("[{}] Populated strip selector with {} strips ({} native + {} WLED + {} macro)",
+                  get_name(), all_strips.size(), controller.native().strips().size(),
+                  controller.wled().strips().size(), controller.macro().macros().size());
 }
 
 void LedControlOverlay::populate_color_presets() {
     if (!color_presets_container_)
         return;
 
-    // Swatches are defined in XML; attach click handlers with their color values
+    // Swatches are defined in XML with event_cb; just set user_data with color values
+    // Click handling via led_color_preset_cb registered in register_callbacks()
     static const struct {
         const char* name;
         uint32_t color;
@@ -420,27 +427,14 @@ void LedControlOverlay::populate_color_presets() {
         if (!swatch)
             continue;
 
-        auto* color_data = new uint32_t(s.color);
-        lv_obj_set_user_data(swatch, color_data);
-
-        lv_obj_add_event_cb(
-            swatch,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[LedControlOverlay] color_preset_cb");
-                auto* data = static_cast<uint32_t*>(lv_event_get_user_data(e));
-                if (data)
-                    get_led_control_overlay().handle_color_preset(*data);
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_CLICKED, color_data);
-
-        lv_obj_add_event_cb(
-            swatch, [](lv_event_t* e) { delete static_cast<uint32_t*>(lv_event_get_user_data(e)); },
-            LV_EVENT_DELETE, color_data);
+        // Store color as static data — no heap allocation needed
+        static uint32_t color_values[8];
+        color_values[count] = s.color;
+        lv_obj_set_user_data(swatch, &color_values[count]);
         count++;
     }
 
-    spdlog::trace("[{}] Attached handlers to {} color presets", get_name(), count);
+    spdlog::trace("[{}] Attached color data to {} presets", get_name(), count);
 }
 
 void LedControlOverlay::populate_effects() {
@@ -513,7 +507,7 @@ void LedControlOverlay::populate_wled() {
     // Determine active WLED strip
     const auto& selected = controller.selected_strips();
     std::string active_strip_id;
-    if (!selected.empty() && selected_is_wled_) {
+    if (!selected.empty() && selected_backend_type_ == LedBackendType::WLED) {
         active_strip_id = selected[0];
     } else if (!controller.wled().strips().empty()) {
         active_strip_id = controller.wled().strips()[0].id;
@@ -594,35 +588,49 @@ void LedControlOverlay::populate_macros() {
         return;
 
     auto& controller = LedController::instance();
-    const auto& macros = controller.macro().macros();
-    const auto& configured = controller.configured_macros();
 
-    for (const auto& macro : macros) {
-        if (!macro.on_macro.empty()) {
-            add_macro_chip(macro.display_name + " On", macro.display_name,
-                           &LedControlOverlay::handle_macro_on);
-        }
-        if (!macro.off_macro.empty()) {
-            add_macro_chip(macro.display_name + " Off", macro.display_name,
-                           &LedControlOverlay::handle_macro_off);
-        }
-        if (!macro.toggle_macro.empty()) {
-            add_macro_chip(macro.display_name + " Toggle", macro.display_name,
-                           &LedControlOverlay::handle_macro_toggle);
-        }
-        for (const auto& [action_label, action_gcode] : macro.custom_actions) {
-            add_macro_chip(action_label, action_gcode, &LedControlOverlay::handle_macro_custom);
+    // Find the currently selected macro device
+    const auto& selected = controller.selected_strips();
+    std::string macro_key;
+    if (!selected.empty() && selected[0].rfind("macro:", 0) == 0) {
+        macro_key = selected[0].substr(6);
+    }
+
+    // If a specific macro is selected, show controls for that device
+    if (!macro_key.empty()) {
+        for (const auto& m : controller.macro().macros()) {
+            if (m.display_name == macro_key) {
+                populate_macro_controls(m);
+                return;
+            }
         }
     }
 
-    for (const auto& macro : configured) {
-        for (const auto& [action_label, action_gcode] : macro.custom_actions) {
-            add_macro_chip(action_label, action_gcode, &LedControlOverlay::handle_macro_custom);
-        }
+    // Default: show all macro controls (initial state before selection)
+    for (const auto& macro : controller.macro().macros()) {
+        populate_macro_controls(macro);
     }
 
-    spdlog::trace("[{}] Populated {} discovered + {} configured macros", get_name(), macros.size(),
-                  configured.size());
+    spdlog::trace("[{}] Populated macros section", get_name());
+}
+
+void LedControlOverlay::populate_macro_controls(const LedMacroInfo& macro) {
+    switch (macro.type) {
+    case MacroLedType::ON_OFF:
+        add_macro_chip("Turn On", macro.display_name, &LedControlOverlay::handle_macro_on);
+        add_macro_chip("Turn Off", macro.display_name, &LedControlOverlay::handle_macro_off);
+        break;
+
+    case MacroLedType::TOGGLE:
+        add_macro_chip("Toggle", macro.display_name, &LedControlOverlay::handle_macro_toggle);
+        break;
+
+    case MacroLedType::PRESET:
+        for (const auto& [preset_name, preset_gcode] : macro.presets) {
+            add_macro_chip(preset_name, preset_gcode, &LedControlOverlay::handle_macro_custom);
+        }
+        break;
+    }
 }
 
 // ============================================================================
@@ -635,8 +643,7 @@ void LedControlOverlay::handle_color_preset(uint32_t color) {
     // Presets are defined at full brightness — reset brightness to 100%
     current_brightness_ = 100;
     update_brightness_text(current_brightness_);
-    if (brightness_slider_)
-        lv_slider_set_value(brightness_slider_, current_brightness_, LV_ANIM_OFF);
+    lv_subject_set_int(&brightness_subject_, current_brightness_);
 
     apply_current_color();
     spdlog::info("[{}] Color preset applied: 0x{:06X}", get_name(), color);
@@ -694,9 +701,8 @@ void LedControlOverlay::handle_custom_color() {
         update_brightness_text(brightness);
         handle_color_preset(full_color);
 
-        // Sync slider to new brightness (no bind_value — managed in C++)
-        if (brightness_slider_)
-            lv_slider_set_value(brightness_slider_, brightness, LV_ANIM_OFF);
+        // Sync slider via subject (bind_value handles the visual update)
+        lv_subject_set_int(&brightness_subject_, brightness);
     });
 
     if (overlay_root_) {
@@ -748,7 +754,7 @@ void LedControlOverlay::handle_native_turn_off() {
 void LedControlOverlay::handle_wled_toggle() {
     auto& controller = LedController::instance();
     const auto& selected = controller.selected_strips();
-    if (!selected.empty() && selected_is_wled_) {
+    if (!selected.empty() && selected_backend_type_ == LedBackendType::WLED) {
         spdlog::info("[{}] WLED toggle: {}", get_name(), selected[0]);
         controller.wled().toggle(
             selected[0],
@@ -761,13 +767,11 @@ void LedControlOverlay::handle_wled_toggle() {
 }
 
 void LedControlOverlay::update_wled_toggle_button() {
-    if (!wled_toggle_btn_)
-        return;
-
+    // Button text, colors, and styling driven declaratively via led_wled_is_on subject
     auto& controller = LedController::instance();
     const auto& selected = controller.selected_strips();
     std::string strip_id;
-    if (!selected.empty() && selected_is_wled_) {
+    if (!selected.empty() && selected_backend_type_ == LedBackendType::WLED) {
         strip_id = selected[0];
     } else if (!controller.wled().strips().empty()) {
         strip_id = controller.wled().strips()[0].id;
@@ -777,24 +781,7 @@ void LedControlOverlay::update_wled_toggle_button() {
         return;
 
     auto state = controller.wled().get_strip_state(strip_id);
-
-    // Update button text
-    auto* label = lv_obj_get_child(wled_toggle_btn_, 0);
-    if (label) {
-        lv_label_set_text(label, state.is_on ? "Turn Off" : "Turn On");
-    }
-
-    // Update button color: danger (red) when on, secondary when off
-    auto color =
-        state.is_on ? theme_manager_get_color("danger") : theme_manager_get_color("card_bg");
-    lv_obj_set_style_bg_color(wled_toggle_btn_, color, LV_PART_MAIN);
-
-    // Text color: white on danger, normal on secondary
-    auto text_col =
-        state.is_on ? theme_manager_get_color("screen_bg") : theme_manager_get_color("text");
-    if (label) {
-        lv_obj_set_style_text_color(label, text_col, LV_PART_MAIN);
-    }
+    lv_subject_set_int(&wled_is_on_, state.is_on ? 1 : 0);
 }
 
 void LedControlOverlay::highlight_active_effect(const std::string& active_name) {
@@ -825,7 +812,7 @@ void LedControlOverlay::handle_wled_preset(int preset_id) {
     spdlog::info("[{}] Activating WLED preset {}", get_name(), preset_id);
     auto& controller = LedController::instance();
     const auto& selected = controller.selected_strips();
-    if (!selected.empty() && selected_is_wled_) {
+    if (!selected.empty() && selected_backend_type_ == LedBackendType::WLED) {
         controller.wled().set_preset(
             selected[0], preset_id, []() { get_led_control_overlay().refresh_wled_status(); },
             nullptr);
@@ -838,7 +825,7 @@ void LedControlOverlay::handle_wled_brightness(int brightness) {
 
     auto& controller = LedController::instance();
     const auto& selected = controller.selected_strips();
-    if (!selected.empty() && selected_is_wled_) {
+    if (!selected.empty() && selected_backend_type_ == LedBackendType::WLED) {
         controller.wled().set_brightness(selected[0], brightness);
     }
 }
@@ -889,21 +876,35 @@ void LedControlOverlay::handle_strip_selected(const std::string& strip_id) {
 
     controller.set_selected_strips(selected);
 
-    // Determine if the selected strip is a WLED strip
-    selected_is_wled_ = false;
+    // Determine the backend type and display name for the selected strip
+    selected_backend_type_ = LedBackendType::NATIVE;
     std::string display_name = strip_id;
-    for (const auto& s : controller.wled().strips()) {
-        if (s.id == strip_id) {
-            selected_is_wled_ = true;
-            display_name = s.name;
-            break;
+
+    if (strip_id.rfind("macro:", 0) == 0) {
+        // Macro strip: extract display name from the ID
+        selected_backend_type_ = LedBackendType::MACRO;
+        std::string macro_key = strip_id.substr(6); // Strip "macro:" prefix
+        display_name = macro_key;
+        for (const auto& m : controller.macro().macros()) {
+            if (m.display_name == macro_key) {
+                display_name = m.display_name;
+                break;
+            }
         }
-    }
-    if (!selected_is_wled_) {
-        for (const auto& s : controller.native().strips()) {
+    } else {
+        for (const auto& s : controller.wled().strips()) {
             if (s.id == strip_id) {
+                selected_backend_type_ = LedBackendType::WLED;
                 display_name = s.name;
                 break;
+            }
+        }
+        if (selected_backend_type_ != LedBackendType::WLED) {
+            for (const auto& s : controller.native().strips()) {
+                if (s.id == strip_id) {
+                    display_name = s.name;
+                    break;
+                }
             }
         }
     }
@@ -912,7 +913,7 @@ void LedControlOverlay::handle_strip_selected(const std::string& strip_id) {
     snprintf(strip_name_buf_, sizeof(strip_name_buf_), "%s", display_name.c_str());
     lv_subject_copy_string(&strip_name_subject_, strip_name_buf_);
 
-    if (selected_is_wled_) {
+    if (selected_backend_type_ == LedBackendType::WLED) {
         // WLED strip selected: rebuild WLED section, update visibility
         if (wled_presets_container_) {
             lv_obj_clean(wled_presets_container_);
@@ -925,17 +926,26 @@ void LedControlOverlay::handle_strip_selected(const std::string& strip_id) {
         int pct = (strip_state.brightness * 100) / 255;
         lv_subject_set_int(&wled_brightness_subject_, pct);
         update_wled_brightness_text(pct);
-        if (wled_brightness_slider_)
-            lv_slider_set_value(wled_brightness_slider_, pct, LV_ANIM_OFF);
         update_wled_toggle_button();
+    } else if (selected_backend_type_ == LedBackendType::MACRO) {
+        // Macro strip selected: rebuild macro controls for this specific macro
+        if (macro_buttons_container_) {
+            lv_obj_clean(macro_buttons_container_);
+            std::string macro_key = strip_id.substr(6);
+            for (const auto& m : controller.macro().macros()) {
+                if (m.display_name == macro_key) {
+                    populate_macro_controls(m);
+                    break;
+                }
+            }
+        }
     } else {
         // Native strip selected: update color/brightness from cache
         auto strip_color = controller.native().get_strip_color(strip_id);
         strip_color.decompose(current_color_, current_brightness_);
         update_brightness_text(current_brightness_);
         update_current_color_swatch();
-        if (brightness_slider_)
-            lv_slider_set_value(brightness_slider_, current_brightness_, LV_ANIM_OFF);
+        lv_subject_set_int(&brightness_subject_, current_brightness_);
 
         // Rebuild effects for the newly selected strip
         if (effects_container_) {
@@ -1050,7 +1060,7 @@ void LedControlOverlay::add_macro_chip(const std::string& label, const std::stri
 
 void LedControlOverlay::refresh_wled_status() {
     auto& controller = LedController::instance();
-    if (!controller.is_initialized() || !selected_is_wled_)
+    if (!controller.is_initialized() || selected_backend_type_ != LedBackendType::WLED)
         return;
 
     controller.wled().poll_status([this]() {
@@ -1084,6 +1094,15 @@ void LedControlOverlay::on_wled_toggle_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[LedControlOverlay] wled_toggle_cb");
     (void)e;
     get_led_control_overlay().handle_wled_toggle();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void LedControlOverlay::on_color_preset_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[LedControlOverlay] color_preset_cb");
+    auto* target = static_cast<lv_obj_t*>(lv_event_get_target(e));
+    auto* data = static_cast<uint32_t*>(lv_obj_get_user_data(target));
+    if (data)
+        get_led_control_overlay().handle_color_preset(*data);
     LVGL_SAFE_EVENT_CB_END();
 }
 

@@ -4,6 +4,7 @@
 
 #include "ui_observer_guard.h"
 
+#include "led/led_backend.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
@@ -89,6 +90,7 @@ class LedControlOverlay : public OverlayBase {
     using MacroClickHandler = void (LedControlOverlay::*)(const std::string&);
     void add_macro_chip(const std::string& label, const std::string& data,
                         MacroClickHandler handler);
+    void populate_macro_controls(const LedMacroInfo& macro);
 
     // Update WLED toggle button appearance based on strip state
     void update_wled_toggle_button();
@@ -97,6 +99,7 @@ class LedControlOverlay : public OverlayBase {
     static void on_custom_color_cb(lv_event_t* e);
     static void on_native_turn_off_cb(lv_event_t* e);
     static void on_wled_toggle_cb(lv_event_t* e);
+    static void on_color_preset_cb(lv_event_t* e);
     static void on_brightness_changed_cb(lv_event_t* e);
 
     // Dependencies
@@ -104,21 +107,15 @@ class LedControlOverlay : public OverlayBase {
     MoonrakerAPI* api_ = nullptr;
 
     // Widget references (owned by LVGL, not us)
+    // Section visibility handled declaratively via bind_flag_if_eq subjects
     lv_obj_t* strip_selector_section_ = nullptr;
-    lv_obj_t* native_section_ = nullptr;
-    lv_obj_t* effects_section_ = nullptr;
-    lv_obj_t* wled_section_ = nullptr;
-    lv_obj_t* macro_section_ = nullptr;
     lv_obj_t* color_presets_container_ = nullptr;
     lv_obj_t* effects_container_ = nullptr;
     lv_obj_t* wled_presets_container_ = nullptr;
     lv_obj_t* macro_buttons_container_ = nullptr;
     lv_obj_t* current_color_swatch_ = nullptr;
-    lv_obj_t* brightness_slider_ = nullptr;
-    lv_obj_t* wled_brightness_slider_ = nullptr;
-    lv_obj_t* wled_toggle_btn_ = nullptr;
-    lv_obj_t* divider_effects_wled_ = nullptr;
-    lv_obj_t* divider_wled_macro_ = nullptr;
+    // brightness_slider and wled_brightness_slider use bind_value — no C++ reference needed
+    // wled_toggle_btn_ removed — styling driven by led_wled_is_on subject + bind_style
 
     // Subjects for XML bindings
     SubjectManager subjects_;
@@ -130,15 +127,22 @@ class LedControlOverlay : public OverlayBase {
     lv_subject_t wled_brightness_subject_{};
     lv_subject_t wled_brightness_text_subject_{};
     char wled_brightness_text_buf_[16] = {0};
+    lv_subject_t wled_is_on_{};
+
+    // Section visibility subjects (0=hidden, 1=visible)
+    lv_subject_t native_visible_{};
+    lv_subject_t effects_visible_{};
+    lv_subject_t wled_visible_{};
+    lv_subject_t macro_visible_{};
+    lv_subject_t strip_selector_visible_{};
 
     // Observers
-    ObserverGuard brightness_observer_;
     ObserverGuard wled_brightness_observer_;
 
     // State
     int current_brightness_ = 100;
     uint32_t current_color_ = 0xFFFFFF;
-    bool selected_is_wled_ = false;
+    LedBackendType selected_backend_type_ = LedBackendType::NATIVE;
 };
 
 } // namespace helix::led
