@@ -374,9 +374,50 @@ TEST_CASE("PrinterImageManager get_custom_images after import", "[printer_image_
     for (const auto& img : custom) {
         if (img.id == "custom:listed-printer") {
             found = true;
-            CHECK(img.display_name == "listed-printer");
+            CHECK(img.display_name == "listed printer");
             break;
         }
     }
     CHECK(found);
+}
+
+TEST_CASE("PrinterImageManager::format_display_name", "[printer_image_manager]") {
+    using PIM = helix::PrinterImageManager;
+
+    SECTION("replaces dashes with spaces") {
+        REQUIRE(PIM::format_display_name("voron-trident") == "voron trident");
+    }
+
+    SECTION("replaces underscores with spaces") {
+        REQUIRE(PIM::format_display_name("voron_trident") == "voron trident");
+    }
+
+    SECTION("dashes between digits become dots") {
+        REQUIRE(PIM::format_display_name("voron-0-2") == "voron 0.2");
+    }
+
+    SECTION("mixed separators") {
+        REQUIRE(PIM::format_display_name("my_printer-v2-0-1") == "my printer v2.0.1");
+    }
+
+    SECTION("no separators unchanged") {
+        REQUIRE(PIM::format_display_name("printer") == "printer");
+    }
+
+    SECTION("empty string") {
+        REQUIRE(PIM::format_display_name("") == "");
+    }
+
+    SECTION("leading/trailing separators become spaces") {
+        REQUIRE(PIM::format_display_name("-hello-") == " hello ");
+    }
+
+    SECTION("consecutive digits with dash") {
+        REQUIRE(PIM::format_display_name("model-24r2") == "model 24r2");
+        // 4-to-r is NOT digit-digit so dash becomes space — correct
+    }
+
+    SECTION("underscore between digits also becomes dot") {
+        REQUIRE(PIM::format_display_name("v1_0_0") == "v1.0.0");
+    }
 }

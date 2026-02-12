@@ -19,10 +19,13 @@
 #include "ui_nav_manager.h"
 #include "ui_update_queue.h"
 
+#include "config.h"
 #include "prerendered_images.h"
 #include "printer_image_manager.h"
+#include "printer_images.h"
 #include "static_panel_registry.h"
 #include "usb_manager.h"
+#include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
 
@@ -186,7 +189,14 @@ void PrinterImageOverlay::on_activate() {
         std::string preview_path = get_preview_path_for_id(active_id);
         update_preview(active_id, display_name, preview_path);
     } else {
-        update_preview("", "Auto-Detect", "");
+        // Show the auto-detected image as preview
+        std::string auto_path;
+        Config* config = Config::get_instance();
+        if (config) {
+            std::string printer_type = config->get<std::string>(helix::wizard::PRINTER_TYPE, "");
+            auto_path = PrinterImages::get_best_printer_image(printer_type);
+        }
+        update_preview("", "Auto-Detect", auto_path);
     }
 }
 
@@ -305,6 +315,9 @@ void PrinterImageOverlay::populate_custom_images() {
     }
 
     lv_obj_clean(list);
+
+    // Auto-import any raw PNG/JPEG files dropped into the custom_images directory
+    helix::PrinterImageManager::instance().auto_import_raw_images();
 
     auto images = helix::PrinterImageManager::instance().get_custom_images();
     spdlog::debug("[{}] Populating {} custom images", get_name(), images.size());
@@ -428,7 +441,15 @@ void PrinterImageOverlay::handle_auto_detect() {
     spdlog::info("[{}] Auto-detect selected", get_name());
     helix::PrinterImageManager::instance().set_active_image("");
     update_selection_indicator("");
-    update_preview("", "Auto-Detect", "");
+
+    // Show the auto-detected image as preview
+    std::string auto_path;
+    Config* config = Config::get_instance();
+    if (config) {
+        std::string printer_type = config->get<std::string>(helix::wizard::PRINTER_TYPE, "");
+        auto_path = PrinterImages::get_best_printer_image(printer_type);
+    }
+    update_preview("", "Auto-Detect", auto_path);
     NOTIFY_INFO("Printer image set to auto-detect");
 }
 

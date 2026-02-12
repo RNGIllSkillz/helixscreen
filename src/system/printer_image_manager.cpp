@@ -99,6 +99,24 @@ std::string PrinterImageManager::get_active_image_path(int screen_width) const {
 }
 
 // =============================================================================
+// Display name formatting
+// =============================================================================
+
+std::string PrinterImageManager::format_display_name(const std::string& stem) {
+    std::string name = stem;
+    for (size_t i = 0; i < name.size(); i++) {
+        char c = name[i];
+        if (c == '-' || c == '_') {
+            bool between_digits = (i > 0 && i + 1 < name.size() &&
+                                   std::isdigit(static_cast<unsigned char>(name[i - 1])) &&
+                                   std::isdigit(static_cast<unsigned char>(name[i + 1])));
+            name[i] = between_digits ? '.' : ' ';
+        }
+    }
+    return name;
+}
+
+// =============================================================================
 // Browsing
 // =============================================================================
 
@@ -113,9 +131,7 @@ std::vector<PrinterImageManager::ImageInfo> PrinterImageManager::get_shipped_ima
 
         ImageInfo info;
         info.id = "shipped:" + stem;
-        info.display_name = stem;
-        std::replace(info.display_name.begin(), info.display_name.end(), '-', ' ');
-        std::replace(info.display_name.begin(), info.display_name.end(), '_', ' ');
+        info.display_name = format_display_name(stem);
         // Preview uses 150px prerendered variant
         info.preview_path = get_prerendered_printer_path(stem, 480); // 480 -> 150px
         results.push_back(std::move(info));
@@ -149,7 +165,7 @@ std::vector<PrinterImageManager::ImageInfo> PrinterImageManager::get_custom_imag
 
         ImageInfo info;
         info.id = "custom:" + name;
-        info.display_name = name;
+        info.display_name = format_display_name(name);
         // Preview uses the 150px variant
         std::string preview_bin = custom_dir_ + name + "-150.bin";
         if (fs::exists(preview_bin)) {
@@ -164,6 +180,38 @@ std::vector<PrinterImageManager::ImageInfo> PrinterImageManager::get_custom_imag
               [](const ImageInfo& a, const ImageInfo& b) { return a.id < b.id; });
 
     return results;
+}
+
+int PrinterImageManager::auto_import_raw_images() {
+    if (custom_dir_.empty() || !fs::exists(custom_dir_)) {
+        return 0;
+    }
+
+    int imported = 0;
+    auto raw_files = scan_for_images(custom_dir_);
+
+    for (const auto& path : raw_files) {
+        std::string stem = fs::path(path).stem().string();
+        std::string bin_path = custom_dir_ + stem + "-300.bin";
+
+        // Skip if already converted
+        if (fs::exists(bin_path)) {
+            continue;
+        }
+
+        spdlog::info("[PrinterImageManager] Auto-importing raw image: {}", path);
+        auto result = import_image(path);
+        if (result.success) {
+            imported++;
+        } else {
+            spdlog::warn("[PrinterImageManager] Auto-import failed for {}: {}", path, result.error);
+        }
+    }
+
+    if (imported > 0) {
+        spdlog::info("[PrinterImageManager] Auto-imported {} raw image(s)", imported);
+    }
+    return imported;
 }
 
 std::vector<std::string> PrinterImageManager::scan_for_images(const std::string& dir) const {
@@ -259,6 +307,11 @@ bool PrinterImageManager::convert_to_bin(const uint8_t* pixels, int w, int h,
     if (!resize_ok) {
         spdlog::error("[PrinterImageManager] Resize failed for {}", output_path);
         return false;
+    }
+
+    // Convert RGBA (stb) → BGRA (LVGL ARGB8888 in little-endian memory)
+    for (size_t i = 0; i < resized.size(); i += 4) {
+        std::swap(resized[i], resized[i + 2]); // R ↔ B
     }
 
     // Write as LVGL binary (ARGB8888)

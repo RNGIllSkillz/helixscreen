@@ -45,6 +45,11 @@ class PrinterImageManager {
     /// Set active image ID and persist to config
     void set_active_image(const std::string& id);
 
+    /** Format a filename stem into a human-readable display name.
+     *  Replaces dashes/underscores with spaces, except dashes between
+     *  two digits become dots (e.g., "voron-0-2" → "voron 0.2"). */
+    static std::string format_display_name(const std::string& stem);
+
     // --- Browsing ---
 
     struct ImageInfo {
@@ -55,6 +60,9 @@ class PrinterImageManager {
 
     std::vector<ImageInfo> get_shipped_images() const;
     std::vector<ImageInfo> get_custom_images() const;
+
+    /// Auto-import any raw PNG/JPEG files in custom_images/ that lack .bin variants
+    int auto_import_raw_images();
 
     /// Scan directory for importable PNG/JPEG files
     std::vector<std::string> scan_for_images(const std::string& dir) const;

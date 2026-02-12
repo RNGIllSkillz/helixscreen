@@ -5,7 +5,7 @@
 <component>
   <view name="printer_image_overlay"
         extends="overlay_panel" width="#overlay_panel_width_full" title="Printer Image" title_tag="Printer Image"
-        bg_color="#screen_bg">
+        bg_color="#card_bg">
     <!-- Main content: left list + right preview in a ROW -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="#space_sm" flex_flow="row" style_pad_gap="#space_sm"
@@ -61,7 +61,7 @@
       <!-- RIGHT: Preview area -->
       <lv_obj name="preview_container"
               height="100%" flex_grow="4" flex_flow="column" style_pad_all="#space_sm" scrollable="false"
-              style_bg_color="#card_bg" style_bg_opa="255" style_radius="#border_radius" style_flex_main_place="center"
+              style_bg_color="#elevated_bg" style_bg_opa="255" style_radius="#border_radius" style_flex_main_place="center"
               style_flex_cross_place="center">
         <!-- Preview image bound to subject -->
         <lv_image name="preview_image"
@@ -69,12 +69,14 @@
           <bind_flag_if_eq subject="printer_image_has_preview" flag="hidden" ref_value="0"/>
         </lv_image>
         <!-- Placeholder when no preview -->
-        <icon name="preview_placeholder" src="printer_3d" size="xl" variant="tertiary" hidden="true">
+        <icon name="preview_placeholder" src="printer_3d" size="xl" variant="tertiary" hidden="true"
+              align="center">
           <bind_flag_if_eq subject="printer_image_has_preview" flag="hidden" ref_value="1"/>
         </icon>
         <!-- Selected image name -->
         <text_body name="preview_label"
-                   bind_text="printer_image_preview_name" style_text_align="center" style_pad_top="#space_xs"/>
+                   width="100%" bind_text="printer_image_preview_name" style_text_align="center"
+                   style_pad_top="#space_xs"/>
       </lv_obj>
 
     </lv_obj>
