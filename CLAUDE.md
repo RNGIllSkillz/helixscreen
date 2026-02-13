@@ -112,6 +112,31 @@ Use `ObserverGuard` for RAII cleanup. See `observer_factory.h` for `observe_int_
 
 ---
 
+## Where Things Live
+
+**Singletons** (all `::instance()`):
+`PrinterState` (all printer data/subjects), `SettingsManager` (persistent settings), `NavigationManager` (panel/overlay stack), `UpdateQueue` (thread-safe UI updates), `SoundManager`, `DisplayManager`, `ModalStack`, `PrinterDetector` (printer DB + capabilities)
+
+**Entry flow**: `main.cpp` → `Application` → `DisplayManager` → panels via `NavigationManager`
+
+**Key directories**:
+| Path | Contents |
+|------|----------|
+| `src/ui/panels/` | Panel classes (HomePanel, SettingsPanel, etc.) |
+| `src/ui/overlays/` | Overlay classes (MotionOverlay, AmsPanel, etc.) |
+| `src/ui/modals/` | Modal dialogs (extend `Modal`) |
+| `src/printer/` | PrinterState, MoonrakerAPI, macro/filament managers |
+| `src/system/` | Config, settings, update checker, sound, telemetry |
+| `src/application/` | App lifecycle, display, input, runtime config |
+| `ui_xml/` | All XML layouts (loaded at runtime — no rebuild needed) |
+| `ui_xml/components/` | Reusable XML components |
+| `assets/` | Fonts, images, sounds, printer DB JSON |
+| `config/` | Default config files, env templates |
+
+**Runtime config** (on device): `~/helixscreen/config/` — settings.json, printer_database.json, helixscreen.env
+
+---
+
 ## Debugging
 
 **NEVER debug without flags!** Use `-vv` minimum.
