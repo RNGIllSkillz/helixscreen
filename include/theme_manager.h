@@ -207,10 +207,13 @@ class ThemeManager {
 
 // Responsive breakpoints (based on screen height — vertical space is the constraint)
 // Target hardware: 480x320, 480x400, 1920x440, 800x480, 1024x600, 1280x720
-#define UI_BREAKPOINT_SMALL_MAX 460 // height ≤460 → SMALL
+// 4-tier system: TINY (≤390) → SMALL (391-460) → MEDIUM (461-700) → LARGE (>700)
+// _tiny is optional with fallback to _small — only define _tiny where values differ
+#define UI_BREAKPOINT_TINY_MAX 390  // height ≤390 → TINY (480x320)
+#define UI_BREAKPOINT_SMALL_MAX 460 // height 391-460 → SMALL (480x400, 1920x440)
 #define UI_BREAKPOINT_MEDIUM_MAX                                                                   \
-    700 // height 461-700 → MEDIUM
-        // height >700 → LARGE
+    700 // height 461-700 → MEDIUM (800x480, 1024x600)
+        // height >700 → LARGE (1280x720+)
 
 // Screen size targets (reference only, use breakpoints above for logic)
 #define UI_SCREEN_LARGE_W 1280
@@ -262,7 +265,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode);
  * Useful for testing and debugging responsive behavior.
  *
  * @param resolution Screen height (vertical resolution)
- * @return "_small" (≤460), "_medium" (461-700), or "_large" (>700)
+ * @return "_tiny" (≤390), "_small" (391-460), "_medium" (461-700), or "_large" (>700)
  */
 const char* theme_manager_get_breakpoint_suffix(int32_t resolution);
 

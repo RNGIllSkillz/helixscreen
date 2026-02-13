@@ -4,6 +4,8 @@
 <!-- FanDial: Reusable Bambu-style 270-degree rotary arc fan control widget -->
 <!-- Usage: <fan_dial fan_name="Part Fan" fan_id="fan" initial_value="0"/> -->
 <component>
+  <!-- Responsive fan tokens live in fan_tokens.xml (separate file to avoid
+       component-scope conflicts with responsive suffix resolution) -->
   <api>
     <prop name="fan_name" type="string" default="Fan"/>
     <prop name="fan_id" type="string" default="fan"/>
@@ -11,7 +13,7 @@
   </api>
   <view name="fan_dial_root"
         extends="ui_card" height="#fan_card_height"
-        style_flex_basis="#fan_card_base_width" flex_grow="1"
+        width="#fan_card_base_width"
         style_min_width="#fan_card_min_width" style_max_width="#fan_card_max_width"
         flex_flow="column"
         style_flex_main_place="start" style_flex_cross_place="center"

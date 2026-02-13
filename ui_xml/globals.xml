@@ -112,39 +112,7 @@
     <px name="spinner_arc_xs_medium" value="2"/>
     <px name="spinner_arc_xs_large" value="2"/>
 
-    <!-- ===================================================================== -->
-    <!-- Responsive Fan Dial / Status Card Sizes (fan_*)                       -->
-    <!-- ===================================================================== -->
-    <!-- Runtime selects appropriate variant via ui_theme_register_responsive_spacing()
-         Fan dial and fan status card component dimensions -->
-    <!-- fan_card_base_width: Flex basis (ideal width) -->
-    <px name="fan_card_base_width_small" value="140"/>
-    <px name="fan_card_base_width_medium" value="175"/>
-    <px name="fan_card_base_width_large" value="200"/>
-    <!-- fan_card_min_width: Minimum before wrapping -->
-    <px name="fan_card_min_width_small" value="120"/>
-    <px name="fan_card_min_width_medium" value="150"/>
-    <px name="fan_card_min_width_large" value="170"/>
-    <!-- fan_card_max_width: Maximum to prevent over-stretching -->
-    <px name="fan_card_max_width_small" value="170"/>
-    <px name="fan_card_max_width_medium" value="220"/>
-    <px name="fan_card_max_width_large" value="260"/>
-    <!-- fan_card_height: Overall card height -->
-    <px name="fan_card_height_small" value="152"/>
-    <px name="fan_card_height_medium" value="190"/>
-    <px name="fan_card_height_large" value="220"/>
-    <!-- fan_btn_row_height: Button row container height -->
-    <px name="fan_btn_row_height_small" value="28"/>
-    <px name="fan_btn_row_height_medium" value="32"/>
-    <px name="fan_btn_row_height_large" value="36"/>
-    <!-- fan_btn_max_width: Off/On button max width (buttons use flex_grow) -->
-    <px name="fan_btn_max_width_small" value="50"/>
-    <px name="fan_btn_max_width_medium" value="60"/>
-    <px name="fan_btn_max_width_large" value="70"/>
-    <!-- fan_btn_height: Off/On button height -->
-    <px name="fan_btn_height_small" value="24"/>
-    <px name="fan_btn_height_medium" value="28"/>
-    <px name="fan_btn_height_large" value="32"/>
+    <!-- Fan card tokens (fan_*) live in fan_tokens.xml -->
 
     <!-- ===================================================================== -->
     <!-- Responsive Keypad Sizes (keypad_*)                                    -->
@@ -208,7 +176,7 @@
     <px name="temp_card_height_small" value="64"/>
     <px name="temp_card_height_medium" value="72"/>
     <px name="temp_card_height_large" value="80"/>
-<!-- detail_metadata_clip_height: Clip container for print file detail overlay -->
+    <!-- detail_metadata_clip_height: Clip container for print file detail overlay -->
     <px name="detail_metadata_clip_height_small" value="92"/>
     <px name="detail_metadata_clip_height_medium" value="112"/>
     <px name="detail_metadata_clip_height_large" value="112"/>

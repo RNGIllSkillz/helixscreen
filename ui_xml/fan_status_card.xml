@@ -11,7 +11,7 @@
   </api>
   <view name="fan_status_card_root"
         extends="ui_card" height="#fan_card_height"
-        style_flex_basis="#fan_card_base_width" flex_grow="1"
+        width="#fan_card_base_width"
         style_min_width="#fan_card_min_width" style_max_width="#fan_card_max_width"
         flex_flow="column"
         style_flex_main_place="start" style_flex_cross_place="center"

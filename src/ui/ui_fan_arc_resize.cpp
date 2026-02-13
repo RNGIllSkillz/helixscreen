@@ -21,6 +21,9 @@ void fan_arc_resize_to_fit(lv_obj_t* card_root) {
     if (!container || !arc)
         return;
 
+    // Force layout computation so flex_grow children have real sizes
+    lv_obj_update_layout(card_root);
+
     int32_t content_w = lv_obj_get_content_width(card_root);
     int32_t container_h = lv_obj_get_content_height(container);
 
