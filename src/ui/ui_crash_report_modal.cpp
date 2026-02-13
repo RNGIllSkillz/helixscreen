@@ -3,6 +3,7 @@
 
 #include "ui_crash_report_modal.h"
 
+#include "ui_toast.h"
 #include "ui_update_queue.h"
 
 #include "system/crash_reporter.h"
@@ -174,8 +175,12 @@ void CrashReportModal::attempt_delivery() {
 
     // Try auto-send first
     if (cr.try_auto_send(report_)) {
-        lv_subject_copy_string(&status_subject_, "Report sent! Thank you.");
         spdlog::info("[CrashReportModal] Crash report sent via worker");
+        cr.save_to_file(report_);
+        cr.consume_crash_file();
+        hide();
+        ui_toast_show(ToastSeverity::SUCCESS, "Crash report sent — thank you!", 4000);
+        return;
     } else {
         // Auto-send failed — try QR code
         std::string url = cr.generate_github_url(report_);

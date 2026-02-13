@@ -711,8 +711,7 @@ void TelemetryManager::check_previous_crash() {
 
     auto crash_data = crash_handler::read_crash_file(crash_path);
     if (crash_data.is_null()) {
-        spdlog::warn("[TelemetryManager] Failed to parse crash file, removing it");
-        crash_handler::remove_crash_file(crash_path);
+        spdlog::warn("[TelemetryManager] Failed to parse crash file, skipping telemetry event");
         return;
     }
 
@@ -756,8 +755,8 @@ void TelemetryManager::check_previous_crash() {
         spdlog::debug("[TelemetryManager] Crash event discarded (telemetry disabled)");
     }
 
-    // Remove the crash file so we don't re-process it
-    crash_handler::remove_crash_file(crash_path);
+    // Note: crash file is NOT removed here — CrashReporter owns the lifecycle
+    // and removes it after the user interacts with the crash report modal.
 }
 
 // =============================================================================
