@@ -100,7 +100,6 @@ class LedSettingsOverlay : public OverlayBase {
 
     // Auto-state mapping editor
     void populate_auto_state_rows();
-    void toggle_state_row(const std::string& state_key);
     void rebuild_contextual_controls(const std::string& state_key, lv_obj_t* container);
     void update_state_row_summary(const std::string& state_key);
     void handle_action_type_changed(const std::string& state_key, int dropdown_index);
@@ -119,7 +118,6 @@ class LedSettingsOverlay : public OverlayBase {
     // Auto-state editor state
     SubjectManager subjects_;
     lv_subject_t auto_state_enabled_subject_{};
-    std::string expanded_state_key_;               // Empty = none expanded
     std::vector<std::string> action_type_options_; // Maps dropdown index to action type string
     int editing_macro_index_ = -1;                 // -1 = no macro device being edited
 

@@ -11,6 +11,7 @@
 #include "ui_event_safety.h"
 #include "ui_led_chip_factory.h"
 #include "ui_nav_manager.h"
+#include "ui_toast_manager.h"
 
 #include "device_display_name.h"
 #include "led/led_auto_state.h"
@@ -327,8 +328,8 @@ void LedSettingsOverlay::populate_macro_devices() {
         lv_obj_set_size(del_btn, 36, 36);
         lv_obj_set_style_bg_opa(del_btn, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(del_btn, 0, 0);
-        const char* del_icon_attrs[] = {"src",     "delete_outline", "size", "sm",
-                                        "variant", "secondary",      nullptr};
+        const char* del_icon_attrs[] = {"src",     "delete",    "size", "sm",
+                                        "variant", "secondary", nullptr};
         lv_xml_create(del_btn, "icon", del_icon_attrs);
 
         auto* del_idx = new int(i);
@@ -435,13 +436,13 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
     lv_obj_set_style_text_color(name_lbl, text_muted, 0);
     lv_obj_set_width(name_lbl, 60);
 
-    auto* name_ta = lv_textarea_create(name_row);
-    lv_textarea_set_one_line(name_ta, true);
-    lv_textarea_set_placeholder_text(name_ta, "Device name");
+    const char* name_input_attrs[] = {
+        "name", "macro_name_input", "placeholder_text", "Device name", "one_line", "true", nullptr,
+    };
+    auto* name_ta = static_cast<lv_obj_t*>(lv_xml_create(name_row, "text_input", name_input_attrs));
     lv_textarea_set_text(name_ta, macro.display_name.c_str());
     lv_obj_set_flex_grow(name_ta, 1);
     lv_obj_set_height(name_ta, LV_SIZE_CONTENT);
-    lv_obj_set_name(name_ta, "macro_name_input");
 
     // --- Type dropdown ---
     auto* type_row = lv_obj_create(container);
@@ -648,13 +649,16 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
                                 fmt::format("macro_preset_row_{}_{}", index, p).c_str());
 
                 // Preset name input
-                auto* pname_ta = lv_textarea_create(preset_row);
-                lv_textarea_set_one_line(pname_ta, true);
-                lv_textarea_set_placeholder_text(pname_ta, "Name");
+                std::string pname_name = fmt::format("preset_name_{}_{}", index, p);
+                const char* pname_attrs[] = {
+                    "name",  pname_name.c_str(), "placeholder_text", "Name", "one_line", "true",
+                    nullptr,
+                };
+                auto* pname_ta =
+                    static_cast<lv_obj_t*>(lv_xml_create(preset_row, "text_input", pname_attrs));
                 lv_textarea_set_text(pname_ta, preset.first.c_str());
                 lv_obj_set_width(pname_ta, 80);
                 lv_obj_set_height(pname_ta, LV_SIZE_CONTENT);
-                lv_obj_set_name(pname_ta, fmt::format("preset_name_{}_{}", index, p).c_str());
 
                 // Preset macro dropdown
                 auto* pmacro_dd = lv_dropdown_create(preset_row);
@@ -958,6 +962,27 @@ void LedSettingsOverlay::handle_save_macro_device(int index) {
     }
     }
 
+    // --- Validation ---
+    // Trim and check for empty name
+    std::string display_name = updated[index].display_name;
+    // Trim whitespace
+    auto start = display_name.find_first_not_of(" \t\n\r");
+    auto end = display_name.find_last_not_of(" \t\n\r");
+    display_name = (start == std::string::npos) ? "" : display_name.substr(start, end - start + 1);
+    updated[index].display_name = display_name;
+
+    if (display_name.empty()) {
+        ui_toast_show(ToastSeverity::ERROR, "Device name is required");
+        return;
+    }
+
+    // Check for duplicate on/off macros
+    if (updated[index].type == helix::led::MacroLedType::ON_OFF &&
+        updated[index].on_macro == updated[index].off_macro && !updated[index].on_macro.empty()) {
+        ui_toast_show(ToastSeverity::ERROR, "On and Off macros must be different");
+        return;
+    }
+
     spdlog::info("[{}] Saved macro device {}: '{}' type={}", get_name(), index,
                  updated[index].display_name, static_cast<int>(updated[index].type));
 
@@ -1081,12 +1106,12 @@ struct StateRowInfo {
 };
 
 static constexpr StateRowInfo STATE_ROWS[] = {
-    {"idle", "Idle", "power_sleep"},
+    {"idle", "Idle", "sleep"},
     {"heating", "Heating", "fire"},
-    {"printing", "Printing", "printer_3d_nozzle"},
-    {"paused", "Paused", "pause_circle_outline"},
-    {"error", "Error", "alert_circle_outline"},
-    {"complete", "Complete", "check_circle_outline"},
+    {"printing", "Printing", "printer_3d"},
+    {"paused", "Paused", "pause"},
+    {"error", "Error", "alert_circle"},
+    {"complete", "Complete", "check_circle"},
 };
 
 std::string LedSettingsOverlay::action_summary(const helix::led::LedStateAction& action) {
@@ -1115,13 +1140,57 @@ void LedSettingsOverlay::populate_auto_state_rows() {
 
     // Clear existing rows
     lv_obj_clean(container);
-    expanded_state_key_.clear();
 
     auto& auto_state = helix::led::LedAutoState::instance();
 
     auto text_color = theme_manager_get_color("text");
-    auto text_muted = theme_manager_get_color("text_subtle");
     auto card_bg = theme_manager_get_color("card_bg");
+
+    // Build capability-filtered action type options (shared across all rows)
+    action_type_options_.clear();
+    action_type_options_.push_back("off");
+    action_type_options_.push_back("brightness");
+
+    auto& ctrl = helix::led::LedController::instance();
+    bool has_color = false;
+    for (const auto& strip_id : ctrl.selected_strips()) {
+        for (const auto& s : ctrl.native().strips()) {
+            if (s.id == strip_id && s.supports_color) {
+                has_color = true;
+                break;
+            }
+        }
+        if (has_color)
+            break;
+    }
+    if (has_color)
+        action_type_options_.push_back("color");
+    if (ctrl.effects().is_available())
+        action_type_options_.push_back("effect");
+    if (ctrl.wled().is_available())
+        action_type_options_.push_back("wled_preset");
+    if (ctrl.macro().is_available())
+        action_type_options_.push_back("macro");
+
+    // Build dropdown options string
+    std::string options_str;
+    for (size_t i = 0; i < action_type_options_.size(); i++) {
+        if (i > 0)
+            options_str += "\n";
+        const auto& opt = action_type_options_[i];
+        if (opt == "off")
+            options_str += "Off";
+        else if (opt == "brightness")
+            options_str += "Brightness";
+        else if (opt == "color")
+            options_str += "Color";
+        else if (opt == "effect")
+            options_str += "Effect";
+        else if (opt == "wled_preset")
+            options_str += "WLED Preset";
+        else if (opt == "macro")
+            options_str += "Macro";
+    }
 
     for (const auto& state : STATE_ROWS) {
         std::string key = state.key;
@@ -1133,145 +1202,36 @@ void LedSettingsOverlay::populate_auto_state_rows() {
             action = *mapping;
         }
 
-        // --- Collapsed row (clickable button) ---
-        lv_obj_t* row_btn = lv_obj_create(container);
-        lv_obj_set_width(row_btn, lv_pct(100));
-        lv_obj_set_height(row_btn, LV_SIZE_CONTENT);
-        lv_obj_set_flex_flow(row_btn, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row_btn, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
-                              LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_left(row_btn, 24, 0);   // #space_lg
-        lv_obj_set_style_pad_right(row_btn, 24, 0);  // #space_lg
-        lv_obj_set_style_pad_top(row_btn, 12, 0);    // #space_md
-        lv_obj_set_style_pad_bottom(row_btn, 12, 0); // #space_md
-        lv_obj_set_style_pad_gap(row_btn, 12, 0);    // #space_md
-        lv_obj_set_style_bg_opa(row_btn, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(row_btn, 0, 0);
-        lv_obj_add_flag(row_btn, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_remove_flag(row_btn, LV_OBJ_FLAG_SCROLLABLE);
+        // --- Main row: icon + label + dropdown (always visible) ---
+        lv_obj_t* row = lv_obj_create(container);
+        lv_obj_set_width(row, lv_pct(100));
+        lv_obj_set_height(row, LV_SIZE_CONTENT);
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_left(row, 24, 0);  // #space_lg
+        lv_obj_set_style_pad_right(row, 24, 0); // #space_lg
+        lv_obj_set_style_pad_top(row, 8, 0);    // #space_sm
+        lv_obj_set_style_pad_bottom(row, 8, 0); // #space_sm
+        lv_obj_set_style_pad_gap(row, 12, 0);   // #space_md
+        lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(row, 0, 0);
+        lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
 
         // Icon
         const char* icon_attrs[] = {"src",     state.icon,  "size", "sm",
                                     "variant", "secondary", nullptr};
-        lv_xml_create(row_btn, "icon", icon_attrs);
+        lv_xml_create(row, "icon", icon_attrs);
 
         // State name label
-        lv_obj_t* name_label = lv_label_create(row_btn);
+        lv_obj_t* name_label = lv_label_create(row);
         lv_label_set_text(name_label, state.display_name);
         lv_obj_set_style_text_color(name_label, text_color, 0);
+        lv_obj_set_width(name_label, 70);
 
-        // Flex spacer
-        lv_obj_t* spacer = lv_obj_create(row_btn);
-        lv_obj_set_flex_grow(spacer, 1);
-        lv_obj_set_height(spacer, 1);
-        lv_obj_set_style_bg_opa(spacer, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(spacer, 0, 0);
-        lv_obj_set_style_pad_all(spacer, 0, 0);
-        lv_obj_remove_flag(spacer, LV_OBJ_FLAG_SCROLLABLE);
-
-        // Summary text
-        std::string summary = action_summary(action);
-        lv_obj_t* summary_label = lv_label_create(row_btn);
-        lv_label_set_text(summary_label, summary.c_str());
-        lv_obj_set_style_text_color(summary_label, text_muted, 0);
-        lv_obj_set_name(summary_label, fmt::format("summary_{}", key).c_str());
-
-        // Color swatch (only visible for color/brightness actions)
-        if (action.action_type == "color" || action.action_type == "brightness") {
-            lv_obj_t* swatch = lv_obj_create(row_btn);
-            lv_obj_set_size(swatch, 20, 20);
-            lv_obj_set_style_radius(swatch, 4, 0);
-            lv_obj_set_style_bg_opa(swatch, LV_OPA_COVER, 0);
-            lv_obj_set_style_border_width(swatch, 1, 0);
-            lv_obj_set_style_border_color(swatch, theme_manager_get_color("border"), 0);
-            lv_obj_remove_flag(swatch, LV_OBJ_FLAG_SCROLLABLE);
-            lv_obj_set_name(swatch, fmt::format("swatch_{}", key).c_str());
-
-            if (action.action_type == "color") {
-                uint8_t r = (action.color >> 16) & 0xFF;
-                uint8_t g = (action.color >> 8) & 0xFF;
-                uint8_t b = action.color & 0xFF;
-                double bf = action.brightness / 100.0;
-                lv_obj_set_style_bg_color(swatch,
-                                          lv_color_make(static_cast<uint8_t>(r * bf),
-                                                        static_cast<uint8_t>(g * bf),
-                                                        static_cast<uint8_t>(b * bf)),
-                                          0);
-            } else {
-                // Brightness-only: show white at the brightness level
-                uint8_t v = static_cast<uint8_t>(action.brightness * 255 / 100);
-                lv_obj_set_style_bg_color(swatch, lv_color_make(v, v, v), 0);
-            }
-        }
-
-        // --- Detail container (initially hidden) ---
-        lv_obj_t* detail = lv_obj_create(container);
-        lv_obj_set_width(detail, lv_pct(100));
-        lv_obj_set_height(detail, LV_SIZE_CONTENT);
-        lv_obj_set_flex_flow(detail, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_style_pad_left(detail, 48, 0);  // Indented past icon
-        lv_obj_set_style_pad_right(detail, 24, 0); // #space_lg
-        lv_obj_set_style_pad_top(detail, 0, 0);
-        lv_obj_set_style_pad_bottom(detail, 12, 0); // #space_md
-        lv_obj_set_style_pad_gap(detail, 8, 0);     // #space_sm
-        lv_obj_set_style_bg_color(detail, card_bg, 0);
-        lv_obj_set_style_bg_opa(detail, LV_OPA_20, 0);
-        lv_obj_set_style_border_width(detail, 0, 0);
-        lv_obj_set_style_radius(detail, 8, 0);
-        lv_obj_remove_flag(detail, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(detail, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_name(detail, fmt::format("detail_{}", key).c_str());
-
-        // --- Action type dropdown inside detail ---
-        // Build capability-filtered options
-        action_type_options_.clear();
-        action_type_options_.push_back("off");
-        action_type_options_.push_back("brightness");
-
-        auto& ctrl = helix::led::LedController::instance();
-        bool has_color = false;
-        for (const auto& strip_id : ctrl.selected_strips()) {
-            for (const auto& s : ctrl.native().strips()) {
-                if (s.id == strip_id && s.supports_color) {
-                    has_color = true;
-                    break;
-                }
-            }
-            if (has_color)
-                break;
-        }
-        if (has_color)
-            action_type_options_.push_back("color");
-        if (ctrl.effects().is_available())
-            action_type_options_.push_back("effect");
-        if (ctrl.wled().is_available())
-            action_type_options_.push_back("wled_preset");
-        if (ctrl.macro().is_available())
-            action_type_options_.push_back("macro");
-
-        // Build dropdown options string
-        std::string options_str;
-        for (size_t i = 0; i < action_type_options_.size(); i++) {
-            if (i > 0)
-                options_str += "\n";
-            const auto& opt = action_type_options_[i];
-            if (opt == "off")
-                options_str += "Off";
-            else if (opt == "brightness")
-                options_str += "Brightness";
-            else if (opt == "color")
-                options_str += "Color";
-            else if (opt == "effect")
-                options_str += "Effect";
-            else if (opt == "wled_preset")
-                options_str += "WLED Preset";
-            else if (opt == "macro")
-                options_str += "Macro";
-        }
-
-        lv_obj_t* dropdown = lv_dropdown_create(detail);
+        // Action type dropdown (always visible)
+        lv_obj_t* dropdown = lv_dropdown_create(row);
         lv_dropdown_set_options(dropdown, options_str.c_str());
-        lv_obj_set_width(dropdown, lv_pct(100));
+        lv_obj_set_flex_grow(dropdown, 1);
         lv_obj_set_style_border_width(dropdown, 0, 0);
 
         // Set dropdown to current action type
@@ -1309,7 +1269,30 @@ void LedSettingsOverlay::populate_auto_state_rows() {
             [](lv_event_t* e) { delete static_cast<DropdownData*>(lv_event_get_user_data(e)); },
             LV_EVENT_DELETE, dd_data);
 
-        // --- Contextual controls container (below dropdown) ---
+        // --- Detail row (shown/hidden based on action type) ---
+        bool needs_detail = (action.action_type != "off" && !action.action_type.empty());
+
+        lv_obj_t* detail = lv_obj_create(container);
+        lv_obj_set_width(detail, lv_pct(100));
+        lv_obj_set_height(detail, LV_SIZE_CONTENT);
+        lv_obj_set_flex_flow(detail, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_style_pad_left(detail, 48, 0);  // Indented past icon
+        lv_obj_set_style_pad_right(detail, 24, 0); // #space_lg
+        lv_obj_set_style_pad_top(detail, 0, 0);
+        lv_obj_set_style_pad_bottom(detail, 12, 0); // #space_md
+        lv_obj_set_style_pad_gap(detail, 8, 0);     // #space_sm
+        lv_obj_set_style_bg_color(detail, card_bg, 0);
+        lv_obj_set_style_bg_opa(detail, LV_OPA_20, 0);
+        lv_obj_set_style_border_width(detail, 0, 0);
+        lv_obj_set_style_radius(detail, 8, 0);
+        lv_obj_remove_flag(detail, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_name(detail, fmt::format("detail_{}", key).c_str());
+
+        if (!needs_detail) {
+            lv_obj_add_flag(detail, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        // Contextual controls container inside detail
         lv_obj_t* ctx_container = lv_obj_create(detail);
         lv_obj_set_width(ctx_container, lv_pct(100));
         lv_obj_set_height(ctx_container, LV_SIZE_CONTENT);
@@ -1323,67 +1306,10 @@ void LedSettingsOverlay::populate_auto_state_rows() {
 
         // Populate contextual controls for current action type
         rebuild_contextual_controls(key, ctx_container);
-
-        // --- Row click handler to expand/collapse ---
-        auto* row_key = new std::string(key);
-        lv_obj_set_user_data(row_btn, row_key);
-
-        lv_obj_add_event_cb(
-            row_btn,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[LedSettingsOverlay] state_row_click");
-                auto* data = static_cast<std::string*>(
-                    lv_obj_get_user_data(static_cast<lv_obj_t*>(lv_event_get_current_target(e))));
-                if (data) {
-                    get_led_settings_overlay().toggle_state_row(*data);
-                }
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_CLICKED, row_key);
-
-        lv_obj_add_event_cb(
-            row_btn,
-            [](lv_event_t* e) { delete static_cast<std::string*>(lv_event_get_user_data(e)); },
-            LV_EVENT_DELETE, row_key);
     }
 
     spdlog::debug("[{}] Auto-state rows populated ({} states)", get_name(),
                   sizeof(STATE_ROWS) / sizeof(STATE_ROWS[0]));
-}
-
-void LedSettingsOverlay::toggle_state_row(const std::string& state_key) {
-    if (!overlay_root_)
-        return;
-
-    // If clicking the already-expanded row, collapse it
-    if (expanded_state_key_ == state_key) {
-        std::string detail_name = fmt::format("detail_{}", state_key);
-        lv_obj_t* detail = lv_obj_find_by_name(overlay_root_, detail_name.c_str());
-        if (detail) {
-            lv_obj_add_flag(detail, LV_OBJ_FLAG_HIDDEN);
-        }
-        expanded_state_key_.clear();
-        spdlog::trace("[{}] Collapsed state row: {}", get_name(), state_key);
-        return;
-    }
-
-    // Collapse previously expanded row
-    if (!expanded_state_key_.empty()) {
-        std::string prev_name = fmt::format("detail_{}", expanded_state_key_);
-        lv_obj_t* prev = lv_obj_find_by_name(overlay_root_, prev_name.c_str());
-        if (prev) {
-            lv_obj_add_flag(prev, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    // Expand the clicked row
-    std::string detail_name = fmt::format("detail_{}", state_key);
-    lv_obj_t* detail = lv_obj_find_by_name(overlay_root_, detail_name.c_str());
-    if (detail) {
-        lv_obj_remove_flag(detail, LV_OBJ_FLAG_HIDDEN);
-    }
-    expanded_state_key_ = state_key;
-    spdlog::trace("[{}] Expanded state row: {}", get_name(), state_key);
 }
 
 void LedSettingsOverlay::rebuild_contextual_controls(const std::string& state_key,
@@ -1730,35 +1656,12 @@ void LedSettingsOverlay::update_state_row_summary(const std::string& state_key) 
 
 void LedSettingsOverlay::handle_action_type_changed(const std::string& state_key,
                                                     int dropdown_index) {
-    // Find the options stored with the dropdown
-    // We need to figure out the action type from the index
-    // Since action_type_options_ was last built in populate_auto_state_rows,
-    // we need to look up the stored data on the dropdown widget itself.
-    // The DropdownData was stored via user_data on the dropdown.
-    // However we receive the index directly, so we look up the detail container
-    // to find the dropdown and read its stored options.
-
-    std::string detail_name = fmt::format("detail_{}", state_key);
-    lv_obj_t* detail = lv_obj_find_by_name(overlay_root_, detail_name.c_str());
-    if (!detail)
-        return;
-
-    // First child of detail is the dropdown
-    lv_obj_t* dropdown = lv_obj_get_child(detail, 0);
-    if (!dropdown)
-        return;
-
-    struct DropdownData {
-        std::string state_key;
-        std::vector<std::string> options;
-    };
-    auto* dd_data = static_cast<DropdownData*>(lv_obj_get_user_data(dropdown));
-    if (!dd_data || dropdown_index < 0 ||
-        dropdown_index >= static_cast<int>(dd_data->options.size())) {
+    // Use the stored action_type_options_ to map dropdown index to type string
+    if (dropdown_index < 0 || dropdown_index >= static_cast<int>(action_type_options_.size())) {
         return;
     }
 
-    std::string new_type = dd_data->options[dropdown_index];
+    std::string new_type = action_type_options_[dropdown_index];
     spdlog::info("[{}] Action type changed for '{}': {}", get_name(), state_key, new_type);
 
     // Build new action with sensible defaults
@@ -1790,16 +1693,21 @@ void LedSettingsOverlay::handle_action_type_changed(const std::string& state_key
     helix::led::LedAutoState::instance().set_mapping(state_key, action);
     save_and_evaluate(state_key);
 
+    // Show or hide the detail row based on new action type
+    std::string detail_name = fmt::format("detail_{}", state_key);
+    lv_obj_t* detail = lv_obj_find_by_name(overlay_root_, detail_name.c_str());
+    if (detail) {
+        if (new_type == "off") {
+            lv_obj_add_flag(detail, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_remove_flag(detail, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
     // Rebuild contextual controls
     std::string ctx_name = fmt::format("ctx_{}", state_key);
     lv_obj_t* ctx = lv_obj_find_by_name(overlay_root_, ctx_name.c_str());
     rebuild_contextual_controls(state_key, ctx);
-
-    // Rebuild entire rows to update summary + swatch presence
-    populate_auto_state_rows();
-
-    // Re-expand the row we were editing
-    toggle_state_row(state_key);
 }
 
 void LedSettingsOverlay::handle_brightness_changed(const std::string& state_key, int value) {
