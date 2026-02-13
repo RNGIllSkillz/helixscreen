@@ -723,3 +723,100 @@ TEST_CASE("Multi-extruder: re-init with different count works cleanly",
     REQUIRE(lv_subject_get_int(temp.get_extruder_temp_subject("extruder1")) == 0);
     REQUIRE(lv_subject_get_int(temp.get_extruder_temp_subject("extruder2")) == 0);
 }
+
+TEST_CASE("Multi-extruder: double deinit is safe (no crash/double-free)",
+          "[multi-extruder][temperature]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto& temp = PrinterTemperatureStateTestAccess::get_temp_state(state);
+    temp.init_extruders({"extruder", "extruder1"});
+    REQUIRE(temp.extruder_count() == 2);
+
+    // First deinit cleans up
+    temp.deinit_subjects();
+    REQUIRE(temp.extruder_count() == 0);
+
+    // Second deinit should be a no-op (no crash, no double-free)
+    temp.deinit_subjects();
+    REQUIRE(temp.extruder_count() == 0);
+}
+
+TEST_CASE("Multi-extruder: version subject bumps on each re-init",
+          "[multi-extruder][temperature]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto& temp = PrinterTemperatureStateTestAccess::get_temp_state(state);
+
+    // Version starts at 0 after init_subjects
+    REQUIRE(lv_subject_get_int(temp.get_extruder_version_subject()) == 0);
+
+    // First init bumps to 1
+    temp.init_extruders({"extruder"});
+    REQUIRE(lv_subject_get_int(temp.get_extruder_version_subject()) == 1);
+
+    // Deinit does NOT reset version (subject still exists in SubjectManager)
+    temp.deinit_subjects();
+    REQUIRE(lv_subject_get_int(temp.get_extruder_version_subject()) == 1);
+
+    // Re-init after deinit bumps to 2
+    temp.init_extruders({"extruder", "extruder1"});
+    REQUIRE(lv_subject_get_int(temp.get_extruder_version_subject()) == 2);
+}
+
+TEST_CASE("Multi-extruder: access after deinit returns nullptr", "[multi-extruder][temperature]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto& temp = PrinterTemperatureStateTestAccess::get_temp_state(state);
+    temp.init_extruders({"extruder"});
+
+    // Subjects exist before deinit
+    REQUIRE(temp.get_extruder_temp_subject("extruder") != nullptr);
+    REQUIRE(temp.get_extruder_target_subject("extruder") != nullptr);
+
+    temp.deinit_subjects();
+
+    // After deinit, subjects should return nullptr
+    REQUIRE(temp.get_extruder_temp_subject("extruder") == nullptr);
+    REQUIRE(temp.get_extruder_target_subject("extruder") == nullptr);
+}
+
+TEST_CASE("Multi-extruder: init after deinit creates fresh subjects (no stale values)",
+          "[multi-extruder][temperature]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto& temp = PrinterTemperatureStateTestAccess::get_temp_state(state);
+
+    // First init and set values
+    temp.init_extruders({"extruder", "extruder1"});
+    json status = {{"extruder", {{"temperature", 200.0}, {"target", 210.0}}},
+                   {"extruder1", {{"temperature", 220.0}, {"target", 230.0}}}};
+    temp.update_from_status(status);
+    REQUIRE(lv_subject_get_int(temp.get_extruder_temp_subject("extruder")) == 2000);
+    REQUIRE(lv_subject_get_int(temp.get_extruder_target_subject("extruder1")) == 2300);
+
+    // Deinit then re-init
+    temp.deinit_subjects();
+    temp.init_extruders({"extruder", "extruder1"});
+
+    // Fresh subjects should have value 0 (not stale values from before deinit)
+    REQUIRE(lv_subject_get_int(temp.get_extruder_temp_subject("extruder")) == 0);
+    REQUIRE(lv_subject_get_int(temp.get_extruder_target_subject("extruder")) == 0);
+    REQUIRE(lv_subject_get_int(temp.get_extruder_temp_subject("extruder1")) == 0);
+    REQUIRE(lv_subject_get_int(temp.get_extruder_target_subject("extruder1")) == 0);
+}
