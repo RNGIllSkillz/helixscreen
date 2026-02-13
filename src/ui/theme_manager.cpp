@@ -591,8 +591,8 @@ static void theme_manager_register_color_pairs(lv_xml_component_scope_t* scope, 
  * These static constants are registered first so dynamic variants can override them.
  */
 static void theme_manager_register_static_constants(lv_xml_component_scope_t* scope) {
-    const std::vector<std::string> skip_suffixes = {"_light", "_dark",   "_tiny",
-                                                    "_small", "_medium", "_large"};
+    const std::vector<std::string> skip_suffixes = {"_light",  "_dark",  "_tiny",  "_small",
+                                                    "_medium", "_large", "_xlarge"};
 
     auto has_dynamic_suffix = [&](const std::string& name) {
         for (const auto& suffix : skip_suffixes) {
@@ -646,8 +646,10 @@ const char* theme_manager_get_breakpoint_suffix(int32_t resolution) {
         return "_small";
     } else if (resolution <= UI_BREAKPOINT_MEDIUM_MAX) {
         return "_medium";
-    } else {
+    } else if (resolution <= UI_BREAKPOINT_LARGE_MAX) {
         return "_large";
+    } else {
+        return "_xlarge";
     }
 }
 
@@ -672,7 +674,8 @@ void theme_manager_register_responsive_spacing(lv_display_t* display) {
     const char* size_label = (ver_res <= UI_BREAKPOINT_TINY_MAX)     ? "TINY"
                              : (ver_res <= UI_BREAKPOINT_SMALL_MAX)  ? "SMALL"
                              : (ver_res <= UI_BREAKPOINT_MEDIUM_MAX) ? "MEDIUM"
-                                                                     : "LARGE";
+                             : (ver_res <= UI_BREAKPOINT_LARGE_MAX)  ? "LARGE"
+                                                                     : "XLARGE";
 
     lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
     if (!scope) {
@@ -707,11 +710,12 @@ void theme_manager_register_responsive_spacing(lv_display_t* display) {
         }
     }
 
-    // Auto-discover all px tokens from all XML files (including optional _tiny)
+    // Auto-discover all px tokens from all XML files (including optional _tiny and _xlarge)
     auto tiny_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_tiny");
     auto small_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_small");
     auto medium_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_medium");
     auto large_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_large");
+    auto xlarge_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "px", "_xlarge");
 
     int registered = 0;
     for (const auto& [base_name, small_val] : small_tokens) {
@@ -731,8 +735,13 @@ void theme_manager_register_responsive_spacing(lv_display_t* display) {
                 value = small_val.c_str();
             } else if (strcmp(size_suffix, "_medium") == 0) {
                 value = medium_it->second.c_str();
-            } else {
+            } else if (strcmp(size_suffix, "_large") == 0) {
                 value = large_it->second.c_str();
+            } else {
+                // _xlarge: use xlarge if available, otherwise fall back to _large
+                auto xlarge_it = xlarge_tokens.find(base_name);
+                value = (xlarge_it != xlarge_tokens.end()) ? xlarge_it->second.c_str()
+                                                           : large_it->second.c_str();
             }
             spdlog::trace("[Theme] Registering spacing {}: selected={}", base_name, value);
             lv_xml_register_const(scope, base_name.c_str(), value);
@@ -788,7 +797,8 @@ void theme_manager_register_responsive_fonts(lv_display_t* display) {
     const char* size_label = (ver_res <= UI_BREAKPOINT_TINY_MAX)     ? "TINY"
                              : (ver_res <= UI_BREAKPOINT_SMALL_MAX)  ? "SMALL"
                              : (ver_res <= UI_BREAKPOINT_MEDIUM_MAX) ? "MEDIUM"
-                                                                     : "LARGE";
+                             : (ver_res <= UI_BREAKPOINT_LARGE_MAX)  ? "LARGE"
+                                                                     : "XLARGE";
 
     lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
     if (!scope) {
@@ -796,11 +806,12 @@ void theme_manager_register_responsive_fonts(lv_display_t* display) {
         return;
     }
 
-    // Auto-discover all string tokens from all XML files (including optional _tiny)
+    // Auto-discover all string tokens from all XML files (including optional _tiny and _xlarge)
     auto tiny_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "string", "_tiny");
     auto small_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "string", "_small");
     auto medium_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "string", "_medium");
     auto large_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "string", "_large");
+    auto xlarge_tokens = theme_manager_parse_all_xml_for_suffix("ui_xml", "string", "_xlarge");
 
     int registered = 0;
     for (const auto& [base_name, small_val] : small_tokens) {
@@ -820,8 +831,13 @@ void theme_manager_register_responsive_fonts(lv_display_t* display) {
                 value = small_val.c_str();
             } else if (strcmp(size_suffix, "_medium") == 0) {
                 value = medium_it->second.c_str();
-            } else {
+            } else if (strcmp(size_suffix, "_large") == 0) {
                 value = large_it->second.c_str();
+            } else {
+                // _xlarge: use xlarge if available, otherwise fall back to _large
+                auto xlarge_it = xlarge_tokens.find(base_name);
+                value = (xlarge_it != xlarge_tokens.end()) ? xlarge_it->second.c_str()
+                                                           : large_it->second.c_str();
             }
             spdlog::trace("[Theme] Registering font {}: selected={}", base_name, value);
             lv_xml_register_const(scope, base_name.c_str(), value);
@@ -2430,11 +2446,12 @@ std::vector<std::string> theme_manager_validate_constant_sets(const char* direct
 
         // Step 2: Add base names for responsive constants (_small/_medium/_large -> base)
         // These get registered at runtime as the base name
-        // Also include _tiny tokens — they are optional but valid definitions
+        // Also include _tiny and _xlarge tokens — they are optional but valid definitions
         auto small_px = theme_manager_parse_all_xml_for_suffix(directory, "px", "_small");
         auto medium_px = theme_manager_parse_all_xml_for_suffix(directory, "px", "_medium");
         auto large_px = theme_manager_parse_all_xml_for_suffix(directory, "px", "_large");
         auto tiny_px = theme_manager_parse_all_xml_for_suffix(directory, "px", "_tiny");
+        auto xlarge_px = theme_manager_parse_all_xml_for_suffix(directory, "px", "_xlarge");
         for (const auto& [base_name, _] : small_px) {
             if (medium_px.count(base_name) && large_px.count(base_name)) {
                 defined_constants.insert(base_name);
@@ -2447,17 +2464,32 @@ std::vector<std::string> theme_manager_validate_constant_sets(const char* direct
                 defined_constants.insert(base_name);
             }
         }
+        // _xlarge tokens with a valid _small/_medium/_large set are also defined
+        for (const auto& [base_name, _] : xlarge_px) {
+            if (small_px.count(base_name) && medium_px.count(base_name) &&
+                large_px.count(base_name)) {
+                defined_constants.insert(base_name);
+            }
+        }
 
         auto small_str = theme_manager_parse_all_xml_for_suffix(directory, "string", "_small");
         auto medium_str = theme_manager_parse_all_xml_for_suffix(directory, "string", "_medium");
         auto large_str = theme_manager_parse_all_xml_for_suffix(directory, "string", "_large");
         auto tiny_str = theme_manager_parse_all_xml_for_suffix(directory, "string", "_tiny");
+        auto xlarge_str = theme_manager_parse_all_xml_for_suffix(directory, "string", "_xlarge");
         for (const auto& [base_name, _] : small_str) {
             if (medium_str.count(base_name) && large_str.count(base_name)) {
                 defined_constants.insert(base_name);
             }
         }
         for (const auto& [base_name, _] : tiny_str) {
+            if (small_str.count(base_name) && medium_str.count(base_name) &&
+                large_str.count(base_name)) {
+                defined_constants.insert(base_name);
+            }
+        }
+        // _xlarge string tokens with valid triplet are also defined
+        for (const auto& [base_name, _] : xlarge_str) {
             if (small_str.count(base_name) && medium_str.count(base_name) &&
                 large_str.count(base_name)) {
                 defined_constants.insert(base_name);

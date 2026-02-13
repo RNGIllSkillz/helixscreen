@@ -4,8 +4,9 @@
  * @file test_theme_breakpoints.cpp
  * @brief Unit tests for breakpoint suffix selection and responsive token fallback
  *
- * Tests the 4-tier breakpoint system: TINY (≤390), SMALL (391-460),
- * MEDIUM (461-700), LARGE (>700) and the _tiny fallback-to-_small behavior.
+ * Tests the 5-tier breakpoint system: TINY (≤390), SMALL (391-460),
+ * MEDIUM (461-550), LARGE (551-700), XLARGE (>700) and the _tiny/_xlarge
+ * fallback behavior.
  */
 
 #include "theme_manager.h"
@@ -27,22 +28,29 @@ TEST_CASE("Breakpoint suffix returns _small for heights 391-460", "[theme][break
     REQUIRE(std::string(theme_manager_get_breakpoint_suffix(460)) == "_small");
 }
 
-TEST_CASE("Breakpoint suffix returns _medium for heights 461-700", "[theme][breakpoints]") {
+TEST_CASE("Breakpoint suffix returns _medium for heights 461-550", "[theme][breakpoints]") {
     REQUIRE(std::string(theme_manager_get_breakpoint_suffix(461)) == "_medium");
-    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(600)) == "_medium");
-    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(700)) == "_medium");
+    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(480)) == "_medium");
+    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(550)) == "_medium");
 }
 
-TEST_CASE("Breakpoint suffix returns _large for heights >700", "[theme][breakpoints]") {
-    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(701)) == "_large");
-    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(720)) == "_large");
-    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(1080)) == "_large");
+TEST_CASE("Breakpoint suffix returns _large for heights 551-700", "[theme][breakpoints]") {
+    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(551)) == "_large");
+    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(600)) == "_large");
+    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(700)) == "_large");
+}
+
+TEST_CASE("Breakpoint suffix returns _xlarge for heights >700", "[theme][breakpoints]") {
+    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(701)) == "_xlarge");
+    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(720)) == "_xlarge");
+    REQUIRE(std::string(theme_manager_get_breakpoint_suffix(1080)) == "_xlarge");
 }
 
 TEST_CASE("Breakpoint constants have correct values", "[theme][breakpoints]") {
     REQUIRE(UI_BREAKPOINT_TINY_MAX == 390);
     REQUIRE(UI_BREAKPOINT_SMALL_MAX == 460);
-    REQUIRE(UI_BREAKPOINT_MEDIUM_MAX == 700);
+    REQUIRE(UI_BREAKPOINT_MEDIUM_MAX == 550);
+    REQUIRE(UI_BREAKPOINT_LARGE_MAX == 700);
 }
 
 // ============================================================================
@@ -74,5 +82,15 @@ TEST_CASE("Validation does not require _tiny for complete sets", "[theme][breakp
     for (const auto& warning : warnings) {
         // No warning should complain about missing _tiny
         REQUIRE(warning.find("_tiny") == std::string::npos);
+    }
+}
+
+TEST_CASE("Validation does not require _xlarge for complete sets", "[theme][breakpoints]") {
+    // _xlarge is optional — validation should not warn about missing _xlarge
+    auto warnings = theme_manager_validate_constant_sets("ui_xml");
+
+    for (const auto& warning : warnings) {
+        // No warning should complain about missing _xlarge
+        REQUIRE(warning.find("_xlarge") == std::string::npos);
     }
 }

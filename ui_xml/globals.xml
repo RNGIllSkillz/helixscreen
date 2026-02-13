@@ -25,8 +25,9 @@
     <!-- Unified Responsive Spacing System (space_*)                         -->
     <!-- ===================================================================== -->
     <!-- Runtime selects appropriate variant via ui_theme_register_responsive_spacing()
-         based on screen height: SMALL (≤460px), MEDIUM (461-700px), LARGE (>700px)
-         Target hardware: 480x320, 1920x440 (SMALL), 800x480, 1024x600 (MEDIUM), 1280x720+ (LARGE)
+         based on screen height: TINY (≤390), SMALL (391-460), MEDIUM (461-550), LARGE (551-700), XLARGE (>700)
+         Target hardware: 480x320 (TINY), 480x400/1920x440 (SMALL), 800x480 (MEDIUM), 1024x600 (LARGE), 1280x720+ (XLARGE)
+         _tiny and _xlarge variants are optional — they fall back to _small and _large respectively.
 
          CRITICAL: Base constants (space_xxs, space_xs, etc.) are registered at
          runtime by ui_theme.cpp - do NOT define them here or responsive overrides
