@@ -13,3 +13,12 @@ GITHUB_REPO = "prestonbrown/helixscreen"
 [[routes]]
 pattern = "crash.helixscreen.org/*"
 zone_name = "helixscreen.org"
+
+# Rate limiting: 5 crash reports per IP per 60 seconds
+# Prevents crash loops from flooding GitHub with duplicate issues
+[[ratelimits]]
+name = "CRASH_LIMITER"
+namespace_id = "1002"
+[ratelimits.simple]
+limit = 5
+period = 60

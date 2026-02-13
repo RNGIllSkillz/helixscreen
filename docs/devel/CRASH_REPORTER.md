@@ -316,7 +316,7 @@ This downloads `.sym` files from the releases R2 bucket and uses `addr2line` to 
 
 ## Future Enhancements
 
-- **Rate limiting**: Worker TODO — prevent crash loops from flooding GitHub. Consider KV-based per-IP throttling or Cloudflare rate limiting rules.
+- **~~Rate limiting~~**: Done — Worker uses CF Rate Limiting binding (5 requests/IP/60s).
 - **Deduplication**: Hash signal+version+backtrace to detect duplicate crashes and comment on existing issues instead of creating new ones.
 - **Printer/Klipper info**: Populate `printer_model` and `klipper_version` if Moonraker connection is available at crash report time.
 - **Input sanitization**: Validate/truncate crash data fields in the worker before creating GitHub issues.

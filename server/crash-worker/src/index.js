@@ -52,6 +52,13 @@ async function handleCrashReport(request, env) {
     return jsonResponse(401, { error: "Unauthorized: invalid or missing API key" });
   }
 
+  // --- Rate limiting (per client IP) ---
+  const clientIP = request.headers.get("CF-Connecting-IP") || "unknown";
+  const { success } = await env.CRASH_LIMITER.limit({ key: clientIP });
+  if (!success) {
+    return jsonResponse(429, { error: "Rate limit exceeded — try again later" });
+  }
+
   // --- Parse and validate body ---
   let body;
   try {
@@ -210,7 +217,3 @@ function corsHeaders() {
     "Access-Control-Allow-Headers": "Content-Type, X-API-Key",
   };
 }
-
-// TODO: Rate limiting — consider Cloudflare's built-in rate limiting rules
-// or a KV-based approach (e.g., 10 reports per device IP per hour) to
-// prevent abuse or runaway crash loops from flooding GitHub with issues.

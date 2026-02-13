@@ -60,11 +60,18 @@ function createMockBucket() {
 
 // ---------- Test env factory ----------
 
-function createEnv(overrides?: Partial<{ INGEST_API_KEY: string; ADMIN_API_KEY: string; TELEMETRY_BUCKET: ReturnType<typeof createMockBucket> }>) {
+function createMockRateLimiter(shouldLimit = false) {
+  return {
+    limit: async (_opts: { key: string }) => ({ success: !shouldLimit }),
+  };
+}
+
+function createEnv(overrides?: Partial<{ INGEST_API_KEY: string; ADMIN_API_KEY: string; TELEMETRY_BUCKET: ReturnType<typeof createMockBucket>; INGEST_LIMITER: ReturnType<typeof createMockRateLimiter> }>) {
   return {
     INGEST_API_KEY: "test-ingest-key",
     ADMIN_API_KEY: "test-admin-key",
     TELEMETRY_BUCKET: createMockBucket(),
+    INGEST_LIMITER: createMockRateLimiter(),
     ...overrides,
   };
 }
@@ -168,6 +175,16 @@ describe("POST /v1/events (ingestion)", () => {
   it("rejects ADMIN_API_KEY on ingest endpoint", async () => {
     const res = await worker.fetch(ingestRequest([validEvent()], "test-admin-key"), env);
     expect(res.status).toBe(401);
+  });
+
+  // -- Rate limiting --
+
+  it("returns 429 when rate limited", async () => {
+    const limitedEnv = createEnv({ INGEST_LIMITER: createMockRateLimiter(true) });
+    const res = await worker.fetch(ingestRequest([validEvent()]), limitedEnv);
+    expect(res.status).toBe(429);
+    const body = await res.json() as { error: string };
+    expect(body.error).toContain("Rate limit");
   });
 
   // -- Method --

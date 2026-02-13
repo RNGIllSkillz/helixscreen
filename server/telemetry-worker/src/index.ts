@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // HelixScreen telemetry ingestion worker — stores batched events in R2.
 
+// Rate limiting binding type (added in @cloudflare/workers-types after our pinned version)
+interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
 interface Env {
   TELEMETRY_BUCKET: R2Bucket;
   INGEST_API_KEY: string; // Cloudflare secret: wrangler secret put INGEST_API_KEY
   ADMIN_API_KEY: string; // Cloudflare secret: wrangler secret put ADMIN_API_KEY (for analytics)
+  INGEST_LIMITER: RateLimiter; // Rate limiting binding (see wrangler.toml)
 }
 
 const CORS_HEADERS: Record<string, string> = {
@@ -70,6 +76,13 @@ export default {
       const apiKey = request.headers.get("x-api-key") ?? "";
       if (!env.INGEST_API_KEY || apiKey !== env.INGEST_API_KEY) {
         return json({ error: "Unauthorized" }, 401);
+      }
+
+      // Rate limiting (per client IP)
+      const clientIP = request.headers.get("CF-Connecting-IP") || "unknown";
+      const { success } = await env.INGEST_LIMITER.limit({ key: clientIP });
+      if (!success) {
+        return json({ error: "Rate limit exceeded" }, 429);
       }
 
       const contentType = request.headers.get("content-type") ?? "";
