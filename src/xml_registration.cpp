@@ -273,6 +273,11 @@ void register_xml_components() {
     register_xml("setting_info_row.xml");
     register_xml("setting_slider_row.xml");
     register_xml("setting_led_chip_row.xml");
+    register_xml("setting_state_row.xml");
+    register_xml("setting_detail_panel.xml");
+    register_xml("setting_form_dropdown.xml");
+    register_xml("setting_form_input.xml");
+    register_xml("setting_macro_card.xml");
     register_settings_panel_callbacks(); // Register callbacks before XML parse [L013]
     register_xml("settings_panel.xml");
     register_xml("restart_prompt_dialog.xml");

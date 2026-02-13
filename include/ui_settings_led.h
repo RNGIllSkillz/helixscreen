@@ -101,7 +101,6 @@ class LedSettingsOverlay : public OverlayBase {
     // Auto-state mapping editor
     void populate_auto_state_rows();
     void rebuild_contextual_controls(const std::string& state_key, lv_obj_t* container);
-    void update_state_row_summary(const std::string& state_key);
     void handle_action_type_changed(const std::string& state_key, int dropdown_index);
     void handle_brightness_changed(const std::string& state_key, int value);
     void handle_color_selected(const std::string& state_key, uint32_t color);
@@ -109,7 +108,6 @@ class LedSettingsOverlay : public OverlayBase {
     void handle_wled_preset_selected(const std::string& state_key, int preset_id);
     void handle_macro_selected(const std::string& state_key, const std::string& gcode);
     void save_and_evaluate(const std::string& state_key);
-    static std::string action_summary(const helix::led::LedStateAction& action);
 
     // LED chip selection state
     std::vector<std::string> discovered_leds_;
