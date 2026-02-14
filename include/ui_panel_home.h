@@ -8,6 +8,7 @@
 #include "ui_panel_base.h"
 #include "ui_panel_print_status.h" // For RunoutGuidanceModal
 
+#include "led/led_controller.h"
 #include "subject_managed_panel.h"
 #include "tips_manager.h"
 
@@ -79,6 +80,9 @@ class HomePanel : public PanelBase {
      */
     void reload_from_config();
 
+    /// Re-check printer image setting and update the home panel image widget
+    void refresh_printer_image();
+
     /**
      * @brief Trigger a deferred runout check (used after wizard completes)
      *
@@ -116,7 +120,7 @@ class HomePanel : public PanelBase {
     network_type_t current_network_ = NETWORK_WIFI;
     PrintingTip current_tip_;
     PrintingTip pending_tip_; // Tip waiting to be displayed after fade-out
-    std::vector<std::string> configured_leds_;
+    // configured_leds_ removed - read LedController::selected_strips() lazily
     lv_timer_t* tip_rotation_timer_ = nullptr;
     lv_obj_t* tip_label_ = nullptr;                     // Cached for fade animation
     bool tip_animating_ = false;                        // Prevents overlapping animations
@@ -129,6 +133,7 @@ class HomePanel : public PanelBase {
 
     // Lazily-created overlay panels (owned by LVGL parent, not us)
     lv_obj_t* nozzle_temp_panel_ = nullptr;
+    lv_obj_t* led_control_panel_ = nullptr;
 
     void update_tip_of_day();
     void start_tip_fade_transition(const PrintingTip& new_tip);
@@ -139,12 +144,16 @@ class HomePanel : public PanelBase {
     static void signal_poll_timer_cb(lv_timer_t* timer);
 
     void handle_light_toggle();
+    void handle_light_long_press();
+    void flash_light_icon();
+    void ensure_led_observers();
     void handle_print_card_clicked();
     void handle_tip_text_clicked();
     void handle_tip_rotation_timer();
     void handle_temp_clicked();
     void handle_printer_status_clicked();
     void handle_network_clicked();
+    void handle_printer_manager_clicked();
     void handle_ams_clicked();
     void on_extruder_temp_changed(int temp);
     void on_extruder_target_changed(int target);
@@ -153,16 +162,20 @@ class HomePanel : public PanelBase {
     void update_light_icon();
 
     static void light_toggle_cb(lv_event_t* e);
+    static void light_long_press_cb(lv_event_t* e);
     static void print_card_clicked_cb(lv_event_t* e);
     static void tip_text_clicked_cb(lv_event_t* e);
     static void temp_clicked_cb(lv_event_t* e);
     static void printer_status_clicked_cb(lv_event_t* e);
     static void network_clicked_cb(lv_event_t* e);
+    static void printer_manager_clicked_cb(lv_event_t* e);
     static void ams_clicked_cb(lv_event_t* e);
     static void tip_rotation_timer_cb(lv_timer_t* timer);
 
     ObserverGuard extruder_temp_observer_;
     ObserverGuard extruder_target_observer_;
+    ObserverGuard active_tool_observer_;
+    ObserverGuard tools_version_observer_;
     ObserverGuard led_state_observer_;
     ObserverGuard led_brightness_observer_;
     ObserverGuard ams_slot_count_observer_;
@@ -171,6 +184,11 @@ class HomePanel : public PanelBase {
 
     // Computed subject: show filament status when sensors exist AND (no AMS OR bypass active)
     lv_subject_t show_filament_status_;
+
+    // Tool badge subject (shows active tool name when multi-tool)
+    lv_subject_t tool_badge_subject_;
+    char tool_badge_buf_[16] = "";
+    void update_tool_badge(int tool_idx);
 
     // Print card observers (for showing progress during active print)
     ObserverGuard print_state_observer_;

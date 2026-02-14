@@ -13,6 +13,7 @@
 #include "ui_panel_ams.h"
 #include "ui_panel_print_status.h"
 #include "ui_panel_temp_control.h"
+#include "ui_printer_manager_overlay.h"
 #include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
 #include "ui_update_queue.h"
@@ -25,15 +26,20 @@
 #include "filament_sensor_manager.h"
 #include "format_utils.h"
 #include "injection_point_manager.h"
+#include "led/led_controller.h"
+#include "led/ui_led_control_overlay.h"
 #include "moonraker_api.h"
 #include "observer_factory.h"
 #include "prerendered_images.h"
 #include "printer_detector.h"
+#include "printer_image_manager.h"
+#include "printer_images.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "settings_manager.h"
 #include "static_panel_registry.h"
 #include "theme_manager.h"
+#include "tool_state.h"
 #include "wifi_manager.h"
 #include "wizard_config_paths.h"
 
@@ -83,6 +89,17 @@ HomePanel::HomePanel(PrinterState& printer_state, MoonrakerAPI* api)
         printer_state_.get_print_thumbnail_path_subject(), this,
         [](HomePanel* self, const char* path) { self->on_print_thumbnail_path_changed(path); });
 
+    // Subscribe to active tool changes for tool badge display
+    active_tool_observer_ = observe_int_sync<HomePanel>(
+        helix::ToolState::instance().get_active_tool_subject(), this,
+        [](HomePanel* self, int tool_idx) { self->update_tool_badge(tool_idx); });
+
+    // Also subscribe to tools_version so badge appears when tools are discovered after panel init
+    tools_version_observer_ = observe_int_sync<HomePanel>(
+        helix::ToolState::instance().get_tools_version_subject(), this, [](HomePanel* self, int) {
+            self->update_tool_badge(helix::ToolState::instance().active_tool_index());
+        });
+
     spdlog::debug("[{}] Subscribed to PrinterState extruder temperature and target", get_name());
     spdlog::debug("[{}] Subscribed to PrinterState print state/progress/time/thumbnail",
                   get_name());
@@ -100,45 +117,13 @@ HomePanel::HomePanel(PrinterState& printer_state, MoonrakerAPI* api)
         });
     spdlog::debug("[{}] Subscribed to filament_any_runout subject", get_name());
 
-    // Load configured LEDs from wizard settings and tell PrinterState to track them
-    Config* config = Config::get_instance();
-    if (config) {
-        // Load configured LEDs (multi-LED support)
-        auto& leds_json = config->get_json(helix::wizard::LED_SELECTED);
-        if (leds_json.is_array()) {
-            for (const auto& led : leds_json) {
-                if (led.is_string() && !led.get<std::string>().empty()) {
-                    configured_leds_.push_back(led.get<std::string>());
-                }
-            }
-        }
-        // Fallback: check legacy single LED path
-        if (configured_leds_.empty()) {
-            std::string single_led = config->get<std::string>(helix::wizard::LED_STRIP, "");
-            if (!single_led.empty()) {
-                configured_leds_.push_back(single_led);
-            }
-        }
-        if (!configured_leds_.empty()) {
-            // Tell PrinterState to track the first LED for state updates
-            printer_state_.set_tracked_led(configured_leds_.front());
-
-            // Subscribe to LED state changes from PrinterState
-            led_state_observer_ = observe_int_sync<HomePanel>(
-                printer_state_.get_led_state_subject(), this,
-                [](HomePanel* self, int state) { self->on_led_state_changed(state); });
-
-            // Subscribe to LED brightness changes for dynamic icon updates
-            led_brightness_observer_ = observe_int_sync<HomePanel>(
-                printer_state_.get_led_brightness_subject(), this,
-                [](HomePanel* self, int /*brightness*/) { self->update_light_icon(); });
-
-            spdlog::debug("[{}] Configured {} LED(s) (observing state)", get_name(),
-                          configured_leds_.size());
-        } else {
-            spdlog::debug("[{}] No LED configured - light control will be hidden", get_name());
-        }
-    }
+    // LED observers are set up lazily via ensure_led_observers() when strips become available.
+    // At construction time, hardware discovery may not have completed yet, so
+    // selected_strips() could be empty. The observers will be created on first
+    // reload_from_config() or handle_light_toggle() when strips are available.
+    //
+    // LED visibility on the home panel is controlled by the printer_has_led subject
+    // (set via set_printer_capabilities after hardware discovery).
 }
 
 HomePanel::~HomePanel() {
@@ -199,17 +184,22 @@ void HomePanel::init_subjects() {
     // Register event callbacks BEFORE loading XML
     // Note: These use static trampolines that will look up the global instance
     lv_xml_register_event_cb(nullptr, "light_toggle_cb", light_toggle_cb);
+    lv_xml_register_event_cb(nullptr, "light_long_press_cb", light_long_press_cb);
     lv_xml_register_event_cb(nullptr, "print_card_clicked_cb", print_card_clicked_cb);
     lv_xml_register_event_cb(nullptr, "tip_text_clicked_cb", tip_text_clicked_cb);
     lv_xml_register_event_cb(nullptr, "temp_clicked_cb", temp_clicked_cb);
     lv_xml_register_event_cb(nullptr, "printer_status_clicked_cb", printer_status_clicked_cb);
     lv_xml_register_event_cb(nullptr, "network_clicked_cb", network_clicked_cb);
+    lv_xml_register_event_cb(nullptr, "printer_manager_clicked_cb", printer_manager_clicked_cb);
     lv_xml_register_event_cb(nullptr, "ams_clicked_cb", ams_clicked_cb);
 
     // Computed subject for filament status visibility:
     // Show when sensors exist AND (no AMS OR bypass active)
     // NOTE: Must be initialized BEFORE creating observers that call
     // update_filament_status_visibility()
+    UI_MANAGED_SUBJECT_STRING(tool_badge_subject_, tool_badge_buf_, "", "tool_badge_text",
+                              subjects_);
+
     UI_MANAGED_SUBJECT_INT(show_filament_status_, 0, "show_filament_status", subjects_);
 
     // Subscribe to AmsState slot_count to show/hide AMS indicator
@@ -371,6 +361,9 @@ void HomePanel::on_activate() {
         tip_rotation_timer_ = lv_timer_create(tip_rotation_timer_cb, 60000, this);
         spdlog::debug("[{}] Resumed tip rotation timer", get_name());
     }
+
+    // Re-check printer image (may have changed in settings overlay)
+    refresh_printer_image();
 
     // Start Spoolman polling for AMS mini status updates
     AmsState::instance().start_spoolman_polling();
@@ -536,44 +529,50 @@ void HomePanel::detect_network_type() {
 void HomePanel::handle_light_toggle() {
     spdlog::info("[{}] Light button clicked", get_name());
 
-    // Check if LED is configured
-    if (configured_leds_.empty()) {
+    auto& led_ctrl = helix::led::LedController::instance();
+    const auto& strips = led_ctrl.selected_strips();
+    if (strips.empty()) {
         spdlog::warn("[{}] Light toggle called but no LED configured", get_name());
         return;
     }
 
-    // Toggle to opposite of current state
-    // Note: UI will update when Moonraker notification arrives (via PrinterState observer)
-    bool new_state = !light_on_;
+    ensure_led_observers();
 
-    // Send command to Moonraker for all configured LEDs
-    if (api_) {
-        for (const auto& led : configured_leds_) {
-            if (new_state) {
-                api_->set_led_on(
-                    led,
-                    [this]() {
-                        spdlog::info("[{}] LED turned ON - waiting for state update", get_name());
-                    },
-                    [](const MoonrakerError& err) {
-                        spdlog::error("[Home Panel] Failed to turn LED on: {}", err.message);
-                        NOTIFY_ERROR("Failed to turn light on: {}", err.user_message());
-                    });
-            } else {
-                api_->set_led_off(
-                    led,
-                    [this]() {
-                        spdlog::info("[{}] LED turned OFF - waiting for state update", get_name());
-                    },
-                    [](const MoonrakerError& err) {
-                        spdlog::error("[Home Panel] Failed to turn LED off: {}", err.message);
-                        NOTIFY_ERROR("Failed to turn light off: {}", err.user_message());
-                    });
-            }
-        }
+    led_ctrl.light_toggle();
+
+    if (led_ctrl.light_state_trackable()) {
+        light_on_ = led_ctrl.light_is_on();
+        update_light_icon();
     } else {
-        spdlog::warn("[{}] API not available - cannot control LED", get_name());
-        NOTIFY_ERROR("Cannot control light: printer not connected");
+        flash_light_icon();
+    }
+}
+
+void HomePanel::handle_light_long_press() {
+    spdlog::info("[{}] Light long-press: opening LED control overlay", get_name());
+
+    // Lazy-create overlay on first access
+    if (!led_control_panel_ && parent_screen_) {
+        auto& overlay = get_led_control_overlay();
+
+        if (!overlay.are_subjects_initialized()) {
+            overlay.init_subjects();
+        }
+        overlay.register_callbacks();
+        overlay.set_api(api_);
+
+        led_control_panel_ = overlay.create(parent_screen_);
+        if (!led_control_panel_) {
+            NOTIFY_ERROR("Failed to load LED control overlay");
+            return;
+        }
+
+        NavigationManager::instance().register_overlay_instance(led_control_panel_, &overlay);
+    }
+
+    if (led_control_panel_) {
+        get_led_control_overlay().set_api(api_);
+        ui_nav_push_overlay(led_control_panel_);
     }
 }
 
@@ -682,6 +681,29 @@ void HomePanel::handle_network_clicked() {
     overlay.show();
 }
 
+void HomePanel::handle_printer_manager_clicked() {
+    // Gate behind beta features flag
+    Config* config = Config::get_instance();
+    if (!config || !config->is_beta_features_enabled()) {
+        spdlog::debug("[{}] Printer Manager requires beta features", get_name());
+        return;
+    }
+
+    spdlog::info("[{}] Printer image clicked - opening Printer Manager overlay", get_name());
+
+    auto& overlay = get_printer_manager_overlay();
+
+    if (!overlay.are_subjects_initialized()) {
+        overlay.init_subjects();
+        overlay.register_callbacks();
+        overlay.create(parent_screen_);
+        NavigationManager::instance().register_overlay_instance(overlay.get_root(), &overlay);
+    }
+
+    // Push overlay onto navigation stack
+    ui_nav_push_overlay(overlay.get_root());
+}
+
 void HomePanel::handle_ams_clicked() {
     spdlog::info("[{}] AMS indicator clicked - opening AMS panel overlay", get_name());
 
@@ -696,15 +718,31 @@ void HomePanel::handle_ams_clicked() {
     }
 }
 
+void HomePanel::ensure_led_observers() {
+    using helix::ui::observe_int_sync;
+
+    if (!led_state_observer_) {
+        led_state_observer_ = observe_int_sync<HomePanel>(
+            printer_state_.get_led_state_subject(), this,
+            [](HomePanel* self, int state) { self->on_led_state_changed(state); });
+    }
+    if (!led_brightness_observer_) {
+        led_brightness_observer_ = observe_int_sync<HomePanel>(
+            printer_state_.get_led_brightness_subject(), this,
+            [](HomePanel* self, int /*brightness*/) { self->update_light_icon(); });
+    }
+}
+
 void HomePanel::on_led_state_changed(int state) {
-    // Update local light_on_ state from PrinterState's led_state subject
-    light_on_ = (state != 0);
-
-    spdlog::debug("[{}] LED state changed: {} (from PrinterState)", get_name(),
-                  light_on_ ? "ON" : "OFF");
-
-    // Update light icon when state changes
-    update_light_icon();
+    auto& led_ctrl = helix::led::LedController::instance();
+    if (led_ctrl.light_state_trackable()) {
+        light_on_ = (state != 0);
+        spdlog::debug("[{}] LED state changed: {} (from PrinterState)", get_name(),
+                      light_on_ ? "ON" : "OFF");
+        update_light_icon();
+    } else {
+        spdlog::debug("[{}] LED state changed but not trackable (TOGGLE macro mode)", get_name());
+    }
 }
 
 void HomePanel::update_light_icon() {
@@ -755,6 +793,38 @@ void HomePanel::update_light_icon() {
     spdlog::trace("[{}] Light icon: {} at {}%", get_name(), icon_name, brightness);
 }
 
+void HomePanel::flash_light_icon() {
+    if (!light_icon_)
+        return;
+
+    // Flash gold briefly then fade back to muted
+    ui_icon_set_color(light_icon_, theme_manager_get_color("light_icon_on"), LV_OPA_COVER);
+
+    if (!SettingsManager::instance().get_animations_enabled()) {
+        // No animations -- the next status update will restore the icon naturally
+        return;
+    }
+
+    // Animate opacity 255 -> 0 then restore to muted on completion
+    lv_anim_t anim;
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, light_icon_);
+    lv_anim_set_values(&anim, LV_OPA_COVER, LV_OPA_TRANSP);
+    lv_anim_set_duration(&anim, 300);
+    lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
+    lv_anim_set_exec_cb(&anim, [](void* obj, int32_t value) {
+        lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj), static_cast<lv_opa_t>(value), 0);
+    });
+    lv_anim_set_completed_cb(&anim, [](lv_anim_t* a) {
+        auto* icon = static_cast<lv_obj_t*>(a->var);
+        lv_obj_set_style_opa(icon, LV_OPA_COVER, 0);
+        ui_icon_set_color(icon, theme_manager_get_color("light_icon_off"), LV_OPA_COVER);
+    });
+    lv_anim_start(&anim);
+
+    spdlog::debug("[{}] Flash light icon (TOGGLE macro, state unknown)", get_name());
+}
+
 void HomePanel::on_extruder_temp_changed(int temp_centi) {
     int temp_deg = centi_to_degrees(temp_centi);
 
@@ -792,47 +862,17 @@ void HomePanel::reload_from_config() {
         return;
     }
 
-    // Reload LED configuration from wizard settings
+    // Reload LED configuration from LedController (single source of truth)
     // LED visibility is controlled by printer_has_led subject set via set_printer_capabilities()
     // which is called by the on_discovery_complete_ callback after hardware discovery
-    std::vector<std::string> new_leds;
-    auto& leds_json = config->get_json(helix::wizard::LED_SELECTED);
-    if (leds_json.is_array()) {
-        for (const auto& led : leds_json) {
-            if (led.is_string() && !led.get<std::string>().empty()) {
-                new_leds.push_back(led.get<std::string>());
-            }
-        }
-    }
-    // Fallback: check legacy single LED path
-    if (new_leds.empty()) {
-        std::string single_led = config->get<std::string>(helix::wizard::LED_STRIP, "");
-        if (!single_led.empty()) {
-            new_leds.push_back(single_led);
-        }
-    }
-    if (new_leds != configured_leds_) {
-        configured_leds_ = new_leds;
-        if (!configured_leds_.empty() && configured_leds_.front() != "None") {
-            // Tell PrinterState to track the first LED for state updates
-            printer_state_.set_tracked_led(configured_leds_.front());
-
-            // Subscribe to LED state changes if not already subscribed
-            if (!led_state_observer_) {
-                led_state_observer_ = observe_int_sync<HomePanel>(
-                    printer_state_.get_led_state_subject(), this,
-                    [](HomePanel* self, int state) { self->on_led_state_changed(state); });
-            }
-
-            // Subscribe to LED brightness changes if not already subscribed
-            if (!led_brightness_observer_) {
-                led_brightness_observer_ = observe_int_sync<HomePanel>(
-                    printer_state_.get_led_brightness_subject(), this,
-                    [](HomePanel* self, int /*brightness*/) { self->update_light_icon(); });
-            }
-
-            spdlog::info("[{}] Reloaded LED config: {} LED(s)", get_name(),
-                         configured_leds_.size());
+    {
+        auto& led_ctrl = helix::led::LedController::instance();
+        const auto& strips = led_ctrl.selected_strips();
+        if (!strips.empty()) {
+            // Set up tracked LED and observers (idempotent)
+            printer_state_.set_tracked_led(strips.front());
+            ensure_led_observers();
+            spdlog::info("[{}] Reloaded LED config: {} LED(s)", get_name(), strips.size());
         } else {
             // No LED configured - clear tracking
             printer_state_.set_tracked_led("");
@@ -844,40 +884,8 @@ void HomePanel::reload_from_config() {
     std::string printer_type = config->get<std::string>(helix::wizard::PRINTER_TYPE, "");
     printer_state_.set_printer_type_sync(printer_type);
 
-    // Update printer image based on configured printer type
-    if (!printer_type.empty()) {
-        // Look up image filename from printer database
-        std::string image_filename = PrinterDetector::get_image_for_printer(printer_type);
-        std::string image_path;
-
-        if (!image_filename.empty()) {
-            // Strip .png extension to get base name for prerendered lookup
-            std::string base_name = image_filename;
-            if (base_name.size() > 4 && base_name.substr(base_name.size() - 4) == ".png") {
-                base_name = base_name.substr(0, base_name.size() - 4);
-            }
-
-            // Use prerendered .bin if available (faster on embedded), else fallback to PNG
-            lv_display_t* disp = lv_display_get_default();
-            int screen_width = disp ? lv_display_get_horizontal_resolution(disp) : 800;
-            image_path = helix::get_prerendered_printer_path(base_name, screen_width);
-        } else {
-            // Fall back to generic CoreXY image
-            spdlog::info("[{}] No specific image for '{}' - using generic CoreXY", get_name(),
-                         printer_type);
-            image_path = "A:assets/images/printers/generic-corexy.png";
-        }
-
-        // Find and update the printer_image widget
-        if (panel_) {
-            lv_obj_t* printer_image = lv_obj_find_by_name(panel_, "printer_image");
-            if (printer_image) {
-                lv_image_set_src(printer_image, image_path.c_str());
-                spdlog::debug("[{}] Printer image: '{}' for '{}'", get_name(), image_path,
-                              printer_type);
-            }
-        }
-    }
+    // Update printer image
+    refresh_printer_image();
 
     // Update printer type/host overlay
     // Always visible (even for localhost) to maintain consistent flex layout.
@@ -899,6 +907,37 @@ void HomePanel::reload_from_config() {
     }
 }
 
+void HomePanel::refresh_printer_image() {
+    if (!panel_)
+        return;
+
+    lv_display_t* disp = lv_display_get_default();
+    int screen_width = disp ? lv_display_get_horizontal_resolution(disp) : 800;
+
+    // Check for user-selected printer image (custom or shipped override)
+    auto& pim = helix::PrinterImageManager::instance();
+    std::string custom_path = pim.get_active_image_path(screen_width);
+    if (!custom_path.empty()) {
+        lv_obj_t* img = lv_obj_find_by_name(panel_, "printer_image");
+        if (img) {
+            lv_image_set_src(img, custom_path.c_str());
+            spdlog::debug("[{}] User-selected printer image: '{}'", get_name(), custom_path);
+        }
+        return;
+    }
+
+    // Auto-detect from printer type using PrinterImages
+    Config* config = Config::get_instance();
+    std::string printer_type =
+        config ? config->get<std::string>(helix::wizard::PRINTER_TYPE, "") : "";
+    std::string image_path = PrinterImages::get_best_printer_image(printer_type);
+    lv_obj_t* img = lv_obj_find_by_name(panel_, "printer_image");
+    if (img) {
+        lv_image_set_src(img, image_path.c_str());
+        spdlog::debug("[{}] Printer image: '{}' for '{}'", get_name(), image_path, printer_type);
+    }
+}
+
 void HomePanel::light_toggle_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] light_toggle_cb");
     (void)e;
@@ -907,6 +946,14 @@ void HomePanel::light_toggle_cb(lv_event_t* e) {
     // This will be fixed when main.cpp switches to class-based instantiation
     extern HomePanel& get_global_home_panel();
     get_global_home_panel().handle_light_toggle();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void HomePanel::light_long_press_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] light_long_press_cb");
+    (void)e;
+    extern HomePanel& get_global_home_panel();
+    get_global_home_panel().handle_light_long_press();
     LVGL_SAFE_EVENT_CB_END();
 }
 
@@ -947,6 +994,14 @@ void HomePanel::network_clicked_cb(lv_event_t* e) {
     (void)e;
     extern HomePanel& get_global_home_panel();
     get_global_home_panel().handle_network_clicked();
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void HomePanel::printer_manager_clicked_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] printer_manager_clicked_cb");
+    (void)e;
+    extern HomePanel& get_global_home_panel();
+    get_global_home_panel().handle_printer_manager_clicked();
     LVGL_SAFE_EVENT_CB_END();
 }
 
@@ -1273,6 +1328,21 @@ void HomePanel::show_idle_runout_modal() {
     });
 
     runout_modal_.show(parent_screen_);
+}
+
+void HomePanel::update_tool_badge(int /* tool_idx */) {
+    auto& ts = helix::ToolState::instance();
+    if (ts.tool_count() <= 1) {
+        tool_badge_buf_[0] = '\0';
+    } else {
+        const auto* tool = ts.active_tool();
+        if (tool) {
+            std::snprintf(tool_badge_buf_, sizeof(tool_badge_buf_), "%s", tool->name.c_str());
+        }
+    }
+    if (subjects_initialized_) {
+        lv_subject_copy_string(&tool_badge_subject_, tool_badge_buf_);
+    }
 }
 
 static std::unique_ptr<HomePanel> g_home_panel;

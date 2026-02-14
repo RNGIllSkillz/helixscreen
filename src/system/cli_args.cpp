@@ -107,7 +107,7 @@ static bool parse_double(const char* str, double& out, const char* name) {
 static void print_help(const char* program_name) {
     printf("Usage: %s [options]\n", program_name);
     printf("Options:\n");
-    printf("  -s, --size <size>    Screen size: tiny, tiny_alt, small, medium, large (or WxH)\n");
+    printf("  -s, --size <size>    Screen size: tiny, small, medium, large, xlarge (or WxH)\n");
     printf("  -p, --panel <panel>  Initial panel (default: home)\n");
     printf("  -k, --keypad         Show numeric keypad for testing\n");
     printf("  --keyboard           Show keyboard for testing (no textarea)\n");
@@ -146,6 +146,7 @@ static void print_help(const char* program_name) {
     printf("    --no-ams           Don't create mock AMS (enables runout modal testing)\n");
     printf("    --test-history     Enable test history API data\n");
     printf("    --sim-speed <n>    Simulation speedup factor (1.0-1000.0, e.g., 100 for 100x)\n");
+    printf("    --mock-crash       Write synthetic crash.txt to test crash reporter UI\n");
     printf("    --select-file <name>  Auto-select file in print-select panel\n");
     printf("\nG-code Viewer Options (require --test):\n");
     printf("  --gcode-file <path>  Load specific G-code file in gcode-test panel\n");
@@ -159,17 +160,17 @@ static void print_help(const char* program_name) {
     printf("\nAvailable panels:\n");
     printf("  Base: home, controls, filament, settings, advanced\n");
     printf("  Print: print-select (cards), print-select-list, print-detail\n");
-    printf("  Controls: motion, nozzle-temp, bed-temp, fan, bed-mesh, pid\n");
+    printf("  Controls: motion, nozzle-temp, bed-temp, fan, led, bed-mesh, pid\n");
     printf("  Settings: display, sensors, touch-cal, hardware-health, network, theme\n");
     printf("  Advanced: zoffset, screws, input-shaper, spoolman, history-dashboard, macros\n");
     printf("  Print: print-status, print-tune\n");
     printf("  Dev: ams, step-test, test, gcode-test, glyphs\n");
     printf("\nScreen sizes:\n");
     printf("  tiny     = %dx%d\n", UI_SCREEN_TINY_W, UI_SCREEN_TINY_H);
-    printf("  tiny_alt = %dx%d\n", UI_SCREEN_TINY_ALT_W, UI_SCREEN_TINY_ALT_H);
-    printf("  small    = %dx%d (default)\n", UI_SCREEN_SMALL_W, UI_SCREEN_SMALL_H);
-    printf("  medium   = %dx%d\n", UI_SCREEN_MEDIUM_W, UI_SCREEN_MEDIUM_H);
+    printf("  small    = %dx%d\n", UI_SCREEN_SMALL_W, UI_SCREEN_SMALL_H);
+    printf("  medium   = %dx%d (default)\n", UI_SCREEN_MEDIUM_W, UI_SCREEN_MEDIUM_H);
     printf("  large    = %dx%d\n", UI_SCREEN_LARGE_W, UI_SCREEN_LARGE_H);
+    printf("  xlarge   = %dx%d\n", UI_SCREEN_XLARGE_W, UI_SCREEN_XLARGE_H);
     printf("  WxH      = arbitrary resolution (e.g., -s 1920x1080)\n");
     printf("\nWizard steps:\n");
     printf("  wifi, connection, printer-identify, bed, hotend, fan, led, summary\n");
@@ -203,6 +204,9 @@ static bool parse_panel_arg(const char* panel_arg, CliArgs& args) {
     } else if (strcmp(panel_arg, "fan") == 0) {
         args.initial_panel = UI_PANEL_CONTROLS;
         args.overlays.fan = true;
+    } else if (strcmp(panel_arg, "led") == 0 || strcmp(panel_arg, "led-control") == 0) {
+        args.initial_panel = UI_PANEL_HOME;
+        args.overlays.led = true;
     } else if (strcmp(panel_arg, "print-status") == 0 || strcmp(panel_arg, "printing") == 0) {
         args.overlays.print_status = true;
     } else if (strcmp(panel_arg, "print-select-list") == 0 ||
@@ -288,7 +292,7 @@ static bool parse_panel_arg(const char* panel_arg, CliArgs& args) {
         } else {
             printf("Unknown panel: %s\n", panel_arg);
             printf("Available panels: home, controls, motion, nozzle-temp, bed-temp, "
-                   "bed-mesh, zoffset, pid, screws, input-shaper, fan, ams, "
+                   "bed-mesh, zoffset, pid, screws, input-shaper, fan, led, ams, "
                    "spoolman, print-status, filament, settings, advanced, print-history, "
                    "print-select, step-test, test, gcode-test, glyphs, gradient-test, "
                    "wizard-ams-identify\n");
@@ -360,10 +364,6 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
                 screen_width = UI_SCREEN_TINY_W;
                 screen_height = UI_SCREEN_TINY_H;
                 args.screen_size = ScreenSize::TINY;
-            } else if (strcmp(size_arg, "tiny_alt") == 0) {
-                screen_width = UI_SCREEN_TINY_ALT_W;
-                screen_height = UI_SCREEN_TINY_ALT_H;
-                args.screen_size = ScreenSize::TINY_ALT;
             } else if (strcmp(size_arg, "small") == 0) {
                 screen_width = UI_SCREEN_SMALL_W;
                 screen_height = UI_SCREEN_SMALL_H;
@@ -376,31 +376,31 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
                 screen_width = UI_SCREEN_LARGE_W;
                 screen_height = UI_SCREEN_LARGE_H;
                 args.screen_size = ScreenSize::LARGE;
+            } else if (strcmp(size_arg, "xlarge") == 0) {
+                screen_width = UI_SCREEN_XLARGE_W;
+                screen_height = UI_SCREEN_XLARGE_H;
+                args.screen_size = ScreenSize::XLARGE;
             } else {
                 // Try parsing as WxH format (e.g., "480x400" or "1920x1080")
                 int w = 0, h = 0;
                 if (sscanf(size_arg, "%dx%d", &w, &h) == 2 && w > 0 && h > 0) {
                     screen_width = w;
                     screen_height = h;
-                    // Set screen_size to closest preset based on max(width, height)
-                    int max_dim = (w > h) ? w : h;
-                    if (max_dim <= 480) {
-                        // Distinguish TINY (480x320) from TINY_ALT (480x400)
-                        if (w == 480 && h >= 400) {
-                            args.screen_size = ScreenSize::TINY_ALT;
-                        } else {
-                            args.screen_size = ScreenSize::TINY;
-                        }
-                    } else if (max_dim <= 800) {
+                    // Set screen_size to closest preset based on height (vertical breakpoints)
+                    if (h <= UI_BREAKPOINT_TINY_MAX) {
+                        args.screen_size = ScreenSize::TINY;
+                    } else if (h <= UI_BREAKPOINT_SMALL_MAX) {
                         args.screen_size = ScreenSize::SMALL;
-                    } else if (max_dim <= 1024) {
+                    } else if (h <= UI_BREAKPOINT_MEDIUM_MAX) {
                         args.screen_size = ScreenSize::MEDIUM;
-                    } else {
+                    } else if (h <= UI_BREAKPOINT_LARGE_MAX) {
                         args.screen_size = ScreenSize::LARGE;
+                    } else {
+                        args.screen_size = ScreenSize::XLARGE;
                     }
                 } else {
                     printf("Unknown screen size: %s\n", size_arg);
-                    printf("Available sizes: tiny, tiny_alt, small, medium, large (or WxH like "
+                    printf("Available sizes: tiny, small, medium, large, xlarge (or WxH like "
                            "480x400)\n");
                     return false;
                 }
@@ -645,6 +645,8 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
             args.memory_report = true;
         } else if (strcmp(argv[i], "--show-memory") == 0) {
             args.show_memory = true;
+        } else if (strcmp(argv[i], "--mock-crash") == 0) {
+            config.mock_crash = true;
         } else if (strcmp(argv[i], "--release-notes") == 0) {
             args.overlays.release_notes = true;
         } else if (strcmp(argv[i], "--debug-subjects") == 0) {
@@ -755,6 +757,11 @@ bool parse_cli_args(int argc, char** argv, CliArgs& args, int& screen_width, int
 
     if (config.simulate_disconnect && !config.test_mode) {
         printf("Error: --disconnected requires --test mode\n");
+        return false;
+    }
+
+    if (config.mock_crash && !config.test_mode) {
+        printf("Error: --mock-crash requires --test mode\n");
         return false;
     }
 

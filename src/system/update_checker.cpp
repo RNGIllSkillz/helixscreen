@@ -16,12 +16,15 @@
 #include "system/update_checker.h"
 
 #include "ui_event_safety.h"
+#include "ui_modal.h"
+#include "ui_notification.h"
 #include "ui_panel_settings.h"
 #include "ui_update_queue.h"
 
 #include "app_globals.h"
 #include "config.h"
 #include "hv/requests.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
 #include "version.h"
@@ -1218,6 +1221,10 @@ void UpdateChecker::dismiss_current_version() {
     config->set<std::string>("/update/dismissed_version", version);
     config->save();
     spdlog::info("[UpdateChecker] Dismissed version: {}", version);
+
+    // Add history-only notification so user can find the update later
+    std::string msg = fmt::format(lv_tr("v{} is available. Tap to update."), version);
+    ui_notification_info_with_action(lv_tr("Update Available"), msg.c_str(), "show_update_modal");
 }
 
 // ============================================================================
@@ -1314,19 +1321,6 @@ static void on_update_notify_ignore(lv_event_t* /*e*/) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-static void on_update_notify_dismiss(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[UpdateChecker] on_update_notify_dismiss");
-    // Only dismiss on backdrop click, not on child clicks that bubble up
-    auto* target = lv_event_get_target(e);
-    auto* current_target = lv_event_get_current_target(e);
-    if (target != current_target) {
-        return;
-    }
-    spdlog::info("[UpdateChecker] User dismissed update notification (remind later)");
-    UpdateChecker::instance().hide_update_notification();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
 static void on_update_notify_close(lv_event_t* /*e*/) {
     LVGL_SAFE_EVENT_CB_BEGIN("[UpdateChecker] on_update_notify_close");
     spdlog::info("[UpdateChecker] User closed update notification (remind later)");
@@ -1349,7 +1343,6 @@ static void register_notify_callbacks() {
         return;
     lv_xml_register_event_cb(nullptr, "on_update_notify_install", on_update_notify_install);
     lv_xml_register_event_cb(nullptr, "on_update_notify_ignore", on_update_notify_ignore);
-    lv_xml_register_event_cb(nullptr, "on_update_notify_dismiss", on_update_notify_dismiss);
     lv_xml_register_event_cb(nullptr, "on_update_notify_close", on_update_notify_close);
     lv_xml_register_event_cb(nullptr, "on_update_toggle_changelog", on_update_toggle_changelog);
     s_notify_callbacks_registered = true;
@@ -1358,19 +1351,15 @@ static void register_notify_callbacks() {
 
 void UpdateChecker::show_update_notification() {
     spdlog::info("[UpdateChecker] Show update notification");
-    // Modal creation handled in step 3
     if (!notify_modal_) {
-        notify_modal_ = static_cast<lv_obj_t*>(
-            lv_xml_create(lv_screen_active(), "update_notify_modal", nullptr));
-    }
-    if (notify_modal_) {
-        lv_obj_remove_flag(notify_modal_, LV_OBJ_FLAG_HIDDEN);
+        notify_modal_ = ui_modal_show("update_notify_modal");
     }
 }
 
 void UpdateChecker::hide_update_notification() {
     if (notify_modal_) {
-        lv_obj_add_flag(notify_modal_, LV_OBJ_FLAG_HIDDEN);
+        ui_modal_hide(notify_modal_);
+        notify_modal_ = nullptr;
     }
 }
 

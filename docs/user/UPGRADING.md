@@ -16,6 +16,7 @@ curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/script
 # On your computer (replace vX.Y.Z with actual version):
 VERSION=vX.Y.Z  # Check latest at https://github.com/prestonbrown/helixscreen/releases/latest
 wget "https://github.com/prestonbrown/helixscreen/releases/download/${VERSION}/helixscreen-ad5m-${VERSION}.tar.gz"
+# Windows users: use WSL, WinSCP (SCP protocol), or PuTTY's pscp instead of scp -O
 scp -O helixscreen-ad5m-${VERSION}.tar.gz root@<printer-ip>:/data/
 
 # On the printer (use the bundled install.sh):
@@ -125,11 +126,12 @@ curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/script
 
 If you encounter issues after upgrading:
 
-1. Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common problems
-2. View logs for error messages:
+1. Ask in the [HelixScreen Discord](https://discord.gg/rZ9dB74V) for quick help
+2. Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common problems
+3. View logs for error messages:
    - **Pi:** `sudo journalctl -u helixscreen -n 50`
    - **AD5M / K1:** `tail -50 /tmp/helixscreen.log`
-3. Open an issue on [GitHub](https://github.com/prestonbrown/helixscreen/issues) with your version and any error messages
+4. Open an issue on [GitHub](https://github.com/prestonbrown/helixscreen/issues) with your version and any error messages
 
 ---
 

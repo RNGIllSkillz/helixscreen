@@ -69,6 +69,9 @@ compile_commands.json
 SESSION_SUMMARY.md
 IMPLEMENTATION_PLAN.md
 
+# Claude plugin local config
+.claude/*.local.md
+
 # OpenCode local state
 .opencode/state/
 
@@ -124,3 +127,4 @@ config/helixconfig.json.voronv2
 # ============================================================================
 .telemetry-data/
 .env.telemetry
+config/crash_report.txt

@@ -32,9 +32,8 @@
 #include "print_start_profile.h"
 #include "printer_detector.h"
 #include "printer_state.h"
-#include "settings_manager.h"
 #include "sound_manager.h"
-#include "wizard_config_paths.h"
+#include "tool_state.h"
 
 #include <spdlog/spdlog.h>
 
@@ -205,6 +204,17 @@ void MoonrakerManager::process_notifications() {
         } else {
             // Regular Moonraker notification
             get_printer_state().update_from_notification(notification);
+
+            // Forward status updates to ToolState for tool changer tracking
+            if (notification.contains("method") && notification.contains("params")) {
+                const auto& method = notification["method"];
+                if (method.is_string() && method.get<std::string>() == "notify_status_update") {
+                    const auto& params = notification["params"];
+                    if (params.is_array() && !params.empty()) {
+                        helix::ToolState::instance().update_from_status(params[0]);
+                    }
+                }
+            }
         }
     }
 }
@@ -367,35 +377,6 @@ void MoonrakerManager::create_api(const RuntimeConfig& runtime_config) {
 
     // Set API for AmsState Spoolman integration
     AmsState::instance().set_moonraker_api(m_api.get());
-
-    // Set API for SettingsManager LED control (DRY with Home/PrintStatus panels)
-    SettingsManager::instance().set_moonraker_api(m_api.get());
-
-    // Load configured LEDs for SettingsManager (multi-LED support)
-    Config* config = Config::get_instance();
-    if (config) {
-        std::vector<std::string> leds;
-        auto& leds_json = config->get_json(helix::wizard::LED_SELECTED);
-        if (leds_json.is_array()) {
-            for (const auto& led : leds_json) {
-                if (led.is_string() && !led.get<std::string>().empty()) {
-                    leds.push_back(led.get<std::string>());
-                }
-            }
-        }
-        // Fallback: legacy single LED
-        if (leds.empty()) {
-            std::string led = config->get<std::string>(helix::wizard::LED_STRIP, "");
-            if (!led.empty()) {
-                leds.push_back(led);
-            }
-        }
-        if (!leds.empty()) {
-            SettingsManager::instance().set_configured_leds(leds);
-            spdlog::debug("[MoonrakerManager] Configured {} LED(s) for SettingsManager",
-                          leds.size());
-        }
-    }
 
     // Note: EmergencyStopOverlay::init() and create() are called from Application
     // after both MoonrakerManager and SubjectInitializer are ready

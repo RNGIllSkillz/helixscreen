@@ -28,6 +28,7 @@
 #include "filament_sensor_manager.h"
 #include "format_utils.h"
 #include "injection_point_manager.h"
+#include "led/led_controller.h"
 #include "memory_utils.h"
 #include "moonraker_api.h"
 #include "observer_factory.h"
@@ -40,6 +41,7 @@
 #include "theme_manager.h"
 #include "thumbnail_cache.h"
 #include "thumbnail_processor.h"
+#include "tool_state.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -82,6 +84,11 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, MoonrakerAPI* ap
         this, printer_state_, [](PrintStatusPanel* self, int) { self->on_temperature_changed(); },
         [](PrintStatusPanel* self, int) { self->on_temperature_changed(); },
         [](PrintStatusPanel* self, int) { self->on_temperature_changed(); },
+        [](PrintStatusPanel* self, int) { self->on_temperature_changed(); });
+
+    // Subscribe to active tool changes (refreshes nozzle temp with tool name prefix)
+    active_tool_observer_ = observe_int_sync<PrintStatusPanel>(
+        helix::ToolState::instance().get_active_tool_subject(), this,
         [](PrintStatusPanel* self, int) { self->on_temperature_changed(); });
 
     // Subscribe to print progress and state
@@ -167,35 +174,13 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, MoonrakerAPI* ap
 
     spdlog::debug("[{}] Subscribed to PrinterState subjects", get_name());
 
-    // Load configured LEDs from wizard settings and pass to light controls
-    Config* config = Config::get_instance();
-    if (config) {
-        // Load configured LEDs (multi-LED support)
-        std::vector<std::string> configured_leds;
-        auto& leds_json = config->get_json(helix::wizard::LED_SELECTED);
-        if (leds_json.is_array()) {
-            for (const auto& led : leds_json) {
-                if (led.is_string() && !led.get<std::string>().empty()) {
-                    configured_leds.push_back(led.get<std::string>());
-                }
-            }
-        }
-        // Fallback: legacy single LED path
-        if (configured_leds.empty()) {
-            std::string single_led = config->get<std::string>(helix::wizard::LED_STRIP, "");
-            if (!single_led.empty()) {
-                configured_leds.push_back(single_led);
-            }
-        }
-        if (!configured_leds.empty()) {
-            light_timelapse_controls_.set_configured_leds(configured_leds);
-            led_state_observer_ = observe_int_sync<PrintStatusPanel>(
-                printer_state_.get_led_state_subject(), this,
-                [](PrintStatusPanel* self, int state) { self->on_led_state_changed(state); });
-            spdlog::debug("[{}] Configured {} LED(s) (observing state)", get_name(),
-                          configured_leds.size());
-        }
-    }
+    // LED configuration is read lazily by PrintLightTimelapseControls::handle_light_button()
+    // At construction time, hardware discovery may not have completed yet.
+    // LED state observer is set up on first on_activate() when strips are available.
+    led_state_observer_ = observe_int_sync<PrintStatusPanel>(
+        printer_state_.get_led_state_subject(), this,
+        [](PrintStatusPanel* self, int state) { self->on_led_state_changed(state); });
+    spdlog::debug("[{}] LED state observer registered (strips read lazily)", get_name());
 
     // Create filament runout handler (extracted from PrintStatusPanel)
     runout_handler_ = std::make_unique<helix::ui::FilamentRunoutHandler>(api_);
@@ -760,8 +745,10 @@ void PrintStatusPanel::update_all_displays() {
     helix::fmt::format_percent(current_progress_, progress_text_buf_, sizeof(progress_text_buf_));
     lv_subject_copy_string(&progress_text_subject_, progress_text_buf_);
 
-    // Layer text
-    std::snprintf(layer_text_buf_, sizeof(layer_text_buf_), "Layer %d / %d", current_layer_,
+    // Layer text (prefix with ~ when estimated from progress)
+    const char* layer_fmt =
+        printer_state_.has_real_layer_data() ? "Layer %d / %d" : "Layer ~%d / %d";
+    std::snprintf(layer_text_buf_, sizeof(layer_text_buf_), layer_fmt, current_layer_,
                   total_layers_);
     lv_subject_copy_string(&layer_text_subject_, layer_text_buf_);
 
@@ -1129,8 +1116,17 @@ void PrintStatusPanel::on_temperature_changed() {
     // Update only temperature-related subjects (not the full display refresh).
     // Temperature observers fire frequently during heating (4 subjects × ~1Hz each),
     // and update_all_displays() re-renders ALL subjects causing visible flickering.
-    format_temperature_pair(centi_to_degrees(nozzle_current_), centi_to_degrees(nozzle_target_),
-                            nozzle_temp_buf_, sizeof(nozzle_temp_buf_));
+    auto& ts = helix::ToolState::instance();
+    if (ts.tool_count() > 1 && ts.active_tool()) {
+        size_t prefix_len = std::snprintf(nozzle_temp_buf_, sizeof(nozzle_temp_buf_),
+                                          "%s: ", ts.active_tool()->name.c_str());
+        format_temperature_pair(centi_to_degrees(nozzle_current_), centi_to_degrees(nozzle_target_),
+                                nozzle_temp_buf_ + prefix_len,
+                                sizeof(nozzle_temp_buf_) - prefix_len);
+    } else {
+        format_temperature_pair(centi_to_degrees(nozzle_current_), centi_to_degrees(nozzle_target_),
+                                nozzle_temp_buf_, sizeof(nozzle_temp_buf_));
+    }
     lv_subject_copy_string(&nozzle_temp_subject_, nozzle_temp_buf_);
 
     format_temperature_pair(centi_to_degrees(bed_current_), centi_to_degrees(bed_target_),
@@ -1440,8 +1436,10 @@ void PrintStatusPanel::on_print_layer_changed(int current_layer) {
         return;
     }
 
-    // Update the layer text display
-    std::snprintf(layer_text_buf_, sizeof(layer_text_buf_), "Layer %d / %d", current_layer_,
+    // Update the layer text display (prefix with ~ when estimated from progress)
+    const char* layer_fmt =
+        printer_state_.has_real_layer_data() ? "Layer %d / %d" : "Layer ~%d / %d";
+    std::snprintf(layer_text_buf_, sizeof(layer_text_buf_), layer_fmt, current_layer_,
                   total_layers_);
     lv_subject_copy_string(&layer_text_subject_, layer_text_buf_);
 
@@ -2215,7 +2213,9 @@ void PrintStatusPanel::set_layer(int current, int total) {
     total_layers_ = total;
     if (!subjects_initialized_)
         return;
-    std::snprintf(layer_text_buf_, sizeof(layer_text_buf_), "Layer %d / %d", current_layer_,
+    const char* layer_fmt =
+        printer_state_.has_real_layer_data() ? "Layer %d / %d" : "Layer ~%d / %d";
+    std::snprintf(layer_text_buf_, sizeof(layer_text_buf_), layer_fmt, current_layer_,
                   total_layers_);
     lv_subject_copy_string(&layer_text_subject_, layer_text_buf_);
 }

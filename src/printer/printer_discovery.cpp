@@ -3,12 +3,15 @@
 #include "printer_discovery.h"
 
 #include "ams_state.h"
+#include "app_globals.h"
 #include "filament_sensor_manager.h"
+#include "led/led_controller.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "spdlog/spdlog.h"
 #include "standard_macros.h"
 #include "temperature_sensor_manager.h"
+#include "tool_state.h"
 
 #include <sstream>
 #include <vector>
@@ -102,8 +105,23 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, ::Moonraker
     auto& tsm = helix::sensors::TemperatureSensorManager::instance();
     tsm.discover(hardware.sensors());
 
+    // Initialize multi-extruder temperature tracking
+    auto& printer_state = get_printer_state();
+    printer_state.init_extruders(hardware.heaters());
+
+    // Initialize tool changer state from discovered hardware
+    helix::ToolState::instance().init_tools(hardware);
+
     // Initialize standard macros
     StandardMacros::instance().init(hardware);
+
+    // Initialize LED controller and discover LED backends
+    auto& led_ctrl = helix::led::LedController::instance();
+    if (!led_ctrl.is_initialized()) {
+        led_ctrl.init(api, client);
+    }
+    led_ctrl.discover_from_hardware(hardware);
+    led_ctrl.discover_wled_strips();
 
     spdlog::info("[PrinterDiscovery] Subsystem initialization complete");
 }

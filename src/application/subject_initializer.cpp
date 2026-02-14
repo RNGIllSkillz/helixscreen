@@ -11,6 +11,7 @@
 #include "ui_nav_manager.h"
 #include "ui_notification.h"
 #include "ui_notification_manager.h"
+#include "ui_overlay_printer_image.h"
 #include "ui_overlay_retraction_settings.h"
 #include "ui_overlay_timelapse_install.h"
 #include "ui_overlay_timelapse_settings.h"
@@ -43,6 +44,7 @@
 #include "color_sensor_manager.h"
 #include "filament_sensor_manager.h"
 #include "humidity_sensor_manager.h"
+#include "led/ui_led_control_overlay.h"
 #include "lvgl/lvgl.h"
 #include "print_completion.h"
 #include "print_start_navigation.h"
@@ -53,6 +55,7 @@
 #include "static_subject_registry.h"
 #include "system/telemetry_manager.h"
 #include "temperature_sensor_manager.h"
+#include "tool_state.h"
 #include "usb_manager.h"
 #include "width_sensor_manager.h"
 #include "xml_registration.h"
@@ -161,6 +164,11 @@ void SubjectInitializer::init_ams_subjects() {
     StaticSubjectRegistry::instance().register_deinit(
         "AmsState", []() { AmsState::instance().deinit_subjects(); });
 
+    // Initialize ToolState subjects (tool changer state tracking)
+    helix::ToolState::instance().init_subjects();
+    StaticSubjectRegistry::instance().register_deinit(
+        "ToolState", []() { helix::ToolState::instance().deinit_subjects(); });
+
     // Initialize sensor manager subjects BEFORE panels so XML bindings can work
     REGISTER_SENSOR_MANAGER(helix::FilamentSensorManager);
     REGISTER_SENSOR_MANAGER(helix::sensors::HumiditySensorManager);
@@ -223,6 +231,9 @@ void SubjectInitializer::init_panel_subjects(MoonrakerAPI* api) {
     // Fan control overlay (opened from Controls panel secondary fans list)
     init_fan_control_overlay(get_printer_state());
     get_fan_control_overlay().init_subjects();
+
+    // LED control overlay (opened from Home panel light long-press)
+    init_led_control_overlay(get_printer_state());
 
     // ConsolePanel is now lazy-initialized by AdvancedPanel (OverlayBase pattern)
 
@@ -336,6 +347,8 @@ void SubjectInitializer::init_usb_manager(const RuntimeConfig& runtime_config) {
         if (m_print_select_panel) {
             m_print_select_panel->set_usb_manager(m_usb_manager.get());
         }
+        // Also provide USB manager to printer image overlay
+        helix::settings::get_printer_image_overlay().set_usb_manager(m_usb_manager.get());
     } else {
         spdlog::info(
             "[SubjectInitializer] USB Manager not started (not available on this platform)");

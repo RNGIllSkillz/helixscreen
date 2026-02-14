@@ -209,6 +209,7 @@ void register_xml_components() {
     register_xml("notification_history_item.xml");
 
     // Modal dialogs
+    register_xml("crash_report_modal.xml");
     register_xml("modal_dialog.xml");
     register_xml("numeric_keypad_panel.xml");
     register_xml("runout_guidance_modal.xml");
@@ -233,6 +234,9 @@ void register_xml_components() {
     register_fan_dial_callbacks(); // Register FanDial event callbacks
     register_xml("fan_status_card.xml");
     register_xml("fan_control_overlay.xml");
+    register_xml("led_action_chip.xml");
+    register_xml("led_color_swatch.xml");
+    register_xml("led_control_overlay.xml");
     register_xml("ams_current_tool.xml");
     register_xml("exclude_objects_list_overlay.xml");
     register_xml("print_status_panel.xml");
@@ -270,6 +274,11 @@ void register_xml_components() {
     register_xml("setting_info_row.xml");
     register_xml("setting_slider_row.xml");
     register_xml("setting_led_chip_row.xml");
+    register_xml("setting_state_row.xml");
+    register_xml("setting_detail_panel.xml");
+    register_xml("setting_form_dropdown.xml");
+    register_xml("setting_form_input.xml");
+    register_xml("setting_macro_card.xml");
     register_settings_panel_callbacks(); // Register callbacks before XML parse [L013]
     register_xml("settings_panel.xml");
     register_xml("restart_prompt_dialog.xml");
@@ -292,6 +301,7 @@ void register_xml_components() {
     register_xml("about_overlay.xml");
     register_xml("display_settings_overlay.xml");
     register_xml("sound_settings_overlay.xml");
+    register_xml("led_settings_overlay.xml");
     register_xml("theme_editor_overlay.xml");
     register_xml("theme_preview_overlay.xml");
     register_xml("theme_save_as_modal.xml");
@@ -307,11 +317,16 @@ void register_xml_components() {
     register_xml("plugin_card.xml");
     register_xml("settings_plugins_overlay.xml");
     register_xml("touch_calibration_overlay.xml");
+    register_xml("printer_image_list_item.xml");
+    register_xml("printer_image_overlay.xml");
     register_xml("hidden_network_modal.xml");
     register_xml("network_test_modal.xml");
     register_xml("filament_preset_edit_modal.xml");
     register_xml("wifi_network_item.xml");
     register_xml("telemetry_data_overlay.xml");
+
+    // Printer manager overlay (launched from home screen printer image)
+    register_xml("printer_manager_overlay.xml");
 
     // Development tools
     register_xml("memory_stats_overlay.xml");

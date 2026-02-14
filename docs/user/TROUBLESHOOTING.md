@@ -984,6 +984,19 @@ gunzip -c archive.tar.gz | tar xf -
 rsync -avz localfile root@<printer-ip>:/path/
 ```
 
+#### Windows users: `scp -O` not supported
+
+Windows 11's built-in OpenSSH does not support the `-O` flag. Use one of these alternatives:
+
+1. **WSL (recommended)** — Open a WSL terminal (Ubuntu, Debian, etc.) and run all commands exactly as shown in the install guide. Everything works natively.
+
+2. **WinSCP** (free GUI) — Download from [winscp.net](https://winscp.net/). When connecting, set the protocol to **SCP** (not SFTP). Then drag and drop files to the printer.
+
+3. **PuTTY pscp** (free command-line) — Download from [putty.org](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html). Use `pscp` instead of `scp -O`:
+   ```
+   pscp helixscreen-ad5m-vX.Y.Z.tar.gz root@<printer-ip>:/data/
+   ```
+
 ### ForgeX not installed
 
 **Symptoms:**
@@ -1169,6 +1182,7 @@ cat /proc/bus/input/devices
 1. **This troubleshooting guide** - search for your symptoms
 2. **[FAQ](FAQ.md)** - common questions
 3. **[GitHub Issues](https://github.com/prestonbrown/helixscreen/issues)** - known problems
+4. **[HelixScreen Discord](https://discord.gg/rZ9dB74V)** - ask the community for help
 
 ### Opening a New Issue
 

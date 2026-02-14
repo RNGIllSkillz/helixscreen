@@ -1485,6 +1485,11 @@ void MoonrakerClient::complete_discovery_subscription(std::function<void()> on_c
         subscription_objects[led] = nullptr;
     }
 
+    // All discovered LED effects (for tracking active/enabled state)
+    for (const auto& effect : hardware_.led_effects()) {
+        subscription_objects[effect] = nullptr;
+    }
+
     // Bed mesh (for 3D visualization)
     subscription_objects["bed_mesh"] = nullptr;
 
@@ -1510,6 +1515,16 @@ void MoonrakerClient::complete_discovery_subscription(std::function<void()> on_c
     // These provide runout detection and encoder motion data
     for (const auto& sensor : filament_sensors_) {
         subscription_objects[sensor] = nullptr;
+    }
+
+    // All discovered tool objects (for toolchanger support)
+    if (hardware_.has_tool_changer()) {
+        subscription_objects["toolchanger"] = nullptr;
+        for (const auto& tool_name : hardware_.tool_names()) {
+            subscription_objects["tool " + tool_name] = nullptr;
+        }
+        spdlog::info("[Moonraker Client] Subscribing to toolchanger + {} tool objects",
+                     hardware_.tool_names().size());
     }
 
     // Firmware retraction settings (if printer has firmware_retraction module)

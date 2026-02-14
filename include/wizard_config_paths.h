@@ -33,7 +33,8 @@ constexpr const char* PART_FAN = "/printer/fans/part";
 constexpr const char* CHAMBER_FAN = "/printer/fans/chamber";
 constexpr const char* EXHAUST_FAN = "/printer/fans/exhaust";
 
-// LED hardware
+// LED hardware (legacy — used for migration only in LedController::load_config()
+// and hardware_validator.cpp. New code should use LedController::selected_strips())
 constexpr const char* LED_STRIP = "/printer/leds/strip";
 constexpr const char* LED_SELECTED = "/printer/leds/selected";
 
@@ -43,4 +44,8 @@ constexpr const char* MOONRAKER_PORT = "/printer/moonraker_port";
 constexpr const char* WIFI_SSID = "/wifi/ssid";
 constexpr const char* WIFI_PASSWORD = "/wifi/password";
 } // namespace wizard
+
+// Display settings
+constexpr const char* PRINTER_IMAGE = "/display/printer_image";
+
 } // namespace helix
