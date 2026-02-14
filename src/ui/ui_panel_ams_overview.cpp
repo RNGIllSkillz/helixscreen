@@ -3,6 +3,7 @@
 
 #include "ui_panel_ams_overview.h"
 
+#include "ui_ams_context_menu.h"
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_slot.h"
 #include "ui_ams_slot_layout.h"
@@ -594,6 +595,22 @@ void AmsOverviewPanel::on_unit_card_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
+void AmsOverviewPanel::on_detail_slot_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[AMS Overview] on_detail_slot_clicked");
+
+    auto* self = static_cast<AmsOverviewPanel*>(lv_event_get_user_data(e));
+    if (!self) {
+        return;
+    }
+
+    // Use current_target (widget callback was registered on) not target (originally clicked child)
+    lv_obj_t* slot = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    auto global_index = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot)));
+    self->handle_detail_slot_tap(global_index);
+
+    LVGL_SAFE_EVENT_CB_END();
+}
+
 // ============================================================================
 // Detail View (inline unit zoom)
 // ============================================================================
@@ -691,6 +708,11 @@ void AmsOverviewPanel::show_overview() {
 
     // Cancel any in-flight zoom animations to prevent race conditions
     lv_anim_delete(detail_container_, nullptr);
+
+    // Dismiss context menu if open
+    if (context_menu_ && context_menu_->is_visible()) {
+        context_menu_->hide();
+    }
 
     spdlog::info("[{}] Returning to overview mode", get_name());
 
@@ -800,6 +822,10 @@ void AmsOverviewPanel::create_detail_slots(const AmsUnit& unit) {
         ui_ams_slot_set_index(slot, global_index);
         ui_ams_slot_set_layout_info(slot, i, count);
         detail_slot_widgets_[i] = slot;
+
+        // Wire up click handler for context menu
+        lv_obj_set_user_data(slot, reinterpret_cast<void*>(static_cast<intptr_t>(global_index)));
+        lv_obj_add_event_cb(slot, on_detail_slot_clicked, LV_EVENT_CLICKED, this);
     }
 
     detail_slot_count_ = count;
@@ -932,6 +958,14 @@ void AmsOverviewPanel::setup_detail_path_canvas(const AmsUnit& unit, const AmsSy
 // ============================================================================
 
 void AmsOverviewPanel::clear_panel_reference() {
+    // Cancel animations and dismiss menus while widget pointers are still valid
+    if (detail_container_) {
+        lv_anim_delete(detail_container_, nullptr);
+    }
+    if (context_menu_) {
+        context_menu_->hide();
+    }
+
     // Clear observer guards before clearing widget pointers
     slots_version_observer_.reset();
 
@@ -945,11 +979,6 @@ void AmsOverviewPanel::clear_panel_reference() {
     parent_screen_ = nullptr;
     cards_row_ = nullptr;
     unit_cards_.clear();
-
-    // Cancel any in-flight animations before clearing pointers (prevents use-after-free)
-    if (detail_container_) {
-        lv_anim_delete(detail_container_, nullptr);
-    }
 
     // Clear detail view state
     detail_container_ = nullptr;
@@ -1004,6 +1033,7 @@ static void ensure_overview_registered() {
     ui_ams_slot_register();
 
     // Register the XML components (unit card must be registered before overview panel)
+    lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml");
     lv_xml_register_component_from_file("A:ui_xml/ams_unit_card.xml");
     lv_xml_register_component_from_file("A:ui_xml/ams_overview_panel.xml");
 
@@ -1070,6 +1100,115 @@ AmsOverviewPanel& get_global_ams_overview_panel() {
     }
 
     return *g_ams_overview_panel;
+}
+
+// ============================================================================
+// Slot Context Menu (detail view)
+// ============================================================================
+
+void AmsOverviewPanel::handle_detail_slot_tap(int global_slot_index) {
+    spdlog::info("[{}] Detail slot {} tapped", get_name(), global_slot_index);
+
+    // Find the local widget for positioning the menu
+    if (detail_unit_index_ < 0)
+        return;
+
+    auto* backend = AmsState::instance().get_backend();
+    if (!backend)
+        return;
+
+    AmsSystemInfo info = backend->get_system_info();
+    if (detail_unit_index_ >= static_cast<int>(info.units.size()))
+        return;
+
+    const auto& unit = info.units[detail_unit_index_];
+    int local_index = global_slot_index - unit.first_slot_global_index;
+
+    if (local_index < 0 || local_index >= detail_slot_count_)
+        return;
+
+    lv_obj_t* slot_widget = detail_slot_widgets_[local_index];
+    if (!slot_widget)
+        return;
+
+    show_detail_context_menu(global_slot_index, slot_widget);
+}
+
+void AmsOverviewPanel::show_detail_context_menu(int slot_index, lv_obj_t* near_widget) {
+    if (!parent_screen_ || !near_widget)
+        return;
+
+    // Create context menu on first use
+    if (!context_menu_) {
+        context_menu_ = std::make_unique<helix::ui::AmsContextMenu>();
+    }
+
+    context_menu_->set_action_callback(
+        [this](helix::ui::AmsContextMenu::MenuAction action, int slot) {
+            AmsBackend* backend = AmsState::instance().get_backend();
+
+            switch (action) {
+            case helix::ui::AmsContextMenu::MenuAction::LOAD:
+                if (!backend) {
+                    NOTIFY_WARNING("AMS not available");
+                    return;
+                }
+                {
+                    AmsSystemInfo info = backend->get_system_info();
+                    if (info.action != AmsAction::IDLE && info.action != AmsAction::ERROR) {
+                        NOTIFY_WARNING("AMS is busy: {}", ams_action_to_string(info.action));
+                        return;
+                    }
+                }
+                {
+                    AmsError load_err = backend->load_filament(slot);
+                    if (load_err.result != AmsResult::SUCCESS) {
+                        NOTIFY_ERROR("Load failed: {}", load_err.user_msg);
+                    }
+                }
+                break;
+
+            case helix::ui::AmsContextMenu::MenuAction::UNLOAD:
+                if (!backend) {
+                    NOTIFY_WARNING("AMS not available");
+                    return;
+                }
+                {
+                    AmsError error = backend->unload_filament();
+                    if (error.result != AmsResult::SUCCESS) {
+                        NOTIFY_ERROR("Unload failed: {}", error.user_msg);
+                    }
+                }
+                break;
+
+            case helix::ui::AmsContextMenu::MenuAction::EDIT:
+                // Navigate to the full AMS panel for edit/spoolman features
+                spdlog::info("[{}] Edit requested for slot {} - navigating to AMS panel",
+                             get_name(), slot);
+                NOTIFY_INFO("Use the AMS detail panel for slot editing");
+                break;
+
+            case helix::ui::AmsContextMenu::MenuAction::SPOOLMAN:
+                spdlog::info("[{}] Spoolman requested for slot {} - navigating to AMS panel",
+                             get_name(), slot);
+                NOTIFY_INFO("Use the AMS detail panel for Spoolman assignment");
+                break;
+
+            case helix::ui::AmsContextMenu::MenuAction::CANCELLED:
+            default:
+                break;
+            }
+        });
+
+    // Check if the slot is loaded
+    bool is_loaded = false;
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (backend) {
+        SlotInfo slot_info = backend->get_slot_info(slot_index);
+        is_loaded = (slot_info.status == SlotStatus::LOADED);
+    }
+
+    context_menu_->show_near_widget(parent_screen_, slot_index, near_widget, is_loaded);
 }
 
 // ============================================================================

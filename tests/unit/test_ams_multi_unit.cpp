@@ -804,3 +804,80 @@ TEST_CASE("Happy Hare multi-unit: three units", "[ams][multi-unit][happy-hare]")
     REQUIRE(info.units[2].first_slot_global_index == 8);
     REQUIRE(info.is_multi_unit());
 }
+
+// ============================================================================
+// Global-to-Local Slot Index Mapping
+// ============================================================================
+
+// Mirrors the logic in AmsOverviewPanel::handle_detail_slot_tap() which
+// converts a global slot index (from the widget user_data) to a local index
+// within the displayed unit. Extracted here as a pure data test.
+
+static int global_to_local_slot(const AmsSystemInfo& info, int unit_index, int global_slot_index) {
+    if (unit_index < 0 || unit_index >= static_cast<int>(info.units.size()))
+        return -1;
+    const auto& unit = info.units[unit_index];
+    int local = global_slot_index - unit.first_slot_global_index;
+    if (local < 0 || local >= unit.slot_count)
+        return -1;
+    return local;
+}
+
+TEST_CASE("Global-to-local slot mapping for first unit", "[ams][multi-unit]") {
+    auto info = make_multi_unit_info({4, 4});
+
+    // Slot 0-3 map to local 0-3 in unit 0
+    REQUIRE(global_to_local_slot(info, 0, 0) == 0);
+    REQUIRE(global_to_local_slot(info, 0, 1) == 1);
+    REQUIRE(global_to_local_slot(info, 0, 2) == 2);
+    REQUIRE(global_to_local_slot(info, 0, 3) == 3);
+}
+
+TEST_CASE("Global-to-local slot mapping for second unit", "[ams][multi-unit]") {
+    auto info = make_multi_unit_info({4, 4});
+
+    // Slot 4-7 map to local 0-3 in unit 1
+    REQUIRE(global_to_local_slot(info, 1, 4) == 0);
+    REQUIRE(global_to_local_slot(info, 1, 5) == 1);
+    REQUIRE(global_to_local_slot(info, 1, 6) == 2);
+    REQUIRE(global_to_local_slot(info, 1, 7) == 3);
+}
+
+TEST_CASE("Global-to-local slot mapping rejects wrong unit", "[ams][multi-unit]") {
+    auto info = make_multi_unit_info({4, 4});
+
+    // Slot 4 belongs to unit 1 — asking for it from unit 0 should fail
+    REQUIRE(global_to_local_slot(info, 0, 4) == -1);
+    // Slot 0 belongs to unit 0 — asking for it from unit 1 should fail
+    REQUIRE(global_to_local_slot(info, 1, 0) == -1);
+}
+
+TEST_CASE("Global-to-local slot mapping with asymmetric units", "[ams][multi-unit]") {
+    auto info = make_multi_unit_info({4, 8, 2});
+
+    // Unit 0: global 0-3, Unit 1: global 4-11, Unit 2: global 12-13
+    REQUIRE(global_to_local_slot(info, 0, 3) == 3);
+    REQUIRE(global_to_local_slot(info, 1, 4) == 0);
+    REQUIRE(global_to_local_slot(info, 1, 11) == 7);
+    REQUIRE(global_to_local_slot(info, 2, 12) == 0);
+    REQUIRE(global_to_local_slot(info, 2, 13) == 1);
+
+    // Out of range
+    REQUIRE(global_to_local_slot(info, 2, 14) == -1);
+    REQUIRE(global_to_local_slot(info, 1, 12) == -1);
+}
+
+TEST_CASE("Global-to-local slot mapping with invalid unit index", "[ams][multi-unit]") {
+    auto info = make_multi_unit_info({4, 4});
+
+    REQUIRE(global_to_local_slot(info, -1, 0) == -1);
+    REQUIRE(global_to_local_slot(info, 2, 0) == -1);
+    REQUIRE(global_to_local_slot(info, 99, 0) == -1);
+}
+
+TEST_CASE("Global-to-local slot mapping with negative global index", "[ams][multi-unit]") {
+    auto info = make_multi_unit_info({4, 4});
+
+    REQUIRE(global_to_local_slot(info, 0, -1) == -1);
+    REQUIRE(global_to_local_slot(info, 1, -1) == -1);
+}

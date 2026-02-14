@@ -3,12 +3,14 @@
 
 #pragma once
 
+#include "ui_ams_context_menu.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 
 #include "ams_state.h"
 #include "ams_types.h"
 
+#include <memory>
 #include <vector>
 
 /**
@@ -114,8 +116,15 @@ class AmsOverviewPanel : public PanelBase {
     void setup_detail_path_canvas(const AmsUnit& unit, const AmsSystemInfo& info);
     void update_detail_header(const AmsUnit& unit, const AmsSystemInfo& info);
 
+    // === Slot Interaction ===
+    std::unique_ptr<helix::ui::AmsContextMenu> context_menu_; ///< Slot context menu (lazy init)
+
+    void handle_detail_slot_tap(int global_slot_index);
+    void show_detail_context_menu(int slot_index, lv_obj_t* near_widget);
+
     // === Event Handling ===
     static void on_unit_card_clicked(lv_event_t* e);
+    static void on_detail_slot_clicked(lv_event_t* e);
 };
 
 /**
