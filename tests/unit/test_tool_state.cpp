@@ -341,3 +341,59 @@ TEST_CASE("ToolState: update_from_status tool_number -1 means no tool", "[tool][
     REQUIRE(ts.active_tool_index() == -1);
     REQUIRE(ts.active_tool() == nullptr);
 }
+
+// ============================================================================
+// Lifecycle edge case tests
+// ============================================================================
+
+TEST_CASE("ToolState: update_from_status captures extruder and fan from Klipper",
+          "[tool][tool-state]") {
+    lv_init_safe();
+
+    ToolState& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+
+    helix::PrinterDiscovery hw;
+    nlohmann::json objects = nlohmann::json::array(
+        {"toolchanger", "tool T0", "tool T1", "extruder", "extruder1", "heater_bed", "gcode_move"});
+    hw.parse_objects(objects);
+    ts.init_tools(hw);
+
+    // Klipper sends extruder association in tool status
+    nlohmann::json status = {{"tool T0", {{"extruder", "extruder"}, {"fan", "part_fan_T0"}}},
+                             {"tool T1", {{"extruder", "extruder1"}, {"fan", "part_fan_T1"}}}};
+    ts.update_from_status(status);
+
+    REQUIRE(ts.tools()[0].extruder_name.value() == "extruder");
+    REQUIRE(ts.tools()[0].fan_name.value() == "part_fan_T0");
+    REQUIRE(ts.tools()[1].extruder_name.value() == "extruder1");
+    REQUIRE(ts.tools()[1].fan_name.value() == "part_fan_T1");
+
+    ts.deinit_subjects();
+}
+
+TEST_CASE("ToolState: detect_state parsed from status", "[tool][tool-state]") {
+    lv_init_safe();
+
+    ToolState& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+
+    helix::PrinterDiscovery hw;
+    nlohmann::json objects =
+        nlohmann::json::array({"toolchanger", "tool T0", "extruder", "heater_bed", "gcode_move"});
+    hw.parse_objects(objects);
+    ts.init_tools(hw);
+
+    nlohmann::json status = {{"tool T0", {{"detect_state", "present"}}}};
+    ts.update_from_status(status);
+    REQUIRE(ts.tools()[0].detect_state == DetectState::PRESENT);
+
+    // Also test "absent"
+    nlohmann::json status2 = {{"tool T0", {{"detect_state", "absent"}}}};
+    ts.update_from_status(status2);
+    REQUIRE(ts.tools()[0].detect_state == DetectState::ABSENT);
+
+    ts.deinit_subjects();
+}
