@@ -11,6 +11,7 @@
 #include "spdlog/spdlog.h"
 #include "standard_macros.h"
 #include "temperature_sensor_manager.h"
+#include "tool_state.h"
 
 #include <sstream>
 #include <vector>
@@ -107,6 +108,9 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, ::Moonraker
     // Initialize multi-extruder temperature tracking
     auto& printer_state = get_printer_state();
     printer_state.init_extruders(hardware.heaters());
+
+    // Initialize tool changer state from discovered hardware
+    helix::ToolState::instance().init_tools(hardware);
 
     // Initialize standard macros
     StandardMacros::instance().init(hardware);
