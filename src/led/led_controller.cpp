@@ -1666,4 +1666,11 @@ void LedController::set_configured_macros(const std::vector<LedMacroInfo>& macro
     configured_macros_ = macros;
 }
 
+void LedController::rebuild_macro_backend() {
+    macro_.clear();
+    for (const auto& m : configured_macros_) {
+        macro_.add_macro(m);
+    }
+}
+
 } // namespace helix::led

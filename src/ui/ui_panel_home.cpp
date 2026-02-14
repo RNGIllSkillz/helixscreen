@@ -527,6 +527,13 @@ void HomePanel::detect_network_type() {
 }
 
 void HomePanel::handle_light_toggle() {
+    // Suppress click that follows a long-press gesture
+    if (light_long_pressed_) {
+        light_long_pressed_ = false;
+        spdlog::debug("[{}] Light click suppressed (follows long-press)", get_name());
+        return;
+    }
+
     spdlog::info("[{}] Light button clicked", get_name());
 
     auto& led_ctrl = helix::led::LedController::instance();
@@ -571,6 +578,7 @@ void HomePanel::handle_light_long_press() {
     }
 
     if (led_control_panel_) {
+        light_long_pressed_ = true; // Suppress the click that follows long-press
         get_led_control_overlay().set_api(api_);
         ui_nav_push_overlay(led_control_panel_);
     }
