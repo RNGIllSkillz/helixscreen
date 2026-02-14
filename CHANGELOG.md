@@ -5,6 +5,33 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.20] - 2026-02-14
+
+This release adds multi-extruder temperature support, tool state tracking, multi-backend AMS (allowing printers with multiple filament systems), and fixes a critical installer bug that prevented Moonraker from starting on ForgeX AD5M printers after reboot.
+
+### Added
+- Multi-extruder temperature support with dynamic ExtruderInfo discovery and selection panel
+- Tool state tracking (ToolState singleton) with active tool badge and tool-prefixed temperature display
+- Multi-backend AMS: per-backend slot storage, event routing, backend selector UI, and multi-system detection
+- ASLR-aware crash reports: ELF load base emitted for accurate symbol resolution
+- AD5M boot diagnostic script for troubleshooting boot/networking issues
+- Russian translation updates (thanks @kostake, @panzerhalzen)
+- Telemetry Analytics Engine dashboard
+
+### Fixed
+- **Critical**: ForgeX installer logged wrapper broke S99root boot sequence, preventing Moonraker from starting after reboot (#36)
+- Splash screen no longer triggers LVGL rendering while it owns the framebuffer
+- Exception-safe subject updates in sensor callbacks
+- UpdateQueue crash protection with try-catch in process_pending
+- Notification and input shaper overlays use modal alert system instead of manual event wiring
+- Invalid text_secondary design token replaced with text_muted
+- LED macro preset UX improvements and stale deletion bug fix
+- systemd service adds tty to SupplementaryGroups for console suppression
+
+### Changed
+- Async invoke simplified to forward directly to ui_queue_update
+- LED preset labels auto-generated from macro names instead of manual naming
+
 ## [0.9.19] - 2026-02-13
 
 ### Added
@@ -481,6 +508,8 @@ Initial tagged release. Foundation for all subsequent development.
 [0.9.8]: https://github.com/prestonbrown/helixscreen/compare/v0.9.7...v0.9.8
 [0.9.7]: https://github.com/prestonbrown/helixscreen/compare/v0.9.6...v0.9.7
 [0.9.6]: https://github.com/prestonbrown/helixscreen/compare/v0.9.5...v0.9.6
+[0.9.20]: https://github.com/prestonbrown/helixscreen/compare/v0.9.19...v0.9.20
+[0.9.19]: https://github.com/prestonbrown/helixscreen/compare/v0.9.18...v0.9.19
 [0.9.5]: https://github.com/prestonbrown/helixscreen/compare/v0.9.4...v0.9.5
 [0.9.4]: https://github.com/prestonbrown/helixscreen/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/prestonbrown/helixscreen/compare/v0.9.2...v0.9.3
