@@ -175,6 +175,7 @@ class HomePanel : public PanelBase {
     ObserverGuard extruder_temp_observer_;
     ObserverGuard extruder_target_observer_;
     ObserverGuard active_tool_observer_;
+    ObserverGuard tools_version_observer_;
     ObserverGuard led_state_observer_;
     ObserverGuard led_brightness_observer_;
     ObserverGuard ams_slot_count_observer_;

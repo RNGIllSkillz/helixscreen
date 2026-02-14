@@ -1186,7 +1186,8 @@ void TempControlPanel::rebuild_extruder_segments() {
 
     // Reset active extruder if it no longer exists (e.g., reconnect to different printer)
     if (extruders.find(active_extruder_name_) == extruders.end() && !names.empty()) {
-        select_extruder(names.front());
+        select_extruder(names.front()); // This calls rebuild_extruder_segments() again
+        return;                         // Inner call already populated the selector
     }
 
     // Configure selector as a horizontal button row

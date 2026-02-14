@@ -293,7 +293,8 @@ void AmsState::deinit_subjects() {
 
     spdlog::trace("[AMS State] Deinitializing subjects");
 
-    // Clean up backends and secondary slot subjects
+    // IMPORTANT: clear_backends() MUST precede subjects_.deinit_all() because
+    // BackendSlotSubjects are managed outside SubjectManager for lifetime reasons
     clear_backends();
 
     // Use SubjectManager for automatic cleanup of all registered subjects

@@ -94,6 +94,12 @@ HomePanel::HomePanel(PrinterState& printer_state, MoonrakerAPI* api)
         helix::ToolState::instance().get_active_tool_subject(), this,
         [](HomePanel* self, int tool_idx) { self->update_tool_badge(tool_idx); });
 
+    // Also subscribe to tools_version so badge appears when tools are discovered after panel init
+    tools_version_observer_ = observe_int_sync<HomePanel>(
+        helix::ToolState::instance().get_tools_version_subject(), this, [](HomePanel* self, int) {
+            self->update_tool_badge(helix::ToolState::instance().active_tool_index());
+        });
+
     spdlog::debug("[{}] Subscribed to PrinterState extruder temperature and target", get_name());
     spdlog::debug("[{}] Subscribed to PrinterState print state/progress/time/thumbnail",
                   get_name());
