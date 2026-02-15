@@ -258,6 +258,7 @@ class AmsBackendAfc : public AmsBackend {
     friend class HubSensorTestHelper;
     friend class AmsBackendAfcMultiExtruderHelper;
     friend class AmsBackendAfcConfigHelper;
+    friend class AfcErrorHandlingHelper;
 
   private:
     /**
@@ -486,7 +487,8 @@ class AmsBackendAfc : public AmsBackend {
     bool afc_quiet_mode_{false};            ///< AFC quiet mode state
     bool afc_led_state_{false};             ///< AFC LED state
     std::string current_lane_name_;         ///< Currently active lane name
-    std::string last_error_msg_;            ///< Last emitted error message (dedup)
+    std::string last_error_msg_;            ///< Last emitted error event message (dedup)
+    std::string last_seen_message_;         ///< Last displayed message text (toast dedup)
     std::vector<std::string> hub_names_;    ///< Discovered hub names
     std::vector<std::string> buffer_names_; ///< Discovered buffer names
     float bowden_length_{450.0f};           ///< Bowden tube length from hub (default 450mm)

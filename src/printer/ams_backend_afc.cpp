@@ -4,7 +4,9 @@
 #include "ams_backend_afc.h"
 
 #include "ui_error_reporting.h"
+#include "ui_notification.h"
 
+#include "action_prompt_manager.h"
 #include "afc_defaults.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
@@ -481,7 +483,7 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data) {
                       state_str);
     }
 
-    // Parse message object for operation detail and error events
+    // Parse message object for operation detail, error events, and toast notifications
     if (afc_data.contains("message") && afc_data["message"].is_object()) {
         const auto& msg = afc_data["message"];
         if (msg.contains("message") && msg["message"].is_string()) {
@@ -489,12 +491,48 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data) {
             if (!msg_text.empty()) {
                 system_info_.operation_detail = msg_text;
             }
-            // Check for error type
+
+            // Get message type (error, warning, or empty)
+            std::string msg_type;
             if (msg.contains("type") && msg["type"].is_string()) {
-                std::string msg_type = msg["type"].get<std::string>();
+                msg_type = msg["type"].get<std::string>();
+            }
+
+            // Handle message text changes for toast/notification dispatch
+            if (msg_text.empty()) {
+                // Error cleared - reset dedup tracking
+                last_seen_message_.clear();
+                last_error_msg_.clear();
+            } else if (msg_text != last_seen_message_) {
+                // New or changed message - update dedup tracker
+                last_seen_message_ = msg_text;
+
+                // Emit error event for backward compatibility
                 if (msg_type == "error" && msg_text != last_error_msg_) {
                     last_error_msg_ = msg_text;
                     emit_event(EVENT_ERROR, msg_text);
+                }
+
+                // Determine if an AFC action:prompt is currently active
+                // If so, suppress the toast (user already sees the modal) but
+                // still add to notification history
+                bool afc_prompt_active = helix::ActionPromptManager::is_showing() &&
+                                         helix::ActionPromptManager::current_prompt_name().find(
+                                             "AFC") != std::string::npos;
+
+                if (afc_prompt_active) {
+                    // Notification history only (no toast) - user has the modal
+                    spdlog::debug("[AMS AFC] Message suppressed (AFC prompt active): {}", msg_text);
+                    ui_notification_info("AFC", msg_text.c_str());
+                } else {
+                    // Show toast based on message type
+                    if (msg_type == "error") {
+                        NOTIFY_ERROR_T("AFC", "{}", msg_text);
+                    } else if (msg_type == "warning") {
+                        NOTIFY_WARNING_T("AFC", "{}", msg_text);
+                    } else {
+                        NOTIFY_INFO_T("AFC", "{}", msg_text);
+                    }
                 }
             }
         }

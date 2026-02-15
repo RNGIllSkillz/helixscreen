@@ -12,6 +12,9 @@
 
 namespace helix {
 
+// Static instance pointer for cross-TU access
+ActionPromptManager* ActionPromptManager::s_instance = nullptr;
+
 // ============================================================================
 // Static Parsing Functions
 // ============================================================================

@@ -1685,8 +1685,9 @@ void Application::init_action_prompt() {
         return;
     }
 
-    // Create ActionPromptManager
+    // Create ActionPromptManager and register global instance for cross-TU access
     m_action_prompt_manager = std::make_unique<helix::ActionPromptManager>();
+    helix::ActionPromptManager::set_instance(m_action_prompt_manager.get());
 
     // Create ActionPromptModal
     m_action_prompt_modal = std::make_unique<helix::ui::ActionPromptModal>();
@@ -2182,6 +2183,7 @@ void Application::shutdown() {
     // (AmsState singleton outlives Application — callback would dangle)
     AmsState::instance().set_gcode_response_callback(nullptr);
     m_action_prompt_modal.reset();
+    helix::ActionPromptManager::set_instance(nullptr);
     m_action_prompt_manager.reset();
 
     m_moonraker.reset();

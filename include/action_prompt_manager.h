@@ -107,6 +107,55 @@ class ActionPromptManager {
     ActionPromptManager() = default;
     ~ActionPromptManager() = default;
 
+    // ========================================================================
+    // Static Instance Access
+    // ========================================================================
+
+    /**
+     * @brief Set the global instance pointer for static accessors
+     *
+     * Called by Application when the ActionPromptManager is created/destroyed.
+     * Enables other translation units (e.g., AmsBackendAfc) to query prompt state.
+     *
+     * @param instance Pointer to the active manager, or nullptr to clear
+     */
+    static void set_instance(ActionPromptManager* instance) {
+        s_instance = instance;
+    }
+
+    /**
+     * @brief Check if an action prompt is currently being displayed
+     *
+     * Thread-safe static accessor. Returns false if no instance is set
+     * or if the manager is not in the SHOWING state.
+     *
+     * @return true if a prompt is currently visible
+     */
+    [[nodiscard]] static bool is_showing() {
+        auto* inst = s_instance;
+        return inst != nullptr && inst->has_active_prompt();
+    }
+
+    /**
+     * @brief Get the title/name of the currently displayed prompt
+     *
+     * Returns the title from prompt_begin if a prompt is currently showing.
+     * Returns empty string if no prompt is active or no instance is set.
+     *
+     * @return Current prompt title, or empty string
+     */
+    [[nodiscard]] static std::string current_prompt_name() {
+        auto* inst = s_instance;
+        if (inst == nullptr) {
+            return {};
+        }
+        const auto* prompt = inst->get_current_prompt();
+        if (prompt == nullptr) {
+            return {};
+        }
+        return prompt->title;
+    }
+
     // Non-copyable, movable
     ActionPromptManager(const ActionPromptManager&) = delete;
     ActionPromptManager& operator=(const ActionPromptManager&) = delete;
@@ -236,6 +285,9 @@ class ActionPromptManager {
     void trigger_test_notify(const std::string& message = "");
 
   private:
+    // Static instance for cross-TU access
+    static ActionPromptManager* s_instance;
+
     // State machine
     State m_state = State::IDLE;
 
