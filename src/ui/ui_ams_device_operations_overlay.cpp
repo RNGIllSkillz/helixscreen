@@ -284,14 +284,12 @@ void AmsDeviceOperationsOverlay::populate_section_list() {
 /// Map section ID to icon name (UI concern — backends don't specify icons)
 static const char* section_icon_for_id(const std::string& id) {
     // Ordered by expected frequency
-    if (id == "calibration")
-        return "wrench";
+    if (id == "setup")
+        return "cog";
     if (id == "speed")
         return "speed_up";
     if (id == "maintenance")
         return "wrench";
-    if (id == "led")
-        return "lightbulb_outline";
     if (id == "hub")
         return "filament";
     if (id == "tip_forming")
