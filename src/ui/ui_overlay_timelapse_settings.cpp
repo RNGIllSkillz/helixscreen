@@ -427,6 +427,23 @@ void TimelapseSettingsOverlay::populate_video_list(const std::vector<FileInfo>& 
         std::strcpy(filename_copy, file->filename.c_str());
         lv_obj_set_user_data(del_btn, filename_copy);
 
+        // Free the heap-allocated filename when the button is destroyed.
+        // Using LV_EVENT_DELETE ensures cleanup happens automatically via
+        // lv_obj_clean(), avoiding the need to iterate children and blindly
+        // free user_data (which risks freeing unrelated user_data on
+        // non-button children like labels or containers).
+        lv_obj_add_event_cb(
+            del_btn,
+            [](lv_event_t* e) {
+                lv_obj_t* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
+                void* ud = lv_obj_get_user_data(btn);
+                if (ud) {
+                    lv_free(ud);
+                    lv_obj_set_user_data(btn, nullptr);
+                }
+            },
+            LV_EVENT_DELETE, nullptr);
+
         // Delete icon
         lv_obj_t* del_icon = lv_label_create(del_btn);
         if (delete_icon) {
@@ -459,21 +476,9 @@ void TimelapseSettingsOverlay::populate_video_list(const std::vector<FileInfo>& 
 
 void TimelapseSettingsOverlay::clear_video_list() {
     if (video_list_container_) {
-        // Free user data (filename copies) before cleaning children
-        uint32_t child_count = lv_obj_get_child_count(video_list_container_);
-        for (uint32_t i = 0; i < child_count; i++) {
-            lv_obj_t* row = lv_obj_get_child(video_list_container_, i);
-            // Find delete buttons in each row and free their user data
-            uint32_t row_children = lv_obj_get_child_count(row);
-            for (uint32_t j = 0; j < row_children; j++) {
-                lv_obj_t* child = lv_obj_get_child(row, j);
-                void* ud = lv_obj_get_user_data(child);
-                if (ud) {
-                    lv_free(ud);
-                    lv_obj_set_user_data(child, nullptr);
-                }
-            }
-        }
+        // Each delete button has an LV_EVENT_DELETE callback that frees its
+        // heap-allocated filename user_data. lv_obj_clean() triggers DELETE
+        // events on all descendants, so cleanup is automatic and safe.
         lv_obj_clean(video_list_container_);
     }
 }
