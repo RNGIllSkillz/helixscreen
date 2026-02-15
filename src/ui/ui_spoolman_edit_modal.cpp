@@ -128,18 +128,18 @@ void SpoolEditModal::init_subjects() {
     if (subjects_initialized_) {
         return;
     }
+
     lv_subject_init_string(&save_button_text_subject_, save_button_text_buf_, nullptr,
                            sizeof(save_button_text_buf_), "Close");
     lv_xml_register_subject(nullptr, "spoolman_edit_save_text", &save_button_text_subject_);
+
     subjects_initialized_ = true;
 }
 
 void SpoolEditModal::deinit_subjects() {
-    if (!subjects_initialized_) {
-        return;
-    }
-    lv_subject_deinit(&save_button_text_subject_);
-    subjects_initialized_ = false;
+    // Subjects persist for the lifetime of SpoolEditModal — the XML widgets
+    // that bind to them are destroyed when the modal hides, but the subjects
+    // stay alive so they can be rebound on next show().
 }
 
 void SpoolEditModal::populate_fields() {
@@ -386,9 +386,6 @@ bool SpoolEditModal::validate_fields() {
 }
 
 void SpoolEditModal::update_save_button_text() {
-    if (!subjects_initialized_) {
-        return;
-    }
     lv_subject_copy_string(&save_button_text_subject_, is_dirty() ? "Save" : "Close");
 }
 

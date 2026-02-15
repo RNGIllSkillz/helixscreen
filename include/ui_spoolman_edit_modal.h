@@ -80,13 +80,15 @@ class SpoolEditModal : public Modal {
     CompletionCallback completion_callback_;
     std::shared_ptr<bool> callback_guard_;
 
-    // === Subjects ===
-    lv_subject_t save_button_text_subject_{};
-    char save_button_text_buf_[16]{};
     bool subjects_initialized_ = false;
     bool populating_ = false;
     void init_subjects();
     void deinit_subjects();
+
+    // === Subjects ===
+    lv_subject_t save_button_text_subject_{};
+    char save_button_text_buf_[16]{};
+    char save_button_text_prev_buf_[16]{};
 
     // === Internal Methods ===
     void populate_fields();
