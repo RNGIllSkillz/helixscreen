@@ -16,6 +16,7 @@
 #include "ui_color_picker.h"
 #include "ui_update_queue.h"
 
+#include "ams_backend_mock.h"
 #include "app_globals.h"
 #include "format_utils.h"
 #include "moonraker_api.h"
@@ -393,6 +394,13 @@ int AmsState::add_backend(std::unique_ptr<AmsBackend> backend) {
                 on_backend_event(index, event, data);
             });
 
+        // Apply stored gcode response callback to mock backends
+        if (gcode_response_callback_) {
+            if (auto* mock = dynamic_cast<AmsBackendMock*>(backends_[index].get())) {
+                mock->set_gcode_response_callback(gcode_response_callback_);
+            }
+        }
+
         // Allocate per-backend slot subjects for secondary backends
         if (index > 0) {
             auto info = backends_[index]->get_system_info();
@@ -469,6 +477,21 @@ void AmsState::set_moonraker_api(MoonrakerAPI* api) {
     api_ = api;
     last_synced_spoolman_id_ = 0; // Reset tracking on API change
     spdlog::debug("[AMS State] Moonraker API {} for Spoolman integration", api ? "set" : "cleared");
+}
+
+void AmsState::set_gcode_response_callback(std::function<void(const std::string&)> callback) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    gcode_response_callback_ = std::move(callback);
+
+    // Apply to any existing mock backends
+    for (auto& backend : backends_) {
+        if (auto* mock = dynamic_cast<AmsBackendMock*>(backend.get())) {
+            mock->set_gcode_response_callback(gcode_response_callback_);
+        }
+    }
+
+    spdlog::debug("[AMS State] Gcode response callback {}",
+                  gcode_response_callback_ ? "set" : "cleared");
 }
 
 lv_subject_t* AmsState::get_slot_color_subject(int slot_index) {

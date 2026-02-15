@@ -283,6 +283,17 @@ class AmsBackendMock : public AmsBackend {
      */
     void clear_last_executed_action();
 
+    /**
+     * @brief Set callback for injecting gcode response lines
+     *
+     * Used by the mock to simulate Klipper gcode responses (e.g., action:prompt
+     * messages) without a real WebSocket connection. The callback feeds lines
+     * into ActionPromptManager::process_line() via AmsState.
+     *
+     * @param callback Function that receives "// action:..." lines
+     */
+    void set_gcode_response_callback(std::function<void(const std::string&)> callback);
+
   private:
     /**
      * @brief Initialize mock state with sample data
@@ -425,4 +436,7 @@ class AmsBackendMock : public AmsBackend {
     std::vector<helix::printer::DeviceAction> mock_device_actions_;
     std::string last_action_id_;
     std::any last_action_value_;
+
+    // Gcode response injection (for simulating action:prompt from mock)
+    std::function<void(const std::string&)> gcode_response_callback_;
 };

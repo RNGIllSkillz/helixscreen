@@ -1725,6 +1725,11 @@ void Application::init_action_prompt() {
         });
     });
 
+    // Allow mock AMS backends to inject action_prompt lines (e.g., calibration wizard)
+    auto* prompt_mgr = m_action_prompt_manager.get();
+    AmsState::instance().set_gcode_response_callback(
+        [prompt_mgr](const std::string& line) { prompt_mgr->process_line(line); });
+
     // Register for notify_gcode_response messages from Moonraker
     // All lines from G-code console output come through this notification
     client->register_method_callback(
@@ -2160,6 +2165,9 @@ void Application::shutdown() {
         m_moonraker->client()->unregister_method_callback("notify_gcode_response",
                                                           "action_prompt_manager");
     }
+    // Clear mock gcode injection callback before destroying ActionPromptManager
+    // (AmsState singleton outlives Application — callback would dangle)
+    AmsState::instance().set_gcode_response_callback(nullptr);
     m_action_prompt_modal.reset();
     m_action_prompt_manager.reset();
 

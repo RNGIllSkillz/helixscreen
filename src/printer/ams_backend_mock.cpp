@@ -1810,11 +1810,43 @@ std::vector<helix::printer::DeviceAction> AmsBackendMock::get_device_actions() c
 
 AmsError AmsBackendMock::execute_device_action(const std::string& action_id,
                                                const std::any& value) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::unique_lock<std::mutex> lock(mutex_);
 
     // Store for test verification
     last_action_id_ = action_id;
     last_action_value_ = value;
+
+    // Mock calibration wizard: simulate AFC_CALIBRATION action_prompt sequence
+    if (action_id == "calibration_wizard") {
+        // Copy callback before releasing lock — callback may chain into
+        // UI code that queries backend state (would deadlock if lock held)
+        auto cb = gcode_response_callback_;
+        if (!cb) {
+            spdlog::warn("[AMS Mock] Calibration wizard: no gcode response callback, skipping");
+            return AmsErrorHelper::success();
+        }
+
+        spdlog::info("[AMS Mock] Simulating AFC calibration wizard action_prompt");
+        lock.unlock();
+
+        // Simulate a multi-step calibration prompt (matches real AFC behavior)
+        cb("// action:prompt_begin AFC Calibration");
+        cb("// action:prompt_text Lane calibration measures bowden tube length");
+        cb("// action:prompt_text for accurate filament loading distances.");
+        cb("// action:prompt_text ");
+        cb("// action:prompt_text Select a lane to calibrate, or calibrate all lanes.");
+        cb("// action:prompt_button_group_start");
+        cb("// action:prompt_button Lane 1|RESPOND msg=\"AFC_CALIBRATION LANE=lane1\"|primary");
+        cb("// action:prompt_button Lane 2|RESPOND msg=\"AFC_CALIBRATION LANE=lane2\"|primary");
+        cb("// action:prompt_button Lane 3|RESPOND msg=\"AFC_CALIBRATION LANE=lane3\"|primary");
+        cb("// action:prompt_button Lane 4|RESPOND msg=\"AFC_CALIBRATION LANE=lane4\"|primary");
+        cb("// action:prompt_button_group_end");
+        cb("// action:prompt_button Calibrate All|RESPOND msg=\"AFC_CALIBRATION ALL=1\"|secondary");
+        cb("// action:prompt_footer_button Cancel|RESPOND msg=\"AFC_CALIBRATION CANCEL=1\"|error");
+        cb("// action:prompt_show");
+
+        return AmsErrorHelper::success();
+    }
 
     // Find the action to verify it exists
     for (const auto& action : mock_device_actions_) {
@@ -1850,6 +1882,13 @@ void AmsBackendMock::clear_last_executed_action() {
     std::lock_guard<std::mutex> lock(mutex_);
     last_action_id_.clear();
     last_action_value_.reset();
+}
+
+void AmsBackendMock::set_gcode_response_callback(std::function<void(const std::string&)> callback) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    gcode_response_callback_ = std::move(callback);
+    spdlog::debug("[AMS Mock] Gcode response callback {}",
+                  gcode_response_callback_ ? "set" : "cleared");
 }
 
 // ============================================================================
