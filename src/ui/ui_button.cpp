@@ -532,17 +532,21 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
     lv_obj_t* btn = static_cast<lv_obj_t*>(item);
     UiButtonData* data = static_cast<UiButtonData*>(lv_obj_get_user_data(btn));
 
-    // Handle bind_text - bind the internal label to a subject
+    // Handle bind_text — smart text binding that accepts either:
+    //   bind_text="subject_name"  → resolves subject, binds reactively
+    //   bind_text="literal text"  → no subject found, sets as static text
+    // This allows component props to pass through transparently: the caller
+    // can provide either a subject name or a literal value.
     const char* bind_text = lv_xml_get_value_of(attrs, "bind_text");
-    if (bind_text && data && data->magic == UiButtonData::MAGIC) {
+    if (bind_text && bind_text[0] != '\0' && data && data->magic == UiButtonData::MAGIC) {
+        if (!data->label) {
+            data->label = lv_label_create(btn);
+            lv_obj_center(data->label);
+        }
+
         lv_subject_t* subject = lv_xml_get_subject(&state->scope, bind_text);
         if (subject) {
-            // If button has no label yet (text was empty), create one now
-            if (!data->label) {
-                data->label = lv_label_create(btn);
-                lv_obj_center(data->label);
-            }
-            // Get optional format string
+            // Subject found — bind reactively
             const char* fmt = lv_xml_get_value_of(attrs, "bind_text-fmt");
             if (fmt) {
                 fmt = lv_strdup(fmt);
@@ -550,11 +554,12 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
                                     const_cast<char*>(fmt));
             }
             lv_label_bind_text(data->label, subject, fmt);
-            // Re-apply contrast after binding updates text
             update_button_text_contrast(btn);
             spdlog::trace("[ui_button] Bound label to subject '{}'", bind_text);
         } else {
-            spdlog::warn("[ui_button] Subject '{}' not found for bind_text", bind_text);
+            // No subject — treat as literal text
+            lv_label_set_text(data->label, bind_text);
+            spdlog::trace("[ui_button] Set label to literal text '{}'", bind_text);
         }
     }
 
@@ -643,4 +648,15 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
 void ui_button_init() {
     lv_xml_register_widget("ui_button", ui_button_create, ui_button_apply);
     spdlog::trace("[ui_button] Registered semantic button widget");
+}
+
+void ui_button_set_text(lv_obj_t* btn, const char* text) {
+    if (!btn || !text) {
+        return;
+    }
+    auto* data = static_cast<UiButtonData*>(lv_obj_get_user_data(btn));
+    if (!data || data->magic != UiButtonData::MAGIC || !data->label) {
+        return;
+    }
+    lv_label_set_text(data->label, text);
 }

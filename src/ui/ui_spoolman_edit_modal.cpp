@@ -74,6 +74,7 @@ void SpoolEditModal::set_completion_callback(CompletionCallback callback) {
 
 bool SpoolEditModal::show_for_spool(lv_obj_t* parent, const SpoolInfo& spool, MoonrakerAPI* api) {
     register_callbacks();
+    init_subjects();
 
     original_spool_ = spool;
     working_spool_ = spool;
@@ -103,12 +104,31 @@ void SpoolEditModal::on_show() {
 void SpoolEditModal::on_hide() {
     active_instance_ = nullptr;
     callback_guard_.reset();
+    deinit_subjects();
     spdlog::debug("[SpoolEditModal] on_hide()");
 }
 
 // ============================================================================
 // Internal Methods
 // ============================================================================
+
+void SpoolEditModal::init_subjects() {
+    if (subjects_initialized_) {
+        return;
+    }
+    lv_subject_init_string(&save_button_text_subject_, save_button_text_buf_, nullptr,
+                           sizeof(save_button_text_buf_), "Close");
+    lv_xml_register_subject(nullptr, "spoolman_edit_save_text", &save_button_text_subject_);
+    subjects_initialized_ = true;
+}
+
+void SpoolEditModal::deinit_subjects() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    lv_subject_deinit(&save_button_text_subject_);
+    subjects_initialized_ = false;
+}
 
 void SpoolEditModal::populate_fields() {
     if (!dialog_) {
@@ -268,19 +288,60 @@ bool SpoolEditModal::is_dirty() const {
            working_spool_.comment != original_spool_.comment;
 }
 
-void SpoolEditModal::update_save_button_text() {
+bool SpoolEditModal::validate_fields() {
     if (!dialog_) {
-        return;
+        return true;
     }
 
-    // Find the primary button label in the modal_button_row
-    lv_obj_t* btn = find_widget("btn_primary");
-    if (btn) {
-        lv_obj_t* label = lv_obj_find_by_name(btn, "label");
-        if (label) {
-            lv_label_set_text(label, is_dirty() ? "Save" : "Close");
+    // Numeric fields that must be >= 0
+    static constexpr const char* numeric_fields[] = {
+        "field_remaining",
+        "field_spool_weight",
+        "field_price",
+    };
+
+    lv_color_t color_valid = theme_manager_get_color("text");
+    lv_color_t color_invalid = theme_manager_get_color("danger");
+    bool all_valid = true;
+
+    for (const char* field_name : numeric_fields) {
+        lv_obj_t* field = find_widget(field_name);
+        if (!field) {
+            continue;
+        }
+
+        // Check if value is negative
+        const char* text = lv_textarea_get_text(field);
+        bool valid = true;
+        if (text && text[0] != '\0') {
+            double val = std::atof(text);
+            if (val < 0) {
+                valid = false;
+            }
+        }
+
+        // Set the label color — label is first child of the field's parent container
+        lv_obj_t* container = lv_obj_get_parent(field);
+        if (container) {
+            lv_obj_t* label = lv_obj_get_child(container, 0);
+            if (label) {
+                lv_obj_set_style_text_color(label, valid ? color_valid : color_invalid, 0);
+            }
+        }
+
+        if (!valid) {
+            all_valid = false;
         }
     }
+
+    return all_valid;
+}
+
+void SpoolEditModal::update_save_button_text() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    lv_subject_copy_string(&save_button_text_subject_, is_dirty() ? "Save" : "Close");
 }
 
 // ============================================================================
@@ -332,6 +393,7 @@ void SpoolEditModal::handle_field_changed() {
         working_spool_.comment = text ? text : "";
     }
 
+    validate_fields();
     update_spool_preview();
     update_save_button_text();
 }
@@ -342,6 +404,7 @@ void SpoolEditModal::handle_reset() {
     working_spool_ = original_spool_;
 
     populate_fields();
+    validate_fields();
     update_spool_preview();
     update_save_button_text();
 
@@ -352,6 +415,11 @@ void SpoolEditModal::handle_save() {
     if (!is_dirty()) {
         // Nothing changed — just close
         handle_close();
+        return;
+    }
+
+    if (!validate_fields()) {
+        spdlog::debug("[SpoolEditModal] Save blocked — validation errors");
         return;
     }
 
