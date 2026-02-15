@@ -24,7 +24,7 @@
             style_pad_bottom="#space_sm" flex_flow="row" style_flex_main_place="space_between"
             style_flex_cross_place="center" scrollable="false">
       <text_heading name="spool_title" text="Edit Spool"/>
-      <ui_button name="btn_close" width="#button_height_sm" height="#button_height_sm" icon="close" variant="ghost">
+      <ui_button name="btn_close" width="#button_height_sm" height="#button_height_sm" icon="close" variant="ghost" focusable="false">
         <event_cb trigger="clicked" callback="spoolman_edit_close_cb"/>
       </ui_button>
     </lv_obj>
