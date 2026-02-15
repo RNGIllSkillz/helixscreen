@@ -123,6 +123,7 @@ class SpoolmanPanel : public OverlayBase {
     static void on_refresh_clicked(lv_event_t* e);
     static void on_scroll(lv_event_t* e);
     static void on_search_changed(lv_event_t* e);
+    static void on_search_clear(lv_event_t* e);
     static void on_search_timer(lv_timer_t* timer);
 };
 

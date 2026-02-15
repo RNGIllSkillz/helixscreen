@@ -91,6 +91,7 @@ void SpoolmanPanel::register_callbacks() {
     lv_xml_register_event_cb(nullptr, "on_spoolman_spool_row_clicked", on_spool_row_clicked);
     lv_xml_register_event_cb(nullptr, "on_spoolman_refresh_clicked", on_refresh_clicked);
     lv_xml_register_event_cb(nullptr, "on_spoolman_search_changed", on_search_changed);
+    lv_xml_register_event_cb(nullptr, "on_spoolman_search_clear", on_search_clear);
 
     callbacks_registered_ = true;
     spdlog::debug("[{}] Event callbacks registered", get_name());
@@ -152,6 +153,10 @@ void SpoolmanPanel::on_activate() {
     lv_obj_t* search_box = lv_obj_find_by_name(overlay_root_, "search_box");
     if (search_box) {
         lv_textarea_set_text(search_box, "");
+    }
+    lv_obj_t* clear_btn = lv_obj_find_by_name(overlay_root_, "search_clear_btn");
+    if (clear_btn) {
+        lv_obj_add_flag(clear_btn, LV_OBJ_FLAG_HIDDEN);
     }
 
     // Refresh spool list when panel becomes visible
@@ -585,6 +590,12 @@ void SpoolmanPanel::on_search_changed(lv_event_t* e) {
     const char* text = lv_textarea_get_text(textarea);
     panel.search_query_ = text ? text : "";
 
+    // Show/hide clear button based on whether there's text
+    lv_obj_t* clear_btn = lv_obj_find_by_name(panel.overlay_root_, "search_clear_btn");
+    if (clear_btn) {
+        lv_obj_set_flag(clear_btn, LV_OBJ_FLAG_HIDDEN, panel.search_query_.empty());
+    }
+
     // Debounce: cancel existing timer, start new one
     if (panel.search_debounce_timer_) {
         lv_timer_delete(panel.search_debounce_timer_);
@@ -593,6 +604,30 @@ void SpoolmanPanel::on_search_changed(lv_event_t* e) {
 
     panel.search_debounce_timer_ = lv_timer_create(on_search_timer, SEARCH_DEBOUNCE_MS, &panel);
     lv_timer_set_repeat_count(panel.search_debounce_timer_, 1);
+}
+
+void SpoolmanPanel::on_search_clear(lv_event_t* /*e*/) {
+    auto& panel = get_global_spoolman_panel();
+
+    // Clear the search text
+    lv_obj_t* search_box = lv_obj_find_by_name(panel.overlay_root_, "search_box");
+    if (search_box) {
+        lv_textarea_set_text(search_box, "");
+    }
+
+    // Hide the clear button
+    lv_obj_t* clear_btn = lv_obj_find_by_name(panel.overlay_root_, "search_clear_btn");
+    if (clear_btn) {
+        lv_obj_add_flag(clear_btn, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    // Clear query and repopulate immediately (no debounce needed for clear)
+    panel.search_query_.clear();
+    if (panel.search_debounce_timer_) {
+        lv_timer_delete(panel.search_debounce_timer_);
+        panel.search_debounce_timer_ = nullptr;
+    }
+    panel.populate_spool_list();
 }
 
 void SpoolmanPanel::on_search_timer(lv_timer_t* timer) {
