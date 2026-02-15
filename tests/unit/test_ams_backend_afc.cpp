@@ -1423,15 +1423,15 @@ TEST_CASE("AFC device sections include maintenance and led",
     auto sections = helper.get_device_sections();
 
     bool has_maintenance = false;
-    bool has_led = false;
+    bool has_setup = false;
     for (const auto& section : sections) {
         if (section.id == "maintenance")
             has_maintenance = true;
-        if (section.id == "led")
-            has_led = true;
+        if (section.id == "setup")
+            has_setup = true;
     }
     REQUIRE(has_maintenance);
-    REQUIRE(has_led);
+    REQUIRE(has_setup);
 }
 
 TEST_CASE("AFC device action test_lanes dispatches gcode", "[ams][afc][device_actions][phase3]") {

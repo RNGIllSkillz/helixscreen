@@ -5,6 +5,7 @@
 
 #include "afc_defaults.h"
 #include "filament_database.h"
+#include "hh_defaults.h"
 #include "runtime_config.h"
 
 #include <spdlog/spdlog.h>
@@ -174,25 +175,9 @@ AmsBackendMock::AmsBackendMock(int slot_count) {
         }
     }
 
-    // Initialize default device sections (subset of shared AFC defaults)
-    {
-        auto all_sections = helix::printer::afc_default_sections();
-        for (const auto& s : all_sections) {
-            if (s.id == "calibration" || s.id == "speed") {
-                mock_device_sections_.push_back(s);
-            }
-        }
-    }
-
-    // Initialize default device actions (only for active sections)
-    {
-        auto all_actions = helix::printer::afc_default_actions();
-        for (auto& a : all_actions) {
-            if (a.section == "calibration" || a.section == "speed") {
-                mock_device_actions_.push_back(std::move(a));
-            }
-        }
-    }
+    // Initialize default device sections/actions for Happy Hare mode (constructor default)
+    mock_device_sections_ = helix::printer::hh_default_sections();
+    mock_device_actions_ = helix::printer::hh_default_actions();
 
     spdlog::debug("[AmsBackendMock] Created with {} slots", slot_count);
 }
@@ -1148,27 +1133,15 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
             endless_spool_configs_.push_back(config);
         }
 
-        // AFC-specific device sections (from shared defaults)
-        mock_device_sections_.clear();
-        {
-            auto all_sections = helix::printer::afc_default_sections();
-            for (const auto& s : all_sections) {
-                if (s.id == "calibration" || s.id == "maintenance" || s.id == "speed" ||
-                    s.id == "led") {
-                    mock_device_sections_.push_back(s);
-                }
-            }
-        }
+        // AFC device sections and actions — use all defaults
+        mock_device_sections_ = helix::printer::afc_default_sections();
+        mock_device_actions_ = helix::printer::afc_default_actions();
 
-        // AFC-specific device actions (from shared defaults)
-        mock_device_actions_.clear();
-        {
-            auto all_actions = helix::printer::afc_default_actions();
-            for (auto& a : all_actions) {
-                if (a.section == "calibration" || a.section == "maintenance" ||
-                    a.section == "speed" || a.section == "led") {
-                    mock_device_actions_.push_back(std::move(a));
-                }
+        // Disable save_restart in mock mode (no real Klipper to restart)
+        for (auto& action : mock_device_actions_) {
+            if (action.id == "save_restart") {
+                action.enabled = false;
+                action.disable_reason = "Not available in mock mode";
             }
         }
 
@@ -1186,26 +1159,9 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
             system_info_.units[0].name = "Mock MMU";
         }
 
-        // Restore default device sections and actions (from shared defaults)
-        mock_device_sections_.clear();
-        {
-            auto all_sections = helix::printer::afc_default_sections();
-            for (const auto& s : all_sections) {
-                if (s.id == "calibration" || s.id == "speed") {
-                    mock_device_sections_.push_back(s);
-                }
-            }
-        }
-
-        mock_device_actions_.clear();
-        {
-            auto all_actions = helix::printer::afc_default_actions();
-            for (auto& a : all_actions) {
-                if (a.section == "calibration" || a.section == "speed") {
-                    mock_device_actions_.push_back(std::move(a));
-                }
-            }
-        }
+        // Restore Happy Hare device sections and actions
+        mock_device_sections_ = helix::printer::hh_default_sections();
+        mock_device_actions_ = helix::printer::hh_default_actions();
 
         spdlog::info("[AmsBackendMock] AFC mode disabled, reverting to Happy Hare");
     }

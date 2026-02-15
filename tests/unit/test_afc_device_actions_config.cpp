@@ -109,35 +109,34 @@ TEST_CASE("New device sections include hub, tip_forming, purge",
         auto* hub = find_section(sections, "hub");
         REQUIRE(hub != nullptr);
         CHECK(hub->label == "Hub & Cutter");
-        CHECK(hub->display_order == 4);
+        CHECK(hub->display_order == 3);
     }
 
     SECTION("tip_forming section present") {
         auto* tip = find_section(sections, "tip_forming");
         REQUIRE(tip != nullptr);
         CHECK(tip->label == "Tip Forming");
-        CHECK(tip->display_order == 5);
+        CHECK(tip->display_order == 4);
     }
 
     SECTION("purge section present") {
         auto* purge = find_section(sections, "purge");
         REQUIRE(purge != nullptr);
         CHECK(purge->label == "Purge & Wipe");
-        CHECK(purge->display_order == 6);
+        CHECK(purge->display_order == 5);
     }
 
     SECTION("config section present") {
         auto* config = find_section(sections, "config");
         REQUIRE(config != nullptr);
         CHECK(config->label == "Configuration");
-        CHECK(config->display_order == 7);
+        CHECK(config->display_order == 6);
     }
 
-    SECTION("original sections still present") {
-        CHECK(find_section(sections, "calibration") != nullptr);
+    SECTION("original sections still present (renamed: calibration+led -> setup)") {
+        CHECK(find_section(sections, "setup") != nullptr);
         CHECK(find_section(sections, "speed") != nullptr);
         CHECK(find_section(sections, "maintenance") != nullptr);
-        CHECK(find_section(sections, "led") != nullptr);
     }
 }
 

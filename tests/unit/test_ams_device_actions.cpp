@@ -276,30 +276,36 @@ TEST_CASE("AmsBackendMock device actions - default configuration", "[ams][device
     backend.set_operation_delay(0);
     REQUIRE(backend.start());
 
-    SECTION("get_device_sections returns default sections") {
+    SECTION("get_device_sections returns default HH sections") {
         auto sections = backend.get_device_sections();
 
-        // Mock should have default AFC-like sections
-        REQUIRE(sections.size() >= 2);
+        // Mock defaults to Happy Hare mode with 3 sections
+        REQUIRE(sections.size() == 3);
 
-        // Find calibration section
+        // Find setup section
         auto it = std::find_if(sections.begin(), sections.end(),
-                               [](const DeviceSection& s) { return s.id == "calibration"; });
+                               [](const DeviceSection& s) { return s.id == "setup"; });
         REQUIRE(it != sections.end());
-        CHECK(it->label == "Calibration");
+        CHECK(it->label == "Setup");
         CHECK_FALSE(it->label.empty());
 
         // Find speed section
         it = std::find_if(sections.begin(), sections.end(),
                           [](const DeviceSection& s) { return s.id == "speed"; });
         REQUIRE(it != sections.end());
-        CHECK(it->label == "Speed Settings");
+        CHECK(it->label == "Speed");
+
+        // Find maintenance section
+        it = std::find_if(sections.begin(), sections.end(),
+                          [](const DeviceSection& s) { return s.id == "maintenance"; });
+        REQUIRE(it != sections.end());
+        CHECK(it->label == "Maintenance");
     }
 
-    SECTION("get_device_actions returns default actions") {
+    SECTION("get_device_actions returns default HH actions") {
         auto actions = backend.get_device_actions();
 
-        // Mock should have default actions
+        // Mock defaults to Happy Hare: 15 actions across 3 sections
         REQUIRE(actions.size() >= 2);
 
         // Verify actions have required fields populated
@@ -310,26 +316,26 @@ TEST_CASE("AmsBackendMock device actions - default configuration", "[ams][device
         }
     }
 
-    SECTION("default actions include calibration wizard (button)") {
+    SECTION("default HH actions include calibrate_bowden (button)") {
         auto actions = backend.get_device_actions();
 
         auto it = std::find_if(actions.begin(), actions.end(),
-                               [](const DeviceAction& a) { return a.id == "calibration_wizard"; });
+                               [](const DeviceAction& a) { return a.id == "calibrate_bowden"; });
         REQUIRE(it != actions.end());
         CHECK(it->type == ActionType::BUTTON);
-        CHECK(it->section == "calibration");
+        CHECK(it->section == "setup");
         CHECK(it->enabled == true);
     }
 
-    SECTION("default actions include bowden length (slider)") {
+    SECTION("default HH actions include gear_load_speed (slider)") {
         auto actions = backend.get_device_actions();
 
         auto it = std::find_if(actions.begin(), actions.end(),
-                               [](const DeviceAction& a) { return a.id == "bowden_length"; });
+                               [](const DeviceAction& a) { return a.id == "gear_load_speed"; });
         REQUIRE(it != actions.end());
         CHECK(it->type == ActionType::SLIDER);
-        CHECK(it->section == "calibration");
-        CHECK(it->unit == "mm");
+        CHECK(it->section == "speed");
+        CHECK(it->unit == "mm/s");
         CHECK(it->min_value < it->max_value);
     }
 
@@ -364,10 +370,10 @@ TEST_CASE("AmsBackendMock execute_device_action behavior", "[ams][device_actions
     SECTION("stores last executed action for verification") {
         backend.clear_last_executed_action();
 
-        backend.execute_device_action("calibration_wizard");
+        backend.execute_device_action("calibrate_bowden");
 
         auto [last_id, last_value] = backend.get_last_executed_action();
-        CHECK(last_id == "calibration_wizard");
+        CHECK(last_id == "calibrate_bowden");
         CHECK_FALSE(last_value.has_value());
     }
 
@@ -375,16 +381,16 @@ TEST_CASE("AmsBackendMock execute_device_action behavior", "[ams][device_actions
         backend.clear_last_executed_action();
 
         float slider_value = 500.0f;
-        backend.execute_device_action("bowden_length", slider_value);
+        backend.execute_device_action("gear_load_speed", slider_value);
 
         auto [last_id, last_value] = backend.get_last_executed_action();
-        CHECK(last_id == "bowden_length");
+        CHECK(last_id == "gear_load_speed");
         REQUIRE(last_value.has_value());
         CHECK(std::any_cast<float>(last_value) == Catch::Approx(500.0f));
     }
 
     SECTION("clear_last_executed_action clears state") {
-        backend.execute_device_action("calibration_wizard");
+        backend.execute_device_action("calibrate_bowden");
 
         auto [id1, val1] = backend.get_last_executed_action();
         CHECK_FALSE(id1.empty());

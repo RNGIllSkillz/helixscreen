@@ -348,7 +348,7 @@ TEST_CASE("AFC single extruder: single bowden_length action", "[ams][afc][multi_
     // Count calibration-section bowden actions (not hub_bowden_length from config)
     int bowden_count = 0;
     for (const auto& action : actions) {
-        if (action.id.find("bowden") != std::string::npos && action.section == "calibration") {
+        if (action.id.find("bowden") != std::string::npos && action.section == "setup") {
             bowden_count++;
         }
     }
@@ -407,13 +407,13 @@ TEST_CASE("AFC multi-extruder: bowden actions have correct labels", "[ams][afc][
     for (const auto& action : actions) {
         if (action.id == "bowden_T0") {
             CHECK(action.label.find("T0") != std::string::npos);
-            CHECK(action.section == "calibration");
+            CHECK(action.section == "setup");
             CHECK(action.type == helix::printer::ActionType::SLIDER);
             CHECK(action.unit == "mm");
         }
         if (action.id == "bowden_T1") {
             CHECK(action.label.find("T1") != std::string::npos);
-            CHECK(action.section == "calibration");
+            CHECK(action.section == "setup");
             CHECK(action.type == helix::printer::ActionType::SLIDER);
             CHECK(action.unit == "mm");
         }
