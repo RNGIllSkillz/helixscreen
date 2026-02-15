@@ -120,39 +120,51 @@ void ContextMenu::dispatch_action(int action) {
 // Positioning
 // ============================================================================
 
-void ContextMenu::position_near_widget(lv_obj_t* menu_card, lv_obj_t* near_widget) {
+void ContextMenu::position_near_widget(lv_obj_t* menu_card, lv_obj_t* /*near_widget*/) {
     // Update layout to get accurate dimensions
     lv_obj_update_layout(menu_card);
 
-    // Get the position of the target widget in screen coordinates
-    lv_area_t widget_area;
-    lv_obj_get_coords(near_widget, &widget_area);
-
-    // Calculate positioning
-    int32_t screen_width = lv_obj_get_width(parent_);
     int32_t menu_width = lv_obj_get_width(menu_card);
-    int32_t widget_center_x = (widget_area.x1 + widget_area.x2) / 2;
-    int32_t widget_center_y = (widget_area.y1 + widget_area.y2) / 2;
+    int32_t menu_height = lv_obj_get_height(menu_card);
 
-    // Position to the right of widget, or left if near screen edge
-    int32_t menu_x = widget_center_x + 20;
-    if (menu_x + menu_width > screen_width - 10) {
-        menu_x = widget_center_x - menu_width - 20;
+    // Use click point captured from the triggering event
+    lv_point_t click_pt = click_point_;
+
+    // Convert display coordinates to backdrop-local coordinates
+    // menu_card's parent is the backdrop (menu_), which is a child of parent_
+    lv_obj_t* backdrop = lv_obj_get_parent(menu_card);
+    lv_area_t backdrop_area;
+    lv_obj_get_coords(backdrop, &backdrop_area);
+    int32_t local_x = click_pt.x - backdrop_area.x1;
+    int32_t local_y = click_pt.y - backdrop_area.y1;
+
+    int32_t backdrop_w = lv_obj_get_width(backdrop);
+    int32_t backdrop_h = lv_obj_get_height(backdrop);
+
+    // Position menu near the click point
+    int32_t menu_x = local_x - 10;
+    int32_t menu_y = local_y - 10;
+
+    // If menu would go off right edge, flip to left of click
+    if (menu_x + menu_width > backdrop_w - 10) {
+        menu_x = local_x - menu_width + 10;
     }
 
-    // Center vertically on the widget
-    int32_t menu_y = widget_center_y - lv_obj_get_height(menu_card) / 2;
-
-    // Clamp to screen bounds
-    int32_t screen_height = lv_obj_get_height(parent_);
+    // Clamp to backdrop bounds
+    if (menu_x < 10) {
+        menu_x = 10;
+    }
     if (menu_y < 10) {
         menu_y = 10;
     }
-    if (menu_y + lv_obj_get_height(menu_card) > screen_height - 10) {
-        menu_y = screen_height - lv_obj_get_height(menu_card) - 10;
+    if (menu_y + menu_height > backdrop_h - 10) {
+        menu_y = backdrop_h - menu_height - 10;
     }
 
     lv_obj_set_pos(menu_card, menu_x, menu_y);
+
+    spdlog::debug("[ContextMenu] Click({},{}) -> local({},{}) -> menu({},{})", click_pt.x,
+                  click_pt.y, local_x, local_y, menu_x, menu_y);
 }
 
 } // namespace helix::ui

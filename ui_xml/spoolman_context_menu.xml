@@ -12,13 +12,15 @@
     <event_cb trigger="clicked" callback="spoolman_context_backdrop_cb"/>
     <!-- Context menu card - positioned by C++ -->
     <lv_obj name="context_menu"
-            width="170" height="content" style_bg_color="#elevated_bg" style_bg_opa="255" style_radius="#border_radius"
+            width="220" height="content" style_bg_color="#elevated_bg" style_bg_opa="255" style_radius="#border_radius"
             style_pad_all="#space_sm" style_pad_gap="#space_xs" flex_flow="column" style_flex_main_place="start"
             style_flex_cross_place="start" scrollable="false" clickable="true">
-      <!-- Header: spool display name -->
-      <text_body name="spool_header" text="Spool" style_text_color="#text"/>
+      <!-- Header: spool material name (e.g., "Polymaker PLA") -->
+      <text_body name="spool_header" text="Spool" width="100%" long_mode="dots" style_text_color="#text"/>
+      <!-- Color name (e.g., "Jet Black") -->
+      <text_small name="spool_color_label" text="" width="100%" long_mode="dots" style_text_color="#text_muted"/>
       <!-- Vendor subtitle -->
-      <text_small name="spool_vendor_label" text="" style_text_color="#text_muted"/>
+      <text_small name="spool_vendor_label" text="" width="100%" long_mode="dots" style_text_color="#text_muted"/>
       <!-- Header Divider -->
       <lv_obj width="100%"
               height="1" style_bg_color="#text_muted" style_bg_opa="38" style_pad_all="0" scrollable="false"/>

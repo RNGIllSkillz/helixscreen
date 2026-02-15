@@ -84,24 +84,40 @@ bool SpoolmanContextMenu::show_for_spool(lv_obj_t* parent, const SpoolInfo& spoo
 // ============================================================================
 
 void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
-    // Update header with spool display name
+    // Header line 1: "Vendor Material" (e.g., "Polymaker PLA")
     lv_obj_t* header = lv_obj_find_by_name(menu_obj, "spool_header");
     if (header) {
-        std::string name = pending_spool_.display_name();
+        std::string name;
+        if (!pending_spool_.vendor.empty()) {
+            name += pending_spool_.vendor;
+        }
+        if (!pending_spool_.material.empty()) {
+            if (!name.empty()) {
+                name += " ";
+            }
+            name += pending_spool_.material;
+        }
         if (name.empty()) {
             name = "Spool #" + std::to_string(pending_spool_.id);
         }
         lv_label_set_text(header, name.c_str());
     }
 
-    // Update vendor subtitle
+    // Header line 2: Color name (e.g., "Jet Black")
+    lv_obj_t* color_label = lv_obj_find_by_name(menu_obj, "spool_color_label");
+    if (color_label) {
+        if (pending_spool_.color_name.empty()) {
+            lv_obj_add_flag(color_label, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_label_set_text(color_label, pending_spool_.color_name.c_str());
+        }
+    }
+
+    // Header line 3: Vendor (hide if already shown in header)
     lv_obj_t* vendor_label = lv_obj_find_by_name(menu_obj, "spool_vendor_label");
     if (vendor_label) {
-        if (pending_spool_.vendor.empty()) {
-            lv_obj_add_flag(vendor_label, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_label_set_text(vendor_label, pending_spool_.vendor.c_str());
-        }
+        // Vendor is already in the header, hide this line
+        lv_obj_add_flag(vendor_label, LV_OBJ_FLAG_HIDDEN);
     }
 
     spdlog::debug("[SpoolmanContextMenu] Shown for spool {} ({})", pending_spool_.id,

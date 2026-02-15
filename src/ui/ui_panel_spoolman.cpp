@@ -38,9 +38,7 @@ DEFINE_GLOBAL_PANEL(SpoolmanPanel, g_spoolman_panel, get_global_spoolman_panel)
 
 SpoolmanPanel::SpoolmanPanel() {
     spdlog::trace("[{}] Constructor", get_name());
-
-    // Initialize buffer
-    std::memset(spool_count_buf_, 0, sizeof(spool_count_buf_));
+    std::memset(header_title_buf_, 0, sizeof(header_title_buf_));
 }
 
 SpoolmanPanel::~SpoolmanPanel() {
@@ -58,9 +56,8 @@ void SpoolmanPanel::init_subjects() {
                                static_cast<int32_t>(SpoolmanPanelState::LOADING),
                                "spoolman_panel_state", subjects_);
 
-        // Initialize spool count subject
-        UI_MANAGED_SUBJECT_STRING(spool_count_subject_, spool_count_buf_, "",
-                                  "spoolman_spool_count", subjects_);
+        UI_MANAGED_SUBJECT_STRING(header_title_subject_, header_title_buf_, "Spoolman",
+                                  "spoolman_header_title", subjects_);
     });
 }
 
@@ -98,6 +95,8 @@ void SpoolmanPanel::register_callbacks() {
 // ============================================================================
 
 lv_obj_t* SpoolmanPanel::create(lv_obj_t* parent) {
+    register_callbacks();
+
     if (!create_overlay_from_xml(parent, "spoolman_panel")) {
         return nullptr;
     }
@@ -111,6 +110,15 @@ lv_obj_t* SpoolmanPanel::create(lv_obj_t* parent) {
     if (!spool_list_) {
         spdlog::error("[{}] spool_list not found!", get_name());
         return nullptr;
+    }
+
+    // Bind header title to subject for dynamic "Spoolman: XX Spools" text
+    lv_obj_t* header = lv_obj_find_by_name(overlay_root_, "overlay_header");
+    if (header) {
+        lv_obj_t* title = lv_obj_find_by_name(header, "header_title");
+        if (title) {
+            lv_label_bind_text(title, &header_title_subject_, nullptr);
+        }
     }
 
     spdlog::info("[{}] Overlay created successfully", get_name());
@@ -211,12 +219,12 @@ void SpoolmanPanel::show_spool_list() {
 
 void SpoolmanPanel::update_spool_count() {
     if (cached_spools_.empty()) {
-        lv_subject_copy_string(&spool_count_subject_, "");
+        lv_subject_copy_string(&header_title_subject_, "Spoolman");
     } else {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "%zu spool%s", cached_spools_.size(),
+        char buf[64];
+        snprintf(buf, sizeof(buf), "Spoolman: %zu Spool%s", cached_spools_.size(),
                  cached_spools_.size() == 1 ? "" : "s");
-        lv_subject_copy_string(&spool_count_subject_, buf);
+        lv_subject_copy_string(&header_title_subject_, buf);
     }
 }
 
@@ -327,14 +335,20 @@ void SpoolmanPanel::update_row_visuals(lv_obj_t* row, const SpoolInfo& spool) {
         }
     }
 
-    // Active indicator
+    // Active spool: show checkmark + highlight row with checked state
+    bool is_active = (spool.id == active_spool_id_);
     lv_obj_t* active_icon = lv_obj_find_by_name(row, "active_indicator");
     if (active_icon) {
-        if (spool.id == active_spool_id_) {
+        if (is_active) {
             lv_obj_remove_flag(active_icon, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_flag(active_icon, LV_OBJ_FLAG_HIDDEN);
         }
+    }
+    if (is_active) {
+        lv_obj_add_state(row, LV_STATE_CHECKED);
+    } else {
+        lv_obj_remove_state(row, LV_STATE_CHECKED);
     }
 }
 

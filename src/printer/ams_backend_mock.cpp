@@ -173,8 +173,8 @@ AmsBackendMock::AmsBackendMock(int slot_count) {
 
     // Initialize default device sections (AFC-like)
     mock_device_sections_ = {
-        {"calibration", "Calibration", "wrench", 0},
-        {"speed", "Speed Settings", "speedometer", 1},
+        {"calibration", "Calibration", "wrench", 0, "Bowden length and lane calibration"},
+        {"speed", "Speed Settings", "dashboard", 1, "Move speed multipliers"},
     };
 
     // Initialize default device actions
@@ -1194,10 +1194,10 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
         // AFC-specific device sections
         using helix::printer::ActionType;
         mock_device_sections_ = {
-            {"calibration", "Calibration", "wrench", 0},
-            {"maintenance", "Maintenance", "tools", 1},
-            {"speed", "Speed Settings", "speedometer", 2},
-            {"led", "LEDs & Modes", "lightbulb", 3},
+            {"calibration", "Calibration", "wrench", 0, "Bowden length and lane calibration"},
+            {"maintenance", "Maintenance", "wrench", 1, "Lane tests and motor resets"},
+            {"speed", "Speed Settings", "dashboard", 2, "Move speed multipliers"},
+            {"led", "LEDs & Modes", "lightbulb_outline", 3, "LED control and quiet mode"},
         };
 
         // AFC-specific device actions
@@ -1378,8 +1378,8 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
 
         // Restore default device sections and actions (from constructor pattern)
         mock_device_sections_ = {
-            {"calibration", "Calibration", "wrench", 0},
-            {"speed", "Speed Settings", "speedometer", 1},
+            {"calibration", "Calibration", "wrench", 0, "Bowden length and lane calibration"},
+            {"speed", "Speed Settings", "dashboard", 1, "Move speed multipliers"},
         };
 
         using helix::printer::ActionType;

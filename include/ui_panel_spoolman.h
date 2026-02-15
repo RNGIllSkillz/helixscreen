@@ -82,8 +82,8 @@ class SpoolmanPanel : public OverlayBase {
     // ========== Subjects ==========
     SubjectManager subjects_;          ///< RAII subject manager
     lv_subject_t panel_state_subject_; ///< Panel display state (loading/empty/spools)
-    lv_subject_t spool_count_subject_;
-    char spool_count_buf_[32];
+    lv_subject_t header_title_subject_;
+    char header_title_buf_[64];
 
     // ========== Private Methods ==========
     void populate_spool_list();
