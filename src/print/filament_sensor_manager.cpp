@@ -19,15 +19,6 @@
 // via ui_async_call to avoid the "Invalidate area not allowed during rendering"
 // assertion.
 
-namespace {
-
-/// @brief Async callback to update subjects on the main LVGL thread
-void async_update_subjects_callback(void* /*user_data*/) {
-    helix::FilamentSensorManager::instance().update_subjects_on_main_thread();
-}
-
-} // namespace
-
 namespace helix {
 
 // ============================================================================
@@ -543,18 +534,21 @@ void FilamentSensorManager::update_from_status(const json& status) {
             auto& state = states_[sensor.klipper_name];
             FilamentSensorState old_state = state;
 
-            // Update filament_detected
+            // Update filament_detected (use value() for exception safety — Moonraker
+            // may send unexpected types during firmware restarts)
             if (sensor_data.contains("filament_detected")) {
-                state.filament_detected = sensor_data["filament_detected"].get<bool>();
+                state.filament_detected =
+                    sensor_data.value("filament_detected", state.filament_detected);
             }
 
             // Motion sensors have additional fields
             if (sensor.type == FilamentSensorType::MOTION) {
                 if (sensor_data.contains("enabled")) {
-                    state.enabled = sensor_data["enabled"].get<bool>();
+                    state.enabled = sensor_data.value("enabled", state.enabled);
                 }
                 if (sensor_data.contains("detection_count")) {
-                    state.detection_count = sensor_data["detection_count"].get<int>();
+                    state.detection_count =
+                        sensor_data.value("detection_count", state.detection_count);
                 }
             }
 
@@ -600,10 +594,12 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 spdlog::info("[FilamentSensorManager] sync_mode: updating subjects synchronously");
                 update_subjects();
             } else {
-                // Defer subject updates to main LVGL thread via ui_async_call()
+                // Defer subject updates to main LVGL thread via ui_queue_update()
                 // This avoids the "Invalidate area not allowed during rendering" assertion
-                spdlog::debug("[FilamentSensorManager] async_mode: deferring via ui_async_call");
-                ui_async_call(async_update_subjects_callback, nullptr);
+                // and provides exception safety (try-catch wrapping)
+                spdlog::debug("[FilamentSensorManager] async_mode: deferring via ui_queue_update");
+                ui_queue_update(
+                    [] { FilamentSensorManager::instance().update_subjects_on_main_thread(); });
             }
         }
     }

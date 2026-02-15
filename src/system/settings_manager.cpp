@@ -176,6 +176,27 @@ void SettingsManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(estop_require_confirmation_subject_, estop_confirm ? 1 : 0,
                            "settings_estop_confirm", subjects_);
 
+    // Cancel escalation (default: false = never escalate to e-stop)
+    bool cancel_escalation = config->get<bool>("/safety/cancel_escalation_enabled", false);
+    UI_MANAGED_SUBJECT_INT(cancel_escalation_enabled_subject_, cancel_escalation ? 1 : 0,
+                           "settings_cancel_escalation_enabled", subjects_);
+
+    // Cancel escalation timeout (default: 30s, stored as dropdown index 0-3 → 15/30/60/120s)
+    int cancel_escalation_timeout =
+        config->get<int>("/safety/cancel_escalation_timeout_seconds", 30);
+    // Convert seconds to dropdown index: 15→0, 30→1, 60→2, 120→3
+    int timeout_index = 1; // default 30s
+    if (cancel_escalation_timeout <= 15)
+        timeout_index = 0;
+    else if (cancel_escalation_timeout <= 30)
+        timeout_index = 1;
+    else if (cancel_escalation_timeout <= 60)
+        timeout_index = 2;
+    else
+        timeout_index = 3;
+    UI_MANAGED_SUBJECT_INT(cancel_escalation_timeout_subject_, timeout_index,
+                           "settings_cancel_escalation_timeout", subjects_);
+
     // Scroll throw (default: 25, range 5-50)
     int scroll_throw = config->get<int>("/input/scroll_throw", 25);
     scroll_throw = std::max(5, std::min(50, scroll_throw));
@@ -921,6 +942,59 @@ void SettingsManager::set_estop_require_confirmation(bool require) {
 
     spdlog::debug("[SettingsManager] E-Stop confirmation {} and saved",
                   require ? "enabled" : "disabled");
+}
+
+bool SettingsManager::get_cancel_escalation_enabled() const {
+    return lv_subject_get_int(const_cast<lv_subject_t*>(&cancel_escalation_enabled_subject_)) != 0;
+}
+
+void SettingsManager::set_cancel_escalation_enabled(bool enabled) {
+    spdlog::info("[SettingsManager] set_cancel_escalation_enabled({})", enabled);
+
+    // 1. Update subject (UI reacts)
+    lv_subject_set_int(&cancel_escalation_enabled_subject_, enabled ? 1 : 0);
+
+    // 2. Persist
+    Config* config = Config::get_instance();
+    config->set<bool>("/safety/cancel_escalation_enabled", enabled);
+    config->save();
+
+    spdlog::debug("[SettingsManager] Cancel escalation {} and saved",
+                  enabled ? "enabled" : "disabled");
+}
+
+static constexpr int ESCALATION_TIMEOUT_VALUES[] = {15, 30, 60, 120};
+
+int SettingsManager::get_cancel_escalation_timeout_seconds() const {
+    int index = lv_subject_get_int(const_cast<lv_subject_t*>(&cancel_escalation_timeout_subject_));
+    index = std::max(0, std::min(3, index));
+    return ESCALATION_TIMEOUT_VALUES[index];
+}
+
+void SettingsManager::set_cancel_escalation_timeout_seconds(int seconds) {
+    spdlog::info("[SettingsManager] set_cancel_escalation_timeout_seconds({})", seconds);
+
+    // Convert seconds to dropdown index
+    int index = 1; // default 30s
+    if (seconds <= 15)
+        index = 0;
+    else if (seconds <= 30)
+        index = 1;
+    else if (seconds <= 60)
+        index = 2;
+    else
+        index = 3;
+
+    // 1. Update subject (UI reacts via dropdown binding)
+    lv_subject_set_int(&cancel_escalation_timeout_subject_, index);
+
+    // 2. Persist actual seconds value
+    Config* config = Config::get_instance();
+    config->set<int>("/safety/cancel_escalation_timeout_seconds", ESCALATION_TIMEOUT_VALUES[index]);
+    config->save();
+
+    spdlog::debug("[SettingsManager] Cancel escalation timeout set to {}s (index {}) and saved",
+                  ESCALATION_TIMEOUT_VALUES[index], index);
 }
 
 // =============================================================================

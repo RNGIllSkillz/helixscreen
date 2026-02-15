@@ -33,6 +33,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "device_display_name.h"
+#include "display_manager.h"
 #include "filament_sensor_manager.h"
 #include "format_utils.h"
 #include "hardware_validator.h"
@@ -95,6 +96,17 @@ static void on_completion_alert_dropdown_changed(lv_event_t* e) {
     spdlog::info("[SettingsPanel] Completion alert changed: {} ({})", index,
                  index == 0 ? "Off" : (index == 1 ? "Notification" : "Alert"));
     SettingsManager::instance().set_completion_alert_mode(mode);
+}
+
+// Static callback for cancel escalation timeout dropdown
+static void on_cancel_escalation_timeout_changed(lv_event_t* e) {
+    lv_obj_t* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    int index = static_cast<int>(lv_dropdown_get_selected(dropdown));
+    static constexpr int TIMEOUT_VALUES[] = {15, 30, 60, 120};
+    int seconds = TIMEOUT_VALUES[std::max(0, std::min(3, index))];
+    spdlog::info("[SettingsPanel] Cancel escalation timeout changed: {}s (index {})", seconds,
+                 index);
+    SettingsManager::instance().set_cancel_escalation_timeout_seconds(seconds);
 }
 
 // Static callback for display dim dropdown
@@ -178,7 +190,8 @@ static void on_update_channel_changed(lv_event_t* e) {
             // Revert to previous value
             int current = SettingsManager::instance().get_update_channel();
             lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(current));
-            ui_toast_show(ToastSeverity::WARNING, "Dev channel requires dev_url in config", 3000);
+            ui_toast_show(ToastSeverity::WARNING, lv_tr("Dev channel requires dev_url in config"),
+                          3000);
             rejected = true;
         }
     }
@@ -215,12 +228,12 @@ static void on_version_clicked(lv_event_t*) {
         // Show countdown - say "enable" or "disable" based on current state
         Config* config = Config::get_instance();
         bool currently_on = config && config->is_beta_features_enabled();
-        const char* action = currently_on ? "disable" : "enable";
-        ui_toast_show(ToastSeverity::INFO,
-                      fmt::format("{} more tap{} to {} beta features", remaining,
-                                  remaining == 1 ? "" : "s", action)
-                          .c_str(),
-                      1000);
+        const char* action = currently_on ? lv_tr("disable") : lv_tr("enable");
+        std::string msg =
+            remaining == 1
+                ? fmt::format(lv_tr("1 more tap to {} beta features"), action)
+                : fmt::format(lv_tr("{} more taps to {} beta features"), remaining, action);
+        ui_toast_show(ToastSeverity::INFO, msg.c_str(), 1000);
     } else if (remaining == 0) {
         // Toggle beta_features config flag and reactive subject
         Config* config = Config::get_instance();
@@ -360,7 +373,8 @@ void SettingsPanel::init_subjects() {
 #ifdef HELIX_DISPLAY_SDL
     bool show_touch_cal = get_runtime_config()->is_test_mode();
 #else
-    bool show_touch_cal = true;
+    DisplayManager* dm = DisplayManager::instance();
+    bool show_touch_cal = dm && dm->needs_touch_calibration();
 #endif
     lv_subject_init_int(&show_touch_calibration_subject_, show_touch_cal ? 1 : 0);
     subjects_.register_subject(&show_touch_calibration_subject_);
@@ -371,7 +385,7 @@ void SettingsPanel::init_subjects() {
     // Touch calibration status - show "Calibrated" or "Not calibrated" in row description
     Config* config = Config::get_instance();
     bool is_calibrated = config && config->get<bool>("/input/calibration/valid", false);
-    const char* status_text = is_calibrated ? "Calibrated" : "Not calibrated";
+    const char* status_text = is_calibrated ? lv_tr("Calibrated") : lv_tr("Not calibrated");
     UI_MANAGED_SUBJECT_STRING(touch_cal_status_subject_, touch_cal_status_buf_, status_text,
                               "touch_cal_status", subjects_);
 
@@ -398,6 +412,9 @@ void SettingsPanel::init_subjects() {
     // Note: on_retraction_row_clicked is registered by RetractionSettingsOverlay
     lv_xml_register_event_cb(nullptr, "on_sound_settings_clicked", on_sound_settings_clicked);
     lv_xml_register_event_cb(nullptr, "on_estop_confirm_changed", on_estop_confirm_changed);
+    lv_xml_register_event_cb(nullptr, "on_cancel_escalation_changed", on_cancel_escalation_changed);
+    lv_xml_register_event_cb(nullptr, "on_cancel_escalation_timeout_changed",
+                             on_cancel_escalation_timeout_changed);
     lv_xml_register_event_cb(nullptr, "on_telemetry_changed", SettingsPanel::on_telemetry_changed);
     lv_xml_register_event_cb(nullptr, "on_telemetry_view_data",
                              SettingsPanel::on_telemetry_view_data);
@@ -693,7 +710,7 @@ void SettingsPanel::setup_action_handlers() {
 void SettingsPanel::populate_info_rows() {
     // === Version (subject used by About overlay and About row description) ===
     lv_subject_copy_string(&version_value_subject_, helix_version());
-    std::string about_desc = std::string("Current Version: ") + helix_version();
+    std::string about_desc = std::string(lv_tr("Current Version")) + ": " + helix_version();
     lv_subject_copy_string(&about_version_description_subject_, about_desc.c_str());
     spdlog::trace("[{}]   Version subject: {}", get_name(), helix_version());
 
@@ -807,6 +824,11 @@ void SettingsPanel::handle_estop_confirm_changed(bool enabled) {
     SettingsManager::instance().set_estop_require_confirmation(enabled);
     // Update EmergencyStopOverlay immediately
     EmergencyStopOverlay::instance().set_require_confirmation(enabled);
+}
+
+void SettingsPanel::handle_cancel_escalation_changed(bool enabled) {
+    spdlog::info("[{}] Cancel escalation toggled: {}", get_name(), enabled ? "ON" : "OFF");
+    SettingsManager::instance().set_cancel_escalation_enabled(enabled);
 }
 
 void SettingsPanel::handle_telemetry_changed(bool enabled) {
@@ -982,6 +1004,12 @@ void SettingsPanel::handle_network_clicked() {
 }
 
 void SettingsPanel::handle_touch_calibration_clicked() {
+    DisplayManager* dm = DisplayManager::instance();
+    if (dm && !dm->needs_touch_calibration()) {
+        spdlog::debug("[{}] Touch calibration not needed for this device", get_name());
+        return;
+    }
+
     spdlog::debug("[{}] Touch Calibration clicked", get_name());
 
     auto& overlay = helix::ui::get_touch_calibration_overlay();
@@ -996,8 +1024,8 @@ void SettingsPanel::handle_touch_calibration_clicked() {
     overlay.set_auto_start(true);
     overlay.show([this](bool success) {
         if (success) {
-            // Update status to "Calibrated" when calibration completes successfully
-            lv_subject_copy_string(&touch_cal_status_subject_, "Calibrated");
+            // Update status when calibration completes successfully
+            lv_subject_copy_string(&touch_cal_status_subject_, lv_tr("Calibrated"));
             spdlog::info("[{}] Touch calibration completed - updated status", get_name());
         }
     });
@@ -1005,7 +1033,7 @@ void SettingsPanel::handle_touch_calibration_clicked() {
 
 void SettingsPanel::handle_restart_helix_clicked() {
     spdlog::info("[SettingsPanel] Restart HelixScreen requested");
-    ui_toast_show(ToastSeverity::INFO, "Restarting HelixScreen...", 1500);
+    ui_toast_show(ToastSeverity::INFO, lv_tr("Restarting HelixScreen..."), 1500);
 
     // Schedule restart after brief delay to let toast display
     ui_async_call(
@@ -1077,7 +1105,8 @@ void SettingsPanel::show_update_download_modal() {
 
     // Set to Confirming state with version info
     auto info = UpdateChecker::instance().get_cached_update();
-    std::string text = info ? ("Download v" + info->version + "?") : "Download update?";
+    std::string text = info ? fmt::format(lv_tr("Download v{}?"), info->version)
+                            : std::string(lv_tr("Download update?"));
     UpdateChecker::instance().report_download_status(UpdateChecker::DownloadStatus::Confirming, 0,
                                                      text);
 }
@@ -1178,6 +1207,14 @@ void SettingsPanel::on_estop_confirm_changed(lv_event_t* e) {
     auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
     get_global_settings_panel().handle_estop_confirm_changed(enabled);
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void SettingsPanel::on_cancel_escalation_changed(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_cancel_escalation_changed");
+    auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
+    get_global_settings_panel().handle_cancel_escalation_changed(enabled);
     LVGL_SAFE_EVENT_CB_END();
 }
 
@@ -1354,6 +1391,10 @@ void register_settings_panel_callbacks() {
                              SettingsPanel::on_sound_settings_clicked);
     lv_xml_register_event_cb(nullptr, "on_estop_confirm_changed",
                              SettingsPanel::on_estop_confirm_changed);
+    lv_xml_register_event_cb(nullptr, "on_cancel_escalation_changed",
+                             SettingsPanel::on_cancel_escalation_changed);
+    lv_xml_register_event_cb(nullptr, "on_cancel_escalation_timeout_changed",
+                             on_cancel_escalation_timeout_changed);
     lv_xml_register_event_cb(nullptr, "on_telemetry_changed", SettingsPanel::on_telemetry_changed);
     lv_xml_register_event_cb(nullptr, "on_telemetry_view_data",
                              SettingsPanel::on_telemetry_view_data);

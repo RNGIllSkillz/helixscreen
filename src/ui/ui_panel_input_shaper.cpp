@@ -9,8 +9,8 @@
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
 #include "ui_toast.h"
+#include "ui_update_queue.h"
 
-#include "async_helpers.h"
 #include "format_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
@@ -428,14 +428,14 @@ void InputShaperPanel::on_activate() {
         auto alive = alive_;
         api_->get_input_shaper_config(
             [this, alive](const InputShaperConfig& config) {
-                helix::async::invoke([this, alive, config]() {
+                ui_queue_update([this, alive, config]() {
                     if (!alive->load())
                         return;
                     populate_current_config(config);
                 });
             },
             [this, alive](const MoonrakerError& err) {
-                helix::async::invoke([this, alive, msg = err.message]() {
+                ui_queue_update([this, alive, msg = err.message]() {
                     if (!alive->load())
                         return;
                     spdlog::debug("[InputShaper] Could not query config: {}", msg);
@@ -815,7 +815,7 @@ void InputShaperPanel::apply_y_after_x() {
             if (api_) {
                 api_->get_input_shaper_config(
                     [this, alive](const InputShaperConfig& config) {
-                        helix::async::invoke([this, alive, config]() {
+                        ui_queue_update([this, alive, config]() {
                             if (!alive->load())
                                 return;
                             populate_current_config(config);
@@ -1616,29 +1616,5 @@ void InputShaperPanel::handle_help_clicked() {
 
         "Lower vibration % is better. Lower smoothing preserves detail.";
 
-    const char* attrs[] = {"title", "Input Shaper Help", "message", help_message, nullptr};
-
-    ui_modal_configure(ModalSeverity::Info, false, "Got It", nullptr);
-    lv_obj_t* help_dialog = ui_modal_show("modal_dialog", attrs);
-
-    if (!help_dialog) {
-        spdlog::error("[InputShaper] Failed to show help modal");
-        return;
-    }
-
-    // Wire up Ok button to close
-    lv_obj_t* ok_btn = lv_obj_find_by_name(help_dialog, "btn_primary");
-    if (ok_btn) {
-        lv_obj_set_user_data(ok_btn, help_dialog);
-        lv_obj_add_event_cb(
-            ok_btn,
-            [](lv_event_t* e) {
-                auto* btn = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-                auto* dialog = static_cast<lv_obj_t*>(lv_obj_get_user_data(btn));
-                if (dialog) {
-                    ui_modal_hide(dialog);
-                }
-            },
-            LV_EVENT_CLICKED, nullptr);
-    }
+    ui_modal_show_alert("Input Shaper Help", help_message, ModalSeverity::Info, "Got It");
 }

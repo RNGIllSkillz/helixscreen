@@ -117,6 +117,7 @@ class HomePanel : public PanelBase {
     char printer_host_buffer_[64];
 
     bool light_on_ = false;
+    bool light_long_pressed_ = false; // Suppress click after long-press
     network_type_t current_network_ = NETWORK_WIFI;
     PrintingTip current_tip_;
     PrintingTip pending_tip_; // Tip waiting to be displayed after fade-out

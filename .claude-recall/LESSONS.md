@@ -157,3 +157,7 @@
 - **Uses**: 0 | **Velocity**: 0 | **Learned**: 2026-02-11 | **Last**: 2026-02-11 | **Category**: lvgl
 > When using flex_grow on a container with flex_flow=row_wrap, LVGL calculates wrap points based on the container's natural (content) width, NOT the flex-allocated width. Fix: set width="1" + flex_grow="1" — forces LVGL to use the grown width for wrapping. Without this, children overflow instead of wrapping.
 
+### [L067] [-----|-----] Wrap C++ UI strings in lv_tr()
+- **Uses**: 0 | **Velocity**: 0 | **Learned**: 2026-02-14 | **Last**: 2026-02-14 | **Category**: ui
+> All user-visible English strings in C++ code must be wrapped in lv_tr() for i18n. Dropdown options are concatenated strings so they're harder to translate - but labels, help text, toasts, etc. must use lv_tr().
+

@@ -109,11 +109,12 @@
 #include "wifi_manager.h"
 
 // Backend headers
+#include "ui_update_queue.h"
+
 #include "abort_manager.h"
 #include "action_prompt_manager.h"
 #include "action_prompt_modal.h"
 #include "app_globals.h"
-#include "async_helpers.h"
 #include "filament_sensor_manager.h"
 #include "gcode_file_modifier.h"
 #include "hv/hlog.h" // libhv logging - sync level with spdlog
@@ -208,7 +209,10 @@ int Application::run(int argc, char** argv) {
 
     // Install crash handler early (before other init that could crash)
     // Uses the config directory for the crash file so TelemetryManager can find it on next startup
-    crash_handler::install("config/crash.txt");
+    // Skip in test mode — don't record or report crashes during development
+    if (!get_runtime_config()->is_test_mode()) {
+        crash_handler::install("config/crash.txt");
+    }
 
     // Phase 2: Initialize config system
     if (!init_config()) {
@@ -328,7 +332,11 @@ int Application::run(int argc, char** argv) {
     }
 
     // Check for crash from previous session (after UI exists, before wizard)
-    if (CrashReporter::instance().has_crash_report()) {
+    // Skip in test mode — don't show crash dialog during development
+    // Exception: --mock-crash explicitly requests the dialog for testing
+    bool show_crash_dialog =
+        !get_runtime_config()->is_test_mode() || get_runtime_config()->mock_crash;
+    if (show_crash_dialog && CrashReporter::instance().has_crash_report()) {
         spdlog::info("[Application] Previous crash detected — showing crash report dialog");
         auto report = CrashReporter::instance().collect_report();
         auto* modal = new CrashReportModal();
@@ -1567,10 +1575,10 @@ void Application::setup_discovery_callbacks() {
             // Auto-navigate to Z-Offset Calibration if manual probe is already active
             // (e.g., PROBE_CALIBRATE started from Mainsail or console before HelixScreen launched)
             // Deferred one tick: status updates from the subscription response are queued
-            // via helix::async::invoke and may not have landed yet at this point.
+            // via ui_queue_update and may not have landed yet at this point.
             MoonrakerAPI* api_ptr_zoffset = c->api;
             lv_obj_t* screen = c->app->m_screen;
-            helix::async::invoke([api_ptr_zoffset, screen]() {
+            ui_queue_update([api_ptr_zoffset, screen]() {
                 auto& ps = get_printer_state();
                 int probe_active = lv_subject_get_int(ps.get_manual_probe_active_subject());
                 spdlog::info("[Application] Checking manual_probe at startup: is_active={}",
@@ -1691,8 +1699,8 @@ void Application::init_action_prompt() {
     // Wire on_show callback to display modal (uses ui_async_call for thread safety)
     m_action_prompt_manager->set_on_show([this](const helix::PromptData& data) {
         spdlog::info("[ActionPrompt] Showing prompt: {}", data.title);
-        // WebSocket callbacks run on background thread - must use helix::async::invoke
-        helix::async::invoke([this, data]() {
+        // WebSocket callbacks run on background thread - must use ui_queue_update
+        ui_queue_update([this, data]() {
             if (m_action_prompt_modal && m_screen) {
                 m_action_prompt_modal->show_prompt(m_screen, data);
             }
@@ -1702,7 +1710,7 @@ void Application::init_action_prompt() {
     // Wire on_close callback to hide modal
     m_action_prompt_manager->set_on_close([this]() {
         spdlog::info("[ActionPrompt] Closing prompt");
-        helix::async::invoke([this]() {
+        ui_queue_update([this]() {
             if (m_action_prompt_modal) {
                 m_action_prompt_modal->hide();
             }
@@ -1712,7 +1720,7 @@ void Application::init_action_prompt() {
     // Wire on_notify callback for standalone notifications (action:notify)
     m_action_prompt_manager->set_on_notify([](const std::string& message) {
         spdlog::info("[ActionPrompt] Notification: {}", message);
-        helix::async::invoke([message]() {
+        ui_queue_update([message]() {
             ToastManager::instance().show(ToastSeverity::INFO, message.c_str(), 5000);
         });
     });
