@@ -607,13 +607,13 @@ void AmsPanel::rebuild_backend_selector() {
         if (i == active_backend_idx_) {
             lv_obj_set_style_bg_color(btn, theme_manager_get_color("primary"), 0);
         } else {
-            lv_obj_set_style_bg_color(btn, theme_manager_get_color("card_bg_secondary"), 0);
+            lv_obj_set_style_bg_color(btn, theme_manager_get_color("elevated_bg"), 0);
         }
 
         lv_obj_t* lbl = lv_label_create(btn);
         lv_label_set_text(lbl, label.c_str());
         lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
-        lv_obj_set_style_text_font(lbl, theme_manager_get_font("text_sm"), 0);
+        lv_obj_set_style_text_font(lbl, theme_manager_get_font("text_small"), 0);
 
         // Store index and add click handler (dynamic buttons are a documented exception)
         lv_obj_set_user_data(btn, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
