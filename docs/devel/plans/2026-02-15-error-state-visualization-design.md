@@ -1,7 +1,7 @@
 # Error State Visualization Design
 
 **Date**: 2026-02-15
-**Status**: Approved
+**Status**: Implemented — awaiting smoke test / visual verification
 **Branch**: feature/multi-unit-ams
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
@@ -247,6 +247,40 @@ Badge severity follows worst slot error.
 Support setting per-slot errors via mock config.
 Support buffer health simulation.
 Useful for `--test` mode development.
+
+---
+
+## Smoke Test / Visual Verification (TODO)
+
+All tasks are code-complete with unit tests (31 tests, 751k assertions passing). Visual verification of the UI indicators has **not** been done yet. Run through these checks before merging:
+
+### Setup
+```bash
+# AFC multi-unit (shows overview + detail + errors + buffer health):
+HELIX_MOCK_AMS_TYPE=afc HELIX_MOCK_AMS_MULTI=1 ./build/bin/helix-screen --test -vv
+
+# AFC single-unit (detail view only):
+HELIX_MOCK_AMS_TYPE=afc ./build/bin/helix-screen --test -vv
+
+# Happy Hare (no buffer health, no pre-populated errors):
+./build/bin/helix-screen --test -vv
+```
+
+### Checklist
+
+- [ ] **Overview: unit error badge** — red dot on unit card with ERROR slot, yellow for WARNING-only
+- [ ] **Overview: mini-bar status lines** — red/yellow lines under errored slot bars
+- [ ] **Detail: slot error indicator** — 14px red dot (ERROR) or yellow dot (WARNING) at top-right of spool
+- [ ] **Detail: buffer health dot** — 8px dot at bottom-center: green (healthy), yellow (approaching fault), red (fault)
+- [ ] **Detail: no overlap** — error dot doesn't collide with tool badge (top-left) or status badge (bottom-right)
+- [ ] **HH mode: no buffer dots** — buffer health dots hidden (HH has no buffer data)
+- [ ] **Navigate away/back** — indicators reappear correctly after panel re-activation
+
+### Mock data in AFC mode
+- Lane 1 (ASA, black): loaded, healthy buffer → green health dot, no error
+- Lane 2 (PLA, red): available, healthy buffer → green health dot, no error
+- Lane 3 (PETG, green): available, approaching fault (12.5mm) → yellow health dot, yellow error indicator
+- Lane 4 (TPU, orange): available, ERROR "Lane 4 load failed" → red health dot, red error indicator
 
 ---
 

@@ -198,6 +198,29 @@ Key files:
 
 **Future: multi-backend aggregation**: When multiple backends are active simultaneously (e.g., an AFC system on one toolhead + a Happy Hare on another), the overview panel should iterate all backends via `AmsState::get_backend(i)` for `i` in `0..backend_count` and aggregate their units into the card grid. The per-backend slot subject storage (`secondary_slot_subjects_`) and event routing already support this — the UI aggregation is the remaining integration point.
 
+### Error State Visualization
+
+Per-slot error indicators and per-unit error badges, driven by `SlotInfo.error` and `SlotInfo.buffer_health` from the backend layer. See `docs/devel/plans/2026-02-15-error-state-visualization-design.md` for full design.
+
+**Data model** (`ams_types.h`):
+- `SlotError` — message + severity (INFO/WARNING/ERROR), `std::optional` on `SlotInfo`
+- `BufferHealth` — AFC buffer fault proximity data, `std::optional` on `SlotInfo`
+- `AmsUnit::has_any_error()` — rolls up per-slot errors for overview badge
+
+**Detail view** (`ui_ams_slot.cpp`):
+- 14px error badge at top-right of spool (red for ERROR, yellow for WARNING)
+- 8px buffer health dot at bottom-center (green/yellow/red based on fault proximity)
+- Both pulled from `SlotInfo` during refresh (same pattern as material/tool badge)
+
+**Overview view** (`ui_panel_ams_overview.cpp`):
+- 12px error badge at top-right of unit card (worst severity across slots)
+- Mini-bar status lines colored by error severity
+
+**Backend integration**:
+- AFC: per-lane error from `status` field + buffer health from `AFC_buffer` objects
+- Happy Hare: system-level error mapped to `current_slot` via `reason_for_pause`
+- Mock: `set_slot_error()` / `set_slot_buffer_health()` + pre-populated errors in AFC mode
+
 ---
 
 ## Supported Backends
