@@ -263,29 +263,29 @@ void WizardPrinterIdentifyStep::init_subjects() {
     UI_SUBJECT_INIT_AND_REGISTER_STRING(printer_name_, printer_name_buffer_, printer_name_buffer_,
                                         "printer_name");
 
-    // Run auto-detection if no saved type (uses filtered list for index)
-    PrinterDetectionHint hint{PrinterDetector::get_unknown_list_index(detected_kinematics_), 0, ""};
-    if (saved_type.empty()) {
-        hint = detect_printer_type(detected_kinematics_);
-        if (hint.confidence >= 70) {
+    // Always run auto-detection (even when config has a saved type, e.g. re-running wizard)
+    PrinterDetectionHint hint = detect_printer_type(detected_kinematics_);
+    if (hint.confidence >= 70) {
+        // High-confidence detection overrides saved type
+        default_type = hint.type_index;
+        spdlog::info("[{}] Auto-detection: {} (confidence: {}%)", get_name(), hint.type_name,
+                     hint.confidence);
+    } else if (hint.confidence > 0) {
+        spdlog::info("[{}] Auto-detection suggestion: {} (confidence: {}%)", get_name(),
+                     hint.type_name, hint.confidence);
+        // Low confidence: keep saved type if available, otherwise use suggestion
+        if (saved_type.empty()) {
             default_type = hint.type_index;
-            spdlog::debug("[{}] Auto-detection: {} (confidence: {}%)", get_name(), hint.type_name,
-                          hint.confidence);
-        } else if (hint.confidence > 0) {
-            spdlog::debug("[{}] Auto-detection suggestion: {} (confidence: {}%)", get_name(),
-                          hint.type_name, hint.confidence);
-        } else {
-            spdlog::debug("[{}] Auto-detection: {}", get_name(), hint.type_name);
         }
+    } else {
+        spdlog::debug("[{}] Auto-detection: no match", get_name());
     }
 
     UI_SUBJECT_INIT_AND_REGISTER_INT(printer_type_selected_, default_type, "printer_type_selected");
 
     // Initialize detection status message
     const char* status_msg;
-    if (!saved_type.empty()) {
-        status_msg = "Loaded from configuration";
-    } else if (hint.confidence >= 70) {
+    if (hint.confidence >= 70) {
         snprintf(printer_detection_status_buffer_, sizeof(printer_detection_status_buffer_), "%s",
                  hint.type_name.c_str());
         status_msg = printer_detection_status_buffer_;
@@ -293,6 +293,8 @@ void WizardPrinterIdentifyStep::init_subjects() {
         snprintf(printer_detection_status_buffer_, sizeof(printer_detection_status_buffer_),
                  "%s (low confidence)", hint.type_name.c_str());
         status_msg = printer_detection_status_buffer_;
+    } else if (!saved_type.empty()) {
+        status_msg = "Loaded from configuration";
     } else {
         status_msg = "No printer detected - please confirm type";
     }

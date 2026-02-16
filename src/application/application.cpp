@@ -1076,6 +1076,15 @@ bool Application::run_wizard() {
 
     spdlog::info("[Application] Starting first-run wizard");
 
+    // When re-running wizard (--wizard), clear expected hardware so it gets
+    // re-populated from fresh wizard selections on completion
+    if (m_args.force_wizard && m_config) {
+        spdlog::info("[Application] Re-running wizard — clearing expected hardware");
+        m_config->set<nlohmann::json>(m_config->df() + "hardware/expected",
+                                      nlohmann::json::array());
+        m_config->save();
+    }
+
     ui_wizard_register_event_callbacks();
     ui_wizard_container_register_responsive_constants();
 
@@ -1525,7 +1534,8 @@ void Application::setup_discovery_callbacks() {
             auto validation_result = validator.validate(Config::get_instance(), c->hardware);
             get_printer_state().set_hardware_validation_result(validation_result);
 
-            if (validation_result.has_issues() && !Config::get_instance()->is_wizard_required()) {
+            if (validation_result.has_issues() && !Config::get_instance()->is_wizard_required() &&
+                !is_wizard_active()) {
                 validator.notify_user(validation_result);
             }
 
@@ -2223,6 +2233,10 @@ void Application::shutdown() {
     // After this, widgets have no observer callbacks, so lv_deinit() deletes them
     // cleanly without firing stale unsubscribe callbacks on corrupted linked lists.
     StaticSubjectRegistry::instance().deinit_all();
+
+    // Deinitialize theme manager subjects (theme_changed_subject, swatch descriptions).
+    // These are file-scope statics not tracked by StaticSubjectRegistry.
+    theme_manager_deinit();
 
     // Destroy MoonrakerManager (releases its ObserverGuards and client).
     // Safe here: LVGL subjects are deinitialized but lv_deinit() hasn't run yet,
