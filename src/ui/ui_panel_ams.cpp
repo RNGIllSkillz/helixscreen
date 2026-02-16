@@ -119,6 +119,7 @@ static void ensure_ams_widgets_registered() {
     lv_xml_register_component_from_file("A:ui_xml/dryer_presets_modal.xml");
     // NOTE: Old AMS settings panels removed - Device Operations overlay is registered in
     // xml_registration.cpp
+    lv_xml_register_component_from_file("A:ui_xml/components/ams_unit_detail.xml");
     lv_xml_register_component_from_file("A:ui_xml/ams_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml");
     lv_xml_register_component_from_file("A:ui_xml/ams_slot_edit_popup.xml");
