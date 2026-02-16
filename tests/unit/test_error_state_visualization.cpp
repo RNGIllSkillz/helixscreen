@@ -478,6 +478,63 @@ TEST_CASE("AFC buffer health: fault_detection_enabled false suppresses fault war
     REQUIRE_FALSE(helper.get_slot(0)->error.has_value());
 }
 
+TEST_CASE("AFC buffer health: fault warning cleared when buffer recovers",
+          "[ams][afc][buffer_health]") {
+    AfcErrorStateHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+    helper.set_buffer_names({"Turtle_1"});
+
+    // First, create a fault condition
+    nlohmann::json fault_data;
+    fault_data["fault_detection_enabled"] = true;
+    fault_data["distance_to_fault"] = 5.0f;
+    fault_data["state"] = "Trailing";
+    fault_data["lanes"] = nlohmann::json::array({"lane1"});
+    helper.feed_afc_buffer("Turtle_1", fault_data);
+
+    REQUIRE(helper.get_slot(0)->error.has_value());
+    REQUIRE(helper.get_slot(0)->error->severity == SlotError::WARNING);
+
+    // Buffer recovers (distance_to_fault → 0)
+    nlohmann::json recovered_data;
+    recovered_data["fault_detection_enabled"] = true;
+    recovered_data["distance_to_fault"] = 0.0f;
+    recovered_data["state"] = "Advancing";
+    recovered_data["lanes"] = nlohmann::json::array({"lane1"});
+    helper.feed_afc_buffer("Turtle_1", recovered_data);
+
+    // WARNING should be cleared
+    REQUIRE_FALSE(helper.get_slot(0)->error.has_value());
+    // Buffer health still populated
+    REQUIRE(helper.get_slot(0)->buffer_health.has_value());
+    REQUIRE(helper.get_slot(0)->buffer_health->state == "Advancing");
+}
+
+TEST_CASE("AFC buffer health: recovery does not clear lane ERROR", "[ams][afc][buffer_health]") {
+    AfcErrorStateHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+    helper.set_buffer_names({"Turtle_1"});
+
+    // Set a lane-level ERROR on slot 0
+    auto* slot = helper.get_slot(0);
+    SlotError lane_err;
+    lane_err.message = "Lane error";
+    lane_err.severity = SlotError::ERROR;
+    slot->error = lane_err;
+
+    // Buffer recovers (would clear WARNING, but should NOT clear ERROR)
+    nlohmann::json recovered_data;
+    recovered_data["fault_detection_enabled"] = true;
+    recovered_data["distance_to_fault"] = 0.0f;
+    recovered_data["state"] = "Advancing";
+    recovered_data["lanes"] = nlohmann::json::array({"lane1"});
+    helper.feed_afc_buffer("Turtle_1", recovered_data);
+
+    // Lane ERROR should still be there (only WARNINGs get cleared by buffer recovery)
+    REQUIRE(helper.get_slot(0)->error.has_value());
+    REQUIRE(helper.get_slot(0)->error->severity == SlotError::ERROR);
+}
+
 // ============================================================================
 // Task 4: Happy Hare Backend — Slot Errors from System Error
 // ============================================================================

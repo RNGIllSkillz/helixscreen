@@ -295,6 +295,7 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
         // Clear error segment when recovering to idle
         if (prev_action == AmsAction::ERROR && system_info_.action == AmsAction::IDLE) {
             error_segment_ = PathSegment::NONE;
+            reason_for_pause_.clear();
 
             // Clear slot error on the previously errored slot
             if (errored_slot_ >= 0) {

@@ -978,8 +978,7 @@ void AmsBackendAfc::parse_afc_buffer(const std::string& buffer_name, const nlohm
             // Create WARNING SlotError when buffer fault is detected
             // (distance_to_fault > 0 AND fault detection is enabled)
             if (health.fault_detection_enabled && health.distance_to_fault > 0.0f) {
-                // Only set buffer fault warning if slot doesn't already have a higher-severity
-                // error
+                // Only set buffer fault warning if slot doesn't already have an error
                 if (!slot->error.has_value()) {
                     SlotError err;
                     err.message = fmt::format("Buffer {} fault approaching ({:.1f}mm)", buffer_name,
@@ -987,6 +986,14 @@ void AmsBackendAfc::parse_afc_buffer(const std::string& buffer_name, const nlohm
                     err.severity = SlotError::WARNING;
                     slot->error = err;
                     spdlog::debug("[AMS AFC] Buffer {} fault warning on lane {} (slot {})",
+                                  buffer_name, lane_name, it->second);
+                }
+            } else {
+                // Clear buffer fault warning when fault condition resolves
+                // Only clear WARNING-level errors from buffer faults, not lane errors
+                if (slot->error.has_value() && slot->error->severity == SlotError::WARNING) {
+                    slot->error.reset();
+                    spdlog::debug("[AMS AFC] Buffer {} fault warning cleared on lane {} (slot {})",
                                   buffer_name, lane_name, it->second);
                 }
             }
