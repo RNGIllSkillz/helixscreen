@@ -7,6 +7,7 @@
 
 #include "format_utils.h"
 #include "spdlog/spdlog.h"
+#include "static_subject_registry.h"
 
 #include <algorithm>
 
@@ -245,6 +246,11 @@ void WidthSensorManager::init_subjects() {
                               subjects_);
 
     subjects_initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticSubjectRegistry::instance().register_deinit(
+        "WidthSensorManager", []() { WidthSensorManager::instance().deinit_subjects(); });
+
     spdlog::trace("[WidthSensorManager] Subjects initialized");
 }
 

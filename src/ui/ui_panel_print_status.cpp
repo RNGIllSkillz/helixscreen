@@ -318,6 +318,10 @@ void PrintStatusPanel::init_subjects() {
                       initial_phase, prog);
     }
 
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticPanelRegistry::instance().register_destroy(
+        "PrintStatusPanelSubjects", []() { get_global_print_status_panel().deinit_subjects(); });
+
     spdlog::debug("[{}] Subjects initialized (20 subjects)", get_name());
 }
 

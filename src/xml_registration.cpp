@@ -24,6 +24,7 @@
 #include "ui_z_offset_indicator.h"
 
 #include "layout_manager.h"
+#include "static_subject_registry.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -154,6 +155,9 @@ void register_xml_components() {
     lv_subject_init_int(&s_noop_subject, 0);
     lv_xml_register_subject(nullptr, "", &s_noop_subject);
     s_noop_subject_initialized = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticSubjectRegistry::instance().register_deinit("XmlSubjects", helix::deinit_xml_subjects);
 
     // Register custom widgets (BEFORE components that use them)
     ui_gcode_viewer_register();

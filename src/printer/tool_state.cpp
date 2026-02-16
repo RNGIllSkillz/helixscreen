@@ -13,6 +13,7 @@
 
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
+#include "static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -39,6 +40,11 @@ void ToolState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(tools_version, 0, subjects_, register_xml);
 
     subjects_initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticSubjectRegistry::instance().register_deinit(
+        "ToolState", []() { ToolState::instance().deinit_subjects(); });
+
     spdlog::trace("[ToolState] Subjects initialized successfully");
 }
 

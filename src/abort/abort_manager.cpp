@@ -8,6 +8,7 @@
 #include "moonraker_api.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -51,6 +52,11 @@ void AbortManager::init_subjects() {
                               "abort_progress_message", subjects_);
 
     subjects_initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticPanelRegistry::instance().register_destroy(
+        "AbortManagerSubjects", []() { helix::AbortManager::instance().deinit_subjects(); });
+
     spdlog::debug("[AbortManager] Subjects initialized");
 
     // Create modal on lv_layer_top() after subjects are ready

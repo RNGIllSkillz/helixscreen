@@ -44,6 +44,10 @@ MoonrakerAPI::MoonrakerAPI(MoonrakerClient& client, PrinterState& state) : clien
 }
 
 MoonrakerAPI::~MoonrakerAPI() {
+    // Deinit LVGL subject before destruction to prevent dangling observer crashes
+    // (same pattern as StaticSubjectRegistry — observers must be disconnected before lv_deinit)
+    lv_subject_deinit(&build_volume_version_);
+
     // Signal shutdown and wait for HTTP threads with timeout
     // File downloads/uploads can have long timeouts (up to 1 hour in libhv),
     // so we use a timed join to avoid blocking shutdown indefinitely.

@@ -16,6 +16,7 @@
 #include "printer_state.h" // For KlippyState enum
 #include "settings_manager.h"
 #include "sound_manager.h"
+#include "static_subject_registry.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -795,6 +796,11 @@ void NavigationManager::init() {
         [](NavigationManager* mgr, int value) { mgr->handle_active_panel_change(value); });
 
     subjects_initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticSubjectRegistry::instance().register_deinit(
+        "NavigationManager", []() { NavigationManager::instance().deinit_subjects(); });
+
     spdlog::trace("[NavigationManager] Navigation subjects initialized successfully");
 }
 

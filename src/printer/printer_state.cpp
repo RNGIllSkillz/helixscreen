@@ -31,6 +31,7 @@
 #include "probe_sensor_manager.h"
 #include "runtime_config.h"
 #include "settings_manager.h"
+#include "static_subject_registry.h"
 #include "temperature_sensor_manager.h"
 #include "timelapse_state.h"
 #include "unit_conversions.h"
@@ -255,6 +256,11 @@ void PrinterState::init_subjects(bool register_xml) {
     // All component subjects handle their own XML registration in init_subjects(register_xml)
 
     subjects_initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticSubjectRegistry::instance().register_deinit("PrinterState",
+                                                      [this]() { deinit_subjects(); });
+
     spdlog::trace("[PrinterState] Subjects initialized and registered successfully");
 }
 

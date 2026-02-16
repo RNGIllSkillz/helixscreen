@@ -32,6 +32,7 @@
 #include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "runtime_config.h"
+#include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 #include "theme_manager.h"
 #include "wizard_config_paths.h"
@@ -221,6 +222,10 @@ void ui_wizard_init_subjects() {
     UI_MANAGED_SUBJECT_INT(wizard_show_skip, 0, "wizard_show_skip", wizard_subjects_);
 
     wizard_subjects_initialized = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticPanelRegistry::instance().register_destroy("WizardSubjects", ui_wizard_deinit_subjects);
+
     spdlog::debug("[Wizard] Subjects initialized ({} subjects registered)",
                   wizard_subjects_.count());
 }

@@ -6,6 +6,7 @@
 #include "moonraker_client.h"
 #include "observer_factory.h"
 #include "printer_state.h"
+#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -38,6 +39,11 @@ void PrinterStatusIcon::init_subjects() {
                            subjects_);
 
     subjects_initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticPanelRegistry::instance().register_destroy(
+        "PrinterStatusIconSubjects", []() { PrinterStatusIcon::instance().deinit_subjects(); });
+
     spdlog::trace("[PrinterStatusIcon] Subjects initialized and registered");
 }
 

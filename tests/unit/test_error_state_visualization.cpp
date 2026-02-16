@@ -247,6 +247,10 @@ class AfcErrorStateHelper : public AmsBackendAfc {
         return system_info_.get_slot_global(idx);
     }
 
+    SlotInfo* get_slot_mut(int idx) {
+        return system_info_.get_slot_global(idx);
+    }
+
     AmsSystemInfo& get_system_info_mut() {
         return system_info_;
     }
@@ -516,7 +520,7 @@ TEST_CASE("AFC buffer health: recovery does not clear lane ERROR", "[ams][afc][b
     helper.set_buffer_names({"Turtle_1"});
 
     // Set a lane-level ERROR on slot 0
-    auto* slot = helper.get_slot(0);
+    auto* slot = helper.get_slot_mut(0);
     SlotError lane_err;
     lane_err.message = "Lane error";
     lane_err.severity = SlotError::ERROR;

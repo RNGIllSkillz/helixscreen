@@ -10,6 +10,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "spdlog/spdlog.h"
+#include "static_subject_registry.h"
 
 #include <algorithm>
 
@@ -107,6 +108,11 @@ void FilamentSensorManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(sensor_count_, 0, "filament_sensor_count", subjects_);
 
     subjects_initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticSubjectRegistry::instance().register_deinit(
+        "FilamentSensorManager", []() { FilamentSensorManager::instance().deinit_subjects(); });
+
     spdlog::trace("[FilamentSensorManager] Subjects initialized");
 }
 

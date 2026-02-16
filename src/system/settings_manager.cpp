@@ -15,6 +15,7 @@
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "spdlog/spdlog.h"
+#include "static_subject_registry.h"
 #include "system/telemetry_manager.h"
 #include "system/update_checker.h"
 #include "theme_loader.h"
@@ -269,6 +270,11 @@ void SettingsManager::init_subjects() {
     spdlog::debug("[SettingsManager] telemetry_enabled: {}", telemetry_enabled);
 
     subjects_initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticSubjectRegistry::instance().register_deinit("SettingsManager",
+                                                      [this]() { deinit_subjects(); });
+
     spdlog::debug("[SettingsManager] Subjects initialized: dark_mode={}, theme={}, "
                   "dim={}s, sleep={}s, sounds={}, ui_sounds={}, "
                   "completion_alert_mode={}, scroll_throw={}, scroll_limit={}, animations={}",

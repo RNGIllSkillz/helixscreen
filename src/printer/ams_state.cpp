@@ -25,6 +25,7 @@
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "state/subject_macros.h"
+#include "static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -299,6 +300,10 @@ void AmsState::init_subjects(bool register_xml) {
         });
 
     initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticSubjectRegistry::instance().register_deinit(
+        "AmsState", []() { AmsState::instance().deinit_subjects(); });
 }
 
 void AmsState::deinit_subjects() {

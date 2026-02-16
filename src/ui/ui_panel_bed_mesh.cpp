@@ -30,6 +30,7 @@
 #include "observer_factory.h"
 #include "printer_detector.h"
 #include "settings_manager.h"
+#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -186,6 +187,10 @@ void BedMeshPanel::init_subjects() {
                                   "bed_mesh_probe_text", subjects_);
         UI_MANAGED_SUBJECT_STRING(bed_mesh_error_message_, error_message_buf_, "",
                                   "bed_mesh_error_message", subjects_);
+
+        // Self-register cleanup — ensures deinit runs before lv_deinit()
+        StaticPanelRegistry::instance().register_destroy(
+            "BedMeshPanelSubjects", []() { get_global_bed_mesh_panel().deinit_subjects(); });
 
         spdlog::debug("[{}] Subjects registered", get_name());
     });

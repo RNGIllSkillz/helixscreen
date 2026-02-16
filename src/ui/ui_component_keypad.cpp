@@ -18,6 +18,7 @@
 
 #include "lvgl/lvgl.h"
 #include "lvgl/src/xml/lv_xml.h"
+#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -62,6 +63,10 @@ void ui_keypad_init_subjects() {
                               subjects_);
 
     subjects_initialized = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticPanelRegistry::instance().register_destroy("KeypadSubjects", ui_keypad_deinit_subjects);
+
     spdlog::debug("[Keypad] Subjects initialized");
 }
 

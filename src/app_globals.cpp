@@ -20,6 +20,7 @@
 #include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "printer_state.h"
+#include "static_subject_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -113,6 +114,11 @@ lv_subject_t& get_notification_subject() {
 static bool g_subjects_initialized = false;
 
 void app_globals_init_subjects() {
+    if (g_subjects_initialized) {
+        spdlog::debug("[App Globals] Subjects already initialized, skipping");
+        return;
+    }
+
     // Initialize notification subject (stores NotificationData pointer)
     // Note: Not using UI_MANAGED_SUBJECT_POINTER because this subject is accessed
     // programmatically via get_notification_subject(), not through XML bindings
@@ -130,6 +136,10 @@ void app_globals_init_subjects() {
     ui_modal_init_subjects();
 
     g_subjects_initialized = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticSubjectRegistry::instance().register_deinit("AppGlobals", app_globals_deinit_subjects);
+
     spdlog::trace("[App Globals] Global subjects initialized");
 }
 

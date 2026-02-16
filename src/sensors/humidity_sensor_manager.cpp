@@ -7,6 +7,7 @@
 
 #include "format_utils.h"
 #include "spdlog/spdlog.h"
+#include "static_subject_registry.h"
 
 #include <algorithm>
 
@@ -261,6 +262,11 @@ void HumiditySensorManager::init_subjects() {
                               "chamber_humidity_text", subjects_);
 
     subjects_initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticSubjectRegistry::instance().register_deinit(
+        "HumiditySensorManager", []() { HumiditySensorManager::instance().deinit_subjects(); });
+
     spdlog::trace("[HumiditySensorManager] Subjects initialized");
 }
 

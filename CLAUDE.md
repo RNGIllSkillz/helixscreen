@@ -99,12 +99,27 @@ Use `ObserverGuard` for RAII cleanup. See `observer_factory.h` for `observe_int_
 
 **Observer safety:** `observe_int_sync` and `observe_string` **defer callbacks** via `ui_queue_update()` to prevent re-entrant observer destruction crashes (issue #82). Use `observe_int_immediate` / `observe_string_immediate` ONLY if you're certain the callback won't modify observer lifecycle (no reassignment, no widget destruction).
 
+**Subject shutdown safety (MANDATORY):** Any class that creates LVGL subjects MUST self-register its cleanup inside `init_subjects()`. This prevents shutdown crashes (observer removal on freed subjects during `lv_deinit`). See `static_subject_registry.h` for full docs.
+
+```cpp
+void MyState::init_subjects() {
+    if (subjects_initialized_) return;
+    // ... create subjects ...
+    subjects_initialized_ = true;
+    StaticSubjectRegistry::instance().register_deinit(
+        "MyState", []() { MyState::instance().deinit_subjects(); });
+}
+```
+
+**Never** register cleanup externally (e.g., in SubjectInitializer). Co-locating init+cleanup prevents forgotten registrations that cause shutdown crashes.
+
 ---
 
 ## Patterns
 
 | Pattern | Key Point |
 |---------|-----------|
+| **Subject self-registration** | **init_subjects() MUST self-register with StaticSubjectRegistry** (see below) |
 | Subject init order | Register components → init subjects → create XML |
 | Widget lookup | `lv_obj_find_by_name()` not `lv_obj_get_child()` |
 | Overlays | `ui_nav_push_overlay()`/`ui_nav_go_back()` |

@@ -225,6 +225,11 @@ void HomePanel::init_subjects() {
     update_filament_status_visibility();
 
     subjects_initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticPanelRegistry::instance().register_destroy(
+        "HomePanelSubjects", []() { get_global_home_panel().deinit_subjects(); });
+
     spdlog::debug("[{}] Registered subjects and event callbacks", get_name());
 
     // Set initial tip of the day

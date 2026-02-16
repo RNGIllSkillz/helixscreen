@@ -7,6 +7,7 @@
 #include "ui_utils.h"
 
 #include "settings_manager.h"
+#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -108,6 +109,11 @@ void NotificationManager::init_subjects() {
                            "notification_severity", subjects_);
 
     subjects_initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticPanelRegistry::instance().register_destroy(
+        "StatusBarSubjects", []() { NotificationManager::instance().deinit_subjects(); });
+
     spdlog::trace("[NotificationManager] Subjects initialized and registered");
 }
 

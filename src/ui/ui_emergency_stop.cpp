@@ -13,6 +13,7 @@
 #include "app_globals.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
+#include "static_panel_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -93,6 +94,11 @@ void EmergencyStopOverlay::init_subjects() {
     lv_xml_register_event_cb(nullptr, "firmware_restart_clicked", home_firmware_restart_clicked);
 
     subjects_initialized_ = true;
+
+    // Self-register cleanup — ensures deinit runs before lv_deinit()
+    StaticPanelRegistry::instance().register_destroy(
+        "EmergencyStopSubjects", []() { EmergencyStopOverlay::instance().deinit_subjects(); });
+
     spdlog::debug("[EmergencyStop] Subjects initialized");
 }
 
