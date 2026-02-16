@@ -892,7 +892,9 @@ void TempControlPanel::setup_nozzle_panel(lv_obj_t* panel, lv_obj_t* parent_scre
             self->rebuild_extruder_segments();
         });
 
-    // When active tool changes, auto-switch to that tool's extruder
+    // When active tool changes, auto-switch to that tool's extruder.
+    // observe_int_sync defers callbacks automatically (issue #82), so
+    // select_extruder()'s observer reassignment is safe from re-entrancy.
     auto& tool_state = helix::ToolState::instance();
     if (tool_state.tool_count() > 1) {
         active_tool_observer_ =
