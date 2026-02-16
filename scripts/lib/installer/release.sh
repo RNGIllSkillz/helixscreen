@@ -497,7 +497,7 @@ extract_release() {
         fi
 
         # Atomic swap: move old install to .old backup
-        if ! $SUDO mv "${INSTALL_DIR}" "${INSTALL_DIR}.old"; then
+        if ! $(file_sudo "${INSTALL_DIR}") mv "${INSTALL_DIR}" "${INSTALL_DIR}.old"; then
             log_error "Failed to backup existing installation."
             rm -rf "$extract_dir"
             exit 1
@@ -505,13 +505,13 @@ extract_release() {
     fi
 
     # Phase 5: Move new install into place
-    $SUDO mkdir -p "$(dirname "${INSTALL_DIR}")"
-    if ! $SUDO mv "${new_install}" "${INSTALL_DIR}"; then
+    $(file_sudo "$(dirname "${INSTALL_DIR}")") mkdir -p "$(dirname "${INSTALL_DIR}")"
+    if ! $(file_sudo "$(dirname "${INSTALL_DIR}")") mv "${new_install}" "${INSTALL_DIR}"; then
         log_error "Failed to install new release."
         # ROLLBACK: restore old installation
         if [ -d "${INSTALL_DIR}.old" ]; then
             log_warn "Rolling back to previous installation..."
-            if $SUDO mv "${INSTALL_DIR}.old" "${INSTALL_DIR}"; then
+            if $(file_sudo "${INSTALL_DIR}.old") mv "${INSTALL_DIR}.old" "${INSTALL_DIR}"; then
                 log_warn "Rollback complete. Previous installation restored."
             else
                 log_error "CRITICAL: Rollback failed! Previous install at ${INSTALL_DIR}.old"
@@ -524,8 +524,8 @@ extract_release() {
 
     # Phase 6: Restore config
     if [ -n "${BACKUP_CONFIG:-}" ] && [ -f "$BACKUP_CONFIG" ]; then
-        $SUDO mkdir -p "${INSTALL_DIR}/config"
-        $SUDO cp "$BACKUP_CONFIG" "${INSTALL_DIR}/config/helixconfig.json"
+        $(file_sudo "${INSTALL_DIR}") mkdir -p "${INSTALL_DIR}/config"
+        $(file_sudo "${INSTALL_DIR}/config") cp "$BACKUP_CONFIG" "${INSTALL_DIR}/config/helixconfig.json"
         log_info "Restored existing configuration to config/"
     fi
 
@@ -537,7 +537,7 @@ extract_release() {
 # Remove backup of previous installation (call after service starts successfully)
 cleanup_old_install() {
     if [ -d "${INSTALL_DIR}.old" ]; then
-        $SUDO rm -rf "${INSTALL_DIR}.old"
+        $(file_sudo "${INSTALL_DIR}.old") rm -rf "${INSTALL_DIR}.old"
         log_info "Cleaned up previous installation backup"
     fi
 }
