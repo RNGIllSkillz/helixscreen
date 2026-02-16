@@ -82,6 +82,7 @@ class AmsOverviewPanel : public PanelBase {
         lv_obj_t* name_label = nullptr;       // Unit name
         lv_obj_t* bars_container = nullptr;   // Mini status bars
         lv_obj_t* slot_count_label = nullptr; // "4 slots"
+        lv_obj_t* error_badge = nullptr;      // Error badge dot (top-right)
         int unit_index = -1;
     };
 

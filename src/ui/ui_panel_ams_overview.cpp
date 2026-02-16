@@ -89,6 +89,17 @@ static void set_slot_count_label(lv_obj_t* label, int slot_count) {
     lv_label_set_text(label, buf);
 }
 
+/// Get the worst error severity across all slots in a unit
+static SlotError::Severity get_worst_unit_severity(const AmsUnit& unit) {
+    SlotError::Severity worst = SlotError::INFO;
+    for (const auto& slot : unit.slots) {
+        if (slot.error.has_value() && slot.error->severity > worst) {
+            worst = slot.error->severity;
+        }
+    }
+    return worst;
+}
+
 // ============================================================================
 // XML Event Callback Wrappers
 // ============================================================================
@@ -349,6 +360,34 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info) {
         // Create the mini bars for this unit (dynamic — slot count varies)
         create_mini_bars(uc, unit, current_slot);
 
+        // Create error badge (top-right of card, initially hidden)
+        {
+            lv_obj_t* badge = lv_obj_create(uc.card);
+            lv_obj_set_size(badge, 12, 12);
+            lv_obj_set_style_radius(badge, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(badge, LV_OPA_COVER, LV_PART_MAIN);
+            lv_obj_set_style_border_width(badge, 0, LV_PART_MAIN);
+            lv_obj_set_align(badge, LV_ALIGN_TOP_RIGHT);
+            lv_obj_set_style_translate_x(badge, -4, LV_PART_MAIN);
+            lv_obj_set_style_translate_y(badge, 4, LV_PART_MAIN);
+            lv_obj_remove_flag(badge, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_add_flag(badge, LV_OBJ_FLAG_EVENT_BUBBLE);
+            lv_obj_add_flag(badge, LV_OBJ_FLAG_IGNORE_LAYOUT);
+            uc.error_badge = badge;
+
+            // Show/hide based on unit error state
+            if (unit.has_any_error()) {
+                auto worst = get_worst_unit_severity(unit);
+                lv_color_t badge_color = (worst >= SlotError::ERROR)
+                                             ? theme_manager_get_color("danger")
+                                             : theme_manager_get_color("warning");
+                lv_obj_set_style_bg_color(badge, badge_color, LV_PART_MAIN);
+                lv_obj_remove_flag(badge, LV_OBJ_FLAG_HIDDEN);
+            } else {
+                lv_obj_add_flag(badge, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
+
         unit_cards_.push_back(uc);
     }
 
@@ -374,6 +413,20 @@ void AmsOverviewPanel::update_unit_card(UnitCard& card, const AmsUnit& unit, int
 
     // Update slot count
     set_slot_count_label(card.slot_count_label, unit.slot_count);
+
+    // Update error badge visibility and color
+    if (card.error_badge) {
+        if (unit.has_any_error()) {
+            auto worst = get_worst_unit_severity(unit);
+            lv_color_t badge_color = (worst >= SlotError::ERROR)
+                                         ? theme_manager_get_color("danger")
+                                         : theme_manager_get_color("warning");
+            lv_obj_set_style_bg_color(card.error_badge, badge_color, LV_PART_MAIN);
+            lv_obj_remove_flag(card.error_badge, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(card.error_badge, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
 }
 
 void AmsOverviewPanel::create_mini_bars(UnitCard& card, const AmsUnit& unit, int current_slot) {
@@ -405,7 +458,7 @@ void AmsOverviewPanel::create_mini_bars(UnitCard& card, const AmsUnit& unit, int
         bool is_present =
             (slot.status == SlotStatus::AVAILABLE || slot.status == SlotStatus::LOADED ||
              slot.status == SlotStatus::FROM_BUFFER);
-        bool has_error = (slot.status == SlotStatus::BLOCKED);
+        bool has_error = (slot.status == SlotStatus::BLOCKED || slot.error.has_value());
 
         // Slot column container (bar + status line)
         lv_obj_t* slot_col = lv_obj_create(card.bars_container);
@@ -471,7 +524,12 @@ void AmsOverviewPanel::create_mini_bars(UnitCard& card, const AmsUnit& unit, int
         lv_obj_set_style_radius(status_line, MINI_BAR_RADIUS_PX / 2, LV_PART_MAIN);
 
         if (has_error) {
-            lv_obj_set_style_bg_color(status_line, theme_manager_get_color("danger"), LV_PART_MAIN);
+            // Use severity-appropriate color: red for ERROR, amber for WARNING
+            lv_color_t error_color = theme_manager_get_color("danger");
+            if (slot.error.has_value() && slot.error->severity == SlotError::WARNING) {
+                error_color = theme_manager_get_color("warning");
+            }
+            lv_obj_set_style_bg_color(status_line, error_color, LV_PART_MAIN);
             lv_obj_set_style_bg_opa(status_line, LV_OPA_COVER, LV_PART_MAIN);
         } else if (is_loaded) {
             lv_obj_set_style_bg_color(status_line, theme_manager_get_color("success"),
