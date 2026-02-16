@@ -1085,7 +1085,10 @@ void AmsBackendAfc::detect_afc_version() {
             afc_version_ = "unknown";
             system_info_.version = "unknown";
             // Don't query lane_data - we'll rely on discovered lanes from capabilities
-        });
+        },
+        0,   // default timeout
+        true // silent — probe only, don't show toast or log at error level
+    );
 }
 
 bool AmsBackendAfc::version_at_least(const std::string& required) const {
