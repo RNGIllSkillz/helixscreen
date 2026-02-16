@@ -38,6 +38,23 @@ struct ConfigStructure {
 class KlipperConfigEditor {
   public:
     ConfigStructure parse_structure(const std::string& content) const;
+
+    /// Set a value for an existing key within a file's content
+    /// Returns modified content, or std::nullopt if key not found
+    std::optional<std::string> set_value(const std::string& content, const std::string& section,
+                                         const std::string& key,
+                                         const std::string& new_value) const;
+
+    /// Add a new key to an existing section
+    /// Returns modified content, or std::nullopt if section not found
+    std::optional<std::string> add_key(const std::string& content, const std::string& section,
+                                       const std::string& key, const std::string& value,
+                                       const std::string& delimiter = ": ") const;
+
+    /// Comment out a key (prefix with #) — safer than deleting
+    /// Returns modified content, or std::nullopt if key not found
+    std::optional<std::string> remove_key(const std::string& content, const std::string& section,
+                                          const std::string& key) const;
 };
 
 } // namespace helix::system

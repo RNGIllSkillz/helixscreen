@@ -182,4 +182,131 @@ ConfigStructure KlipperConfigEditor::parse_structure(const std::string& content)
     return result;
 }
 
+namespace {
+
+// Split content into lines, preserving the ability to rejoin with \n
+std::vector<std::string> split_lines(const std::string& content) {
+    std::vector<std::string> lines;
+    std::istringstream stream(content);
+    std::string line;
+    while (std::getline(stream, line)) {
+        lines.push_back(line);
+    }
+    return lines;
+}
+
+// Rejoin lines with \n, adding trailing newline if original had one
+std::string join_lines(const std::vector<std::string>& lines, bool trailing_newline) {
+    std::string result;
+    for (size_t i = 0; i < lines.size(); ++i) {
+        result += lines[i];
+        if (i + 1 < lines.size() || trailing_newline) {
+            result += '\n';
+        }
+    }
+    return result;
+}
+
+} // namespace
+
+std::optional<std::string> KlipperConfigEditor::set_value(const std::string& content,
+                                                          const std::string& section,
+                                                          const std::string& key,
+                                                          const std::string& new_value) const {
+    auto structure = parse_structure(content);
+    auto found = structure.find_key(section, key);
+    if (!found.has_value())
+        return std::nullopt;
+
+    auto lines = split_lines(content);
+    int target = found->line_number;
+    if (target < 0 || target >= static_cast<int>(lines.size()))
+        return std::nullopt;
+
+    const auto& raw_line = lines[target];
+
+    // Find the delimiter position in the raw line (first : or =)
+    size_t delim_pos = std::string::npos;
+    size_t colon_pos = raw_line.find(':');
+    size_t equals_pos = raw_line.find('=');
+    if (colon_pos != std::string::npos && equals_pos != std::string::npos)
+        delim_pos = std::min(colon_pos, equals_pos);
+    else if (colon_pos != std::string::npos)
+        delim_pos = colon_pos;
+    else if (equals_pos != std::string::npos)
+        delim_pos = equals_pos;
+
+    if (delim_pos == std::string::npos)
+        return std::nullopt;
+
+    // Preserve everything up to and including the delimiter plus any whitespace after it
+    size_t value_start = delim_pos + 1;
+    // Preserve the spacing between delimiter and value
+    while (value_start < raw_line.size() &&
+           (raw_line[value_start] == ' ' || raw_line[value_start] == '\t')) {
+        ++value_start;
+    }
+
+    // Reconstruct: key + delimiter + spacing + new_value
+    std::string prefix = raw_line.substr(0, delim_pos + 1);
+    // Restore the original spacing between delimiter and old value
+    std::string spacing = raw_line.substr(delim_pos + 1, value_start - (delim_pos + 1));
+    lines[target] = prefix + spacing + new_value;
+
+    bool trailing = !content.empty() && content.back() == '\n';
+    return join_lines(lines, trailing);
+}
+
+std::optional<std::string> KlipperConfigEditor::add_key(const std::string& content,
+                                                        const std::string& section,
+                                                        const std::string& key,
+                                                        const std::string& value,
+                                                        const std::string& delimiter) const {
+    auto structure = parse_structure(content);
+    auto sec_it = structure.sections.find(section);
+    if (sec_it == structure.sections.end())
+        return std::nullopt;
+
+    auto lines = split_lines(content);
+    const auto& sec = sec_it->second;
+
+    // Find insert position: after the last key line, or after section header if no keys
+    int insert_after = sec.line_start;
+    if (!sec.keys.empty()) {
+        // Use the end_line of the last key (handles multi-line values)
+        for (const auto& k : sec.keys) {
+            if (k.end_line > insert_after)
+                insert_after = k.end_line;
+        }
+    }
+
+    // Insert the new line after insert_after
+    std::string new_line = key + delimiter + value;
+    lines.insert(lines.begin() + insert_after + 1, new_line);
+
+    bool trailing = !content.empty() && content.back() == '\n';
+    return join_lines(lines, trailing);
+}
+
+std::optional<std::string> KlipperConfigEditor::remove_key(const std::string& content,
+                                                           const std::string& section,
+                                                           const std::string& key) const {
+    auto structure = parse_structure(content);
+    auto found = structure.find_key(section, key);
+    if (!found.has_value())
+        return std::nullopt;
+
+    auto lines = split_lines(content);
+    int start = found->line_number;
+    int end = found->end_line;
+
+    // Comment out the key line and any continuation lines
+    for (int i = start; i <= end && i < static_cast<int>(lines.size()); ++i) {
+        lines[i] = "#" + lines[i];
+    }
+
+    bool trailing = !content.empty() && content.back() == '\n';
+    return join_lines(lines, trailing);
+}
+
 } // namespace helix::system

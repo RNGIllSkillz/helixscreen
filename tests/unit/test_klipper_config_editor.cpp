@@ -118,3 +118,90 @@ TEST_CASE("KlipperConfigEditor - section parsing", "[config][parser]") {
         REQUIRE(printer.line_end < probe.line_start);
     }
 }
+
+TEST_CASE("KlipperConfigEditor - value editing", "[config][editor]") {
+    KlipperConfigEditor editor;
+
+    SECTION("set_value replaces existing value") {
+        std::string content = "[probe]\npin: PA1\nz_offset: 1.5\nsamples: 3\n";
+        auto result = editor.set_value(content, "probe", "samples", "5");
+        REQUIRE(result.has_value());
+        REQUIRE(result->find("samples: 5") != std::string::npos);
+        // Other values unchanged
+        REQUIRE(result->find("pin: PA1") != std::string::npos);
+        REQUIRE(result->find("z_offset: 1.5") != std::string::npos);
+    }
+
+    SECTION("set_value preserves delimiter style") {
+        std::string content = "[probe]\nz_offset = 1.5\n";
+        auto result = editor.set_value(content, "probe", "z_offset", "2.0");
+        REQUIRE(result.has_value());
+        REQUIRE(result->find("z_offset = 2.0") != std::string::npos);
+    }
+
+    SECTION("set_value preserves comments") {
+        std::string content = "[probe]\n# Important comment\nz_offset: 1.5\n";
+        auto result = editor.set_value(content, "probe", "z_offset", "2.0");
+        REQUIRE(result.has_value());
+        REQUIRE(result->find("# Important comment") != std::string::npos);
+    }
+
+    SECTION("set_value returns nullopt for missing key") {
+        std::string content = "[probe]\npin: PA1\n";
+        auto result = editor.set_value(content, "probe", "samples", "5");
+        REQUIRE_FALSE(result.has_value());
+    }
+
+    SECTION("set_value returns nullopt for missing section") {
+        std::string content = "[printer]\nkinematics: corexy\n";
+        auto result = editor.set_value(content, "probe", "pin", "PA1");
+        REQUIRE_FALSE(result.has_value());
+    }
+
+    SECTION("add_key adds to end of section") {
+        std::string content = "[probe]\npin: PA1\nz_offset: 1.5\n\n[printer]\nkinematics: corexy\n";
+        auto result = editor.add_key(content, "probe", "samples", "3");
+        REQUIRE(result.has_value());
+        REQUIRE(result->find("samples: 3") != std::string::npos);
+        // Should be in [probe] section, before [printer]
+        auto samples_pos = result->find("samples: 3");
+        auto printer_pos = result->find("[printer]");
+        REQUIRE(samples_pos < printer_pos);
+    }
+
+    SECTION("add_key returns nullopt for missing section") {
+        std::string content = "[printer]\nkinematics: corexy\n";
+        auto result = editor.add_key(content, "probe", "pin", "PA1");
+        REQUIRE_FALSE(result.has_value());
+    }
+
+    SECTION("add_key respects custom delimiter") {
+        std::string content = "[probe]\npin = PA1\n";
+        auto result = editor.add_key(content, "probe", "samples", "3", " = ");
+        REQUIRE(result.has_value());
+        REQUIRE(result->find("samples = 3") != std::string::npos);
+    }
+
+    SECTION("remove_key comments out the line") {
+        std::string content = "[probe]\npin: PA1\nsamples: 3\nz_offset: 1.5\n";
+        auto result = editor.remove_key(content, "probe", "samples");
+        REQUIRE(result.has_value());
+        REQUIRE(result->find("#samples: 3") != std::string::npos);
+        // Other keys untouched
+        REQUIRE(result->find("pin: PA1") != std::string::npos);
+        REQUIRE(result->find("z_offset: 1.5") != std::string::npos);
+    }
+
+    SECTION("remove_key returns nullopt for missing key") {
+        std::string content = "[probe]\npin: PA1\n";
+        auto result = editor.remove_key(content, "probe", "nonexistent");
+        REQUIRE_FALSE(result.has_value());
+    }
+
+    SECTION("set_value handles value with spaces") {
+        std::string content = "[probe]\nsamples_result: median\n";
+        auto result = editor.set_value(content, "probe", "samples_result", "average");
+        REQUIRE(result.has_value());
+        REQUIRE(result->find("samples_result: average") != std::string::npos);
+    }
+}
