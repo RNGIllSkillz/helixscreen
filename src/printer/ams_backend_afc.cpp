@@ -426,12 +426,12 @@ void AmsBackendAfc::handle_status_update(const nlohmann::json& notification) {
             state_changed = true;
         }
 
-        // Parse AFC_buffer objects for buffer state (informational only for now)
+        // Parse AFC_buffer objects for buffer health and fault data
         for (const auto& buf_name : buffer_names_) {
             std::string key = "AFC_buffer " + buf_name;
             if (params.contains(key) && params[key].is_object()) {
-                spdlog::trace("[AMS AFC] Buffer {} update received", buf_name);
-                // Don't set state_changed — no state is actually stored yet
+                parse_afc_buffer(buf_name, params[key]);
+                state_changed = true;
             }
         }
     }
@@ -498,11 +498,15 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data) {
                 msg_type = msg["type"].get<std::string>();
             }
 
+            // Track message type for per-lane error severity mapping
+            last_message_type_ = msg_type;
+
             // Handle message text changes for toast/notification dispatch
             if (msg_text.empty()) {
                 // Error cleared - reset dedup tracking
                 last_seen_message_.clear();
                 last_error_msg_.clear();
+                last_message_type_.clear();
             } else if (msg_text != last_seen_message_) {
                 // New or changed message - update dedup tracker
                 last_seen_message_ = msg_text;
@@ -819,6 +823,32 @@ void AmsBackendAfc::parse_afc_stepper(const std::string& lane_name, const nlohma
         slot->status = SlotStatus::AVAILABLE; // Default for other states like "Ready"
     }
 
+    // Populate or clear per-slot error based on lane status
+    if (status_str == "Error") {
+        SlotError err;
+        // Use system message text if available, otherwise default
+        if (!last_seen_message_.empty()) {
+            err.message = last_seen_message_;
+        } else {
+            err.message = "Lane error";
+        }
+        // Map severity from system message type
+        if (last_message_type_ == "error") {
+            err.severity = SlotError::ERROR;
+        } else if (last_message_type_ == "warning") {
+            err.severity = SlotError::WARNING;
+        } else {
+            err.severity = SlotError::ERROR; // Default to ERROR for lane errors
+        }
+        slot->error = err;
+        spdlog::debug("[AMS AFC] Lane {} (slot {}): error state - {}", lane_name, slot_index,
+                      err.message);
+    } else if (slot->error.has_value()) {
+        // Lane exited error state - clear the error
+        spdlog::debug("[AMS AFC] Lane {} (slot {}): error cleared", lane_name, slot_index);
+        slot->error.reset();
+    }
+
     spdlog::trace("[AMS AFC] Lane {} (slot {}): prep={} load={} hub={} status={}", lane_name,
                   slot_index, sensors.prep, sensors.load, sensors.loaded_to_hub,
                   slot_status_to_string(slot->status));
@@ -897,6 +927,70 @@ void AmsBackendAfc::parse_afc_hub(const std::string& hub_name, const nlohmann::j
     if (data.contains("afc_bowden_length") && data["afc_bowden_length"].is_number()) {
         bowden_length_ = data["afc_bowden_length"].get<float>();
         spdlog::trace("[AMS AFC] Hub bowden length: {}mm", bowden_length_);
+    }
+}
+
+void AmsBackendAfc::parse_afc_buffer(const std::string& buffer_name, const nlohmann::json& data) {
+    // Parse AFC_buffer object for buffer health and fault detection
+    // {
+    //   "fault_detection_enabled": true,
+    //   "distance_to_fault": 25.5,
+    //   "state": "Advancing",
+    //   "lanes": ["lane1", "lane2", "lane3", "lane4"]
+    // }
+
+    BufferHealth health;
+
+    if (data.contains("fault_detection_enabled") && data["fault_detection_enabled"].is_boolean()) {
+        health.fault_detection_enabled = data["fault_detection_enabled"].get<bool>();
+    }
+
+    if (data.contains("distance_to_fault") && data["distance_to_fault"].is_number()) {
+        health.distance_to_fault = data["distance_to_fault"].get<float>();
+    }
+
+    if (data.contains("state") && data["state"].is_string()) {
+        health.state = data["state"].get<std::string>();
+    }
+
+    spdlog::trace("[AMS AFC] Buffer {}: fault_detect={} dist={} state={}", buffer_name,
+                  health.fault_detection_enabled, health.distance_to_fault, health.state);
+
+    // Map buffer health to its lanes
+    if (data.contains("lanes") && data["lanes"].is_array()) {
+        for (const auto& lane_json : data["lanes"]) {
+            if (!lane_json.is_string()) {
+                continue;
+            }
+            std::string lane_name = lane_json.get<std::string>();
+            auto it = lane_name_to_index_.find(lane_name);
+            if (it == lane_name_to_index_.end()) {
+                continue;
+            }
+
+            SlotInfo* slot = system_info_.get_slot_global(it->second);
+            if (!slot) {
+                continue;
+            }
+
+            slot->buffer_health = health;
+
+            // Create WARNING SlotError when buffer fault is detected
+            // (distance_to_fault > 0 AND fault detection is enabled)
+            if (health.fault_detection_enabled && health.distance_to_fault > 0.0f) {
+                // Only set buffer fault warning if slot doesn't already have a higher-severity
+                // error
+                if (!slot->error.has_value()) {
+                    SlotError err;
+                    err.message = fmt::format("Buffer {} fault approaching ({:.1f}mm)", buffer_name,
+                                              health.distance_to_fault);
+                    err.severity = SlotError::WARNING;
+                    slot->error = err;
+                    spdlog::debug("[AMS AFC] Buffer {} fault warning on lane {} (slot {})",
+                                  buffer_name, lane_name, it->second);
+                }
+            }
+        }
     }
 }
 

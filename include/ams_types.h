@@ -5,9 +5,11 @@
 
 #include "filament_database.h"
 
+#include <algorithm>
 #include <any>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -503,6 +505,31 @@ inline PathSegment path_segment_from_afc_sensors(bool prep_sensor, bool hub_sens
 }
 
 /**
+ * @brief Per-slot error state
+ *
+ * Populated by backends when a slot/lane enters an error condition.
+ * AFC populates from per-lane status; Happy Hare maps system-level
+ * errors to the active gate.
+ */
+struct SlotError {
+    std::string message;                                     ///< Human-readable error description
+    enum Severity { INFO, WARNING, ERROR } severity = ERROR; ///< Error severity level
+};
+
+/**
+ * @brief Buffer health data for AFC buffer fault detection
+ *
+ * Populated from AFC_buffer status objects. Only applicable to AFC
+ * systems with TurtleNeck buffer hardware. Other backends leave
+ * buffer_health as nullopt on SlotInfo.
+ */
+struct BufferHealth {
+    bool fault_detection_enabled = false; ///< Whether buffer fault detection is active
+    float distance_to_fault = 0;          ///< Distance to fault in mm (0 = no fault proximity)
+    std::string state;                    ///< Buffer state (e.g., "Advancing", "Trailing")
+};
+
+/**
  * @brief Information about a single slot/lane
  *
  * This represents one filament slot in an AMS unit.
@@ -537,6 +564,10 @@ struct SlotInfo {
 
     // Endless spool support (Happy Hare)
     int endless_spool_group = -1; ///< Endless spool group (-1=not grouped)
+
+    // Error and health state
+    std::optional<SlotError> error;            ///< Per-slot error state (nullopt = no error)
+    std::optional<BufferHealth> buffer_health; ///< AFC buffer health (nullopt = no buffer data)
 
     /**
      * @brief Get remaining percentage
@@ -591,6 +622,15 @@ struct AmsUnit {
     // Hub/combiner sensor (AFC Box Turtle, Night Owl, etc.)
     bool has_hub_sensor = false;       ///< Unit has a hub/combiner sensor
     bool hub_sensor_triggered = false; ///< Filament detected at this unit's hub
+
+    /**
+     * @brief Check if any slot in this unit has an error
+     * @return true if at least one slot has error.has_value()
+     */
+    [[nodiscard]] bool has_any_error() const {
+        return std::any_of(slots.begin(), slots.end(),
+                           [](const SlotInfo& s) { return s.error.has_value(); });
+    }
 
     /**
      * @brief Get slot by local index (within this unit)

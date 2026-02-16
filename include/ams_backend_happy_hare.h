@@ -155,6 +155,7 @@ class AmsBackendHappyHare : public AmsBackend {
     friend class AmsBackendHappyHareTestHelper;
     friend class AmsBackendHappyHareEndlessSpoolHelper;
     friend class AmsBackendHHMultiUnitHelper;
+    friend class HappyHareErrorStateHelper;
 
   private:
     /**
@@ -240,4 +241,8 @@ class AmsBackendHappyHare : public AmsBackend {
     // Path visualization state
     int filament_pos_{0};                          ///< Happy Hare filament_pos value
     PathSegment error_segment_{PathSegment::NONE}; ///< Inferred error location
+
+    // Error state tracking
+    std::string reason_for_pause_; ///< Last reason_for_pause from MMU (descriptive error text)
+    int errored_slot_{-1};         ///< Slot that was in error state (-1 = none)
 };

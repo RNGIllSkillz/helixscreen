@@ -259,6 +259,7 @@ class AmsBackendAfc : public AmsBackend {
     friend class AmsBackendAfcMultiExtruderHelper;
     friend class AmsBackendAfcConfigHelper;
     friend class AfcErrorHandlingHelper;
+    friend class AfcErrorStateHelper;
 
   private:
     /**
@@ -342,6 +343,18 @@ class AmsBackendAfc : public AmsBackend {
     void parse_afc_hub(const std::string& hub_name, const nlohmann::json& data);
 
     /**
+     * @brief Parse AFC_buffer object for buffer health and fault data
+     *
+     * Extracts fault_detection_enabled, distance_to_fault, state, and lane mapping
+     * from the buffer status object. Populates buffer_health on mapped slots and
+     * creates WARNING-level SlotError when faults are detected.
+     *
+     * @param buffer_name Name of the buffer (e.g., "Turtle_1")
+     * @param data JSON object from AFC_buffer
+     */
+    void parse_afc_buffer(const std::string& buffer_name, const nlohmann::json& data);
+
+    /**
      * @brief Parse AFC_extruder object for toolhead sensor states
      *
      * @param data JSON object from AFC_extruder
@@ -417,8 +430,8 @@ class AmsBackendAfc : public AmsBackend {
      * @param error_prefix Toast prefix on error (shown as "prefix: error details")
      * @return AmsError indicating success or failure to queue command
      */
-    AmsError execute_gcode_notify(const std::string& gcode, const std::string& success_msg,
-                                  const std::string& error_prefix);
+    virtual AmsError execute_gcode_notify(const std::string& gcode, const std::string& success_msg,
+                                          const std::string& error_prefix);
 
     /**
      * @brief Check common preconditions before operations
@@ -492,7 +505,8 @@ class AmsBackendAfc : public AmsBackend {
     // when the AFC message field clears.
     std::string last_error_msg_;
     std::string last_seen_message_;
-    std::vector<std::string> hub_names_;    ///< Discovered hub names
+    std::string last_message_type_;      ///< Type of last system message ("error", "warning", etc.)
+    std::vector<std::string> hub_names_; ///< Discovered hub names
     std::vector<std::string> buffer_names_; ///< Discovered buffer names
     float bowden_length_{450.0f};           ///< Bowden tube length from hub (default 450mm)
 

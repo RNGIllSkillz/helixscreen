@@ -276,6 +276,12 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
         spdlog::trace("[AMS HappyHare] Filament loaded: {}", system_info_.filament_loaded);
     }
 
+    // Parse reason_for_pause: descriptive error message from Happy Hare
+    if (mmu_data.contains("reason_for_pause") && mmu_data["reason_for_pause"].is_string()) {
+        reason_for_pause_ = mmu_data["reason_for_pause"].get<std::string>();
+        spdlog::trace("[AMS HappyHare] Reason for pause: {}", reason_for_pause_);
+    }
+
     // Parse action: printer.mmu.action
     // Values: "Idle", "Loading", "Unloading", "Forming Tip", "Heating", "Checking", etc.
     if (mmu_data.contains("action") && mmu_data["action"].is_string()) {
@@ -289,10 +295,40 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
         // Clear error segment when recovering to idle
         if (prev_action == AmsAction::ERROR && system_info_.action == AmsAction::IDLE) {
             error_segment_ = PathSegment::NONE;
+
+            // Clear slot error on the previously errored slot
+            if (errored_slot_ >= 0) {
+                auto* slot = system_info_.get_slot_global(errored_slot_);
+                if (slot) {
+                    slot->error.reset();
+                    spdlog::debug("[AMS HappyHare] Cleared error on slot {}", errored_slot_);
+                }
+                errored_slot_ = -1;
+            }
         }
-        // Infer error segment on error state
+
+        // Set slot error when entering error state
         if (system_info_.action == AmsAction::ERROR && prev_action != AmsAction::ERROR) {
             error_segment_ = path_segment_from_happy_hare_pos(filament_pos_);
+
+            // Set error on current slot (if valid)
+            if (system_info_.current_slot >= 0) {
+                auto* slot = system_info_.get_slot_global(system_info_.current_slot);
+                if (slot) {
+                    SlotError err;
+                    // Use reason_for_pause if available; fall back to operation_detail
+                    if (!reason_for_pause_.empty()) {
+                        err.message = reason_for_pause_;
+                    } else {
+                        err.message = action_str;
+                    }
+                    err.severity = SlotError::ERROR;
+                    slot->error = err;
+                    errored_slot_ = system_info_.current_slot;
+                    spdlog::debug("[AMS HappyHare] Error on slot {}: {}", errored_slot_,
+                                  err.message);
+                }
+            }
         }
     }
 
