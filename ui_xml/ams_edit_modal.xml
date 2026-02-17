@@ -8,14 +8,14 @@
 <component>
   <consts>
     <px name="color_preview_size" value="100"/>
-    <px name="dropdown_width" value="140"/><!-- unused, kept for reference -->
+    <px name="dropdown_width" value="140"/>
+    <!-- unused, kept for reference -->
     <px name="left_column_width" value="120"/>
-    <px name="picker_list_height" value="280"/>
   </consts>
-  <!-- Dialog card - wider for horizontal layout -->
+  <!-- Dialog card - wider for horizontal layout, capped at 80% screen height -->
   <view name="ams_edit_modal"
-        extends="ui_dialog" width="420" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
+        extends="ui_dialog" width="100%" height="90%" style_max_width="460" align="center" flex_flow="column"
+        style_flex_main_place="start" style_pad_gap="0">
     <!-- Header with title and close button -->
     <lv_obj width="100%"
             height="content" style_pad_left="#space_lg" style_pad_right="#space_md" style_pad_top="#space_lg"
@@ -24,6 +24,13 @@
       <lv_obj height="content"
               style_pad_all="0" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
               scrollable="false">
+        <!-- Back arrow (picker view only) -->
+        <ui_button name="btn_picker_back"
+                   width="#icon_button_size" height="#icon_button_size" icon="arrow_left" variant="ghost"
+                   style_text_color="#text" focusable="false" hidden="true">
+          <bind_flag_if_not_eq subject="edit_modal_view" flag="hidden" ref_value="1"/>
+          <event_cb trigger="clicked" callback="ams_edit_manual_entry_cb"/>
+        </ui_button>
         <text_heading name="slot_indicator" text="Edit Slot 1" translation_tag="Edit Slot 1"/>
         <text_small name="spoolman_id_label" text="" hidden="true"/>
       </lv_obj>
@@ -38,7 +45,7 @@
     <!-- ============================================================ -->
     <!-- FORM VIEW: Manual editing (shown when edit_modal_view=0)     -->
     <!-- ============================================================ -->
-    <lv_obj name="form_view" width="100%" height="content" flex_flow="column" style_pad_gap="0" scrollable="false">
+    <lv_obj name="form_view" width="100%" flex_grow="1" flex_flow="column" style_pad_gap="0" scrollable="false">
       <bind_flag_if_not_eq subject="edit_modal_view" flag="hidden" ref_value="0"/>
       <!-- Content area - HORIZONTAL layout with side-by-side sections -->
       <lv_obj width="100%"
@@ -66,9 +73,9 @@
           <!-- Vendor + Material row (side by side) -->
           <lv_obj width="100%"
                   height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
-            <!-- Vendor dropdown (wider - vendor names are longer) -->
-            <lv_obj flex_grow="3"
-                    height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
+            <!-- Vendor dropdown -->
+            <lv_obj height="content"
+                    flex_grow="5" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
               <text_small text="Vendor" translation_tag="Vendor"/>
               <lv_dropdown name="vendor_dropdown"
                            width="100%" height="content" style_radius="#border_radius" style_border_width="0">
@@ -76,8 +83,8 @@
               </lv_dropdown>
             </lv_obj>
             <!-- Material dropdown -->
-            <lv_obj flex_grow="2"
-                    height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
+            <lv_obj height="content"
+                    flex_grow="3" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
               <text_small text="Material" translation_tag="Material"/>
               <lv_dropdown name="material_dropdown"
                            width="100%" height="content" style_radius="#border_radius" style_border_width="0">
@@ -166,12 +173,6 @@
               <event_cb trigger="clicked" callback="ams_edit_unlink_cb"/>
             </ui_button>
           </lv_obj>
-          <!-- Sync to Spoolman button (hidden if not linked) -->
-          <ui_button name="btn_sync_spoolman"
-                     width="100%" height="#button_height_sm" icon="refresh" text="Sync to Spoolman"
-                     translation_tag="Sync to Spoolman" variant="secondary" hidden="true">
-            <event_cb trigger="clicked" callback="ams_edit_sync_spoolman_cb"/>
-          </ui_button>
         </lv_obj>
       </lv_obj>
     </lv_obj>
@@ -180,9 +181,15 @@
     <!-- PICKER VIEW: Spoolman spool selection (edit_modal_view=1)    -->
     <!-- ============================================================ -->
     <lv_obj name="picker_view"
-            width="100%" height="content" flex_flow="column" style_pad_all="#space_md" style_pad_gap="#space_sm"
+            width="100%" flex_grow="1" flex_flow="column" style_pad_all="#space_md" style_pad_gap="#space_sm"
             scrollable="false" hidden="true">
       <bind_flag_if_not_eq subject="edit_modal_view" flag="hidden" ref_value="1"/>
+
+      <!-- Search filter -->
+      <text_input name="picker_search"
+                  width="100%" placeholder_text="Search spools..." placeholder_tag="Search spools...">
+        <event_cb trigger="value_changed" callback="ams_edit_picker_search_cb"/>
+      </text_input>
 
       <!-- Loading state -->
       <lv_obj name="picker_loading"
@@ -202,22 +209,16 @@
 
       <!-- Spool list (populated dynamically by C++) -->
       <lv_obj name="picker_spool_list"
-              width="100%" height="content" style_max_height="#picker_list_height" style_pad_all="0"
+              width="100%" flex_grow="1" style_pad_all="#space_xs" style_radius="#border_radius"
               style_pad_gap="#space_xs" flex_flow="column" style_flex_main_place="start" style_flex_cross_place="start"
-              scrollable="true" hidden="true">
+              style_bg_color="#card_bg" style_bg_opa="255" scrollable="true" hidden="true">
         <bind_flag_if_not_eq subject="edit_picker_state" flag="hidden" ref_value="2"/>
       </lv_obj>
 
-      <!-- Manual entry escape hatch -->
-      <ui_button name="btn_manual_entry"
-                 width="100%" height="#button_height_sm" text="Enter Manually" translation_tag="Enter Manually"
-                 variant="secondary">
-        <event_cb trigger="clicked" callback="ams_edit_manual_entry_cb"/>
-      </ui_button>
     </lv_obj>
 
     <!-- Action buttons -->
-    <modal_button_row secondary_text="Reset"
-                      secondary_callback="ams_edit_reset_cb" primary_text="Close" primary_callback="ams_edit_save_cb"/>
+    <modal_button_row secondary_text="Cancel"
+                      secondary_callback="ams_edit_reset_cb" primary_text="Save" primary_callback="ams_edit_save_cb"/>
   </view>
 </component>

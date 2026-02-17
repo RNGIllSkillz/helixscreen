@@ -166,14 +166,16 @@ class AmsEditModal : public Modal {
     void show_color_picker();
 
     // === View switching ===
-    void switch_to_picker();                  ///< Show picker view, populate spools
-    void switch_to_form();                    ///< Show form view
-    void populate_picker();                   ///< Async spool fetch and list population
-    void handle_spool_selected(int spool_id); ///< Auto-fill working_info_ from selected spool
-    void handle_manual_entry();               ///< Switch from picker to form
-    void handle_change_spool();               ///< Switch from form to picker
-    void handle_unlink();                     ///< Clear spoolman_id from working slot
-    void update_spoolman_button_state();      ///< Show/hide change/unlink buttons
+    void switch_to_picker();                           ///< Show picker view, populate spools
+    void switch_to_form();                             ///< Show form view
+    void populate_picker();                            ///< Async spool fetch and list population
+    void render_spool_list(const std::string& filter); ///< Render filtered spool items
+    void handle_spool_selected(int spool_id);    ///< Auto-fill working_info_ from selected spool
+    void handle_manual_entry();                  ///< Switch from picker to form
+    void handle_change_spool();                  ///< Switch from form to picker
+    void handle_unlink();                        ///< Clear spoolman_id from working slot
+    void handle_picker_search(const char* text); ///< Filter picker list by search text
+    void update_spoolman_button_state();         ///< Show/hide change/unlink buttons
 
     // === Save orchestration ===
     void fire_completion(bool saved); ///< Common exit path for save/cancel
@@ -187,7 +189,6 @@ class AmsEditModal : public Modal {
     void handle_remaining_edit();
     void handle_remaining_accept();
     void handle_remaining_cancel();
-    void handle_sync_spoolman();
     void handle_reset();
     void handle_save();
 
@@ -204,12 +205,12 @@ class AmsEditModal : public Modal {
     static void on_remaining_edit_cb(lv_event_t* e);
     static void on_remaining_accept_cb(lv_event_t* e);
     static void on_remaining_cancel_cb(lv_event_t* e);
-    static void on_sync_spoolman_cb(lv_event_t* e);
     static void on_reset_cb(lv_event_t* e);
     static void on_save_cb(lv_event_t* e);
     static void on_manual_entry_cb(lv_event_t* e);
     static void on_change_spool_cb(lv_event_t* e);
     static void on_unlink_cb(lv_event_t* e);
+    static void on_picker_search_cb(lv_event_t* e);
     static void on_spool_item_cb(lv_event_t* e);
 
     /**

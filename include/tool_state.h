@@ -8,6 +8,7 @@
 #include <functional>
 #include <lvgl.h>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -103,6 +104,10 @@ class ToolState {
 
     /// Clear spool assignment for a tool
     void clear_spool(int tool_index);
+
+    /// Get set of Spoolman spool IDs currently assigned to tools,
+    /// optionally excluding one tool index (e.g., the one being edited).
+    [[nodiscard]] std::set<int> assigned_spool_ids(int exclude_tool = -1) const;
 
     /// Load persisted spool assignments (Moonraker DB → local JSON → empty)
     void load_spool_assignments(MoonrakerAPI* api);

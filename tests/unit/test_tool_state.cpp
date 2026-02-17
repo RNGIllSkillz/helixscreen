@@ -944,3 +944,99 @@ TEST_CASE("ToolState: weight fields omitted from JSON when unknown", "[tool][too
 
     ts.deinit_subjects();
 }
+
+// ============================================================================
+// assigned_spool_ids tests
+// ============================================================================
+
+TEST_CASE("ToolState: assigned_spool_ids returns all assigned IDs", "[tool][tool-state][spool]") {
+    lv_init_safe();
+    auto& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+
+    PrinterDiscovery hw;
+    nlohmann::json objects =
+        nlohmann::json::array({"extruder", "extruder1", "extruder2", "heater_bed"});
+    hw.parse_objects(objects);
+    ts.init_tools(hw);
+    REQUIRE(ts.tool_count() == 3);
+
+    ts.assign_spool(0, 10, "Spool A");
+    ts.assign_spool(1, 20, "Spool B");
+    // T2 unassigned
+
+    auto ids = ts.assigned_spool_ids();
+    REQUIRE(ids.size() == 2);
+    REQUIRE(ids.count(10) == 1);
+    REQUIRE(ids.count(20) == 1);
+
+    ts.deinit_subjects();
+}
+
+TEST_CASE("ToolState: assigned_spool_ids excludes specified tool", "[tool][tool-state][spool]") {
+    lv_init_safe();
+    auto& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+
+    PrinterDiscovery hw;
+    nlohmann::json objects =
+        nlohmann::json::array({"extruder", "extruder1", "extruder2", "heater_bed"});
+    hw.parse_objects(objects);
+    ts.init_tools(hw);
+
+    ts.assign_spool(0, 10, "Spool A");
+    ts.assign_spool(1, 20, "Spool B");
+    ts.assign_spool(2, 30, "Spool C");
+
+    // Exclude tool 1 — should not include spool 20
+    auto ids = ts.assigned_spool_ids(1);
+    REQUIRE(ids.size() == 2);
+    REQUIRE(ids.count(10) == 1);
+    REQUIRE(ids.count(30) == 1);
+    REQUIRE(ids.count(20) == 0);
+
+    ts.deinit_subjects();
+}
+
+TEST_CASE("ToolState: assigned_spool_ids empty when no spools assigned",
+          "[tool][tool-state][spool]") {
+    lv_init_safe();
+    auto& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+
+    PrinterDiscovery hw;
+    nlohmann::json objects = nlohmann::json::array({"extruder", "heater_bed"});
+    hw.parse_objects(objects);
+    ts.init_tools(hw);
+
+    auto ids = ts.assigned_spool_ids();
+    REQUIRE(ids.empty());
+
+    ts.deinit_subjects();
+}
+
+TEST_CASE("ToolState: assigned_spool_ids skips cleared spools", "[tool][tool-state][spool]") {
+    lv_init_safe();
+    auto& ts = ToolState::instance();
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+
+    PrinterDiscovery hw;
+    nlohmann::json objects = nlohmann::json::array({"extruder", "extruder1", "heater_bed"});
+    hw.parse_objects(objects);
+    ts.init_tools(hw);
+
+    ts.assign_spool(0, 10, "Spool A");
+    ts.assign_spool(1, 20, "Spool B");
+    ts.clear_spool(0);
+
+    auto ids = ts.assigned_spool_ids();
+    REQUIRE(ids.size() == 1);
+    REQUIRE(ids.count(20) == 1);
+    REQUIRE(ids.count(10) == 0);
+
+    ts.deinit_subjects();
+}

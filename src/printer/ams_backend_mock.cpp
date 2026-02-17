@@ -23,17 +23,17 @@ struct MockFilament {
     const char* brand;
 };
 
-// Predefined sample filaments for visual testing
-// Covers common material types: PLA, PETG, ABS, ASA, PA, TPU, and CF/GF variants
+// Predefined sample filaments matching Spoolman mock spools 1-8 (moonraker_api_mock.cpp)
+// IMPORTANT: Keep in sync with MoonrakerAPIMock::init_mock_spools()
 constexpr MockFilament SAMPLE_FILAMENTS[] = {
-    {0xE53935, "Red", "PLA", "Polymaker"},      // Slot 0: Red PLA
-    {0x1E88E5, "Blue", "PETG", "eSUN"},         // Slot 1: Blue PETG
-    {0x43A047, "Green", "ABS", "Bambu"},        // Slot 2: Green ABS
-    {0xFDD835, "Yellow", "ASA", "Polymaker"},   // Slot 3: Yellow ASA
-    {0x424242, "Carbon", "PLA-CF", "Overture"}, // Slot 4: Carbon PLA-CF
-    {0x8E24AA, "Purple", "PA-CF", "Bambu"},     // Slot 5: Purple PA-CF (Nylon)
-    {0xFF6F00, "Orange", "TPU", "eSUN"},        // Slot 6: Orange TPU (Flexible)
-    {0x90CAF9, "Sky Blue", "PETG-GF", "Prusa"}, // Slot 7: PETG-GF (Glass Filled)
+    {0x1A1A2E, "Jet Black", "PLA", "Polymaker"},        // Spool #1
+    {0x26DCD9, "Silk Blue", "Silk PLA", "eSUN"},        // Spool #2
+    {0x00AEFF, "Pop Blue", "ASA", "Elegoo"},            // Spool #3
+    {0xD20000, "Fire Engine Red", "ABS", "Flashforge"}, // Spool #4
+    {0xF4E111, "Signal Yellow", "PETG", "Kingroon"},    // Spool #5
+    {0xE8E8E8, "Clear", "TPU", "Overture"},             // Spool #6
+    {0x8A949E, "Gray", "ASA", "Bambu Lab"},             // Spool #7
+    {0xA2AAAD, "Grey", "PC", "Polymaker"},              // Spool #8
 };
 constexpr int NUM_SAMPLE_FILAMENTS = sizeof(SAMPLE_FILAMENTS) / sizeof(SAMPLE_FILAMENTS[0]);
 
