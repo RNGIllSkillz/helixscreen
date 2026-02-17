@@ -158,6 +158,8 @@
 #include <mach-o/dyld.h>
 #endif
 
+using namespace helix;
+
 // External globals for logging (defined in cli_args.cpp, populated by parse_cli_args)
 extern std::string g_log_dest_cli;
 extern std::string g_log_file_cli;

@@ -22,6 +22,8 @@
 
 #include <spdlog/spdlog.h>
 
+using namespace helix;
+
 // Note: PanelOverlayAdapter was removed - PrintStatusPanel now inherits directly
 // from OverlayBase, eliminating the need for an adapter.
 

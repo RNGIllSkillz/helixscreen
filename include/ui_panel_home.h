@@ -16,7 +16,9 @@
 #include <vector>
 
 // Forward declarations
+namespace helix {
 class WiFiManager;
+}
 class EthernetManager;
 class TempControlPanel;
 enum class PrintJobState : int;
@@ -122,14 +124,14 @@ class HomePanel : public PanelBase {
     bool light_on_ = false;
     bool light_long_pressed_ = false; // Suppress click after long-press
     NetworkType current_network_ = NetworkType::Wifi;
-    PrintingTip current_tip_;
-    PrintingTip pending_tip_; // Tip waiting to be displayed after fade-out
+    helix::PrintingTip current_tip_;
+    helix::PrintingTip pending_tip_; // Tip waiting to be displayed after fade-out
     // configured_leds_ removed - read LedController::selected_strips() lazily
     lv_timer_t* tip_rotation_timer_ = nullptr;
     lv_obj_t* tip_label_ = nullptr;                     // Cached for fade animation
     bool tip_animating_ = false;                        // Prevents overlapping animations
     lv_timer_t* signal_poll_timer_ = nullptr;           // Polls WiFi signal strength every 5s
-    std::shared_ptr<WiFiManager> wifi_manager_;         // For signal strength queries
+    std::shared_ptr<helix::WiFiManager> wifi_manager_;  // For signal strength queries
     std::unique_ptr<EthernetManager> ethernet_manager_; // For Ethernet status queries
 
     // Light icon for dynamic brightness/color updates
@@ -140,7 +142,7 @@ class HomePanel : public PanelBase {
     lv_obj_t* led_control_panel_ = nullptr;
 
     void update_tip_of_day();
-    void start_tip_fade_transition(const PrintingTip& new_tip);
+    void start_tip_fade_transition(const helix::PrintingTip& new_tip);
     void apply_pending_tip();         // Called when fade-out completes
     void detect_network_type();       // Detects WiFi vs Ethernet vs disconnected
     int compute_network_icon_state(); // Maps network type + signal → 0-5

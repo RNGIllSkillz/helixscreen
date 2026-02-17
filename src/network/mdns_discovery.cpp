@@ -27,6 +27,8 @@
 #include <map>
 #include <thread>
 
+using namespace helix;
+
 namespace {
 
 // Query interval for mDNS discovery (re-query every 3 seconds)

@@ -26,7 +26,9 @@ class ActionPromptModal;
 class DisplayManager;
 class SubjectInitializer;
 class MoonrakerManager;
+namespace helix {
 class PanelFactory;
+}
 class PrintHistoryManager;
 class TemperatureHistoryManager;
 
@@ -110,7 +112,7 @@ class Application {
     std::unique_ptr<MoonrakerManager> m_moonraker;
     std::unique_ptr<PrintHistoryManager> m_history_manager;
     std::unique_ptr<TemperatureHistoryManager> m_temp_history_manager;
-    std::unique_ptr<PanelFactory> m_panels;
+    std::unique_ptr<helix::PanelFactory> m_panels;
     std::unique_ptr<helix::plugin::PluginManager> m_plugin_manager;
 
     // Action prompt system (Klipper action:prompt protocol)

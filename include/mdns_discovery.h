@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+namespace helix {
+
 /**
  * @brief Represents a discovered Moonraker printer on the local network
  */
@@ -132,3 +134,5 @@ class MdnsDiscovery : public IMdnsDiscovery {
     class Impl;
     std::unique_ptr<Impl> impl_;
 };
+
+} // namespace helix

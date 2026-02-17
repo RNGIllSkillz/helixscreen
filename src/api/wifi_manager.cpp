@@ -25,6 +25,8 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
+using namespace helix;
+
 // ============================================================================
 // Constructor / Destructor
 // ============================================================================
@@ -503,6 +505,8 @@ void WiFiManager::handle_auth_failed(const std::string& event_data) {
 static std::shared_ptr<WiFiManager> g_shared_wifi_manager;
 static std::mutex g_wifi_manager_mutex;
 
+namespace helix {
+
 std::shared_ptr<WiFiManager> get_wifi_manager() {
     std::lock_guard<std::mutex> lock(g_wifi_manager_mutex);
 
@@ -517,3 +521,5 @@ std::shared_ptr<WiFiManager> get_wifi_manager() {
 
     return g_shared_wifi_manager;
 }
+
+} // namespace helix

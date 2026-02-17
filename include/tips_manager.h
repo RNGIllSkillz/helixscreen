@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+namespace helix {
+
 /**
  * @brief Printing tip data structure
  *
@@ -197,3 +199,5 @@ class TipsManager {
      */
     static TipsManager* get_instance();
 };
+
+} // namespace helix

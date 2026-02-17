@@ -31,6 +31,8 @@
 #include <memory>
 #include <string>
 
+using namespace helix;
+
 // ============================================================================
 // External Subject (defined in ui_wizard.cpp)
 // ============================================================================

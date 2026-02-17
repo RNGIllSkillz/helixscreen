@@ -40,6 +40,8 @@
 #include <cstdlib>
 #include <vector>
 
+using namespace helix;
+
 MoonrakerManager::MoonrakerManager() : m_startup_time(std::chrono::steady_clock::now()) {}
 
 MoonrakerManager::~MoonrakerManager() {

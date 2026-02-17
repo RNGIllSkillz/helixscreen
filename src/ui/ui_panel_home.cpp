@@ -50,6 +50,8 @@
 #include <cstring>
 #include <memory>
 
+using namespace helix;
+
 // Signal polling interval (5 seconds)
 static constexpr uint32_t SIGNAL_POLL_INTERVAL_MS = 5000;
 
