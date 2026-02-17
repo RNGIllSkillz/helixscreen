@@ -1167,7 +1167,7 @@ void TempControlPanel::rebuild_extruder_segments() {
     // SAFETY: Defer the clean+rebuild. When called from the extruder button click
     // handler (select_extruder), the clicked button is a child of the selector being
     // cleaned. Destroying it mid-callback causes use-after-free (issue #80).
-    ui_queue_update([this]() { rebuild_extruder_segments_impl(); });
+    helix::ui::queue_update([this]() { rebuild_extruder_segments_impl(); });
 }
 
 void TempControlPanel::rebuild_extruder_segments_impl() {

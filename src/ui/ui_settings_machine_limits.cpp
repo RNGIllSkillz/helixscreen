@@ -191,7 +191,7 @@ void MachineLimitsOverlay::query_and_show(lv_obj_t* /*parent_screen*/) {
         api_->get_machine_limits(
             [this](const MachineLimits& limits) {
                 // Capture limits by value and defer to main thread for LVGL calls
-                ui_queue_update([this, limits]() {
+                helix::ui::queue_update([this, limits]() {
                     spdlog::info("[{}] Got machine limits: vel={}, accel={}, a2d={}, scv={}",
                                  get_name(), limits.max_velocity, limits.max_accel,
                                  limits.max_accel_to_decel, limits.square_corner_velocity);
@@ -233,7 +233,7 @@ void MachineLimitsOverlay::query_and_show(lv_obj_t* /*parent_screen*/) {
             },
             [this](const MoonrakerError& err) {
                 // Capture error by value and defer to main thread for LVGL calls
-                ui_queue_update([this, err]() {
+                helix::ui::queue_update([this, err]() {
                     spdlog::error("[{}] Failed to get machine limits: {}", get_name(), err.message);
                     ui_toast_show(ToastSeverity::ERROR, lv_tr("Failed to get limits"), 2000);
                 });
@@ -375,13 +375,13 @@ void MachineLimitsOverlay::apply_limits() {
         current_limits_,
         [this]() {
             // Defer to main thread for LVGL calls
-            ui_queue_update([this]() {
+            helix::ui::queue_update([this]() {
                 spdlog::debug("[{}] Machine limits applied successfully", get_name());
             });
         },
         [this](const MoonrakerError& err) {
             // Capture error by value and defer to main thread for LVGL calls
-            ui_queue_update([this, err]() {
+            helix::ui::queue_update([this, err]() {
                 spdlog::error("[{}] Failed to apply machine limits: {}", get_name(), err.message);
                 ui_toast_show(ToastSeverity::ERROR, lv_tr("Failed to apply limits"), 2000);
             });

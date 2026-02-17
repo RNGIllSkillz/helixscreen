@@ -807,7 +807,7 @@ void ControlsPanel::handle_save_z_offset() {
             : lv_tr("This will apply the Z-offset to your endstop and restart Klipper to save the "
                     "configuration. The printer will briefly disconnect.");
 
-    save_z_offset_confirmation_dialog_ = ui_modal_show_confirmation(
+    save_z_offset_confirmation_dialog_ = helix::ui::modal_show_confirmation(
         lv_tr("Save Z-Offset?"), confirm_msg, ModalSeverity::Warning, lv_tr("Save"),
         on_save_z_offset_confirm, on_save_z_offset_cancel, this);
 
@@ -1045,12 +1045,12 @@ void ControlsPanel::handle_home_all() {
         api_->home_axes(
             "XYZ",
             [this]() {
-                ui_async_call(
+                helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
             },
             [this](const MoonrakerError& err) {
-                ui_async_call(
+                helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
                 NOTIFY_ERROR("Homing failed: {}", err.user_message());
@@ -1070,12 +1070,12 @@ void ControlsPanel::handle_home_xy() {
         api_->home_axes(
             "XY",
             [this]() {
-                ui_async_call(
+                helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
             },
             [this](const MoonrakerError& err) {
-                ui_async_call(
+                helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
                 NOTIFY_ERROR("Homing failed: {}", err.user_message());
@@ -1095,12 +1095,12 @@ void ControlsPanel::handle_home_z() {
         api_->home_axes(
             "Z",
             [this]() {
-                ui_async_call(
+                helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
             },
             [this](const MoonrakerError& err) {
-                ui_async_call(
+                helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
                 NOTIFY_ERROR("Homing failed: {}", err.user_message());
@@ -1120,13 +1120,13 @@ void ControlsPanel::handle_qgl() {
         api_->execute_gcode(
             "QUAD_GANTRY_LEVEL",
             [this]() {
-                ui_async_call(
+                helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
                 NOTIFY_SUCCESS("Quad Gantry Level complete");
             },
             [this](const MoonrakerError& err) {
-                ui_async_call(
+                helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
                 NOTIFY_ERROR("QGL failed: {}", err.user_message());
@@ -1146,13 +1146,13 @@ void ControlsPanel::handle_z_tilt() {
         api_->execute_gcode(
             "Z_TILT_ADJUST",
             [this]() {
-                ui_async_call(
+                helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
                 NOTIFY_SUCCESS("Z-Tilt Adjust complete");
             },
             [this](const MoonrakerError& err) {
-                ui_async_call(
+                helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
                 NOTIFY_ERROR("Z-Tilt failed: {}", err.user_message());
@@ -1281,7 +1281,7 @@ void ControlsPanel::handle_flow_up() {
                 int flow;
             };
             auto ctx = std::make_unique<Ctx>(Ctx{this, new_flow});
-            ui_queue_update<Ctx>(std::move(ctx), [](Ctx* c) {
+            helix::ui::queue_update<Ctx>(std::move(ctx), [](Ctx* c) {
                 helix::fmt::format_percent(c->flow, c->panel->flow_override_buf_,
                                            sizeof(c->panel->flow_override_buf_));
                 lv_subject_copy_string(&c->panel->flow_override_subject_,
@@ -1315,7 +1315,7 @@ void ControlsPanel::handle_flow_down() {
                 int flow;
             };
             auto ctx = std::make_unique<Ctx>(Ctx{this, new_flow});
-            ui_queue_update<Ctx>(std::move(ctx), [](Ctx* c) {
+            helix::ui::queue_update<Ctx>(std::move(ctx), [](Ctx* c) {
                 helix::fmt::format_percent(c->flow, c->panel->flow_override_buf_,
                                            sizeof(c->panel->flow_override_buf_));
                 lv_subject_copy_string(&c->panel->flow_override_subject_,
@@ -1363,7 +1363,7 @@ void ControlsPanel::handle_motors_clicked() {
     spdlog::debug("[{}] Motors Disable card clicked - showing confirmation", get_name());
 
     // ModalGuard's operator= hides any previous dialog before assigning new one
-    motors_confirmation_dialog_ = ui_modal_show_confirmation(
+    motors_confirmation_dialog_ = helix::ui::modal_show_confirmation(
         lv_tr("Disable Motors?"), lv_tr("Release all stepper motors. Position will be lost."),
         ModalSeverity::Warning, lv_tr("Disable"), on_motors_confirm, on_motors_cancel, this);
 

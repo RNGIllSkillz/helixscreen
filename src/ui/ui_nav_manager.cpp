@@ -681,7 +681,7 @@ void NavigationManager::nav_button_clicked_cb(lv_event_t* event) {
 
         // Queue for REFR_START - guarantees we never modify widgets during render phase
         spdlog::trace("[NavigationManager] Queuing switch to panel {}", panel_id);
-        ui_queue_update(
+        helix::ui::queue_update(
             [panel_id]() { NavigationManager::instance().switch_to_panel_impl(panel_id); });
     }
 
@@ -1050,7 +1050,7 @@ void NavigationManager::push_overlay(lv_obj_t* overlay_panel, bool hide_previous
 
     // Always queue - this is the safest pattern for overlay operations
     // which can be triggered from various contexts (events, observers, etc.)
-    ui_queue_update([overlay_panel, hide_previous]() {
+    helix::ui::queue_update([overlay_panel, hide_previous]() {
         auto& mgr = NavigationManager::instance();
 
         // Check for duplicate push
@@ -1130,7 +1130,7 @@ void NavigationManager::push_overlay_zoom_from(lv_obj_t* overlay_panel, lv_area_
     }
 
     // Queue the push operation (same pattern as push_overlay)
-    ui_queue_update([overlay_panel, source_rect]() {
+    helix::ui::queue_update([overlay_panel, source_rect]() {
         auto& mgr = NavigationManager::instance();
 
         // Store source rect for reverse animation on go_back (must be on UI thread)
@@ -1225,7 +1225,7 @@ void NavigationManager::unregister_overlay_close_callback(lv_obj_t* overlay_pane
 }
 
 bool NavigationManager::go_back() {
-    ui_queue_update([]() {
+    helix::ui::queue_update([]() {
         auto& mgr = NavigationManager::instance();
         spdlog::trace("[NavigationManager] go_back executing, stack depth: {}",
                       mgr.panel_stack_.size());

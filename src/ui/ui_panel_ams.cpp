@@ -2146,7 +2146,7 @@ void destroy_ams_panel_ui() {
             g_ams_panel->clear_panel_reference();
         }
 
-        lv_obj_safe_delete(s_ams_panel_obj);
+        helix::ui::safe_delete(s_ams_panel_obj);
 
         // Note: Widget registrations remain (LVGL doesn't support unregistration)
         // Note: g_ams_panel C++ object stays for state preservation

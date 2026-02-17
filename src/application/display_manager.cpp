@@ -192,7 +192,7 @@ bool DisplayManager::init(const Config& config) {
 
     // Initialize UI update queue for thread-safe async updates
     // Must be done AFTER display is created - registers LV_EVENT_REFR_START handler
-    ui_update_queue_init();
+    helix::ui::update_queue_init();
 
 #ifdef HELIX_DISPLAY_SDL
     // Install event filter to intercept window close before LVGL sees it.
@@ -353,7 +353,7 @@ void DisplayManager::shutdown() {
     m_backend.reset();
 
     // Shutdown UI update queue before LVGL
-    ui_update_queue_shutdown();
+    helix::ui::update_queue_shutdown();
 
     // Quit SDL before LVGL deinit - must be called outside the SDL event handler.
 #ifdef HELIX_DISPLAY_SDL

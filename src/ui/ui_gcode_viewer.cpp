@@ -400,8 +400,8 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
         if (st->layer_renderer_2d_->needs_more_frames()) {
             // IMPORTANT: Cannot call lv_obj_invalidate() during draw callback!
             // LVGL asserts if we invalidate while rendering_in_progress is true.
-            // Use ui_async_call() to schedule invalidation after render completes.
-            ui_async_call(
+            // Use helix::ui::async_call() to schedule invalidation after render completes.
+            helix::ui::async_call(
                 [](void* user_data) {
                     lv_obj_t* widget = static_cast<lv_obj_t*>(user_data);
                     if (lv_obj_is_valid(widget)) {
@@ -413,7 +413,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
 
         // Update ghost build progress label (streaming mode)
         // IMPORTANT: Cannot create/delete/modify objects during draw callback!
-        // Use ui_queue_update() to defer all label operations to after render completes.
+        // Use helix::ui::queue_update() to defer all label operations to after render completes.
         if (st->layer_renderer_2d_->is_ghost_build_running()) {
             int percent =
                 static_cast<int>(st->layer_renderer_2d_->get_ghost_build_progress() * 100.0f);
@@ -423,36 +423,38 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
                 int percent;
             };
             auto update = std::make_unique<GhostProgressUpdate>(GhostProgressUpdate{obj, percent});
-            ui_queue_update<GhostProgressUpdate>(std::move(update), [](GhostProgressUpdate* u) {
-                if (!lv_obj_is_valid(u->viewer)) {
-                    return;
-                }
-                auto* state = static_cast<GCodeViewerState*>(lv_obj_get_user_data(u->viewer));
-                if (!state) {
-                    return;
-                }
-                // Create label if needed
-                if (!state->ghost_progress_label_) {
-                    state->ghost_progress_label_ = lv_label_create(u->viewer);
-                    lv_obj_set_style_text_color(state->ghost_progress_label_,
-                                                theme_manager_get_color("text_muted"),
-                                                LV_PART_MAIN);
-                    lv_obj_set_style_text_font(state->ghost_progress_label_,
-                                               theme_manager_get_font("font_small"), LV_PART_MAIN);
-                    lv_obj_align(state->ghost_progress_label_, LV_ALIGN_BOTTOM_LEFT, 8, -8);
-                }
-                static char text[32];
-                lv_snprintf(text, sizeof(text), "Building preview: %d%%", u->percent);
-                lv_label_set_text(state->ghost_progress_label_, text);
-            });
+            helix::ui::queue_update<GhostProgressUpdate>(
+                std::move(update), [](GhostProgressUpdate* u) {
+                    if (!lv_obj_is_valid(u->viewer)) {
+                        return;
+                    }
+                    auto* state = static_cast<GCodeViewerState*>(lv_obj_get_user_data(u->viewer));
+                    if (!state) {
+                        return;
+                    }
+                    // Create label if needed
+                    if (!state->ghost_progress_label_) {
+                        state->ghost_progress_label_ = lv_label_create(u->viewer);
+                        lv_obj_set_style_text_color(state->ghost_progress_label_,
+                                                    theme_manager_get_color("text_muted"),
+                                                    LV_PART_MAIN);
+                        lv_obj_set_style_text_font(state->ghost_progress_label_,
+                                                   theme_manager_get_font("font_small"),
+                                                   LV_PART_MAIN);
+                        lv_obj_align(state->ghost_progress_label_, LV_ALIGN_BOTTOM_LEFT, 8, -8);
+                    }
+                    static char text[32];
+                    lv_snprintf(text, sizeof(text), "Building preview: %d%%", u->percent);
+                    lv_label_set_text(state->ghost_progress_label_, text);
+                });
         } else if (st->ghost_progress_label_) {
             // Defer label deletion to after render
             lv_obj_t* label_to_delete = st->ghost_progress_label_;
             st->ghost_progress_label_ = nullptr; // Clear reference immediately
-            ui_async_call(
+            helix::ui::async_call(
                 [](void* user_data) {
                     lv_obj_t* widget = static_cast<lv_obj_t*>(user_data);
-                    lv_obj_safe_delete(widget);
+                    helix::ui::safe_delete(widget);
                 },
                 label_to_delete);
         }
@@ -827,7 +829,7 @@ lv_obj_t* ui_gcode_viewer_create(lv_obj_t* parent) {
     // Allocate state (C++ object) using RAII
     auto state_ptr = std::make_unique<gcode_viewer_state_t>();
     if (!state_ptr) {
-        lv_obj_safe_delete(obj);
+        helix::ui::safe_delete(obj);
         return nullptr;
     }
 
@@ -922,7 +924,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 
     // Clean up previous loading UI if it exists
     if (st->loading_container) {
-        lv_obj_safe_delete(st->loading_container);
+        helix::ui::safe_delete(st->loading_container);
         st->loading_container = nullptr;
     }
 
@@ -975,7 +977,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
             result->success = success;
             result->path = path_copy;
 
-            ui_queue_update<StreamingResult>(std::move(result), [obj](StreamingResult* r) {
+            helix::ui::queue_update<StreamingResult>(std::move(result), [obj](StreamingResult* r) {
                 gcode_viewer_state_t* st = get_state(obj);
                 if (!st) {
                     return; // Widget destroyed
@@ -983,7 +985,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 
                 // Clean up loading UI
                 if (st->loading_container) {
-                    lv_obj_safe_delete(st->loading_container);
+                    helix::ui::safe_delete(st->loading_container);
                     st->loading_spinner = nullptr;
                     st->loading_label = nullptr;
                 }
@@ -1232,7 +1234,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         }
 
         // PHASE 3: Marshal result back to UI thread (SAFE)
-        ui_queue_update<AsyncBuildResult>(std::move(result), [obj](AsyncBuildResult* r) {
+        helix::ui::queue_update<AsyncBuildResult>(std::move(result), [obj](AsyncBuildResult* r) {
             gcode_viewer_state_t* st = get_state(obj);
             if (!st) {
                 return; // Widget was destroyed
@@ -1240,7 +1242,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 
             // Clean up loading UI
             if (st->loading_container) {
-                lv_obj_safe_delete(st->loading_container);
+                helix::ui::safe_delete(st->loading_container);
                 st->loading_spinner = nullptr;
                 st->loading_label = nullptr;
             }

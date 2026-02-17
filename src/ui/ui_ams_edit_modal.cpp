@@ -291,8 +291,8 @@ void AmsEditModal::fetch_vendors_from_spoolman() {
             }
 
             // Marshal member writes to main thread
-            ui_queue_update([this, guard, vendors = std::move(vendors),
-                             options = std::move(options)]() mutable {
+            helix::ui::queue_update([this, guard, vendors = std::move(vendors),
+                                     options = std::move(options)]() mutable {
                 if (guard.expired()) {
                     return;
                 }
@@ -767,7 +767,7 @@ void AmsEditModal::handle_sync_spoolman() {
         spool_id, new_weight,
         [this, spool_id, guard]() {
             // Marshal to main thread — callback fires on WebSocket thread
-            ui_queue_update([this, spool_id, guard]() {
+            helix::ui::queue_update([this, spool_id, guard]() {
                 if (guard.expired()) {
                     spdlog::trace(
                         "[AmsEditModal] Spoolman sync callback ignored - modal destroyed");

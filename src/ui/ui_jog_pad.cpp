@@ -623,7 +623,7 @@ lv_obj_t* ui_jog_pad_create(lv_obj_t* parent) {
     // Allocate state using RAII helper
     auto state_ptr = lvgl_make_unique<jog_pad_state_t>();
     if (!state_ptr) {
-        lv_obj_safe_delete(obj);
+        helix::ui::safe_delete(obj);
         return nullptr;
     }
 

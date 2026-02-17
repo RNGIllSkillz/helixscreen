@@ -48,9 +48,9 @@ class ActivePrintMediaManagerTestFixture {
         // Initialize LVGL (safe version avoids "already initialized" warnings)
         lv_init_safe();
 
-        // Initialize update queue once (static guard) - CRITICAL for ui_queue_update()
+        // Initialize update queue once (static guard) - CRITICAL for helix::ui::queue_update()
         if (!queue_initialized) {
-            ui_update_queue_init();
+            helix::ui::update_queue_init();
             queue_initialized = true;
         }
 
@@ -84,7 +84,7 @@ class ActivePrintMediaManagerTestFixture {
         UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
         // Shutdown update queue - also clears any remaining pending callbacks
-        ui_update_queue_shutdown();
+        helix::ui::update_queue_shutdown();
         queue_initialized = false; // Reset static flag for next test
 
         // Reset after each test

@@ -98,19 +98,19 @@ NetworkSettingsOverlay::~NetworkSettingsOverlay() {
     ethernet_manager_.reset();
     network_tester_.reset();
 
-    // Modal dialogs: use ui_modal_hide() - NOT lv_obj_del()!
+    // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_del()!
     if (lv_is_initialized()) {
         if (hidden_network_modal_) {
-            ui_modal_hide(hidden_network_modal_);
+            helix::ui::modal_hide(hidden_network_modal_);
             hidden_network_modal_ = nullptr;
         }
         if (test_modal_) {
-            ui_modal_hide(test_modal_);
+            helix::ui::modal_hide(test_modal_);
             test_modal_ = nullptr;
             step_widget_ = nullptr;
         }
         if (password_modal_) {
-            ui_modal_hide(password_modal_);
+            helix::ui::modal_hide(password_modal_);
             password_modal_ = nullptr;
         }
     }
@@ -666,7 +666,7 @@ void NetworkSettingsOverlay::clear_network_list() {
         const char* name = lv_obj_get_name(child);
         if (name && strncmp(name, "network_item_", 13) == 0) {
             // Delete widget - DELETE event handler will automatically clean up user_data
-            lv_obj_safe_delete(child);
+            helix::ui::safe_delete(child);
         }
     }
 
@@ -835,7 +835,7 @@ void NetworkSettingsOverlay::handle_test_network_clicked() {
     // Reset test complete flag (disables close button)
     lv_subject_set_int(&test_complete_, 0);
 
-    test_modal_ = ui_modal_show("network_test_modal");
+    test_modal_ = helix::ui::modal_show("network_test_modal");
     if (!test_modal_) {
         spdlog::error("[NetworkSettingsOverlay] Failed to show network test modal");
         return;
@@ -845,7 +845,7 @@ void NetworkSettingsOverlay::handle_test_network_clicked() {
     lv_obj_t* step_container = lv_obj_find_by_name(test_modal_, "step_container");
     if (!step_container) {
         spdlog::error("[NetworkSettingsOverlay] step_container not found in modal");
-        ui_modal_hide(test_modal_);
+        helix::ui::modal_hide(test_modal_);
         test_modal_ = nullptr;
         return;
     }
@@ -861,7 +861,7 @@ void NetworkSettingsOverlay::handle_test_network_clicked() {
     step_widget_ = ui_step_progress_create(step_container, steps, 3, false, "network_test");
     if (!step_widget_) {
         spdlog::error("[NetworkSettingsOverlay] Failed to create step widget");
-        ui_modal_hide(test_modal_);
+        helix::ui::modal_hide(test_modal_);
         test_modal_ = nullptr;
         return;
     }
@@ -889,7 +889,7 @@ void NetworkSettingsOverlay::handle_test_network_clicked() {
 
             auto data = std::make_unique<CallbackData>(CallbackData{self, state, result});
 
-            ui_queue_update<CallbackData>(std::move(data), [](CallbackData* cb_data) {
+            helix::ui::queue_update<CallbackData>(std::move(data), [](CallbackData* cb_data) {
                 if (!cb_data->overlay->cleanup_called()) {
                     cb_data->overlay->update_test_state(cb_data->state, cb_data->result);
 
@@ -942,7 +942,7 @@ void NetworkSettingsOverlay::handle_add_other_clicked() {
 
     // Create modal if not already created
     if (!hidden_network_modal_) {
-        hidden_network_modal_ = ui_modal_show("hidden_network_modal");
+        hidden_network_modal_ = helix::ui::modal_show("hidden_network_modal");
         if (!hidden_network_modal_) {
             spdlog::error("[NetworkSettingsOverlay] Failed to show hidden network modal");
             return;
@@ -963,7 +963,7 @@ void NetworkSettingsOverlay::handle_network_test_close() {
 
     // Hide the modal
     if (test_modal_) {
-        ui_modal_hide(test_modal_);
+        helix::ui::modal_hide(test_modal_);
         test_modal_ = nullptr;
         step_widget_ = nullptr;
     }
@@ -976,7 +976,7 @@ void NetworkSettingsOverlay::handle_hidden_cancel_clicked() {
     spdlog::debug("[NetworkSettingsOverlay] Hidden network cancel clicked");
 
     if (hidden_network_modal_) {
-        ui_modal_hide(hidden_network_modal_);
+        helix::ui::modal_hide(hidden_network_modal_);
         hidden_network_modal_ = nullptr;
     }
 }
@@ -1164,7 +1164,7 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
     lv_subject_set_int(&wifi_connecting_, 0);
 
     // Show modal
-    password_modal_ = ui_modal_show("wifi_password_modal");
+    password_modal_ = helix::ui::modal_show("wifi_password_modal");
     if (!password_modal_) {
         spdlog::error("[NetworkSettingsOverlay] Failed to show password modal");
         return;
@@ -1174,7 +1174,7 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
     lv_obj_t* password_input = lv_obj_find_by_name(password_modal_, "password_input");
     if (password_input) {
         lv_textarea_set_text(password_input, "");
-        ui_modal_register_keyboard(password_modal_, password_input);
+        helix::ui::modal_register_keyboard(password_modal_, password_input);
 
         // Focus the input
         lv_group_t* group = lv_group_get_default();
@@ -1194,7 +1194,7 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
 
 void NetworkSettingsOverlay::hide_password_modal() {
     if (password_modal_) {
-        ui_modal_hide(password_modal_);
+        helix::ui::modal_hide(password_modal_);
         password_modal_ = nullptr;
     }
     lv_subject_set_int(&wifi_connecting_, 0);

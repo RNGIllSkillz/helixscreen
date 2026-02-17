@@ -748,7 +748,7 @@ void PrintStartCollector::save_prediction_entry() {
     }
 
     // Persist to config (must be on main thread)
-    ui_queue_update([entries]() {
+    helix::ui::queue_update([entries]() {
         auto* cfg = Config::get_instance();
         if (!cfg) {
             return;

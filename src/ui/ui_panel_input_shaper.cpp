@@ -428,14 +428,14 @@ void InputShaperPanel::on_activate() {
         auto alive = alive_;
         api_->get_input_shaper_config(
             [this, alive](const InputShaperConfig& config) {
-                ui_queue_update([this, alive, config]() {
+                helix::ui::queue_update([this, alive, config]() {
                     if (!alive->load())
                         return;
                     populate_current_config(config);
                 });
             },
             [this, alive](const MoonrakerError& err) {
-                ui_queue_update([this, alive, msg = err.message]() {
+                helix::ui::queue_update([this, alive, msg = err.message]() {
                     if (!alive->load())
                         return;
                     spdlog::debug("[InputShaper] Could not query config: {}", msg);
@@ -815,7 +815,7 @@ void InputShaperPanel::apply_y_after_x() {
             if (api_) {
                 api_->get_input_shaper_config(
                     [this, alive](const InputShaperConfig& config) {
-                        ui_queue_update([this, alive, config]() {
+                        helix::ui::queue_update([this, alive, config]() {
                             if (!alive->load())
                                 return;
                             populate_current_config(config);
@@ -1616,5 +1616,5 @@ void InputShaperPanel::handle_help_clicked() {
 
         "Lower vibration % is better. Lower smoothing preserves detail.";
 
-    ui_modal_show_alert("Input Shaper Help", help_message, ModalSeverity::Info, "Got It");
+    helix::ui::modal_show_alert("Input Shaper Help", help_message, ModalSeverity::Info, "Got It");
 }

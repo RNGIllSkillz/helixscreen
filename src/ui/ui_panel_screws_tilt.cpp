@@ -458,7 +458,7 @@ void ScrewsTiltPanel::populate_results(const std::vector<ScrewTiltResult>& resul
 void ScrewsTiltPanel::clear_results() {
     // Clear bed diagram indicators (dynamically positioned)
     for (auto* indicator : screw_indicators_) {
-        lv_obj_safe_delete(indicator);
+        helix::ui::safe_delete(indicator);
     }
     screw_indicators_.clear();
 

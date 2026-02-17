@@ -98,22 +98,22 @@ BedMeshPanel::~BedMeshPanel() {
     // CRITICAL: Check if LVGL is still initialized before calling LVGL functions.
     // During static destruction, LVGL may already be torn down.
     if (lv_is_initialized()) {
-        // Modal dialogs: use ui_modal_hide() - NOT lv_obj_del()!
+        // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_del()!
         // See docs/DEVELOPER_QUICK_REFERENCE.md "Modal Dialog Lifecycle"
         if (calibrate_modal_widget_) {
-            ui_modal_hide(calibrate_modal_widget_);
+            helix::ui::modal_hide(calibrate_modal_widget_);
             calibrate_modal_widget_ = nullptr;
         }
         if (rename_modal_widget_) {
-            ui_modal_hide(rename_modal_widget_);
+            helix::ui::modal_hide(rename_modal_widget_);
             rename_modal_widget_ = nullptr;
         }
         if (save_config_modal_widget_) {
-            ui_modal_hide(save_config_modal_widget_);
+            helix::ui::modal_hide(save_config_modal_widget_);
             save_config_modal_widget_ = nullptr;
         }
         if (delete_modal_widget_) {
-            ui_modal_hide(delete_modal_widget_);
+            helix::ui::modal_hide(delete_modal_widget_);
             delete_modal_widget_ = nullptr;
         }
     }
@@ -180,7 +180,7 @@ void BedMeshPanel::init_subjects() {
         UI_MANAGED_SUBJECT_INT(bed_mesh_calibrating_, 0, "bed_mesh_calibrating", subjects_);
         UI_MANAGED_SUBJECT_STRING(bed_mesh_rename_old_name_, rename_old_name_buf_, "",
                                   "bed_mesh_rename_old_name", subjects_);
-        // Note: All modals now use ui_modal_show() pattern instead of visibility subjects
+        // Note: All modals now use helix::ui::modal_show() pattern instead of visibility subjects
 
         // Calibration state machine subjects
         UI_MANAGED_SUBJECT_INT(bed_mesh_calibrate_state_, 0, "bed_mesh_calibrate_state", subjects_);
@@ -531,7 +531,7 @@ void BedMeshPanel::setup_moonraker_subscription() {
                 std::shared_ptr<std::atomic<bool>> alive;
             };
             auto ctx = std::make_unique<Ctx>(Ctx{this, api, alive});
-            ui_queue_update<Ctx>(std::move(ctx), [](Ctx* c) {
+            helix::ui::queue_update<Ctx>(std::move(ctx), [](Ctx* c) {
                 // Check again on main thread - panel could be destroyed between queue and exec
                 if (!c->alive->load()) {
                     return;
@@ -822,7 +822,7 @@ void BedMeshPanel::start_calibration() {
     lv_subject_copy_string(&bed_mesh_probe_text_, "Preparing...");
 
     // Show modal immediately
-    calibrate_modal_widget_ = ui_modal_show("bed_mesh_calibrate_modal");
+    calibrate_modal_widget_ = helix::ui::modal_show("bed_mesh_calibrate_modal");
     spdlog::debug("[BedMeshPanel] Starting calibration, modal shown");
 
     // Get API
@@ -848,7 +848,7 @@ void BedMeshPanel::start_calibration() {
                 int total;
             };
             auto ctx = std::make_unique<ProgressCtx>(ProgressCtx{this, current, total});
-            ui_queue_update<ProgressCtx>(std::move(ctx), [](ProgressCtx* c) {
+            helix::ui::queue_update<ProgressCtx>(std::move(ctx), [](ProgressCtx* c) {
                 c->panel->on_probe_progress(c->current, c->total);
             });
         },
@@ -856,7 +856,7 @@ void BedMeshPanel::start_calibration() {
         [this, alive]() {
             if (!alive->load())
                 return;
-            ui_async_call(
+            helix::ui::async_call(
                 [](void* data) { static_cast<BedMeshPanel*>(data)->on_calibration_complete(); },
                 this);
         },
@@ -869,7 +869,7 @@ void BedMeshPanel::start_calibration() {
                 std::string message;
             };
             auto ctx = std::make_unique<ErrorCtx>(ErrorCtx{this, err.message});
-            ui_queue_update<ErrorCtx>(
+            helix::ui::queue_update<ErrorCtx>(
                 std::move(ctx), [](ErrorCtx* c) { c->panel->on_calibration_error(c->message); });
         });
 }
@@ -881,7 +881,7 @@ void BedMeshPanel::start_calibration() {
 void BedMeshPanel::show_calibrate_modal() {
     lv_subject_set_int(&bed_mesh_calibrating_, 0);
 
-    calibrate_modal_widget_ = ui_modal_show("bed_mesh_calibrate_modal");
+    calibrate_modal_widget_ = helix::ui::modal_show("bed_mesh_calibrate_modal");
     spdlog::debug("[{}] Showing calibrate modal", get_name());
 }
 
@@ -889,7 +889,7 @@ void BedMeshPanel::show_rename_modal(const std::string& profile_name) {
     pending_rename_old_ = profile_name;
     lv_subject_copy_string(&bed_mesh_rename_old_name_, profile_name.c_str());
 
-    rename_modal_widget_ = ui_modal_show("bed_mesh_rename_modal");
+    rename_modal_widget_ = helix::ui::modal_show("bed_mesh_rename_modal");
     spdlog::debug("[{}] Showing rename modal for: {}", get_name(), profile_name);
 }
 
@@ -901,10 +901,10 @@ void BedMeshPanel::show_delete_confirm_modal(const std::string& profile_name) {
     snprintf(msg_buf, sizeof(msg_buf), "Delete profile '%s'? This action cannot be undone.",
              profile_name.c_str());
 
-    delete_modal_widget_ =
-        ui_modal_show_confirmation(lv_tr("Delete Profile?"), msg_buf, ModalSeverity::Warning,
-                                   lv_tr("Delete"), on_delete_confirm_cb, on_delete_cancel_cb,
-                                   nullptr); // Uses global panel reference
+    delete_modal_widget_ = helix::ui::modal_show_confirmation(
+        lv_tr("Delete Profile?"), msg_buf, ModalSeverity::Warning, lv_tr("Delete"),
+        on_delete_confirm_cb, on_delete_cancel_cb,
+        nullptr); // Uses global panel reference
 
     if (!delete_modal_widget_) {
         spdlog::error("[{}] Failed to create delete confirmation modal", get_name());
@@ -915,7 +915,7 @@ void BedMeshPanel::show_delete_confirm_modal(const std::string& profile_name) {
 }
 
 void BedMeshPanel::show_save_config_modal() {
-    save_config_modal_widget_ = ui_modal_show("bed_mesh_save_config_modal");
+    save_config_modal_widget_ = helix::ui::modal_show("bed_mesh_save_config_modal");
     spdlog::debug("[{}] Showing save config modal", get_name());
 }
 
@@ -929,19 +929,19 @@ void BedMeshPanel::hide_all_modals() {
 
     // Hide all modals (all use ui_modal_hide pattern now)
     if (calibrate_modal_widget_) {
-        ui_modal_hide(calibrate_modal_widget_);
+        helix::ui::modal_hide(calibrate_modal_widget_);
         calibrate_modal_widget_ = nullptr;
     }
     if (rename_modal_widget_) {
-        ui_modal_hide(rename_modal_widget_);
+        helix::ui::modal_hide(rename_modal_widget_);
         rename_modal_widget_ = nullptr;
     }
     if (save_config_modal_widget_) {
-        ui_modal_hide(save_config_modal_widget_);
+        helix::ui::modal_hide(save_config_modal_widget_);
         save_config_modal_widget_ = nullptr;
     }
     if (delete_modal_widget_) {
-        ui_modal_hide(delete_modal_widget_);
+        helix::ui::modal_hide(delete_modal_widget_);
         delete_modal_widget_ = nullptr;
     }
 }

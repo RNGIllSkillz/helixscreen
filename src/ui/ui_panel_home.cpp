@@ -634,8 +634,8 @@ void HomePanel::handle_tip_text_clicked() {
     spdlog::info("[{}] Tip text clicked - showing detail dialog", get_name());
 
     // Use alert helper which auto-handles OK button to close
-    ui_modal_show_alert(current_tip_.title.c_str(), current_tip_.content.c_str(),
-                        ModalSeverity::Info);
+    helix::ui::modal_show_alert(current_tip_.title.c_str(), current_tip_.content.c_str(),
+                                ModalSeverity::Info);
 }
 
 void HomePanel::handle_tip_rotation_timer() {
@@ -1190,7 +1190,7 @@ void HomePanel::on_print_thumbnail_path_changed(const char* path) {
     // Defer the image update to avoid LVGL assertion when called during render
     // (observer callbacks can fire during subject updates which may be mid-render)
     std::string path_copy = path ? path : "";
-    ui_async_call(
+    helix::ui::async_call(
         [](void* user_data) {
             auto* self = static_cast<HomePanel*>(user_data);
             // Guard against async callback firing after display destruction

@@ -148,7 +148,7 @@ void WidthSensorManager::update_from_status(const nlohmann::json& status) {
                 update_subjects();
             } else {
                 spdlog::debug("[WidthSensorManager] async_mode: deferring via ui_queue_update");
-                ui_queue_update(
+                helix::ui::queue_update(
                     [] { WidthSensorManager::instance().update_subjects_on_main_thread(); });
             }
         }

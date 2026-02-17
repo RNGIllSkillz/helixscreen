@@ -669,7 +669,7 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
 
     // Clear existing bar rows
     for (auto* row : filament_bar_rows_) {
-        lv_obj_safe_delete(row);
+        helix::ui::safe_delete(row);
     }
     filament_bar_rows_.clear();
 

@@ -112,7 +112,7 @@ FanDial::FanDial(FanDial&& other) noexcept
 FanDial& FanDial::operator=(FanDial&& other) noexcept {
     if (this != &other) {
         // Clean up current resources (child widgets are destroyed with root_)
-        lv_obj_safe_delete(root_);
+        helix::ui::safe_delete(root_);
 
         // Move resources
         root_ = other.root_;

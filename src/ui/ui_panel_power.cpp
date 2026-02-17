@@ -124,7 +124,7 @@ void PowerPanel::fetch_devices() {
 void PowerPanel::clear_device_list() {
     // Remove all device row widgets
     for (auto& row : device_rows_) {
-        lv_obj_safe_delete(row.container);
+        helix::ui::safe_delete(row.container);
     }
     device_rows_.clear();
 }
@@ -188,7 +188,7 @@ void PowerPanel::create_device_row(const PowerDevice& device) {
     lv_obj_t* toggle = lv_obj_find_by_name(row, "device_toggle");
     if (!toggle) {
         spdlog::error("[{}] device_toggle not found in row", get_name());
-        lv_obj_safe_delete(row);
+        helix::ui::safe_delete(row);
         return;
     }
 

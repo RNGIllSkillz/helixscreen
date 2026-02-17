@@ -456,7 +456,7 @@ class PrinterState {
      *
      * Updates the print_in_progress_ subject so UI observers can react.
      *
-     * Thread-safe: Uses ui_queue_update() to defer LVGL subject updates
+     * Thread-safe: Uses helix::ui::queue_update() to defer LVGL subject updates
      * to the main thread. Can be safely called from WebSocket callbacks.
      */
     void set_print_in_progress(bool in_progress);
