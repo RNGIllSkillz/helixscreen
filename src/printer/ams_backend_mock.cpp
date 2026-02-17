@@ -23,17 +23,17 @@ struct MockFilament {
     const char* brand;
 };
 
-// Predefined sample filaments for visual testing
-// Covers common material types: PLA, PETG, ABS, ASA, PA, TPU, and CF/GF variants
+// Predefined sample filaments matching Spoolman mock spools 1-8 (moonraker_api_mock.cpp)
+// IMPORTANT: Keep in sync with MoonrakerAPIMock::init_mock_spools()
 constexpr MockFilament SAMPLE_FILAMENTS[] = {
-    {0xE53935, "Red", "PLA", "Polymaker"},      // Slot 0: Red PLA
-    {0x1E88E5, "Blue", "PETG", "eSUN"},         // Slot 1: Blue PETG
-    {0x43A047, "Green", "ABS", "Bambu"},        // Slot 2: Green ABS
-    {0xFDD835, "Yellow", "ASA", "Polymaker"},   // Slot 3: Yellow ASA
-    {0x424242, "Carbon", "PLA-CF", "Overture"}, // Slot 4: Carbon PLA-CF
-    {0x8E24AA, "Purple", "PA-CF", "Bambu"},     // Slot 5: Purple PA-CF (Nylon)
-    {0xFF6F00, "Orange", "TPU", "eSUN"},        // Slot 6: Orange TPU (Flexible)
-    {0x90CAF9, "Sky Blue", "PETG-GF", "Prusa"}, // Slot 7: PETG-GF (Glass Filled)
+    {0x1A1A2E, "Jet Black", "PLA", "Polymaker"},        // Spool #1
+    {0x26DCD9, "Silk Blue", "Silk PLA", "eSUN"},        // Spool #2
+    {0x00AEFF, "Pop Blue", "ASA", "Elegoo"},            // Spool #3
+    {0xD20000, "Fire Engine Red", "ABS", "Flashforge"}, // Spool #4
+    {0xF4E111, "Signal Yellow", "PETG", "Kingroon"},    // Spool #5
+    {0xE8E8E8, "Clear", "TPU", "Overture"},             // Spool #6
+    {0x8A949E, "Gray", "ASA", "Bambu Lab"},             // Spool #7
+    {0xA2AAAD, "Grey", "PC", "Polymaker"},              // Spool #8
 };
 constexpr int NUM_SAMPLE_FILAMENTS = sizeof(SAMPLE_FILAMENTS) / sizeof(SAMPLE_FILAMENTS[0]);
 
@@ -1095,10 +1095,13 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
             slot.slot_index = 0;
             slot.global_index = 0;
             slot.material = "ASA";
+            slot.brand = "Bambu Lab";
             slot.color_rgb = 0x000000;
             slot.color_name = "Black";
             slot.status = SlotStatus::LOADED;
             slot.mapped_tool = 0;
+            slot.spoolman_id = 1;
+            slot.spool_name = "Black ASA";
             slot.total_weight_g = 1000.0f;
             slot.remaining_weight_g = 750.0f;
             auto mat_info = filament::find_material("ASA");
@@ -1110,16 +1113,19 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
             unit.slots.push_back(slot);
         }
 
-        // Lane 2: PLA, loaded
+        // Lane 2: PLA, available
         {
             SlotInfo slot;
             slot.slot_index = 1;
             slot.global_index = 1;
             slot.material = "PLA";
+            slot.brand = "Polymaker";
             slot.color_rgb = 0xFF0000;
             slot.color_name = "Red";
             slot.status = SlotStatus::AVAILABLE;
             slot.mapped_tool = 1;
+            slot.spoolman_id = 2;
+            slot.spool_name = "Red PLA";
             slot.total_weight_g = 1000.0f;
             slot.remaining_weight_g = 900.0f;
             auto mat_info = filament::find_material("PLA");
@@ -1131,16 +1137,19 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
             unit.slots.push_back(slot);
         }
 
-        // Lane 3: PETG, loaded
+        // Lane 3: PETG, available
         {
             SlotInfo slot;
             slot.slot_index = 2;
             slot.global_index = 2;
             slot.material = "PETG";
+            slot.brand = "eSUN";
             slot.color_rgb = 0x00FF00;
             slot.color_name = "Green";
             slot.status = SlotStatus::AVAILABLE;
             slot.mapped_tool = 2;
+            slot.spoolman_id = 3;
+            slot.spool_name = "Green PETG";
             slot.total_weight_g = 1000.0f;
             slot.remaining_weight_g = 500.0f;
             auto mat_info = filament::find_material("PETG");
@@ -1158,6 +1167,7 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
             slot.slot_index = 3;
             slot.global_index = 3;
             slot.material = "TPU";
+            slot.brand = "eSUN";
             slot.color_rgb = 0xFF6600;
             slot.color_name = "Orange";
             slot.status = SlotStatus::AVAILABLE;
@@ -1269,12 +1279,13 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
                 uint32_t color;
                 const char* name;
                 const char* material;
+                const char* brand;
                 SlotStatus status;
             } slots[] = {
-                {0x000000, "Black", "ASA", SlotStatus::LOADED},
-                {0xFF0000, "Red", "PLA", SlotStatus::AVAILABLE},
-                {0x00FF00, "Green", "PETG", SlotStatus::AVAILABLE},
-                {0xFFFFFF, "White", "PLA", SlotStatus::EMPTY},
+                {0x000000, "Black", "ASA", "Bambu Lab", SlotStatus::LOADED},
+                {0xFF0000, "Red", "PLA", "Polymaker", SlotStatus::AVAILABLE},
+                {0x00FF00, "Green", "PETG", "eSUN", SlotStatus::AVAILABLE},
+                {0xFFFFFF, "White", "PLA", "Overture", SlotStatus::EMPTY},
             };
 
             for (int i = 0; i < 4; i++) {
@@ -1282,6 +1293,7 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
                 slot.slot_index = i;
                 slot.global_index = i;
                 slot.material = slots[i].material;
+                slot.brand = slots[i].brand;
                 slot.color_rgb = slots[i].color;
                 slot.color_name = slots[i].name;
                 slot.status = slots[i].status;
@@ -1320,10 +1332,11 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
                 uint32_t color;
                 const char* name;
                 const char* material;
+                const char* brand;
                 SlotStatus status;
             } slots[] = {
-                {0x1E88E5, "Blue", "PETG", SlotStatus::AVAILABLE},
-                {0xFDD835, "Yellow", "ABS", SlotStatus::AVAILABLE},
+                {0x1E88E5, "Blue", "PETG", "Prusa", SlotStatus::AVAILABLE},
+                {0xFDD835, "Yellow", "ABS", "Bambu Lab", SlotStatus::AVAILABLE},
             };
 
             for (int i = 0; i < 2; i++) {
@@ -1331,6 +1344,7 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
                 slot.slot_index = i;
                 slot.global_index = 4 + i;
                 slot.material = slots[i].material;
+                slot.brand = slots[i].brand;
                 slot.color_rgb = slots[i].color;
                 slot.color_name = slots[i].name;
                 slot.status = slots[i].status;

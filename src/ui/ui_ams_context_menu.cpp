@@ -166,7 +166,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     lv_subject_set_int(&slot_is_loaded_subject_, (!system_busy && pending_is_loaded_) ? 1 : 0);
 
     // Determine if slot has filament for Load button state
-    bool can_load = !system_busy;
+    // Disable Load if: system busy, slot empty, OR slot is already loaded to extruder
+    bool can_load = !system_busy && !pending_is_loaded_;
     if (can_load && backend_) {
         SlotInfo slot_info = backend_->get_slot_info(slot_index);
         can_load =
@@ -225,11 +226,6 @@ void AmsContextMenu::handle_edit() {
     dispatch_ams_action(MenuAction::EDIT);
 }
 
-void AmsContextMenu::handle_spoolman() {
-    spdlog::info("[AmsContextMenu] Spoolman requested for slot {}", get_item_index());
-    dispatch_ams_action(MenuAction::SPOOLMAN);
-}
-
 // ============================================================================
 // Static Callback Registration
 // ============================================================================
@@ -243,7 +239,6 @@ void AmsContextMenu::register_callbacks() {
     lv_xml_register_event_cb(nullptr, "ams_context_load_cb", on_load_cb);
     lv_xml_register_event_cb(nullptr, "ams_context_unload_cb", on_unload_cb);
     lv_xml_register_event_cb(nullptr, "ams_context_edit_cb", on_edit_cb);
-    lv_xml_register_event_cb(nullptr, "ams_context_spoolman_cb", on_spoolman_cb);
     lv_xml_register_event_cb(nullptr, "ams_context_tool_changed_cb", on_tool_changed_cb);
     lv_xml_register_event_cb(nullptr, "ams_context_backup_changed_cb", on_backup_changed_cb);
 
@@ -287,13 +282,6 @@ void AmsContextMenu::on_edit_cb(lv_event_t* /*e*/) {
     auto* self = get_active_instance();
     if (self) {
         self->handle_edit();
-    }
-}
-
-void AmsContextMenu::on_spoolman_cb(lv_event_t* /*e*/) {
-    auto* self = get_active_instance();
-    if (self) {
-        self->handle_spoolman();
     }
 }
 

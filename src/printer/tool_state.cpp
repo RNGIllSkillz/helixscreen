@@ -438,6 +438,18 @@ void ToolState::clear_spool(int tool_index) {
     }
 }
 
+std::set<int> ToolState::assigned_spool_ids(int exclude_tool) const {
+    std::set<int> ids;
+    for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
+        if (i == exclude_tool)
+            continue;
+        if (tools_[i].spoolman_id > 0) {
+            ids.insert(tools_[i].spoolman_id);
+        }
+    }
+    return ids;
+}
+
 nlohmann::json ToolState::spool_assignments_to_json() const {
     nlohmann::json result = nlohmann::json::object();
 
