@@ -166,7 +166,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     lv_subject_set_int(&slot_is_loaded_subject_, (!system_busy && pending_is_loaded_) ? 1 : 0);
 
     // Determine if slot has filament for Load button state
-    bool can_load = !system_busy;
+    // Disable Load if: system busy, slot empty, OR slot is already loaded to extruder
+    bool can_load = !system_busy && !pending_is_loaded_;
     if (can_load && backend_) {
         SlotInfo slot_info = backend_->get_slot_info(slot_index);
         can_load =
