@@ -73,52 +73,6 @@ WizardPrinterIdentifyStep::~WizardPrinterIdentifyStep() {
 }
 
 // ============================================================================
-// Move Semantics
-// ============================================================================
-
-WizardPrinterIdentifyStep::WizardPrinterIdentifyStep(WizardPrinterIdentifyStep&& other) noexcept
-    : screen_root_(other.screen_root_), printer_preview_image_(other.printer_preview_image_),
-      printer_name_(other.printer_name_), printer_type_selected_(other.printer_type_selected_),
-      printer_detection_status_(other.printer_detection_status_),
-      printer_identify_validated_(other.printer_identify_validated_),
-      subjects_initialized_(other.subjects_initialized_) {
-    // Move buffers
-    std::memcpy(printer_name_buffer_, other.printer_name_buffer_, sizeof(printer_name_buffer_));
-    std::memcpy(printer_detection_status_buffer_, other.printer_detection_status_buffer_,
-                sizeof(printer_detection_status_buffer_));
-
-    // Null out other
-    other.screen_root_ = nullptr;
-    other.printer_preview_image_ = nullptr;
-    other.subjects_initialized_ = false;
-    other.printer_identify_validated_ = false;
-}
-
-WizardPrinterIdentifyStep&
-WizardPrinterIdentifyStep::operator=(WizardPrinterIdentifyStep&& other) noexcept {
-    if (this != &other) {
-        screen_root_ = other.screen_root_;
-        printer_preview_image_ = other.printer_preview_image_;
-        printer_name_ = other.printer_name_;
-        printer_type_selected_ = other.printer_type_selected_;
-        printer_detection_status_ = other.printer_detection_status_;
-        printer_identify_validated_ = other.printer_identify_validated_;
-        subjects_initialized_ = other.subjects_initialized_;
-
-        // Move buffers
-        std::memcpy(printer_name_buffer_, other.printer_name_buffer_, sizeof(printer_name_buffer_));
-        std::memcpy(printer_detection_status_buffer_, other.printer_detection_status_buffer_,
-                    sizeof(printer_detection_status_buffer_));
-
-        // Null out other
-        other.screen_root_ = nullptr;
-        other.printer_preview_image_ = nullptr;
-        other.subjects_initialized_ = false;
-        other.printer_identify_validated_ = false;
-    }
-    return *this;
-}
-
 // ============================================================================
 // Helper Functions
 // ============================================================================
