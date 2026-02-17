@@ -3,6 +3,7 @@
 
 #include "ui_ams_edit_modal.h"
 
+#include "ui_button.h"
 #include "ui_error_reporting.h"
 #include "ui_update_queue.h"
 
@@ -575,11 +576,7 @@ void AmsEditModal::update_spoolman_button_state() {
     if (working_info_.spoolman_id > 0) {
         // Linked to Spoolman: show "Change Spool" and "Unlink"
         if (btn_change) {
-            // Update button text to "Change Spool"
-            lv_obj_t* label = lv_obj_find_by_name(btn_change, "btn_label");
-            if (label) {
-                lv_label_set_text(label, "Change Spool");
-            }
+            ui_button_set_text(btn_change, "Change Spool");
         }
         if (btn_unlink) {
             lv_obj_remove_flag(btn_unlink, LV_OBJ_FLAG_HIDDEN);
@@ -587,10 +584,7 @@ void AmsEditModal::update_spoolman_button_state() {
     } else {
         // Not linked: show "Link to Spoolman", hide "Unlink"
         if (btn_change) {
-            lv_obj_t* label = lv_obj_find_by_name(btn_change, "btn_label");
-            if (label) {
-                lv_label_set_text(label, "Link to Spoolman");
-            }
+            ui_button_set_text(btn_change, "Link to Spoolman");
         }
         if (btn_unlink) {
             lv_obj_add_flag(btn_unlink, LV_OBJ_FLAG_HIDDEN);
