@@ -383,7 +383,10 @@ static constexpr const char* MOONRAKER_DB_KEY = "tool_spool_assignments";
 void ToolState::assign_spool(int tool_index, int spoolman_id, const std::string& spool_name,
                              float remaining_g, float total_g) {
     if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
-        spdlog::warn("[ToolState] assign_spool: invalid tool index {}", tool_index);
+        // Normal on single-extruder AFC/MMU setups where lanes map to virtual
+        // tools (T0-T3) but only one real extruder exists
+        spdlog::trace("[ToolState] assign_spool: skipping tool index {} (have {} tools)",
+                      tool_index, tools_.size());
         return;
     }
 
