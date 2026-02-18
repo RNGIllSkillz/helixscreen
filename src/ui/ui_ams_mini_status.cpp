@@ -179,9 +179,8 @@ static void rebuild_bars(AmsMiniStatusData* data) {
         if (per_row_height < 12)
             per_row_height = 12; // Minimum per-row height
 
-        int32_t total_slot_height = (per_row_height * 2) / 3;
         int32_t bar_height =
-            total_slot_height - ams_draw::STATUS_LINE_HEIGHT_PX - ams_draw::STATUS_LINE_GAP_PX;
+            per_row_height - ams_draw::STATUS_LINE_HEIGHT_PX - ams_draw::STATUS_LINE_GAP_PX;
         if (bar_height < 6)
             bar_height = 6;
 
@@ -267,9 +266,8 @@ static void rebuild_bars(AmsMiniStatusData* data) {
         lv_obj_set_style_pad_column(data->bars_container, gap, LV_PART_MAIN);
         lv_obj_set_style_pad_row(data->bars_container, 0, LV_PART_MAIN);
 
-        int32_t total_slot_height = (effective_height * 2) / 3;
         int32_t bar_height =
-            total_slot_height - ams_draw::STATUS_LINE_HEIGHT_PX - ams_draw::STATUS_LINE_GAP_PX;
+            effective_height - ams_draw::STATUS_LINE_HEIGHT_PX - ams_draw::STATUS_LINE_GAP_PX;
 
         // Use 90% of container width for bars (leave 10% margin for centering)
         int32_t bar_width = ams_draw::calc_bar_width(container_width, visible_count, gap,
@@ -596,7 +594,7 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
     lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
 
-    // Fill parent by default (can be overridden by XML attrs)
+    // Fill parent (parent must have a definite height for bars to render correctly)
     lv_obj_set_size(container, LV_PCT(100), LV_PCT(100));
 
     // Use flex layout to center children
