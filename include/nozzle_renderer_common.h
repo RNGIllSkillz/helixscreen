@@ -55,10 +55,11 @@ inline lv_color_t nr_blend(lv_color_t c1, lv_color_t c2, float factor) {
 /// @param top_color Color at top
 /// @param bottom_color Color at bottom
 inline void nr_draw_gradient_rect(lv_layer_t* layer, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
-                                  lv_color_t top_color, lv_color_t bottom_color) {
+                                  lv_color_t top_color, lv_color_t bottom_color,
+                                  lv_opa_t opa = LV_OPA_COVER) {
     lv_draw_fill_dsc_t fill_dsc;
     lv_draw_fill_dsc_init(&fill_dsc);
-    fill_dsc.opa = LV_OPA_COVER;
+    fill_dsc.opa = opa;
 
     int32_t height = y2 - y1;
     if (height <= 0)
@@ -81,10 +82,11 @@ inline void nr_draw_gradient_rect(lv_layer_t* layer, int32_t x1, int32_t y1, int
 /// @param top_color Color at top
 /// @param bottom_color Color at bottom
 inline void nr_draw_iso_side(lv_layer_t* layer, int32_t x, int32_t y1, int32_t y2, int32_t depth,
-                             lv_color_t top_color, lv_color_t bottom_color) {
+                             lv_color_t top_color, lv_color_t bottom_color,
+                             lv_opa_t opa = LV_OPA_COVER) {
     lv_draw_fill_dsc_t fill_dsc;
     lv_draw_fill_dsc_init(&fill_dsc);
-    fill_dsc.opa = LV_OPA_COVER;
+    fill_dsc.opa = opa;
 
     int32_t height = y2 - y1;
     if (height <= 0 || depth <= 0)
@@ -115,11 +117,11 @@ inline void nr_draw_iso_side(lv_layer_t* layer, int32_t x, int32_t y1, int32_t y
 /// @param depth Isometric depth
 /// @param color Fill color
 inline void nr_draw_iso_top(lv_layer_t* layer, int32_t cx, int32_t y, int32_t half_width,
-                            int32_t depth, lv_color_t color) {
+                            int32_t depth, lv_color_t color, lv_opa_t opa = LV_OPA_COVER) {
     lv_draw_fill_dsc_t fill_dsc;
     lv_draw_fill_dsc_init(&fill_dsc);
     fill_dsc.color = color;
-    fill_dsc.opa = LV_OPA_COVER;
+    fill_dsc.opa = opa;
 
     int32_t y_offset = depth / 2;
 
@@ -145,10 +147,10 @@ inline void nr_draw_iso_top(lv_layer_t* layer, int32_t cx, int32_t y, int32_t ha
 /// @param right_color Color for right half (shadow side)
 inline void nr_draw_nozzle_tip(lv_layer_t* layer, int32_t cx, int32_t top_y, int32_t top_width,
                                int32_t bottom_width, int32_t height, lv_color_t left_color,
-                               lv_color_t right_color) {
+                               lv_color_t right_color, lv_opa_t opa = LV_OPA_COVER) {
     lv_draw_fill_dsc_t fill_dsc;
     lv_draw_fill_dsc_init(&fill_dsc);
-    fill_dsc.opa = LV_OPA_COVER;
+    fill_dsc.opa = opa;
 
     if (height <= 0)
         return;

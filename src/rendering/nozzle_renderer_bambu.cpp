@@ -9,13 +9,23 @@
 #include "theme_manager.h"
 
 void draw_nozzle_bambu(lv_layer_t* layer, int32_t cx, int32_t cy, lv_color_t filament_color,
-                       int32_t scale_unit) {
+                       int32_t scale_unit, lv_opa_t opa) {
     // Bambu-style print head: tall rectangular body with large circular fan duct
     // Proportions: roughly 2:1 height to width ratio
     // cy is the CENTER of the entire print head assembly
 
+    // Dim helper: blend color toward black by opa factor (255=full, 0=invisible)
+    // This avoids inter-layer bleed that per-draw-call alpha would cause
+    auto dim = [opa](lv_color_t c) -> lv_color_t {
+        if (opa >= LV_OPA_COVER)
+            return c;
+        float f = (float)opa / 255.0f;
+        return lv_color_make((uint8_t)(c.red * f), (uint8_t)(c.green * f), (uint8_t)(c.blue * f));
+    };
+
     // Base colors - light gray metallic (like Bambu's silver/white head)
-    lv_color_t metal_base = theme_manager_get_color("filament_metal");
+    lv_color_t metal_base = dim(theme_manager_get_color("filament_metal"));
+    filament_color = dim(filament_color);
 
     // Lighting: light comes from top-left
     lv_color_t front_light = nr_lighten(metal_base, 40);
@@ -131,6 +141,7 @@ void draw_nozzle_bambu(lv_layer_t* layer, int32_t cx, int32_t cy, lv_color_t fil
         lv_draw_line_dsc_init(&line_dsc);
         line_dsc.color = nr_lighten(front_light, 30);
         line_dsc.width = 1;
+        line_dsc.opa = LV_OPA_COVER;
         line_dsc.p1.x = cx - cap_half_width;
         line_dsc.p1.y = cap_top;
         line_dsc.p2.x = cx - body_half_width;
@@ -155,6 +166,7 @@ void draw_nozzle_bambu(lv_layer_t* layer, int32_t cx, int32_t cy, lv_color_t fil
         lv_draw_line_dsc_init(&line_dsc);
         line_dsc.color = nr_lighten(front_light, 30);
         line_dsc.width = 1;
+        line_dsc.opa = LV_OPA_COVER;
         line_dsc.p1.x = cx - body_half_width;
         line_dsc.p1.y = body_top;
         line_dsc.p2.x = cx - body_half_width;
@@ -194,7 +206,7 @@ void draw_nozzle_bambu(lv_layer_t* layer, int32_t cx, int32_t cy, lv_color_t fil
         lv_draw_fill_dsc_t fill_dsc;
         lv_draw_fill_dsc_init(&fill_dsc);
         fill_dsc.color = nr_darken(metal_base, 80);
-        fill_dsc.opa = LV_OPA_COVER;
+        fill_dsc.opa = opa;
         fill_dsc.radius = fan_radius;
 
         lv_area_t fan_area = {fan_cx - fan_radius, fan_cy - fan_radius, fan_cx + fan_radius,
