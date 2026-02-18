@@ -186,6 +186,17 @@ void ui_system_path_canvas_set_total_tools(lv_obj_t* obj, int total_tools);
 void ui_system_path_canvas_set_active_tool(lv_obj_t* obj, int tool_index);
 
 /**
+ * @brief Set the virtual tool number (slot-based) for single-nozzle label
+ *
+ * When multiple slots feed a single toolhead, this shows the virtual tool
+ * number (e.g. "T3" when slot 3 is loaded) next to the nozzle.
+ *
+ * @param obj The system_path_canvas widget
+ * @param tool_index Virtual tool index, or -1 for none
+ */
+void ui_system_path_canvas_set_current_tool(lv_obj_t* obj, int tool_index);
+
+/**
  * @brief Force redraw of the path visualization
  *
  * @param obj The system_path_canvas widget

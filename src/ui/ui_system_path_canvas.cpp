@@ -68,6 +68,7 @@ struct SystemPathData {
     int unit_topology[MAX_UNITS] = {};   // 0=LINEAR, 1=HUB, 2=PARALLEL
     int total_tools = 0;                 // Total tool count across all units
     int active_tool = -1;                // Currently active tool (-1=none)
+    int current_tool = -1;               // Virtual tool number (slot-based, for label)
 
     // Theme-derived colors (cached)
     lv_color_t color_idle;
@@ -239,6 +240,55 @@ static lv_color_t sp_blend(lv_color_t c1, lv_color_t c2, float factor) {
     return lv_color_make((uint8_t)(c1.red + (c2.red - c1.red) * factor),
                          (uint8_t)(c1.green + (c2.green - c1.green) * factor),
                          (uint8_t)(c1.blue + (c2.blue - c1.blue) * factor));
+}
+
+/**
+ * @brief Draw a tool badge (rounded rect + "Tn" label) beneath a nozzle
+ *
+ * Replicates the tool_badge style from ams_slot_view.xml using draw primitives.
+ * Used for both multi-tool nozzle labels and single-nozzle virtual tool display.
+ *
+ * @param layer Draw layer
+ * @param cx Center X of the nozzle above
+ * @param nozzle_y Center Y of the nozzle
+ * @param nozzle_scale Scale of the nozzle icon (determines vertical offset)
+ * @param tool_num Tool number to display (0 = "T0", etc.)
+ * @param font Label font
+ * @param bg_color Badge background color
+ * @param text_color Badge text color
+ */
+static void draw_tool_badge(lv_layer_t* layer, int32_t cx, int32_t nozzle_y, int32_t nozzle_scale,
+                            int tool_num, const lv_font_t* font, lv_color_t bg_color,
+                            lv_color_t text_color) {
+    // Static buffer — lv_draw_label defers rendering, stack buffer would be freed
+    static char tool_label[8];
+    snprintf(tool_label, sizeof(tool_label), "T%d", tool_num);
+
+    int32_t font_h = lv_font_get_line_height(font);
+    int32_t badge_w = 24;
+    int32_t badge_h = font_h + 4;
+    int32_t badge_top = nozzle_y + nozzle_scale * 4 + 6;
+    int32_t badge_left = cx - badge_w / 2;
+
+    // Badge background (rounded rect)
+    lv_area_t badge_area = {badge_left, badge_top, badge_left + badge_w, badge_top + badge_h};
+    lv_draw_fill_dsc_t fill_dsc;
+    lv_draw_fill_dsc_init(&fill_dsc);
+    fill_dsc.color = bg_color;
+    fill_dsc.opa = 200;
+    fill_dsc.radius = 4;
+    lv_draw_fill(layer, &fill_dsc, &badge_area);
+
+    // Badge text
+    lv_draw_label_dsc_t label_dsc;
+    lv_draw_label_dsc_init(&label_dsc);
+    label_dsc.color = text_color;
+    label_dsc.font = font;
+    label_dsc.align = LV_TEXT_ALIGN_CENTER;
+    label_dsc.text = tool_label;
+
+    lv_area_t text_area = {badge_left, badge_top + 2, badge_left + badge_w, badge_top + 2 + font_h};
+    lv_draw_label(layer, &label_dsc, &text_area);
 }
 
 // ============================================================================
@@ -415,22 +465,11 @@ static void system_path_draw_cb(lv_event_t* e) {
             lv_color_t noz_color = is_active_tool ? active_color_lv : nozzle_color;
             draw_nozzle_bambu(layer, tool_x, tools_y, noz_color, small_scale);
 
-            // Tool label (T0, T1, etc.) below nozzle
+            // Tool badge (T0, T1, etc.) below nozzle
             if (data->label_font) {
-                char tool_label[8];
-                snprintf(tool_label, sizeof(tool_label), "T%d", t);
-
-                lv_draw_label_dsc_t label_dsc;
-                lv_draw_label_dsc_init(&label_dsc);
-                label_dsc.color = is_active_tool ? active_color_lv : data->color_text;
-                label_dsc.font = data->label_font;
-                label_dsc.align = LV_TEXT_ALIGN_CENTER;
-                label_dsc.text = tool_label;
-
-                int32_t font_h = lv_font_get_line_height(data->label_font);
-                int32_t label_top = tools_y + small_scale * 2 + 2;
-                lv_area_t label_area = {tool_x - 15, label_top, tool_x + 15, label_top + font_h};
-                lv_draw_label(layer, &label_dsc, &label_area);
+                draw_tool_badge(layer, tool_x, tools_y, small_scale, t, data->label_font,
+                                data->color_idle,
+                                is_active_tool ? active_color_lv : data->color_text);
             }
         }
 
@@ -511,9 +550,9 @@ static void system_path_draw_cb(lv_event_t* e) {
                 lv_draw_label(layer, &bp_label_dsc, &bp_label_area);
             }
 
-            draw_sensor_dot(layer, bypass_x, bypass_merge_y, bp_color, bp_active, sensor_r);
-            draw_line(layer, bypass_x - sensor_r, bypass_merge_y, center_x, bypass_merge_y,
+            draw_line(layer, bypass_x, bypass_merge_y, center_x + sensor_r, bypass_merge_y,
                       bp_color, bp_width);
+            draw_sensor_dot(layer, center_x, bypass_merge_y, bp_color, bp_active, sensor_r);
         }
 
         // Draw combiner hub
@@ -572,6 +611,13 @@ static void system_path_draw_cb(lv_event_t* e) {
 
             draw_nozzle_bambu(layer, center_x, nozzle_y, noz_color, data->extruder_scale);
 
+            // Virtual tool badge beneath nozzle — only when multiple slots feed one toolhead
+            if (data->total_tools <= 1 && data->current_tool >= 0 && data->label_font) {
+                lv_color_t badge_text = (unit_active || bp_active) ? noz_color : data->color_text;
+                draw_tool_badge(layer, center_x, nozzle_y, data->extruder_scale, data->current_tool,
+                                data->label_font, data->color_idle, badge_text);
+            }
+
             if (data->status_text[0] && data->label_font) {
                 lv_draw_label_dsc_t status_dsc;
                 lv_draw_label_dsc_init(&status_dsc);
@@ -591,9 +637,9 @@ static void system_path_draw_cb(lv_event_t* e) {
     }
 
     spdlog::trace("[SystemPath] Draw: units={}, active={}, loaded={}, tools={}, active_tool={}, "
-                  "bypass={}(active={})",
+                  "current_tool={}, bypass={}(active={})",
                   data->unit_count, data->active_unit, data->filament_loaded, data->total_tools,
-                  data->active_tool, data->has_bypass, data->bypass_active);
+                  data->active_tool, data->current_tool, data->has_bypass, data->bypass_active);
 }
 
 // ============================================================================
@@ -840,6 +886,14 @@ void ui_system_path_canvas_set_active_tool(lv_obj_t* obj, int tool_index) {
     auto* data = get_data(obj);
     if (data) {
         data->active_tool = tool_index;
+        lv_obj_invalidate(obj);
+    }
+}
+
+void ui_system_path_canvas_set_current_tool(lv_obj_t* obj, int tool_index) {
+    auto* data = get_data(obj);
+    if (data) {
+        data->current_tool = tool_index;
         lv_obj_invalidate(obj);
     }
 }

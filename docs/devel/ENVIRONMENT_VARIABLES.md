@@ -10,7 +10,7 @@ This document provides a comprehensive reference for all environment variables u
 | [Touch Calibration](#touch-calibration) | 5 | `HELIX_TOUCH_*` |
 | [G-Code Viewer](#g-code-viewer) | 3 | `HELIX_` |
 | [Bed Mesh](#bed-mesh) | 1 | `HELIX_` |
-| [Mock & Testing](#mock--testing) | 10 | `HELIX_MOCK_*` |
+| [Mock & Testing](#mock--testing) | 14 | `HELIX_MOCK_*` |
 | [UI Automation](#ui-automation) | 3 | `HELIX_AUTO_*` |
 | [Calibration](#calibration-auto-start) | 2 | `*_AUTO_START` |
 | [Debugging](#debugging) | 1 | `HELIX_DEBUG_*` |
@@ -333,22 +333,87 @@ HELIX_AMS_GATES=8 ./build/bin/helix-screen --test
 HELIX_AMS_GATES=16 ./build/bin/helix-screen --test
 ```
 
-### `HELIX_MOCK_AMS_TYPE`
+### `HELIX_MOCK_AMS`
 
-Set the type of AMS simulation (standard multi-slot vs toolchanger).
+Select the mock AMS topology/type. Replaces the old `HELIX_MOCK_AMS_TYPE` and `HELIX_MOCK_MULTI_UNIT` variables.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `"toolchanger"`, `"tool_changer"`, or `"tc"` |
-| **Default** | Standard AMS (multi-slot) |
-| **File** | `src/ams_backend.cpp` |
+| **Values** | `afc`, `toolchanger` / `tc`, `mixed`, `multi` |
+| **Default** | Happy Hare, LINEAR, 4 slots |
+| **File** | `src/printer/ams_backend.cpp` |
+
+| Value | What it simulates |
+|-------|-------------------|
+| *(unset)* | Happy Hare, LINEAR, 4 slots (default constructor) |
+| `afc` | AFC Box Turtle, HUB, 4 slots |
+| `toolchanger` / `tc` | Tool Changer, PARALLEL topology |
+| `mixed` | Box Turtle + 2x OpenAMS, 6 tools |
+| `multi` | Box Turtle (4 slots) + Night Owl (2 slots), single toolhead |
 
 ```bash
-# Simulate a toolchanger printer
-HELIX_MOCK_AMS_TYPE=toolchanger ./build/bin/helix-screen --test
+# Simulate AFC Box Turtle
+HELIX_MOCK_AMS=afc ./build/bin/helix-screen --test
+
+# Simulate toolchanger
+HELIX_MOCK_AMS=toolchanger ./build/bin/helix-screen --test
+
+# Simulate mixed topology (BT + 2x OpenAMS)
+HELIX_MOCK_AMS=mixed ./build/bin/helix-screen --test
+
+# Simulate multi-unit (Box Turtle + Night Owl, 6 slots, single toolhead)
+HELIX_MOCK_AMS=multi ./build/bin/helix-screen --test
 ```
 
-**Multi-extruder and tool testing:** Setting `HELIX_MOCK_AMS_TYPE=toolchanger` also creates multiple tool definitions and extruders in the mock environment. Multiple extruders (extruder, extruder1, etc.) and tools are auto-discovered from Klipper objects at runtime, so no separate env var is needed to control extruder count. The toolchanger mock provides a complete multi-tool, multi-extruder test environment.
+**Multi-extruder and tool testing:** Setting `HELIX_MOCK_AMS=toolchanger` also creates multiple tool definitions and extruders in the mock environment. Multiple extruders (extruder, extruder1, etc.) and tools are auto-discovered from Klipper objects at runtime, so no separate env var is needed to control extruder count. The toolchanger mock provides a complete multi-tool, multi-extruder test environment.
+
+### `HELIX_MOCK_AMS_STATE`
+
+Select the mock AMS visual scenario. Replaces the old `HELIX_MOCK_AMS_ERRORS` and `HELIX_MOCK_AMS_REALISTIC` variables.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `idle`, `loading`, `error`, `bypass` |
+| **Default** | `idle` (slot 0 loaded, slot 3 empty, others available) |
+| **File** | `src/printer/ams_backend.cpp` |
+
+| Value | What it shows |
+|-------|---------------|
+| *(unset)* / `idle` | Default idle state |
+| `loading` | Active load in progress with realistic segment animation |
+| `error` | Slot errors visible; buffer fault also shown when combined with `afc` mode |
+| `bypass` | Bypass mode active |
+
+```bash
+# Show error states (slot errors + buffer fault)
+HELIX_MOCK_AMS_STATE=error ./build/bin/helix-screen --test
+
+# Show realistic loading animation
+HELIX_MOCK_AMS_STATE=loading ./build/bin/helix-screen --test
+
+# Show bypass mode
+HELIX_MOCK_AMS_STATE=bypass ./build/bin/helix-screen --test
+
+# Combine with topology selection
+HELIX_MOCK_AMS=afc HELIX_MOCK_AMS_STATE=error ./build/bin/helix-screen --test
+HELIX_MOCK_AMS=mixed HELIX_MOCK_AMS_STATE=loading ./build/bin/helix-screen --test
+```
+
+### `HELIX_MOCK_AMS_TYPE` *(deprecated)*
+
+**Deprecated** — use `HELIX_MOCK_AMS` instead. Still works for one release cycle with a deprecation warning.
+
+### `HELIX_MOCK_MULTI_UNIT` *(deprecated)*
+
+**Deprecated** — use `HELIX_MOCK_AMS=multi` instead. Still works for one release cycle with a deprecation warning.
+
+### `HELIX_MOCK_AMS_ERRORS` *(deprecated)*
+
+**Deprecated** — use `HELIX_MOCK_AMS_STATE=error` instead. Still works for one release cycle with a deprecation warning.
+
+### `HELIX_MOCK_AMS_REALISTIC` *(deprecated)*
+
+**Deprecated** — use `HELIX_MOCK_AMS_STATE=loading` instead. Still works for one release cycle with a deprecation warning.
 
 ### `HELIX_MOCK_DRYER`
 
@@ -393,21 +458,6 @@ Enable or disable mock Spoolman integration. When disabled, `get_spoolman_status
 ```bash
 # Disable mock Spoolman to test "no Spoolman" scenarios
 HELIX_MOCK_SPOOLMAN=0 ./build/bin/helix-screen --test
-```
-
-### `HELIX_MOCK_AMS_REALISTIC`
-
-Enable realistic multi-phase AMS operations (load/unload with tip forming, purging, etc.).
-
-| Property | Value |
-|----------|-------|
-| **Values** | `1` or `true` |
-| **Default** | Disabled (instant operations) |
-| **File** | `src/ams_backend.cpp` |
-
-```bash
-# Enable realistic AMS timing and phases
-HELIX_MOCK_AMS_REALISTIC=1 ./build/bin/helix-screen --test
 ```
 
 ### `HELIX_MOCK_FILAMENT_SENSORS`

@@ -189,6 +189,13 @@ AmsBackendMock::~AmsBackendMock() {
     shutdown_cv_.notify_all();
     wait_for_operation_thread();
 
+    // Stop scenario thread if running (deferred loading/bypass from start())
+    if (scenario_thread_running_.exchange(false)) {
+        if (scenario_thread_.joinable()) {
+            scenario_thread_.join();
+        }
+    }
+
     // Stop dryer thread if running - use atomic exchange to prevent double-join
     if (dryer_thread_running_.exchange(false)) {
         if (dryer_thread_.joinable()) {
@@ -212,6 +219,7 @@ void AmsBackendMock::wait_for_operation_thread() {
 
 AmsError AmsBackendMock::start() {
     bool should_emit = false;
+    std::string scenario;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -221,6 +229,7 @@ AmsError AmsBackendMock::start() {
 
         running_ = true;
         should_emit = true;
+        scenario = initial_state_scenario_;
         spdlog::debug("[AmsBackendMock] Started");
     }
 
@@ -228,6 +237,45 @@ AmsError AmsBackendMock::start() {
     // (emit_event also acquires mutex_ to safely copy the callback)
     if (should_emit) {
         emit_event(EVENT_STATE_CHANGED);
+    }
+
+    // Apply deferred state scenario (requires running_ = true)
+    if (!scenario.empty() && scenario != "idle") {
+        if (scenario == "error") {
+            inject_mock_errors();
+            spdlog::info("[AMS Mock] Applied initial state scenario: error");
+        } else if (scenario == "loading") {
+            set_realistic_mode(true);
+            // Schedule a load after a short delay so the UI has time to initialize
+            scenario_thread_running_ = true;
+            scenario_thread_ = std::thread([this]() {
+                {
+                    std::unique_lock<std::mutex> lk(shutdown_mutex_);
+                    shutdown_cv_.wait_for(lk, std::chrono::milliseconds(500),
+                                          [this] { return shutdown_requested_.load(); });
+                }
+                if (running_ && !shutdown_requested_) {
+                    load_filament(1);
+                }
+                scenario_thread_running_ = false;
+            });
+            spdlog::info("[AMS Mock] Applied initial state scenario: loading");
+        } else if (scenario == "bypass") {
+            // Schedule bypass after a short delay so the UI has time to initialize
+            scenario_thread_running_ = true;
+            scenario_thread_ = std::thread([this]() {
+                {
+                    std::unique_lock<std::mutex> lk(shutdown_mutex_);
+                    shutdown_cv_.wait_for(lk, std::chrono::milliseconds(500),
+                                          [this] { return shutdown_requested_.load(); });
+                }
+                if (running_ && !shutdown_requested_) {
+                    enable_bypass();
+                }
+                scenario_thread_running_ = false;
+            });
+            spdlog::info("[AMS Mock] Applied initial state scenario: bypass");
+        }
     }
 
     return AmsErrorHelper::success();
@@ -1297,7 +1345,7 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
                 slot.color_rgb = slots[i].color;
                 slot.color_name = slots[i].name;
                 slot.status = slots[i].status;
-                slot.mapped_tool = i;
+                slot.mapped_tool = 0; // All slots share single toolhead (virtual tools)
                 slot.spoolman_id = 100 + i;
                 slot.total_weight_g = 1000.0f;
                 slot.remaining_weight_g = (i == 3) ? 0.0f : (1000.0f - i * 250.0f);
@@ -1348,7 +1396,7 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
                 slot.color_rgb = slots[i].color;
                 slot.color_name = slots[i].name;
                 slot.status = slots[i].status;
-                slot.mapped_tool = 4 + i;
+                slot.mapped_tool = 0; // All slots share single toolhead (virtual tools)
                 slot.spoolman_id = 200 + i;
                 slot.total_weight_g = 1000.0f;
                 slot.remaining_weight_g = 1000.0f - i * 200.0f;
@@ -1363,8 +1411,9 @@ void AmsBackendMock::set_multi_unit_mode(bool enabled) {
             system_info_.units.push_back(unit);
         }
 
-        // Tool-to-slot mapping: T0-T5 (6 tools for 6 slots)
-        system_info_.tool_to_slot_map = {0, 1, 2, 3, 4, 5};
+        // Single toolhead — all units feed one nozzle via combiner
+        // T0 maps to the currently loaded slot
+        system_info_.tool_to_slot_map = {0};
 
         // Start with slot 0 loaded
         system_info_.current_slot = 0;
@@ -2191,6 +2240,11 @@ void AmsBackendMock::set_gcode_response_callback(std::function<void(const std::s
     gcode_response_callback_ = std::move(callback);
     spdlog::debug("[AMS Mock] Gcode response callback {}",
                   gcode_response_callback_ ? "set" : "cleared");
+}
+
+void AmsBackendMock::set_initial_state_scenario(const std::string& scenario) {
+    initial_state_scenario_ = scenario;
+    spdlog::debug("[AMS Mock] Initial state scenario set to '{}'", scenario);
 }
 
 // ============================================================================

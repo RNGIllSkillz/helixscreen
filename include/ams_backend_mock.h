@@ -255,8 +255,8 @@ class AmsBackendMock : public AmsBackend {
     /**
      * @brief Enable multi-unit mode for testing overview panel
      *
-     * Creates 2 Box Turtle units with 4 slots each (8 total).
-     * Simulates a realistic multi-unit AFC setup.
+     * Creates a Box Turtle (4 slots) + Night Owl (2 slots) = 6 total slots.
+     * All units feed a single toolhead via combiner (virtual tools).
      *
      * @param enabled true to enable multi-unit, false to revert to single unit
      */
@@ -333,6 +333,17 @@ class AmsBackendMock : public AmsBackend {
      * @param callback Function that receives "// action:..." lines
      */
     void set_gcode_response_callback(std::function<void(const std::string&)> callback);
+
+    /**
+     * @brief Set a deferred state scenario to apply when start() is called
+     *
+     * Some mock states (loading, bypass) require the backend to be running
+     * before they can be applied. This stores the scenario name and applies
+     * it at the end of start().
+     *
+     * @param scenario One of: "idle", "loading", "error", "bypass"
+     */
+    void set_initial_state_scenario(const std::string& scenario);
 
   private:
     /**
@@ -481,4 +492,9 @@ class AmsBackendMock : public AmsBackend {
 
     // Gcode response injection (for simulating action:prompt from mock)
     std::function<void(const std::string&)> gcode_response_callback_;
+
+    // Deferred state scenario (applied in start())
+    std::string initial_state_scenario_;
+    std::thread scenario_thread_; ///< Thread for deferred loading/bypass scenario
+    std::atomic<bool> scenario_thread_running_{false}; ///< Guards against double-join
 };

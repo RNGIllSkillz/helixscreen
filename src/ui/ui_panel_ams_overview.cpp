@@ -538,6 +538,7 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
 
     ui_system_path_canvas_set_total_tools(system_path_, total_tools);
     ui_system_path_canvas_set_active_tool(system_path_, active_tool);
+    ui_system_path_canvas_set_current_tool(system_path_, info.current_tool);
 
     // Set toolhead sensor state
     {

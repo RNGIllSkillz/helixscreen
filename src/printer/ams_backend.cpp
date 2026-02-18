@@ -19,57 +19,112 @@
 
 using namespace helix;
 
+// Helper: lowercase a string for case-insensitive comparison
+static std::string to_lower(const std::string& s) {
+    std::string result = s;
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    return result;
+}
+
 // Helper to create mock backend with optional features
 static std::unique_ptr<AmsBackendMock> create_mock_with_features(int gate_count) {
     auto mock = std::make_unique<AmsBackendMock>(gate_count);
 
-    // Check for tool changer simulation mode
-    const char* ams_type_env = std::getenv("HELIX_MOCK_AMS_TYPE");
-    if (ams_type_env) {
-        std::string type_str(ams_type_env);
-        // Convert to lowercase for comparison
-        std::transform(type_str.begin(), type_str.end(), type_str.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
-        if (type_str == "toolchanger" || type_str == "tool_changer" || type_str == "tc") {
-            mock->set_tool_changer_mode(true);
-            spdlog::info("[AMS Backend] Mock tool changer mode enabled via HELIX_MOCK_AMS_TYPE");
-        } else if (type_str == "mixed") {
-            mock->set_mixed_topology_mode(true);
-            spdlog::info("[AMS Backend] Mock mixed topology mode enabled via HELIX_MOCK_AMS_TYPE");
-        } else if (type_str == "afc" || type_str == "box_turtle" || type_str == "boxturtle") {
-            mock->set_afc_mode(true);
-            spdlog::info("[AMS Backend] Mock AFC mode enabled via HELIX_MOCK_AMS_TYPE");
+    // ========================================================================
+    // HELIX_MOCK_AMS — topology/type selection
+    // Replaces HELIX_MOCK_AMS_TYPE and HELIX_MOCK_MULTI_UNIT
+    // ========================================================================
+    const char* mock_ams_env = std::getenv("HELIX_MOCK_AMS");
+    std::string ams_type;
+
+    if (mock_ams_env) {
+        ams_type = to_lower(mock_ams_env);
+    } else {
+        // Deprecation shim: check old HELIX_MOCK_AMS_TYPE
+        const char* old_type_env = std::getenv("HELIX_MOCK_AMS_TYPE");
+        if (old_type_env) {
+            ams_type = to_lower(old_type_env);
+            spdlog::warn("[AMS Backend] HELIX_MOCK_AMS_TYPE is deprecated, "
+                         "use HELIX_MOCK_AMS={} instead",
+                         ams_type);
+        }
+
+        // Deprecation shim: check old HELIX_MOCK_MULTI_UNIT
+        const char* old_multi_env = std::getenv("HELIX_MOCK_MULTI_UNIT");
+        if (old_multi_env && std::string(old_multi_env) == "1") {
+            ams_type = "multi";
+            spdlog::warn("[AMS Backend] HELIX_MOCK_MULTI_UNIT is deprecated, "
+                         "use HELIX_MOCK_AMS=multi instead");
         }
     }
 
-    // Check for multi-unit mode (overrides AFC mode if both set)
-    const char* multi_unit_env = std::getenv("HELIX_MOCK_MULTI_UNIT");
-    if (multi_unit_env && std::string(multi_unit_env) == "1") {
-        mock->set_multi_unit_mode(true);
-        spdlog::info("[AMS Backend] Mock multi-unit mode enabled via HELIX_MOCK_MULTI_UNIT");
+    if (!ams_type.empty()) {
+        if (ams_type == "afc" || ams_type == "box_turtle" || ams_type == "boxturtle") {
+            mock->set_afc_mode(true);
+            spdlog::info("[AMS Backend] Mock AFC mode enabled");
+        } else if (ams_type == "toolchanger" || ams_type == "tool_changer" || ams_type == "tc") {
+            mock->set_tool_changer_mode(true);
+            spdlog::info("[AMS Backend] Mock tool changer mode enabled");
+        } else if (ams_type == "mixed") {
+            mock->set_mixed_topology_mode(true);
+            spdlog::info("[AMS Backend] Mock mixed topology mode enabled");
+        } else if (ams_type == "multi") {
+            mock->set_multi_unit_mode(true);
+            spdlog::info("[AMS Backend] Mock multi-unit mode enabled");
+        }
     }
 
-    // Inject mock error states for visual testing (slot errors + buffer fault)
-    const char* errors_env = std::getenv("HELIX_MOCK_AMS_ERRORS");
-    if (errors_env && std::string(errors_env) == "1") {
-        mock->inject_mock_errors();
-        spdlog::info("[AMS Backend] Mock error states injected via HELIX_MOCK_AMS_ERRORS");
+    // ========================================================================
+    // HELIX_MOCK_AMS_STATE — visual scenario
+    // Replaces HELIX_MOCK_AMS_ERRORS and HELIX_MOCK_AMS_REALISTIC
+    // ========================================================================
+    const char* mock_state_env = std::getenv("HELIX_MOCK_AMS_STATE");
+    std::string state_scenario;
+
+    if (mock_state_env) {
+        state_scenario = to_lower(mock_state_env);
+    } else {
+        // Deprecation shim: check old HELIX_MOCK_AMS_ERRORS
+        const char* old_errors_env = std::getenv("HELIX_MOCK_AMS_ERRORS");
+        if (old_errors_env && std::string(old_errors_env) == "1") {
+            state_scenario = "error";
+            spdlog::warn("[AMS Backend] HELIX_MOCK_AMS_ERRORS is deprecated, "
+                         "use HELIX_MOCK_AMS_STATE=error instead");
+        }
+
+        // Deprecation shim: check old HELIX_MOCK_AMS_REALISTIC
+        const char* old_realistic_env = std::getenv("HELIX_MOCK_AMS_REALISTIC");
+        if (old_realistic_env &&
+            (std::string(old_realistic_env) == "1" || std::string(old_realistic_env) == "true")) {
+            if (!state_scenario.empty()) {
+                spdlog::warn("[AMS Backend] Both HELIX_MOCK_AMS_ERRORS and "
+                             "HELIX_MOCK_AMS_REALISTIC set; using 'loading'. "
+                             "Use HELIX_MOCK_AMS_STATE to be explicit.");
+            }
+            state_scenario = "loading";
+            spdlog::warn("[AMS Backend] HELIX_MOCK_AMS_REALISTIC is deprecated, "
+                         "use HELIX_MOCK_AMS_STATE=loading instead");
+        }
     }
+
+    if (!state_scenario.empty() && state_scenario != "idle") {
+        // All non-idle scenarios are applied after start() for consistency.
+        // loading/bypass: require running_=true (use interruptible sleep + thread)
+        // error: applied directly in start() (no thread needed, but deferred for uniformity)
+        mock->set_initial_state_scenario(state_scenario);
+        spdlog::info("[AMS Backend] Mock state scenario: {}", state_scenario);
+    }
+
+    // ========================================================================
+    // Orthogonal features (kept separate)
+    // ========================================================================
 
     // Enable mock dryer if requested via environment variable
-    // Note: Dryer is typically not applicable for tool changers, but allow override
     const char* dryer_env = std::getenv("HELIX_MOCK_DRYER");
     if (dryer_env && (std::string(dryer_env) == "1" || std::string(dryer_env) == "true")) {
         mock->set_dryer_enabled(true);
         spdlog::info("[AMS Backend] Mock dryer enabled via HELIX_MOCK_DRYER");
-    }
-
-    // Enable realistic multi-phase operations if requested
-    const char* realistic_env = std::getenv("HELIX_MOCK_AMS_REALISTIC");
-    if (realistic_env &&
-        (std::string(realistic_env) == "1" || std::string(realistic_env) == "true")) {
-        mock->set_realistic_mode(true);
-        spdlog::info("[AMS Backend] Mock realistic mode enabled via HELIX_MOCK_AMS_REALISTIC");
     }
 
     return mock;
