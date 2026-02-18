@@ -16,10 +16,10 @@
     <!-- nord11 - hot -->
 
     <!-- Info column width per breakpoint -->
-    <px name="info_column_width_tiny" value="180"/>
-    <px name="info_column_width_small" value="280"/>
-    <px name="info_column_width_medium" value="280"/>
-    <px name="info_column_width_large" value="280"/>
+    <px name="bed_mesh_info_column_width_tiny" value="180"/>
+    <px name="bed_mesh_info_column_width_small" value="280"/>
+    <px name="bed_mesh_info_column_width_medium" value="280"/>
+    <px name="bed_mesh_info_column_width_large" value="280"/>
   </consts>
   <view name="bed_mesh_panel"
         extends="lv_obj" width="#overlay_panel_width" height="100%" align="right_mid" style_bg_opa="255"
@@ -45,8 +45,8 @@
       </lv_obj>
       <!-- Right: Info column with two cards -->
       <lv_obj name="info_column"
-              width="#info_column_width" height="100%" flex_flow="column" style_pad_all="0" style_pad_gap="#space_md"
-              scrollable="false">
+              width="#bed_mesh_info_column_width" height="100%" flex_flow="column" style_pad_all="0"
+              style_pad_gap="#space_md" scrollable="false">
         <!-- ============================================================ -->
         <!-- CURRENT MESH CARD -->
         <!-- ============================================================ -->
@@ -263,7 +263,8 @@
             <lv_obj name="no_profiles_message"
                     width="100%" height="content" style_pad_all="#space_md" scrollable="false">
               <bind_flag_if_gt subject="bed_mesh_profile_count" flag="hidden" ref_value="0"/>
-              <text_small width="100%" text="No profiles available" translation_tag="No profiles available" style_text_align="center"/>
+              <text_small width="100%"
+                          text="No profiles available" translation_tag="No profiles available" style_text_align="center"/>
             </lv_obj>
           </lv_obj>
         </ui_card>
