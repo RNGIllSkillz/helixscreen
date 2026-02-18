@@ -356,7 +356,7 @@ helix-screen --wizard
 
 1. **Check input device:** `ls /dev/input/event*`
 2. **Test manually:** `sudo evtest /dev/input/event0`
-3. **Specify device:** Add `"touch_device": "/dev/input/event1"` to `display` section in config
+3. **Specify device:** Add `"touch_device": "/dev/input/event1"` to `input` section in config
 
 ### Screen is black
 

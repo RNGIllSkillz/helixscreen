@@ -207,7 +207,6 @@ Located in the `display` section:
     "dim_sec": 300,
     "dim_brightness": 30,
     "drm_device": "",
-    "touch_device": "",
     "gcode_render_mode": 2,
     "gcode_3d_enabled": true,
     "bed_mesh_render_mode": 0,
@@ -266,12 +265,6 @@ Located in the `display` section:
 
 Auto-detection finds the first device with dumb buffer support and a connected display.
 
-### `touch_device`
-**Type:** string
-**Default:** `""` (auto-detect)
-**Example:** `"/dev/input/event1"`
-**Description:** Override touch/pointer input device. Leave empty for auto-detection via libinput.
-
 ### `gcode_render_mode`
 **Type:** integer
 **Default:** `2`
@@ -326,7 +319,8 @@ Located in the `input` section:
 {
   "input": {
     "scroll_throw": 25,
-    "scroll_limit": 10
+    "scroll_limit": 10,
+    "touch_device": ""
   }
 }
 ```
@@ -342,6 +336,12 @@ Located in the `input` section:
 **Default:** `10`
 **Range:** `1` - `50`
 **Description:** Pixels of movement required before scrolling starts. Lower = more responsive. Matches LVGL's default of 10.
+
+### `touch_device`
+**Type:** string
+**Default:** `""` (auto-detect)
+**Example:** `"/dev/input/event1"`
+**Description:** Override touch/pointer input device. Leave empty for auto-detection. Auto-detection finds touch or pointer capable devices.
 
 ---
 
@@ -1176,7 +1176,6 @@ Environment="HELIX_TOUCH_DEVICE=/dev/input/event0"
     "dim_sec": 300,
     "dim_brightness": 30,
     "drm_device": "",
-    "touch_device": "",
     "gcode_render_mode": 2,
     "gcode_3d_enabled": true,
     "bed_mesh_render_mode": 0,
@@ -1189,7 +1188,8 @@ Environment="HELIX_TOUCH_DEVICE=/dev/input/event0"
 
   "input": {
     "scroll_throw": 25,
-    "scroll_limit": 10
+    "scroll_limit": 10,
+    "touch_device": ""
   },
 
   "output": {

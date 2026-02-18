@@ -609,3 +609,60 @@ TEST_CASE("TouchCalibration: device_needs_calibration",
         REQUIRE(device_needs_calibration("gpio-keys", "", false) == false);
     }
 }
+
+// ============================================================================
+// Touch Device Scoring Scenario Tests
+// ============================================================================
+// These test the individual scoring factors (name recognition, USB detection)
+// that auto_detect_touch_device() uses. The actual scoring loop requires sysfs
+// access, but these verify the building blocks produce correct results for the
+// scenarios described in issue #117.
+
+TEST_CASE("TouchCalibration: phantom SPI vs real USB touchscreen scoring factors",
+          "[touch-calibration][scoring]") {
+    // Issue #117: ADS7846 SPI phantom device matched "touch" pattern but is not
+    // the real touchscreen. The USB HDMI screen should win via PROP_DIRECT + USB.
+
+    SECTION("ADS7846 Touchscreen matches known name (score +2)") {
+        // Phantom ADS7846 has "touch" in its name, so it matches the known patterns
+        REQUIRE(is_known_touchscreen_name("ADS7846 Touchscreen") == true);
+    }
+
+    SECTION("ADS7846 is SPI, not USB (no USB score bonus)") {
+        REQUIRE(is_usb_input_phys("spi0.1/input0") == false);
+    }
+
+    SECTION("USB HDMI touchscreen is USB (score +1)") {
+        REQUIRE(is_usb_input_phys("usb-0000:01:00.0-1.4/input0") == true);
+    }
+
+    SECTION("USB HDMI touchscreen with generic name does not match known patterns") {
+        // Some USB HID touchscreens report generic names like "ILITEK ILITEK-TP"
+        // They rely on PROP_DIRECT + USB bus for scoring, not name patterns
+        REQUIRE(is_known_touchscreen_name("ILITEK ILITEK-TP") == false);
+    }
+
+    SECTION("BTT HDMI5 USB touchscreen matches known name") {
+        REQUIRE(is_known_touchscreen_name("BIQU BTT-HDMI5 Touchscreen") == true);
+    }
+}
+
+TEST_CASE("TouchCalibration: scoring factors for common touchscreen types",
+          "[touch-calibration][scoring]") {
+    SECTION("platform resistive (sun4i): known name, SPI bus") {
+        REQUIRE(is_known_touchscreen_name("sun4i-ts") == true);
+        REQUIRE(is_usb_input_phys("sun4i_ts") == false);
+        // Score: 2 (known name) + 0 (not USB) = 2, plus PROP_DIRECT on real hw
+    }
+
+    SECTION("USB HID screen: USB bus, may or may not match name") {
+        REQUIRE(is_usb_input_phys("usb-3f980000.usb-1.2/input0") == true);
+        // Score: 0-2 (name) + 1 (USB) + potentially 2 (PROP_DIRECT) = 1-5
+    }
+
+    SECTION("I2C Goodix capacitive: known name, not USB") {
+        REQUIRE(is_known_touchscreen_name("Goodix Capacitive TouchScreen") == true);
+        REQUIRE(is_usb_input_phys("i2c-1/1-005d") == false);
+        // Score: 2 (known name) + 0 (not USB) = 2, plus PROP_DIRECT on real hw
+    }
+}

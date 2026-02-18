@@ -15,6 +15,7 @@
 #include <lvgl.h>
 
 // System includes for device access checks
+#include <climits>
 #include <cstring>
 #include <dirent.h>
 #include <fcntl.h>
@@ -90,6 +91,44 @@ bool has_touch_capabilities(int event_num) {
 
 // is_known_touchscreen_name() is now in touch_calibration.h (helix::is_known_touchscreen_name)
 using helix::is_known_touchscreen_name;
+
+/**
+ * @brief Check if an input device has INPUT_PROP_DIRECT set
+ *
+ * Reads /sys/class/input/eventN/device/properties and checks bit 0
+ * (INPUT_PROP_DIRECT), which indicates a direct-input device like a
+ * touchscreen (as opposed to a touchpad or mouse).
+ *
+ * @param event_num Event device number
+ * @return true if INPUT_PROP_DIRECT is set
+ */
+bool has_direct_input_prop(int event_num) {
+    std::string path = "/sys/class/input/event" + std::to_string(event_num) + "/device/properties";
+    std::string props_str = read_sysfs_file(path);
+    if (props_str.empty())
+        return false;
+
+    try {
+        // Properties file may have space-separated hex values; lowest bits are rightmost
+        size_t last_space = props_str.rfind(' ');
+        std::string last_hex =
+            (last_space != std::string::npos) ? props_str.substr(last_space + 1) : props_str;
+        unsigned long props = std::stoul(last_hex, nullptr, 16);
+        return (props & 0x1) != 0; // INPUT_PROP_DIRECT
+    } catch (...) {
+        return false;
+    }
+}
+
+/**
+ * @brief Get the phys path for an input device from sysfs
+ * @param event_num Event device number
+ * @return Physical path string or empty string on error
+ */
+std::string get_device_phys(int event_num) {
+    std::string path = "/sys/class/input/event" + std::to_string(event_num) + "/device/phys";
+    return read_sysfs_file(path);
+}
 
 /**
  * @brief Check if an input device is connected via USB
@@ -386,6 +425,18 @@ std::string DisplayBackendFbdev::auto_detect_touch_device() const {
         return device_override;
     }
 
+    // Check for common misconfiguration: touch_device at root or display level
+    // instead of under /input/
+    if (cfg) {
+        auto root_touch = cfg->get<std::string>("/touch_device", "");
+        auto display_touch = cfg->get<std::string>("/display/touch_device", "");
+        if (!root_touch.empty() || !display_touch.empty()) {
+            spdlog::warn("[Fbdev Backend] Found 'touch_device' at config root or display section, "
+                         "but it should be under 'input'. "
+                         "See docs/user/CONFIGURATION.md");
+        }
+    }
+
     // Priority 3: Capability-based detection using Linux sysfs
     // Scan /dev/input/eventN devices and check for touch capabilities
     const char* input_dir = "/dev/input";
@@ -397,7 +448,8 @@ std::string DisplayBackendFbdev::auto_detect_touch_device() const {
 
     std::string best_device;
     std::string best_name;
-    bool best_is_known = false;
+    int best_score = -1;
+    int best_event_num = INT_MAX;
 
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
@@ -428,16 +480,31 @@ std::string DisplayBackendFbdev::auto_detect_touch_device() const {
             continue;
         }
 
+        // Score this candidate
+        int score = 0;
+
         bool is_known = is_known_touchscreen_name(name);
+        if (is_known)
+            score += 2;
 
-        spdlog::debug("[Fbdev Backend] {} ({}) - has touch capabilities{}", device_path, name,
-                      is_known ? " [known touchscreen]" : "");
+        bool is_direct = has_direct_input_prop(event_num);
+        if (is_direct)
+            score += 2;
 
-        // Prefer devices with known touchscreen names
-        if (best_device.empty() || (is_known && !best_is_known)) {
+        std::string phys = get_device_phys(event_num);
+        bool is_usb = helix::is_usb_input_phys(phys);
+        if (is_usb)
+            score += 1;
+
+        spdlog::debug("[Fbdev Backend] {} ({}) score={} [known={} direct={} usb={} phys='{}']",
+                      device_path, name, score, is_known, is_direct, is_usb, phys);
+
+        // Best score wins; ties broken by lowest event number
+        if (score > best_score || (score == best_score && event_num < best_event_num)) {
             best_device = device_path;
             best_name = name;
-            best_is_known = is_known;
+            best_score = score;
+            best_event_num = event_num;
         }
     }
 
@@ -468,7 +535,8 @@ std::string DisplayBackendFbdev::auto_detect_touch_device() const {
         return "";
     }
 
-    spdlog::info("[Fbdev Backend] Found touchscreen: {} ({})", best_device, best_name);
+    spdlog::info("[Fbdev Backend] Selected touchscreen: {} ({}) [score={}]", best_device, best_name,
+                 best_score);
     return best_device;
 }
 
