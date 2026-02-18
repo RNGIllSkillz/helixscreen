@@ -1970,22 +1970,23 @@ int32_t theme_manager_get_spacing(const char* token) {
  */
 const lv_font_t* theme_manager_get_font(const char* token) {
     if (!token) {
-        spdlog::warn("[Theme] theme_manager_get_font: NULL token");
-        return nullptr;
+        spdlog::warn("[Theme] theme_manager_get_font: NULL token, using default font");
+        return lv_font_get_default();
     }
 
     // Get the font name from the registered constant (e.g., "font_small" -> "noto_sans_16")
     const char* font_name = lv_xml_get_const(nullptr, token);
     if (!font_name) {
-        spdlog::warn("[Theme] Font token '{}' not found - is theme initialized?", token);
-        return nullptr;
+        spdlog::warn("[Theme] Font token '{}' not found - falling back to default font", token);
+        return lv_font_get_default();
     }
 
     // Get the actual font pointer
     const lv_font_t* font = lv_xml_get_font(nullptr, font_name);
     if (!font) {
-        spdlog::warn("[Theme] Font '{}' (from token '{}') not registered", font_name, token);
-        return nullptr;
+        spdlog::warn("[Theme] Font '{}' (from token '{}') not registered - falling back to default",
+                     font_name, token);
+        return lv_font_get_default();
     }
 
     return font;
