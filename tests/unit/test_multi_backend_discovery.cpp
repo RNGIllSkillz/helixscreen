@@ -31,7 +31,7 @@ TEST_CASE("PrinterDiscovery: toolchanger only detected as one system", "[ams][mu
     REQUIRE(systems[0].type == AmsType::TOOL_CHANGER);
 }
 
-TEST_CASE("PrinterDiscovery: toolchanger + Happy Hare detected as two systems",
+TEST_CASE("PrinterDiscovery: toolchanger + Happy Hare prefers MMU backend",
           "[ams][multi-backend]") {
     helix::PrinterDiscovery hw;
     nlohmann::json objects = nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "mmu",
@@ -39,40 +39,27 @@ TEST_CASE("PrinterDiscovery: toolchanger + Happy Hare detected as two systems",
                                                     "extruder1", "heater_bed", "gcode_move"});
     hw.parse_objects(objects);
 
+    // Only the MMU should be registered — toolchanger is just tool switching
     const auto& systems = hw.detected_ams_systems();
-    REQUIRE(systems.size() == 2);
-
-    bool has_tc = false, has_hh = false;
-    for (const auto& sys : systems) {
-        if (sys.type == AmsType::TOOL_CHANGER)
-            has_tc = true;
-        if (sys.type == AmsType::HAPPY_HARE)
-            has_hh = true;
-    }
-    REQUIRE(has_tc);
-    REQUIRE(has_hh);
-    REQUIRE(hw.mmu_type() == AmsType::TOOL_CHANGER);
+    REQUIRE(systems.size() == 1);
+    REQUIRE(systems[0].type == AmsType::HAPPY_HARE);
+    // Toolchanger capability is still detected
+    REQUIRE(hw.has_tool_changer());
 }
 
-TEST_CASE("PrinterDiscovery: AFC + toolchanger detected as two systems", "[ams][multi-backend]") {
+TEST_CASE("PrinterDiscovery: AFC + toolchanger prefers AFC backend", "[ams][multi-backend]") {
     helix::PrinterDiscovery hw;
     nlohmann::json objects = nlohmann::json::array(
         {"toolchanger", "tool T0", "tool T1", "AFC", "AFC_stepper lane1", "AFC_stepper lane2",
          "extruder", "extruder1", "heater_bed", "gcode_move"});
     hw.parse_objects(objects);
 
+    // Only AFC should be registered — toolchanger is just tool switching
     const auto& systems = hw.detected_ams_systems();
-    REQUIRE(systems.size() == 2);
-
-    bool has_tc = false, has_afc = false;
-    for (const auto& sys : systems) {
-        if (sys.type == AmsType::TOOL_CHANGER)
-            has_tc = true;
-        if (sys.type == AmsType::AFC)
-            has_afc = true;
-    }
-    REQUIRE(has_tc);
-    REQUIRE(has_afc);
+    REQUIRE(systems.size() == 1);
+    REQUIRE(systems[0].type == AmsType::AFC);
+    // Toolchanger capability is still detected
+    REQUIRE(hw.has_tool_changer());
 }
 
 TEST_CASE("PrinterDiscovery: no AMS detected returns empty", "[ams][multi-backend]") {

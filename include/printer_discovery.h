@@ -356,19 +356,19 @@ class PrinterDiscovery {
         // Collect all detected AMS systems
         detected_ams_systems_.clear();
 
-        if (has_tool_changer_ && !tool_names_.empty()) {
-            detected_ams_systems_.push_back({AmsType::TOOL_CHANGER, "Tool Changer"});
-        }
+        // Register the actual filament management backend. Only one AMS backend
+        // can be active at a time on Klipper. When a real MMU (AFC, Happy Hare)
+        // is present alongside klipper-toolchanger, prefer the MMU — toolchanger
+        // just handles tool switching, not filament management.
         if (has_mmu_) {
             if (mmu_type_ == AmsType::HAPPY_HARE) {
                 detected_ams_systems_.push_back({AmsType::HAPPY_HARE, "Happy Hare"});
             } else if (mmu_type_ == AmsType::AFC) {
                 detected_ams_systems_.push_back({AmsType::AFC, "AFC"});
             }
-        }
-
-        // Update mmu_type_ for backward compat: toolchanger takes priority
-        if (has_tool_changer_ && !tool_names_.empty()) {
+        } else if (has_tool_changer_ && !tool_names_.empty()) {
+            // Standalone tool changer with no MMU — show parallel topology
+            detected_ams_systems_.push_back({AmsType::TOOL_CHANGER, "Tool Changer"});
             mmu_type_ = AmsType::TOOL_CHANGER;
         }
     }
