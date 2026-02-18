@@ -378,7 +378,15 @@ std::string DisplayBackendFbdev::auto_detect_touch_device() const {
         return env_device;
     }
 
-    // Priority 2: Capability-based detection using Linux sysfs
+    // Priority 2: Config file override
+    Config* cfg = Config::get_instance();
+    auto device_override = cfg->get<std::string>("/input/touch_device", "");
+    if (!device_override.empty()) {
+        spdlog::info("[Fbdev Backend] Using touch device from config: {}", device_override);
+        return device_override;
+    }
+
+    // Priority 3: Capability-based detection using Linux sysfs
     // Scan /dev/input/eventN devices and check for touch capabilities
     const char* input_dir = "/dev/input";
     DIR* dir = opendir(input_dir);
