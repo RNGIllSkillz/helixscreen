@@ -105,7 +105,7 @@ std::string auto_detect_drm_device() {
     }
 
     // Priority 2: Config file override
-    Config* cfg = Config::get_instance();
+    helix::Config* cfg = helix::Config::get_instance();
     std::string config_device = cfg->get<std::string>("/display/drm_device", "");
     if (!config_device.empty()) {
         spdlog::info("[DRM Backend] Using DRM device from config: {}", config_device);
@@ -260,7 +260,7 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
 
     // Priority 2: Config file override
     if (device_override.empty()) {
-        Config* cfg = Config::get_instance();
+        helix::Config* cfg = helix::Config::get_instance();
         device_override = cfg->get<std::string>("/input/touch_device", "");
         if (!device_override.empty()) {
             spdlog::info("[DRM Backend] Using touch device from config: {}", device_override);

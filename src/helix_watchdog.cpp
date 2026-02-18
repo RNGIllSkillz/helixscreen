@@ -625,7 +625,7 @@ static DialogChoice show_crash_dialog(int width, int height, int rotation, const
     spdlog::info("[Watchdog] Showing crash dialog (auto_restart={}s)", auto_restart_sec);
 
     // Initialize config so touch calibration data is available
-    Config::get_instance()->init("config/helixconfig.json");
+    helix::Config::get_instance()->init("config/helixconfig.json");
 
     // Initialize LVGL
     lv_init();
