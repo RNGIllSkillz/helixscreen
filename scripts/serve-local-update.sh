@@ -180,18 +180,24 @@ with open(path, 'w') as f:
 print('  update/channel =', data['update']['channel'], '(dev)')
 print('  update/dev_url =', data['update']['dev_url'])
 
-# Enable HELIX_DEBUG=1 in helixscreen.env (enables -vv debug logging via launcher)
-env_path = os.path.expanduser('~/helixscreen/config/helixscreen.env')
-if os.path.exists(env_path):
-    content = open(env_path).read()
-    # Uncomment or add HELIX_DEBUG=1
-    content = re.sub(r'^#?\s*HELIX_DEBUG=.*$', 'HELIX_DEBUG=1', content, flags=re.MULTILINE)
-    if 'HELIX_DEBUG=' not in content:
-        content += '\nHELIX_DEBUG=1\n'
-    open(env_path, 'w').write(content)
-    print('  HELIX_DEBUG=1  (debug logging enabled in helixscreen.env)')
-else:
-    print('  WARNING: helixscreen.env not found at', env_path)
+# Enable HELIX_DEBUG=1 in helixscreen.env (enables -vv debug logging via launcher).
+# Launcher checks INSTALL_DIR/config/ first, then /etc/helixscreen/.
+env_candidates = [
+    os.path.expanduser('~/helixscreen/config/helixscreen.env'),
+    '/etc/helixscreen/helixscreen.env',
+]
+env_path = next((p for p in env_candidates if os.path.exists(p)), None)
+if env_path is None:
+    # Neither exists — create at the install dir location
+    env_path = env_candidates[0]
+    os.makedirs(os.path.dirname(env_path), exist_ok=True)
+    open(env_path, 'w').write('')
+    print('  Created', env_path)
+content = open(env_path).read()
+content = re.sub(r'^#?\s*HELIX_DEBUG=.*\n?', '', content, flags=re.MULTILINE)
+content = content.rstrip('\n') + '\nHELIX_DEBUG=1\n'
+open(env_path, 'w').write(content)
+print('  HELIX_DEBUG=1  (debug logging enabled in', env_path + ')')
 \""
     echo ""
     echo "[serve-local-update] Restarting helix-screen on ${PI_USER}@${PI_HOST} ..."
