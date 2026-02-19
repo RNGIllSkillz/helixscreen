@@ -1126,11 +1126,11 @@ TEST_CASE("AFC reset_endless_spool clears all slots", "[ams][afc][endless_spool]
     // Should have sent 4 SET_RUNOUT commands (one per slot)
     REQUIRE(helper.captured_gcodes.size() == 4);
 
-    // Each should be setting RUNOUT_LANE= (empty) to disable
-    REQUIRE(helper.has_gcode("SET_RUNOUT LANE=lane1 RUNOUT_LANE="));
-    REQUIRE(helper.has_gcode("SET_RUNOUT LANE=lane2 RUNOUT_LANE="));
-    REQUIRE(helper.has_gcode("SET_RUNOUT LANE=lane3 RUNOUT_LANE="));
-    REQUIRE(helper.has_gcode("SET_RUNOUT LANE=lane4 RUNOUT_LANE="));
+    // Each should be setting RUNOUT=NONE to disable
+    REQUIRE(helper.has_gcode("SET_RUNOUT LANE=lane1 RUNOUT=NONE"));
+    REQUIRE(helper.has_gcode("SET_RUNOUT LANE=lane2 RUNOUT=NONE"));
+    REQUIRE(helper.has_gcode("SET_RUNOUT LANE=lane3 RUNOUT=NONE"));
+    REQUIRE(helper.has_gcode("SET_RUNOUT LANE=lane4 RUNOUT=NONE"));
 }
 
 TEST_CASE("AFC reset_endless_spool with zero slots is no-op", "[ams][afc][endless_spool][reset]") {

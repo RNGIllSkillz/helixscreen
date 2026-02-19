@@ -2290,15 +2290,14 @@ AmsError AmsBackendAfc::set_endless_spool_backup(int slot_index, int backup_slot
     }
 
     // Build and send G-code command
-    // SET_RUNOUT LANE={lane_name} RUNOUT_LANE={backup_lane_name}
-    // If backup_slot == -1, send empty RUNOUT_LANE= to disable
+    // AFC uses: SET_RUNOUT LANE=<name> RUNOUT=<name|NONE>
     std::string gcode;
     if (backup_slot >= 0) {
-        gcode = fmt::format("SET_RUNOUT LANE={} RUNOUT_LANE={}", lane_name, backup_lane_name);
+        gcode = fmt::format("SET_RUNOUT LANE={} RUNOUT={}", lane_name, backup_lane_name);
         spdlog::info("[AMS AFC] Setting endless spool backup: {} -> {}", lane_name,
                      backup_lane_name);
     } else {
-        gcode = fmt::format("SET_RUNOUT LANE={} RUNOUT_LANE=", lane_name);
+        gcode = fmt::format("SET_RUNOUT LANE={} RUNOUT=NONE", lane_name);
         spdlog::info("[AMS AFC] Disabling endless spool backup for {}", lane_name);
     }
 
