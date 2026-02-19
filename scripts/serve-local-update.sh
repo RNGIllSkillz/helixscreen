@@ -39,7 +39,8 @@
 # OPTIONS
 # -------
 #   --configure-pi   SSH into the Pi, write dev channel + dev_url into
-#                    ~/helixscreen/config/settings.json, and restart the
+#                    ~/helixscreen/config/settings.json, enable HELIX_DEBUG=1
+#                    in helixscreen.env for debug logging, and restart the
 #                    helixscreen service. Run once per Pi (or after a factory
 #                    reset). Requires passwordless sudo + SSH key access.
 #   --no-bump        Serve the exact version from VERSION.txt instead of
@@ -163,7 +164,9 @@ echo "[serve-local-update] Manifest → $MANIFEST_PATH"
 if [[ $CONFIGURE_PI -eq 1 ]]; then
     echo "[serve-local-update] Configuring ${PI_USER}@${PI_HOST} ..."
     ssh "${PI_USER}@${PI_HOST}" "python3 -c \"
-import json, os
+import json, os, re
+
+# Write dev channel + dev_url into settings.json
 path = os.path.expanduser('~/helixscreen/config/settings.json')
 data = {}
 if os.path.exists(path):
@@ -176,6 +179,19 @@ with open(path, 'w') as f:
     json.dump(data, f, indent=2)
 print('  update/channel =', data['update']['channel'], '(dev)')
 print('  update/dev_url =', data['update']['dev_url'])
+
+# Enable HELIX_DEBUG=1 in helixscreen.env (enables -vv debug logging via launcher)
+env_path = os.path.expanduser('~/helixscreen/config/helixscreen.env')
+if os.path.exists(env_path):
+    content = open(env_path).read()
+    # Uncomment or add HELIX_DEBUG=1
+    content = re.sub(r'^#?\s*HELIX_DEBUG=.*$', 'HELIX_DEBUG=1', content, flags=re.MULTILINE)
+    if 'HELIX_DEBUG=' not in content:
+        content += '\nHELIX_DEBUG=1\n'
+    open(env_path, 'w').write(content)
+    print('  HELIX_DEBUG=1  (debug logging enabled in helixscreen.env)')
+else:
+    print('  WARNING: helixscreen.env not found at', env_path)
 \""
     echo ""
     echo "[serve-local-update] Restarting helix-screen on ${PI_USER}@${PI_HOST} ..."
