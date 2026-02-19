@@ -45,9 +45,9 @@
 #                    reset). Requires passwordless sudo + SSH key access.
 #   --no-bump        Serve the exact version from VERSION.txt instead of
 #                    99.0.0. Useful if you manually set a higher version.
-#   --no-build       Skip compile + package and use the existing dist/ tarball.
-#                    Use when source hasn't changed and you just want to
-#                    re-serve the previously built tarball.
+#   --no-build       Skip compile + package. Patches install.sh from the repo
+#                    into the existing dist/ tarball so script-only changes
+#                    (install.sh, no binary changes) can be tested immediately.
 #   --port PORT      HTTP port to listen on (default: 8765).
 #
 # DEPENDENCIES
@@ -145,6 +145,19 @@ if [[ ! -f "$TARBALL_PATH" ]]; then
     echo "  Either run without --no-build, or build manually:"
     echo "    scripts/package.sh pi --version $VERSION"
     exit 1
+fi
+
+# ── Patch install.sh into existing tarball (--no-build fast path) ─────────────
+if [[ $BUILD -eq 0 ]]; then
+    echo "[serve-local-update] Patching install.sh into tarball..."
+    PATCH_DIR="$(mktemp -d)"
+    tar -xzf "$TARBALL_PATH" -C "$PATCH_DIR"
+    cp "$PROJECT_DIR/scripts/install.sh" "$PATCH_DIR/helixscreen/install.sh"
+    chmod +x "$PATCH_DIR/helixscreen/install.sh"
+    COPYFILE_DISABLE=1 tar -czf "$TARBALL_PATH" --owner=0 --group=0 -C "$PATCH_DIR" helixscreen
+    rm -rf "$PATCH_DIR"
+    echo "[serve-local-update] install.sh patched."
+    echo ""
 fi
 
 # ── Manifest ──────────────────────────────────────────────────────────────────
