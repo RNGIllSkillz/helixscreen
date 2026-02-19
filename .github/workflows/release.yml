@@ -85,6 +85,19 @@ jobs:
         restore-keys: |
           buildx-${{ matrix.platform }}-
 
+    - name: Cache ccache
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.ccache-${{ matrix.platform }}
+        key: ccache-release-${{ matrix.platform }}-${{ github.sha }}
+        restore-keys: |
+          ccache-release-${{ matrix.platform }}-
+
+    - name: Configure ccache
+      run: |
+        mkdir -p /tmp/.ccache-${{ matrix.platform }}
+        printf 'max_size = 300M\ncompression = true\n' > /tmp/.ccache-${{ matrix.platform }}/ccache.conf
+
     - name: Build ${{ matrix.platform }} toolchain image
       run: |
         docker buildx build \
@@ -99,9 +112,17 @@ jobs:
       run: |
         docker run --rm \
           -v "${{ github.workspace }}":/src \
+          -v /tmp/.ccache-${{ matrix.platform }}:/root/.cache/ccache \
           -w /src \
           helixscreen/toolchain-${{ matrix.platform }} \
           make PLATFORM_TARGET=${{ matrix.platform }} SKIP_OPTIONAL_DEPS=1 -j$(nproc)
+
+    - name: Show ccache stats
+      run: |
+        docker run --rm \
+          -v /tmp/.ccache-${{ matrix.platform }}:/root/.cache/ccache \
+          helixscreen/toolchain-${{ matrix.platform }} \
+          ccache -s
 
     # Symbol extraction and stripping are handled by the 'all' target
     # (all → strip → symbols → nm, then strip). No separate steps needed.
