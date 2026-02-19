@@ -1773,6 +1773,12 @@ PathTopology AmsBackendMock::get_unit_topology(int unit_index) const {
     return topology_; // Fallback to system-wide topology
 }
 
+bool AmsBackendMock::slot_has_prep_sensor(int slot_index) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // Mock always has prep sensors on all valid slots (matches AFC behavior)
+    return slot_index >= 0 && slot_index < system_info_.total_slots;
+}
+
 int AmsBackendMock::get_effective_delay_ms(int base_ms, float variance) const {
     double speedup = get_runtime_config()->sim_speedup;
     if (speedup <= 0)
