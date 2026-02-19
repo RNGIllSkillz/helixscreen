@@ -5,6 +5,27 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.5] - 2026-02-18
+
+### Added
+- **Android port**: Initial Android build system with CMake/Gradle, APK asset extraction, SDL fullscreen, and CI release pipeline
+- **Power panel**: Moonraker power device control with home panel toggle and advanced menu integration
+- Widget-safe async callback utilities for LVGL event handling
+
+### Fixed
+- AMS crash on quit from unjoinable scenario/dryer threads
+- AMS right column capped at 200px max width for proper flex layout
+- AMS tool count, hub sensor, and status corrected for mixed-topology AFC
+- AMS current slot label improved for multi-unit and tool changer displays
+- AMS 'Tooled' status handled correctly with production data regression tests
+- Gcode viewer SEGV from unsafe async callback
+- History totals computed from job list instead of hardcoded mock values
+- Update check errors now visible in settings UI
+- Installer uses printf for ANSI escapes instead of echo for POSIX compliance
+
+### Changed
+- Test output cleaned up: ~637 spurious warning/error lines silenced
+
 ## [0.10.4] - 2026-02-18
 
 Slicer-preferred progress, Klipper M117 display messages, interactive AMS toolheads, and a batch of AMS rendering and stability fixes.
@@ -711,6 +732,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.10.5]: https://github.com/prestonbrown/helixscreen/compare/v0.10.4...v0.10.5
 [0.10.4]: https://github.com/prestonbrown/helixscreen/compare/v0.10.3...v0.10.4
 [0.10.3]: https://github.com/prestonbrown/helixscreen/compare/v0.10.2...v0.10.3
 [0.10.2]: https://github.com/prestonbrown/helixscreen/compare/v0.10.1...v0.10.2
