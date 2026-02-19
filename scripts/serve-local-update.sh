@@ -105,6 +105,9 @@ else
     TEST_VERSION="$BASE_VERSION"
 fi
 
+# install.sh prepends "v" to the manifest version, so the manifest must use
+# bare version numbers (e.g. "99.0.0") to avoid "vv99.0.0" in the installer.
+VERSION_BARE="${TEST_VERSION}"
 VERSION="v${TEST_VERSION}"
 TARBALL_NAME="helixscreen-pi-${VERSION}.tar.gz"
 TARBALL_PATH="$PROJECT_DIR/dist/$TARBALL_NAME"
@@ -148,7 +151,7 @@ fi
 MANIFEST_PATH="$PROJECT_DIR/dist/manifest.json"
 cat > "$MANIFEST_PATH" <<EOF
 {
-  "version": "${VERSION}",
+  "version": "${VERSION_BARE}",
   "channel": "dev",
   "assets": {
     "pi": {
