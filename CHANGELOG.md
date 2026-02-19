@@ -5,6 +5,19 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.8] - 2026-02-19
+
+### Added
+- Debug bundle now collects Moonraker state, config, and Klipper/Moonraker logs via REST API
+- PII sanitization in debug bundles for emails, API tokens, webhook URLs, and MAC addresses
+
+### Fixed
+- Crash from running animations when navigating away from a panel (#128)
+- Crash from NULL font pointer during AMS bar layout rebuild
+- Crash from stale async callbacks in gcode viewer
+- Systemd update watcher stuck in infinite restart loop due to PathExists check
+- Debug bundle log fetching handles HTTP 416 Range Not Satisfiable responses
+
 ## [0.10.7] - 2026-02-18
 
 ### Fixed
@@ -754,6 +767,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.10.8]: https://github.com/prestonbrown/helixscreen/compare/v0.10.7...v0.10.8
 [0.10.7]: https://github.com/prestonbrown/helixscreen/compare/v0.10.6...v0.10.7
 [0.10.6]: https://github.com/prestonbrown/helixscreen/compare/v0.10.5...v0.10.6
 [0.10.5]: https://github.com/prestonbrown/helixscreen/compare/v0.10.4...v0.10.5
