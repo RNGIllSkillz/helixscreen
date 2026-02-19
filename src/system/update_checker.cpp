@@ -418,31 +418,20 @@ int extract_tar_member(const std::string& tarball_path, const std::string& extra
     return ret;
 }
 
-/// Log-and-flush helper for install diagnostics. Ensures every message reaches
+/// Log-and-flush macros for install diagnostics. Ensures every message reaches
 /// journalctl immediately — spdlog buffers by default and a systemd cgroup kill
 /// during self-update can lose all buffered output.
-template <typename... Args>
-void flog(spdlog::level::level_enum lvl, spdlog::format_string_t<Args...> fmt, Args&&... args) {
-    spdlog::log(lvl, fmt, std::forward<Args>(args)...);
-    spdlog::default_logger()->flush();
-}
-
-template <typename... Args>
-void flog_info(spdlog::format_string_t<Args...> fmt, Args&&... args) {
-    flog(spdlog::level::info, fmt, std::forward<Args>(args)...);
-}
-template <typename... Args>
-void flog_warn(spdlog::format_string_t<Args...> fmt, Args&&... args) {
-    flog(spdlog::level::warn, fmt, std::forward<Args>(args)...);
-}
-template <typename... Args>
-void flog_error(spdlog::format_string_t<Args...> fmt, Args&&... args) {
-    flog(spdlog::level::err, fmt, std::forward<Args>(args)...);
-}
-template <typename... Args>
-void flog_debug(spdlog::format_string_t<Args...> fmt, Args&&... args) {
-    flog(spdlog::level::debug, fmt, std::forward<Args>(args)...);
-}
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
+#define FLOG(level, ...)                                                                           \
+    do {                                                                                           \
+        spdlog::level(__VA_ARGS__);                                                                \
+        spdlog::default_logger()->flush();                                                         \
+    } while (false)
+#define flog_info(...) FLOG(info, __VA_ARGS__)
+#define flog_warn(...) FLOG(warn, __VA_ARGS__)
+#define flog_error(...) FLOG(error, __VA_ARGS__)
+#define flog_debug(...) FLOG(debug, __VA_ARGS__)
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
 } // anonymous namespace
 
@@ -1021,7 +1010,8 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
         flog_info("[UpdateChecker] Using installer extracted from tarball: {}", install_script);
     } else {
         // Fall back to local install.sh (best effort for older tarballs without it)
-        flog_warn("[UpdateChecker] Could not extract install.sh from tarball, falling back to local");
+        flog_warn(
+            "[UpdateChecker] Could not extract install.sh from tarball, falling back to local");
         safe_exec({rm_bin, "-rf", extracted_dir});
         install_script = find_local_installer();
         flog_info("[UpdateChecker] Local installer search result: '{}'", install_script);
@@ -1045,8 +1035,8 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
     {
         char cwd_buf[PATH_MAX] = {};
         const char* cwd = getcwd(cwd_buf, sizeof(cwd_buf));
-        flog_info("[UpdateChecker] cwd={} uid={} euid={} pid={}", cwd ? cwd : "(error)",
-                  getuid(), geteuid(), getpid());
+        flog_info("[UpdateChecker] cwd={} uid={} euid={} pid={}", cwd ? cwd : "(error)", getuid(),
+                  geteuid(), getpid());
     }
     {
         struct stat st{};
@@ -1119,8 +1109,8 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
                 }
                 // Log progress every 10 seconds so we can see the wait is active
                 if (elapsed > 0 && elapsed % 10 == 0) {
-                    flog_info("[UpdateChecker] Still waiting for install.sh pid={} ({}s/{}s)",
-                              pid, elapsed, timeout_seconds);
+                    flog_info("[UpdateChecker] Still waiting for install.sh pid={} ({}s/{}s)", pid,
+                              elapsed, timeout_seconds);
                 }
                 std::this_thread::sleep_for(std::chrono::seconds(1));
             }
@@ -1131,8 +1121,8 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
                 ret = normal_exit ? WEXITSTATUS(status) : -1;
                 int sig = signaled ? WTERMSIG(status) : 0;
                 flog_info(
-                    "[UpdateChecker] install.sh exit: code={} normal={} signaled={} signal={}",
-                    ret, normal_exit, signaled, sig);
+                    "[UpdateChecker] install.sh exit: code={} normal={} signaled={} signal={}", ret,
+                    normal_exit, signaled, sig);
             } else {
                 flog_error("[UpdateChecker] install.sh timed out after {}s, killing",
                            timeout_seconds);
@@ -1198,7 +1188,8 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
         version = cached_info_ ? cached_info_->version : "unknown";
     }
 
-    report_download_status(DownloadStatus::Complete, 100, "v" + version + " installed! Restarting...");
+    report_download_status(DownloadStatus::Complete, 100,
+                           "v" + version + " installed! Restarting...");
 
     // Trigger self-restart: _exit(0) causes the watchdog to restart helix-screen
     // with the newly installed binary ("Normal exit (code 0) — restart silently").
@@ -1217,6 +1208,13 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
         ::_exit(0);
     }).detach();
 }
+
+// Done with flush-on-write macros — only needed in do_install()
+#undef flog_info
+#undef flog_warn
+#undef flog_error
+#undef flog_debug
+#undef FLOG
 
 // ============================================================================
 // Static helpers
@@ -1371,10 +1369,9 @@ void UpdateChecker::check_for_updates(Callback callback) {
 
     const char* channel_name = (cached_channel_ == UpdateChannel::Beta)  ? "beta"
                                : (cached_channel_ == UpdateChannel::Dev) ? "dev"
-                                                                          : "stable";
+                                                                         : "stable";
     spdlog::debug("[UpdateChecker] check_for_updates: channel={} dev_url='{}' r2_base_url='{}'",
-                  channel_name,
-                  cached_dev_url_.empty() ? "(none)" : cached_dev_url_,
+                  channel_name, cached_dev_url_.empty() ? "(none)" : cached_dev_url_,
                   cached_r2_base_url_);
 
     // Update subjects on LVGL thread (check_for_updates is public, could be called from any thread)

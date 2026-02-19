@@ -55,6 +55,13 @@ install_permission_rules() {
         return 0
     fi
 
+    # Under NoNewPrivileges (self-update), sudo is blocked.  The rules were
+    # already installed during the initial install — skip silently.
+    if _has_no_new_privs; then
+        log_info "Skipping permission rules (NoNewPrivileges; already installed)"
+        return 0
+    fi
+
     # --- Backlight udev rule ---
     local udev_src="${INSTALL_DIR}/config/99-helixscreen-backlight.rules"
     local udev_dest="/etc/udev/rules.d/99-helixscreen-backlight.rules"

@@ -10,8 +10,9 @@ setup() {
     load helpers
 
     # Source modules (reset source guards so each test gets a fresh load)
-    unset _HELIX_COMMON_SOURCED _HELIX_PERMISSIONS_SOURCED
+    unset _HELIX_COMMON_SOURCED _HELIX_PERMISSIONS_SOURCED _HELIX_SERVICE_SOURCED
     . "$WORKTREE_ROOT/scripts/lib/installer/common.sh" 2>/dev/null || true
+    . "$WORKTREE_ROOT/scripts/lib/installer/service.sh" 2>/dev/null || true
     . "$WORKTREE_ROOT/scripts/lib/installer/permissions.sh"
 
     # Set required globals
@@ -77,6 +78,16 @@ SUDOEOF
     run install_permission_rules "pi"
     [ "$status" -eq 0 ]
     [[ "$output" == *"running as root"* ]]
+}
+
+@test "install_permission_rules: skips under NoNewPrivileges" {
+    # Mock _has_no_new_privs to simulate systemd NoNewPrivileges=true
+    _has_no_new_privs() { return 0; }
+    export -f _has_no_new_privs
+
+    run install_permission_rules "pi"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"NoNewPrivileges"* ]]
 }
 
 # =============================================================================

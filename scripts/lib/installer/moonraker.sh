@@ -66,6 +66,7 @@ repo: prestonbrown/helixscreen
 path: ${INSTALL_DIR}
 persistent_files:
     config/helixconfig.json
+    config/helixscreen.env
     config/.disabled_services
 EOF
 }

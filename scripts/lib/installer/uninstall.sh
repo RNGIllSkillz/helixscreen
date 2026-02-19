@@ -138,14 +138,14 @@ uninstall() {
     for cache_dir in /root/.cache/helix /tmp/helix_thumbs /.cache/helix /data/helixscreen/cache /usr/data/helixscreen/cache; do
         if [ -d "$cache_dir" ] 2>/dev/null; then
             log_info "Removing cache: $cache_dir"
-            $(file_sudo "$cache_dir") rm -rf "$cache_dir"
+            $SUDO rm -rf "$cache_dir"
         fi
     done
     # Clean up /var/tmp helix files
     for tmp_pattern in /var/tmp/helix_*; do
         if [ -e "$tmp_pattern" ] 2>/dev/null; then
             log_info "Removing cache: $tmp_pattern"
-            $(file_sudo "$tmp_pattern") rm -rf "$tmp_pattern"
+            $SUDO rm -rf "$tmp_pattern"
         fi
     done
 

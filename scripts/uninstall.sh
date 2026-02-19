@@ -69,6 +69,7 @@ file_sudo() {
 CLEANUP_TMP=false
 CLEANUP_SERVICE=false
 BACKUP_CONFIG=""
+BACKUP_ENV=""
 ORIGINAL_INSTALL_EXISTS=false
 
 # Colors (if terminal supports it)
@@ -112,13 +113,7 @@ error_handler() {
     log_error "=========================================="
     echo ""
 
-    # Cleanup temporary files
-    if [ "$CLEANUP_TMP" = true ] && [ -d "$TMP_DIR" ]; then
-        log_info "Cleaning up temporary files..."
-        rm -rf "$TMP_DIR"
-    fi
-
-    # If we backed up config and install failed, try to restore state
+    # Restore backups BEFORE cleaning TMP_DIR — backup files live in TMP_DIR
     if [ -n "$BACKUP_CONFIG" ] && [ -f "$BACKUP_CONFIG" ]; then
         log_info "Restoring backed up configuration..."
         if $(file_sudo "${INSTALL_DIR}") mkdir -p "${INSTALL_DIR}/config" 2>/dev/null; then
@@ -130,6 +125,18 @@ error_handler() {
         else
             log_warn "Could not create config directory. Backup saved at: $BACKUP_CONFIG"
         fi
+    fi
+    if [ -n "$BACKUP_ENV" ] && [ -f "$BACKUP_ENV" ]; then
+        if $(file_sudo "${INSTALL_DIR}/config") cp "$BACKUP_ENV" "${INSTALL_DIR}/config/helixscreen.env" 2>/dev/null; then
+            log_success "helixscreen.env restored"
+        else
+            log_warn "Could not restore helixscreen.env. Backup saved at: $BACKUP_ENV"
+        fi
+    fi
+
+    # Cleanup temporary files after restores are done
+    if [ "$CLEANUP_TMP" = true ] && [ -d "$TMP_DIR" ]; then
+        rm -rf "$TMP_DIR"
     fi
 
     echo ""
@@ -666,6 +673,13 @@ install_permission_rules() {
     # Skip for platforms that run as root (AD5M, K1) or if user is root
     if [ "$platform" = "ad5m" ] || [ "$platform" = "k1" ] || [ "$helix_user" = "root" ]; then
         log_info "Skipping permission rules (running as root)"
+        return 0
+    fi
+
+    # Under NoNewPrivileges (self-update), sudo is blocked.  The rules were
+    # already installed during the initial install — skip silently.
+    if _has_no_new_privs; then
+        log_info "Skipping permission rules (NoNewPrivileges; already installed)"
         return 0
     fi
 
@@ -1507,6 +1521,7 @@ repo: prestonbrown/helixscreen
 path: ${INSTALL_DIR}
 persistent_files:
     config/helixconfig.json
+    config/helixscreen.env
     config/.disabled_services
 EOF
 }
@@ -1876,14 +1891,14 @@ uninstall() {
     for cache_dir in /root/.cache/helix /tmp/helix_thumbs /.cache/helix /data/helixscreen/cache /usr/data/helixscreen/cache; do
         if [ -d "$cache_dir" ] 2>/dev/null; then
             log_info "Removing cache: $cache_dir"
-            $(file_sudo "$cache_dir") rm -rf "$cache_dir"
+            $SUDO rm -rf "$cache_dir"
         fi
     done
     # Clean up /var/tmp helix files
     for tmp_pattern in /var/tmp/helix_*; do
         if [ -e "$tmp_pattern" ] 2>/dev/null; then
             log_info "Removing cache: $tmp_pattern"
-            $(file_sudo "$tmp_pattern") rm -rf "$tmp_pattern"
+            $SUDO rm -rf "$tmp_pattern"
         fi
     done
 

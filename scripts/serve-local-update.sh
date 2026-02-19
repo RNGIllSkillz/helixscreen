@@ -106,6 +106,8 @@ BUMP=1
 CONFIGURE_REMOTE=0
 PLATFORM=pi
 
+VALID_PLATFORMS="pi pi32 ad5m cc1 k1 k1-dynamic k2 snapmaker-u1"
+
 # ── Args ──────────────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -122,6 +124,28 @@ while [[ $# -gt 0 ]]; do
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
+
+# ── Validate platform ─────────────────────────────────────────────────────────
+if ! echo "$VALID_PLATFORMS" | grep -qw "$PLATFORM"; then
+    echo "ERROR: Unknown platform '$PLATFORM'"
+    echo "  Valid platforms: $VALID_PLATFORMS"
+    exit 1
+fi
+
+# ── Dependency checks ─────────────────────────────────────────────────────────
+_missing=()
+command -v python3 >/dev/null || _missing+=(python3)
+if [[ $BUILD -eq 1 ]]; then
+    command -v docker >/dev/null || _missing+=(docker)
+fi
+if [[ $CONFIGURE_REMOTE -eq 1 ]]; then
+    command -v ssh >/dev/null || _missing+=("ssh")
+    command -v scp >/dev/null || _missing+=("scp")
+fi
+if [[ ${#_missing[@]} -gt 0 ]]; then
+    echo "ERROR: Missing required dependencies: ${_missing[*]}"
+    exit 1
+fi
 
 # ── Version ───────────────────────────────────────────────────────────────────
 BASE_VERSION="$(tr -d '[:space:]' < "$PROJECT_DIR/VERSION.txt")"  # e.g. 0.10.4
@@ -147,6 +171,25 @@ LOCAL_IP=$(ipconfig getifaddr en0 2>/dev/null || \
            echo "127.0.0.1")
 BASE_URL="http://${LOCAL_IP}:${PORT}"
 
+# ── Port availability check ────────────────────────────────────────────────────
+if lsof -iTCP:"$PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
+    echo "ERROR: Port $PORT is already in use."
+    echo "  Kill the existing process or use --port to choose another port."
+    exit 1
+fi
+
+# ── SSH reachability check (only for --configure-remote) ──────────────────────
+if [[ $CONFIGURE_REMOTE -eq 1 ]]; then
+    echo "[serve-local-update] Checking SSH connectivity to ${USERNAME}@${PRINTER}..."
+    if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "${USERNAME}@${PRINTER}" true 2>/dev/null; then
+        echo ""
+        echo "ERROR: Cannot reach ${USERNAME}@${PRINTER} via SSH."
+        echo "  Check that the device is powered on and SSH key auth is configured."
+        exit 1
+    fi
+    echo "  OK"
+fi
+
 echo ""
 echo "  serve-local-update"
 echo "  ══════════════════"
@@ -156,23 +199,6 @@ echo "  Test version : $TEST_VERSION  $([ $BUMP -eq 1 ] && echo "(fixed high —
 echo "  Tarball      : $TARBALL_NAME"
 echo "  Serving at   : $BASE_URL"
 echo "  Device       : ${USERNAME}@${PRINTER}"
-echo ""
-
-# ── Git pull ──────────────────────────────────────────────────────────────────
-echo "[serve-local-update] Pulling latest changes..."
-_SCRIPT_REV_BEFORE=$(git -C "$PROJECT_DIR" rev-parse HEAD:scripts/serve-local-update.sh 2>/dev/null || echo "")
-if ! git -C "$PROJECT_DIR" pull --ff-only; then
-    echo ""
-    echo "ERROR: git pull failed (conflicts or diverged history)."
-    echo "  Resolve conflicts, then re-run."
-    exit 1
-fi
-_SCRIPT_REV_AFTER=$(git -C "$PROJECT_DIR" rev-parse HEAD:scripts/serve-local-update.sh 2>/dev/null || echo "")
-if [[ "$_SCRIPT_REV_BEFORE" != "$_SCRIPT_REV_AFTER" ]]; then
-    echo "[serve-local-update] Script updated — restarting with new version..."
-    echo ""
-    exec "$SCRIPT_DIR/serve-local-update.sh" "$@"
-fi
 echo ""
 
 # ── Bundle install.sh from modules ───────────────────────────────────────────
@@ -206,17 +232,25 @@ fi
 if [[ $BUILD -eq 0 ]]; then
     echo "[serve-local-update] Patching install.sh into tarball..."
     PATCH_DIR="$(mktemp -d)"
+    trap 'rm -rf "$PATCH_DIR"' EXIT
     tar -xzf "$TARBALL_PATH" -C "$PATCH_DIR"
+    if [[ ! -d "$PATCH_DIR/helixscreen" ]]; then
+        echo "ERROR: Tarball does not contain expected helixscreen/ directory."
+        exit 1
+    fi
     cp "$PROJECT_DIR/scripts/install.sh" "$PATCH_DIR/helixscreen/install.sh"
     chmod +x "$PATCH_DIR/helixscreen/install.sh"
     COPYFILE_DISABLE=1 tar -czf "$TARBALL_PATH" --owner=0 --group=0 -C "$PATCH_DIR" helixscreen
     rm -rf "$PATCH_DIR"
+    trap - EXIT
     echo "[serve-local-update] install.sh patched."
     echo ""
 fi
 
 # ── Manifest ──────────────────────────────────────────────────────────────────
 MANIFEST_PATH="$PROJECT_DIR/dist/manifest.json"
+TARBALL_SHA256=$(shasum -a 256 "$TARBALL_PATH" | awk '{print $1}')
+TARBALL_SIZE=$(stat -f%z "$TARBALL_PATH" 2>/dev/null || stat -c%s "$TARBALL_PATH" 2>/dev/null)
 cat > "$MANIFEST_PATH" <<EOF
 {
   "version": "${VERSION_BARE}",
@@ -224,12 +258,16 @@ cat > "$MANIFEST_PATH" <<EOF
   "assets": {
     "${PLATFORM}": {
       "filename": "${TARBALL_NAME}",
-      "url": "${BASE_URL}/${TARBALL_NAME}"
+      "url": "${BASE_URL}/${TARBALL_NAME}",
+      "sha256": "${TARBALL_SHA256}",
+      "size": ${TARBALL_SIZE}
     }
   }
 }
 EOF
 echo "[serve-local-update] Manifest → $MANIFEST_PATH"
+echo "  SHA256: ${TARBALL_SHA256}"
+echo "  Size:   ${TARBALL_SIZE} bytes"
 
 # ── Configure remote device ────────────────────────────────────────────────────
 if [[ $CONFIGURE_REMOTE -eq 1 ]]; then
