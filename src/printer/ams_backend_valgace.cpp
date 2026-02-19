@@ -794,8 +794,14 @@ AmsError AmsBackendValgACE::execute_gcode(const std::string& gcode) {
     api_->execute_gcode(
         gcode, []() { spdlog::debug("[ValgACE] G-code executed successfully"); },
         [gcode](const MoonrakerError& err) {
-            spdlog::error("[ValgACE] G-code '{}' failed: {}", gcode, err.message);
-        });
+            if (err.type == MoonrakerErrorType::TIMEOUT) {
+                spdlog::warn("[ValgACE] G-code response timed out (may still be running): {}",
+                             gcode);
+            } else {
+                spdlog::error("[ValgACE] G-code '{}' failed: {}", gcode, err.message);
+            }
+        },
+        MoonrakerAPI::AMS_OPERATION_TIMEOUT_MS);
 
     return AmsErrorHelper::success();
 }

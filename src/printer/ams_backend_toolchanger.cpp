@@ -472,8 +472,15 @@ AmsError AmsBackendToolChanger::execute_gcode(const std::string& gcode) {
     api_->execute_gcode(
         gcode, []() { spdlog::debug("[AMS ToolChanger] G-code executed successfully"); },
         [gcode](const MoonrakerError& err) {
-            spdlog::error("[AMS ToolChanger] G-code failed: {} - {}", gcode, err.message);
-        });
+            if (err.type == MoonrakerErrorType::TIMEOUT) {
+                spdlog::warn(
+                    "[AMS ToolChanger] G-code response timed out (may still be running): {}",
+                    gcode);
+            } else {
+                spdlog::error("[AMS ToolChanger] G-code failed: {} - {}", gcode, err.message);
+            }
+        },
+        MoonrakerAPI::AMS_OPERATION_TIMEOUT_MS);
 
     return AmsErrorHelper::success();
 }

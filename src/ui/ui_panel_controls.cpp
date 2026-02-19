@@ -1058,7 +1058,11 @@ void ControlsPanel::handle_home_all() {
                 helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
-                NOTIFY_ERROR("Homing failed: {}", err.user_message());
+                if (err.type == MoonrakerErrorType::TIMEOUT) {
+                    NOTIFY_WARNING("Homing may still be running — response timed out");
+                } else {
+                    NOTIFY_ERROR("Homing failed: {}", err.user_message());
+                }
             });
     }
 }
@@ -1083,7 +1087,11 @@ void ControlsPanel::handle_home_xy() {
                 helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
-                NOTIFY_ERROR("Homing failed: {}", err.user_message());
+                if (err.type == MoonrakerErrorType::TIMEOUT) {
+                    NOTIFY_WARNING("Homing may still be running — response timed out");
+                } else {
+                    NOTIFY_ERROR("Homing failed: {}", err.user_message());
+                }
             });
     }
 }
@@ -1108,7 +1116,11 @@ void ControlsPanel::handle_home_z() {
                 helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
-                NOTIFY_ERROR("Homing failed: {}", err.user_message());
+                if (err.type == MoonrakerErrorType::TIMEOUT) {
+                    NOTIFY_WARNING("Homing may still be running — response timed out");
+                } else {
+                    NOTIFY_ERROR("Homing failed: {}", err.user_message());
+                }
             });
     }
 }
@@ -1134,8 +1146,13 @@ void ControlsPanel::handle_qgl() {
                 helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
-                NOTIFY_ERROR("QGL failed: {}", err.user_message());
-            });
+                if (err.type == MoonrakerErrorType::TIMEOUT) {
+                    NOTIFY_WARNING("QGL may still be running — response timed out");
+                } else {
+                    NOTIFY_ERROR("QGL failed: {}", err.user_message());
+                }
+            },
+            MoonrakerAPI::LEVELING_TIMEOUT_MS);
     }
 }
 
@@ -1160,8 +1177,13 @@ void ControlsPanel::handle_z_tilt() {
                 helix::ui::async_call(
                     [](void* ud) { static_cast<ControlsPanel*>(ud)->operation_guard_.end(); },
                     this);
-                NOTIFY_ERROR("Z-Tilt failed: {}", err.user_message());
-            });
+                if (err.type == MoonrakerErrorType::TIMEOUT) {
+                    NOTIFY_WARNING("Z-Tilt may still be running — response timed out");
+                } else {
+                    NOTIFY_ERROR("Z-Tilt failed: {}", err.user_message());
+                }
+            },
+            MoonrakerAPI::LEVELING_TIMEOUT_MS);
     }
 }
 

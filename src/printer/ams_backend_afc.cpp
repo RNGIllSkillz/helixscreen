@@ -1780,8 +1780,14 @@ AmsError AmsBackendAfc::execute_gcode(const std::string& gcode) {
     api_->execute_gcode(
         gcode, []() { spdlog::debug("[AMS AFC] G-code executed successfully"); },
         [gcode](const MoonrakerError& err) {
-            spdlog::error("[AMS AFC] G-code failed: {} - {}", gcode, err.message);
-        });
+            if (err.type == MoonrakerErrorType::TIMEOUT) {
+                spdlog::warn("[AMS AFC] G-code response timed out (may still be running): {}",
+                             gcode);
+            } else {
+                spdlog::error("[AMS AFC] G-code failed: {} - {}", gcode, err.message);
+            }
+        },
+        MoonrakerAPI::AMS_OPERATION_TIMEOUT_MS);
 
     return AmsErrorHelper::success();
 }
@@ -1804,12 +1810,19 @@ AmsError AmsBackendAfc::execute_gcode_notify(const std::string& gcode,
             }
         },
         [gcode, error_prefix](const MoonrakerError& err) {
-            if (!error_prefix.empty()) {
+            if (err.type == MoonrakerErrorType::TIMEOUT) {
+                spdlog::warn("[AMS AFC] G-code response timed out (may still be running): {}",
+                             gcode);
+                if (!error_prefix.empty()) {
+                    NOTIFY_WARNING("{} — response timed out", error_prefix);
+                }
+            } else if (!error_prefix.empty()) {
                 NOTIFY_ERROR("{}: {}", error_prefix, err.message);
             } else {
                 spdlog::error("[AMS AFC] G-code failed: {} - {}", gcode, err.message);
             }
-        });
+        },
+        MoonrakerAPI::AMS_OPERATION_TIMEOUT_MS);
 
     return AmsErrorHelper::success();
 }
