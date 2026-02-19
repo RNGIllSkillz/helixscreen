@@ -1202,7 +1202,8 @@ void MoonrakerClient::continue_discovery(std::function<void()> on_complete,
                         get_printer_state().set_webcam_available(false);
                     });
 
-                // Fire-and-forget power device detection
+                // Fire-and-forget power device detection (silent — not all printers
+                // have the power component, and "Method not found" is expected)
                 send_jsonrpc(
                     "machine.device_power.devices", json::object(),
                     [](json response) {
@@ -1218,7 +1219,9 @@ void MoonrakerClient::continue_discovery(std::function<void()> on_complete,
                         spdlog::warn("[Moonraker Client] Power device detection failed: {}",
                                      err.message);
                         get_printer_state().set_power_device_count(0);
-                    });
+                    },
+                    0,     // default timeout
+                    true); // silent — suppress error toast
 
                 // Step 3: Get printer information
                 send_jsonrpc("printer.info", {}, [this, on_complete](json printer_response) {
