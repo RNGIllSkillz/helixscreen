@@ -1286,11 +1286,14 @@ void UpdateChecker::check_for_updates(Callback callback) {
         return;
     }
 
-    // Rate limiting: return cached result if checked recently
+    // Rate limiting: return cached result if checked recently.
+    // Skipped for dev channel (local server) — no risk of hammering remote APIs.
     auto now = std::chrono::steady_clock::now();
     auto time_since_last = now - last_check_time_;
+    bool dev_channel = (get_channel() == UpdateChannel::Dev);
 
-    if (last_check_time_.time_since_epoch().count() > 0 && time_since_last < MIN_CHECK_INTERVAL) {
+    if (!dev_channel && last_check_time_.time_since_epoch().count() > 0 &&
+        time_since_last < MIN_CHECK_INTERVAL) {
         auto minutes_remaining =
             std::chrono::duration_cast<std::chrono::minutes>(MIN_CHECK_INTERVAL - time_since_last)
                 .count();
