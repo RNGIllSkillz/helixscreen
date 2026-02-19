@@ -130,7 +130,12 @@ echo ""
 
 # ── Git pull ──────────────────────────────────────────────────────────────────
 echo "[serve-local-update] Pulling latest changes..."
-git -C "$PROJECT_DIR" pull
+if ! git -C "$PROJECT_DIR" pull --ff-only; then
+    echo ""
+    echo "ERROR: git pull failed (conflicts or diverged history)."
+    echo "  Resolve conflicts, then re-run."
+    exit 1
+fi
 echo ""
 
 # ── Build ─────────────────────────────────────────────────────────────────────
