@@ -120,12 +120,8 @@
     <px name="spinner_arc_md_small" value="2"/>
     <px name="spinner_arc_md_medium" value="3"/>
     <px name="spinner_arc_md_large" value="3"/>
-    <px name="spinner_arc_sm_small" value="2"/>
-    <px name="spinner_arc_sm_medium" value="2"/>
-    <px name="spinner_arc_sm_large" value="2"/>
-    <px name="spinner_arc_xs_small" value="2"/>
-    <px name="spinner_arc_xs_medium" value="2"/>
-    <px name="spinner_arc_xs_large" value="2"/>
+    <px name="spinner_arc_sm" value="2"/>
+    <px name="spinner_arc_xs" value="2"/>
 
     <!-- Fan card tokens (fan_*) live in fan_tokens.xml -->
 
