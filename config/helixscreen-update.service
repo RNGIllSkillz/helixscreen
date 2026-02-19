@@ -6,6 +6,10 @@
 # Waits 10 seconds for Moonraker to finish extracting all files before
 # restarting the service.
 #
+# After restarting, re-arms the path unit's inotify watch.  Moonraker's
+# shutil.rmtree() invalidates watches on the old inode, so we restart
+# the path unit to pick up the new file at its new inode.
+#
 # Workaround for mainsail-crew/mainsail#2444.
 
 [Unit]
@@ -15,3 +19,4 @@ Description=Restart HelixScreen after update
 Type=oneshot
 ExecStartPre=/bin/sleep 10
 ExecStart=/bin/systemctl restart helixscreen
+ExecStartPost=/bin/systemctl restart helixscreen-update.path

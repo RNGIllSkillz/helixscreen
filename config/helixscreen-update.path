@@ -7,12 +7,13 @@
 # new release_info.json and triggers helixscreen-update.service to restart
 # HelixScreen after a short delay.
 #
-# We use BOTH PathExists and PathChanged because Moonraker's extraction
-# does shutil.rmtree(path) → path.mkdir() → extract.  The rmtree
-# invalidates any inotify watch on the old inode (PathChanged alone would
-# never fire).  PathExists re-arms after the oneshot service completes and
-# catches the file reappearing at a new inode.  PathChanged is kept as a
-# belt-and-suspenders catch for in-place updates.
+# We use PathChanged to detect when release_info.json is written/replaced.
+# Moonraker's extraction does shutil.rmtree(path) → path.mkdir() → extract,
+# which invalidates inotify watches on the old inode.  The update service
+# re-arms the path unit after restarting helixscreen to pick up the new inode.
+#
+# NOTE: PathExists was removed — it re-triggers every time the oneshot
+# completes if the file still exists, causing an infinite restart loop.
 #
 # Workaround for mainsail-crew/mainsail#2444: Mainsail's Update Manager
 # doesn't support type: zip semver comparison, so we use type: web which
@@ -22,7 +23,6 @@
 Description=Watch for HelixScreen version changes
 
 [Path]
-PathExists=@@INSTALL_DIR@@/release_info.json
 PathChanged=@@INSTALL_DIR@@/release_info.json
 
 [Install]
