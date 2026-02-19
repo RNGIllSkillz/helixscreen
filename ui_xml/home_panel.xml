@@ -282,7 +282,7 @@
         <lv_obj width="100%" flex_grow="1" style_pad_all="0" flex_flow="row" style_flex_cross_place="center">
 
           <!-- AMS status indicator (hidden if no AMS) -->
-          <lv_obj height="#button_height" flex_grow="1" style_pad_all="0">
+          <lv_obj height="#button_height_lg" flex_grow="1" style_pad_all="0">
             <bind_flag_if_eq subject="ams_slot_count" flag="hidden" ref_value="0"/>
             <ams_mini_status/>
           </lv_obj>
