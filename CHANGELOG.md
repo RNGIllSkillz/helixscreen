@@ -5,6 +5,11 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.6] - 2026-02-18
+
+### Fixed
+- Infinite CPU loop when saving Spoolman spool assignments on AFC and Happy Hare systems — Spoolman weight polling now updates slot state without sending G-code back to firmware, breaking a feedback cycle that saturated the CPU
+
 ## [0.10.5] - 2026-02-18
 
 ### Added
@@ -732,6 +737,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.10.6]: https://github.com/prestonbrown/helixscreen/compare/v0.10.5...v0.10.6
 [0.10.5]: https://github.com/prestonbrown/helixscreen/compare/v0.10.4...v0.10.5
 [0.10.4]: https://github.com/prestonbrown/helixscreen/compare/v0.10.3...v0.10.4
 [0.10.3]: https://github.com/prestonbrown/helixscreen/compare/v0.10.2...v0.10.3
