@@ -5,6 +5,25 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.9] - 2026-02-19
+
+### Added
+- AMS sensor error states with visual indicators for hub, extruder, and lane sensor faults
+- Happy Hare pre-gate sensor support for filament detection at each gate
+- External tool change step progress detection — swaps and loads initiated from gcode or other UIs now show correct progress steps
+
+### Fixed
+- AFC gcode commands corrected to match actual AFC-Klipper-Add-On API: `CHANGE_TOOL`, `TOOL_UNLOAD`, `SET_MAP`, `RESET_FAILURE`, and `SET_BOWDEN_LENGTH` now use correct command names and parameters
+- AFC per-lane commands (`SET_LONG_MOVE_SPEED`, `AFC_RESET_MOTOR_TIME`) now apply to all lanes instead of only the first
+- AFC bowden length per-extruder now maps through unit membership to find the correct hub
+- AMS mini status widget fills available height in multi-unit stacked layouts
+- AMS tool badge labels use pre-formatted buffers with auto-sized badge width
+- AMS backend skipped for tool changes when backend doesn't manage the tool
+- AMS nozzle count corrected for mixed topology with unique per-lane tool mappings
+- Happy Hare tip method detection reads from configfile on startup
+- Mock mixed topology corrected to match real hardware (Box Turtle=HUB, AMS_2=PARALLEL)
+- Worktree setup script auto-detects worktree when run without arguments
+
 ## [0.10.8] - 2026-02-19
 
 ### Added
@@ -767,6 +786,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[0.10.9]: https://github.com/prestonbrown/helixscreen/compare/v0.10.8...v0.10.9
 [0.10.8]: https://github.com/prestonbrown/helixscreen/compare/v0.10.7...v0.10.8
 [0.10.7]: https://github.com/prestonbrown/helixscreen/compare/v0.10.6...v0.10.7
 [0.10.6]: https://github.com/prestonbrown/helixscreen/compare/v0.10.5...v0.10.6
