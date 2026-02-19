@@ -374,16 +374,14 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
                     abs_x.minimum, abs_x.maximum, abs_y.minimum, abs_y.maximum, screen_width_,
                     screen_height_);
 
-                // Even if the device is capacitive (doesn't need calibration per se),
-                // check if the ABS range mismatches the display resolution.
-                // This catches cases like Goodix on SV06 Ace where the touch panel
-                // reports coordinates for 800x480 but display is 480x272.
+                // DISABLED: ABS mismatch detection causes problems on HDMI devices —
+                // the calibration wizard is more trouble than it's worth here.
                 if (!needs_calibration_ &&
                     helix::has_abs_display_mismatch(abs_x.maximum, abs_y.maximum, screen_width_,
                                                     screen_height_)) {
-                    needs_calibration_ = true;
+                    // needs_calibration_ = true;
                     spdlog::info("[Fbdev Backend] ABS range mismatch detected — "
-                                 "calibration wizard will show");
+                                 "NOT forcing calibration (disabled)");
                 }
             }
         } else {
