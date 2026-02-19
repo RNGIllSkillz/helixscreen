@@ -124,6 +124,8 @@ class HomePanel : public PanelBase {
 
     bool light_on_ = false;
     bool light_long_pressed_ = false; // Suppress click after long-press
+    bool power_on_ = false;           // Tracks power state for icon
+    bool power_long_pressed_ = false; // Suppress click after long-press for power button
     helix::NetworkType current_network_ = helix::NetworkType::Wifi;
     helix::PrintingTip current_tip_;
     helix::PrintingTip pending_tip_; // Tip waiting to be displayed after fade-out
@@ -137,6 +139,7 @@ class HomePanel : public PanelBase {
 
     // Light icon for dynamic brightness/color updates
     lv_obj_t* light_icon_ = nullptr;
+    lv_obj_t* power_icon_ = nullptr;
 
     // Lazily-created overlay panels (owned by LVGL parent, not us)
     lv_obj_t* nozzle_temp_panel_ = nullptr;
@@ -167,9 +170,15 @@ class HomePanel : public PanelBase {
     void on_led_state_changed(int state);
     void update_temp_icon_animation();
     void update_light_icon();
+    void handle_power_toggle();
+    void handle_power_long_press();
+    void update_power_icon(bool is_on);
+    void refresh_power_state(); // Query API to sync icon with actual device state
 
     static void light_toggle_cb(lv_event_t* e);
     static void light_long_press_cb(lv_event_t* e);
+    static void power_toggle_cb(lv_event_t* e);
+    static void power_long_press_cb(lv_event_t* e);
     static void print_card_clicked_cb(lv_event_t* e);
     static void tip_text_clicked_cb(lv_event_t* e);
     static void temp_clicked_cb(lv_event_t* e);

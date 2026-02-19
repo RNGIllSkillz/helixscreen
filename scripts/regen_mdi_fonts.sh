@@ -181,6 +181,7 @@ MDI_ICONS+=",0xF02C2"    # grid-off (no mesh empty state)
 MDI_ICONS+=",0xF0770"    # folder-open
 MDI_ICONS+=",0xF0792"    # arrow-collapse-down (flow-down)
 MDI_ICONS+=",0xF0CE1"    # arrow-up-circle (load/activate)
+MDI_ICONS+=",0xF0901"    # power-cycle
 MDI_ICONS+=",0xF0907"    # rabbit (Happy Hare logo)
 MDI_ICONS+=",0xF0796"    # arrow-expand-down (bed drops - CoreXY Z closer)
 MDI_ICONS+=",0xF0795"    # arrow-collapse-up (flow-up)

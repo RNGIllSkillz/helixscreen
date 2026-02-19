@@ -185,6 +185,7 @@ static const IconMapping ICON_MAP[] = {
     {"play_circle",        "\xF3\xB0\x90\x8C"},  // F040C play-circle
     {"plus",               "\xF3\xB0\x90\x95"},  // F0415 plus
     {"power",              "\xF3\xB0\x90\xA5"},  // F0425 power
+    {"power_cycle",        "\xF3\xB0\xA4\x81"},  // F0901 power-cycle
     {"power_plug",         "\xF3\xB0\x9A\xA5"},  // F06A5 power-plug
     {"print",              "\xF3\xB0\x90\xAA"},  // F042A printer
     {"printer_3d",         "\xF3\xB0\x90\xAB"},  // F042B printer-3d

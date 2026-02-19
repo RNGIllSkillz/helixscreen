@@ -579,6 +579,16 @@ void MoonrakerClientMock::discover_printer(
             get_printer_state().set_webcam_available(true);
             spdlog::debug("[MoonrakerClientMock] Webcam available: true (mock always has webcam)");
 
+            // Set power device count during discovery (matches real Moonraker behavior)
+            // Real client queries machine.device_power.devices during discovery
+            if (std::getenv("MOCK_EMPTY_POWER")) {
+                get_printer_state().set_power_device_count(0);
+                spdlog::debug("[MoonrakerClientMock] Power devices: 0 (MOCK_EMPTY_POWER set)");
+            } else {
+                get_printer_state().set_power_device_count(4);
+                spdlog::debug("[MoonrakerClientMock] Power devices: 4 (mock default)");
+            }
+
             // Log discovered hardware
             spdlog::debug("[MoonrakerClientMock] Discovered: {} heaters, {} sensors, {} fans, {} "
                           "LEDs",

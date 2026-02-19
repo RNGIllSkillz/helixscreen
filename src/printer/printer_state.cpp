@@ -535,6 +535,11 @@ void PrinterState::set_os_version_internal(const std::string& version) {
     versions_state_.set_os_version_internal(version);
 }
 
+void PrinterState::set_power_device_count(int count) {
+    // Delegate to capabilities_state_ component (handles thread-safety)
+    capabilities_state_.set_power_device_count(count);
+}
+
 void PrinterState::set_spoolman_available(bool available) {
     // Delegate to capabilities_state_ component (handles thread-safety)
     capabilities_state_.set_spoolman_available(available);
