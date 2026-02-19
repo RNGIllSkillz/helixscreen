@@ -1766,7 +1766,7 @@ void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point
 
     // Position menu near the click point, then show
     context_menu_->set_click_point(click_pt);
-    context_menu_->show_near_widget(parent_screen_, slot_index, near_widget, is_loaded);
+    context_menu_->show_near_widget(parent_screen_, slot_index, near_widget, is_loaded, backend);
 }
 
 // ============================================================================

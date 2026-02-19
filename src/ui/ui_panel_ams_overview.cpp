@@ -1095,7 +1095,7 @@ void AmsOverviewPanel::show_detail_context_menu(int slot_index, lv_obj_t* near_w
         is_loaded = (slot_info.status == SlotStatus::LOADED);
     }
 
-    context_menu_->show_near_widget(parent_screen_, slot_index, near_widget, is_loaded);
+    context_menu_->show_near_widget(parent_screen_, slot_index, near_widget, is_loaded, backend);
 }
 
 // ============================================================================
