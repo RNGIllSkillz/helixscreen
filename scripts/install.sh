@@ -76,7 +76,6 @@ file_sudo() {
 CLEANUP_TMP=false
 CLEANUP_SERVICE=false
 BACKUP_CONFIG=""
-BACKUP_SETTINGS=""
 BACKUP_ENV=""
 ORIGINAL_INSTALL_EXISTS=false
 
@@ -121,13 +120,8 @@ error_handler() {
     log_error "=========================================="
     echo ""
 
-    # Cleanup temporary files
-    if [ "$CLEANUP_TMP" = true ] && [ -d "$TMP_DIR" ]; then
-        log_info "Cleaning up temporary files..."
-        rm -rf "$TMP_DIR"
-    fi
-
     # If we backed up config and install failed, try to restore state
+    # NOTE: TMP_DIR cleanup happens AFTER restore — backups live in TMP_DIR
     if [ -n "$BACKUP_CONFIG" ] && [ -f "$BACKUP_CONFIG" ]; then
         log_info "Restoring backed up configuration..."
         if $(file_sudo "${INSTALL_DIR}") mkdir -p "${INSTALL_DIR}/config" 2>/dev/null; then
@@ -140,19 +134,17 @@ error_handler() {
             log_warn "Could not create config directory. Backup saved at: $BACKUP_CONFIG"
         fi
     fi
-    if [ -n "$BACKUP_SETTINGS" ] && [ -f "$BACKUP_SETTINGS" ]; then
-        if $(file_sudo "${INSTALL_DIR}/config") cp "$BACKUP_SETTINGS" "${INSTALL_DIR}/config/settings.json" 2>/dev/null; then
-            log_success "Settings restored"
-        else
-            log_warn "Could not restore settings. Backup saved at: $BACKUP_SETTINGS"
-        fi
-    fi
     if [ -n "$BACKUP_ENV" ] && [ -f "$BACKUP_ENV" ]; then
         if $(file_sudo "${INSTALL_DIR}/config") cp "$BACKUP_ENV" "${INSTALL_DIR}/config/helixscreen.env" 2>/dev/null; then
             log_success "helixscreen.env restored"
         else
             log_warn "Could not restore helixscreen.env. Backup saved at: $BACKUP_ENV"
         fi
+    fi
+
+    # Cleanup temporary files after restores are done
+    if [ "$CLEANUP_TMP" = true ] && [ -d "$TMP_DIR" ]; then
+        rm -rf "$TMP_DIR"
     fi
 
     echo ""
@@ -2057,13 +2049,6 @@ extract_release() {
             log_info "Backed up existing configuration (legacy location)"
         fi
 
-        # Backup settings (update channel, dev_url, and other runtime preferences)
-        if [ -f "${INSTALL_DIR}/config/settings.json" ]; then
-            BACKUP_SETTINGS="${TMP_DIR}/settings.json.backup"
-            cp "${INSTALL_DIR}/config/settings.json" "$BACKUP_SETTINGS"
-            log_info "Backed up existing settings"
-        fi
-
         # Backup helixscreen.env (preserves HELIX_DEBUG and other env customizations)
         if [ -f "${INSTALL_DIR}/config/helixscreen.env" ]; then
             BACKUP_ENV="${TMP_DIR}/helixscreen.env.backup"
@@ -2116,11 +2101,6 @@ extract_release() {
         $(file_sudo "${INSTALL_DIR}") mkdir -p "${INSTALL_DIR}/config"
         $(file_sudo "${INSTALL_DIR}/config") cp "$BACKUP_CONFIG" "${INSTALL_DIR}/config/helixconfig.json"
         log_info "Restored existing configuration to config/"
-    fi
-    if [ -n "${BACKUP_SETTINGS:-}" ] && [ -f "$BACKUP_SETTINGS" ]; then
-        $(file_sudo "${INSTALL_DIR}") mkdir -p "${INSTALL_DIR}/config"
-        $(file_sudo "${INSTALL_DIR}/config") cp "$BACKUP_SETTINGS" "${INSTALL_DIR}/config/settings.json"
-        log_info "Restored existing settings to config/"
     fi
     if [ -n "${BACKUP_ENV:-}" ] && [ -f "$BACKUP_ENV" ]; then
         $(file_sudo "${INSTALL_DIR}") mkdir -p "${INSTALL_DIR}/config"
@@ -2412,7 +2392,6 @@ path: ${INSTALL_DIR}
 managed_services: helixscreen
 persistent_files:
     config/helixconfig.json
-    config/settings.json
     config/helixscreen.env
     config/.disabled_services
 EOF
