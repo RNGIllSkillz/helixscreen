@@ -65,7 +65,7 @@ The configuration file is JSON format with several top-level sections:
   "dark_mode": false,
   "brightness": 50,
   "sounds_enabled": true,
-  "completion_alert": true,
+  "completion_alert": 2,
   "wizard_completed": false,
   "wifi_expected": false,
   "language": "en",
@@ -112,9 +112,15 @@ The configuration file is JSON format with several top-level sections:
 **Description:** Enable UI sound effects (button clicks, navigation sounds).
 
 ### `completion_alert`
-**Type:** boolean
-**Default:** `true`
-**Description:** Play an alert sound when a print completes. Useful for getting notified when away from the printer.
+**Type:** integer
+**Default:** `2`
+**Values:** `0` (Off), `1` (Notification), `2` (Alert)
+**Description:** How HelixScreen notifies you when a print completes or is cancelled (while you're on a different screen):
+- `0` — **Off**: No notification (sound still plays if sounds are enabled)
+- `1` — **Notification**: Brief toast message at the top of the screen
+- `2` — **Alert**: Full-screen modal with print stats (duration, layers, filament used) and confetti for successful prints
+
+Errors always show the full alert regardless of this setting. To change this in the UI, go to **Settings > Print Complete Alert** and select from the dropdown.
 
 ### `wizard_completed`
 **Type:** boolean
@@ -1156,7 +1162,7 @@ Environment="HELIX_TOUCH_DEVICE=/dev/input/event0"
   "dark_mode": true,
   "brightness": 70,
   "sounds_enabled": true,
-  "completion_alert": true,
+  "completion_alert": 2,
   "wizard_completed": true,
   "wifi_expected": true,
   "language": "en",

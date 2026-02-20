@@ -35,6 +35,22 @@ Access via the **Gear icon** in the navigation bar.
 
 ---
 
+## Print Completion Alerts
+
+Controls how HelixScreen notifies you when a print finishes, is cancelled, or fails — when you're not already on the print status screen.
+
+| Mode | Behavior |
+|------|----------|
+| **Off** | No visual notification (sound still plays if enabled) |
+| **Notification** | Brief toast message at the top of the screen |
+| **Alert** (default) | Full-screen modal showing print stats — duration, layers, filament used — with confetti for successful prints |
+
+To change: **Settings > Print Complete Alert** dropdown.
+
+> **Note:** Print errors always show the full alert modal regardless of this setting, since errors need immediate visibility. If you're already on the print status screen when a print ends, no notification is shown (the panel itself shows the result).
+
+---
+
 ## Sound Settings
 
 HelixScreen can play sounds for button presses, navigation, print events, and alerts. Sounds work on all supported hardware — from desktop speakers to the tiny buzzer on your Creality printer.

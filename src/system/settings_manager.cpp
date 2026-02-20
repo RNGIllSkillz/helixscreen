@@ -168,8 +168,8 @@ void SettingsManager::init_subjects() {
     int volume = std::clamp(config->get<int>("/sounds/volume", 80), 0, 100);
     UI_MANAGED_SUBJECT_INT(volume_subject_, volume, "settings_volume", subjects_);
 
-    // Completion alert mode (default: NOTIFICATION=1, handles old bool migration)
-    int completion_mode = config->get<int>("/completion_alert", 1);
+    // Completion alert mode (default: ALERT=2, handles old bool migration)
+    int completion_mode = config->get<int>("/completion_alert", 2);
     completion_mode = std::max(0, std::min(2, completion_mode));
     UI_MANAGED_SUBJECT_INT(completion_alert_subject_, completion_mode, "settings_completion_alert",
                            subjects_);
