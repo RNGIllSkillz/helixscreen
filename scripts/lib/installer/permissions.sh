@@ -85,7 +85,7 @@ install_permission_rules() {
         if [ -d "$rules_dir" ]; then
             # JavaScript rules format (newer polkit, Debian 12+)
             local rules_dest="${rules_dir}/50-helixscreen-network.rules"
-            $SUDO tee "$rules_dest" > /dev/null << POLKIT_EOF
+            if $SUDO tee "$rules_dest" > /dev/null << POLKIT_EOF
 // Installed by HelixScreen — allow service user to manage NetworkManager
 polkit.addRule(function(action, subject) {
     if (action.id.indexOf("org.freedesktop.NetworkManager.") === 0 &&
@@ -94,7 +94,11 @@ polkit.addRule(function(action, subject) {
     }
 });
 POLKIT_EOF
-            log_info "Installed NetworkManager polkit rule (.rules)"
+            then
+                log_info "Installed NetworkManager polkit rule (.rules)"
+            else
+                log_warn "Failed to install polkit rule to ${rules_dest} — Wi-Fi scanning may not work"
+            fi
         elif [ -d "$pkla_dir" ]; then
             # .pkla format (pklocalauthority, Debian 11 and older)
             local pkla_dest="${pkla_dir}/helixscreen-network.pkla"

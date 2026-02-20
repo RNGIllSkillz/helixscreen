@@ -180,7 +180,7 @@ start_service_systemd() {
     local i
     for i in 1 2 3 4 5; do
         sleep 1
-        if $SUDO systemctl is-active --quiet "$SERVICE_NAME"; then
+        if systemctl is-active --quiet "$SERVICE_NAME"; then
             log_success "HelixScreen is running!"
             return
         fi
@@ -254,7 +254,7 @@ fix_install_ownership() {
 # Stop service for update
 stop_service() {
     if [ "$INIT_SYSTEM" = "systemd" ]; then
-        if $SUDO systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+        if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
             log_info "Stopping existing HelixScreen service (systemd)..."
             $SUDO systemctl stop "$SERVICE_NAME" || true
         fi

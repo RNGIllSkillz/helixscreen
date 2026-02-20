@@ -728,7 +728,7 @@ install_permission_rules() {
         if [ -d "$rules_dir" ]; then
             # JavaScript rules format (newer polkit, Debian 12+)
             local rules_dest="${rules_dir}/50-helixscreen-network.rules"
-            $SUDO tee "$rules_dest" > /dev/null << POLKIT_EOF
+            if $SUDO tee "$rules_dest" > /dev/null << POLKIT_EOF
 // Installed by HelixScreen — allow service user to manage NetworkManager
 polkit.addRule(function(action, subject) {
     if (action.id.indexOf("org.freedesktop.NetworkManager.") === 0 &&
@@ -737,7 +737,11 @@ polkit.addRule(function(action, subject) {
     }
 });
 POLKIT_EOF
-            log_info "Installed NetworkManager polkit rule (.rules)"
+            then
+                log_info "Installed NetworkManager polkit rule (.rules)"
+            else
+                log_warn "Failed to install polkit rule to ${rules_dest} — Wi-Fi scanning may not work"
+            fi
         elif [ -d "$pkla_dir" ]; then
             # .pkla format (pklocalauthority, Debian 11 and older)
             local pkla_dest="${pkla_dir}/helixscreen-network.pkla"
@@ -1573,7 +1577,7 @@ stop_competing_uis() {
     for ui in $COMPETING_UIS; do
         # Check systemd services
         if [ "$INIT_SYSTEM" = "systemd" ]; then
-            if $SUDO systemctl is-active --quiet "$ui" 2>/dev/null; then
+            if systemctl is-active --quiet "$ui" 2>/dev/null; then
                 log_info "Stopping $ui (systemd service)..."
                 $SUDO systemctl stop "$ui" 2>/dev/null || true
                 $SUDO systemctl disable "$ui" 2>/dev/null || true
@@ -2380,7 +2384,7 @@ start_service_systemd() {
     local i
     for i in 1 2 3 4 5; do
         sleep 1
-        if $SUDO systemctl is-active --quiet "$SERVICE_NAME"; then
+        if systemctl is-active --quiet "$SERVICE_NAME"; then
             log_success "HelixScreen is running!"
             return
         fi
@@ -2454,7 +2458,7 @@ fix_install_ownership() {
 # Stop service for update
 stop_service() {
     if [ "$INIT_SYSTEM" = "systemd" ]; then
-        if $SUDO systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+        if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
             log_info "Stopping existing HelixScreen service (systemd)..."
             $SUDO systemctl stop "$SERVICE_NAME" || true
         fi
@@ -2675,7 +2679,7 @@ ensure_moonraker_asvc() {
 
 # Restart Moonraker to pick up configuration changes
 restart_moonraker() {
-    if command -v systemctl >/dev/null 2>&1 && $SUDO systemctl is-active --quiet moonraker 2>/dev/null; then
+    if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet moonraker 2>/dev/null; then
         log_info "Restarting Moonraker to apply configuration..."
         $SUDO systemctl restart moonraker || true
     elif [ -x "/etc/init.d/S56moonraker_service" ]; then

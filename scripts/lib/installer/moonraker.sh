@@ -203,7 +203,7 @@ ensure_moonraker_asvc() {
 
 # Restart Moonraker to pick up configuration changes
 restart_moonraker() {
-    if command -v systemctl >/dev/null 2>&1 && $SUDO systemctl is-active --quiet moonraker 2>/dev/null; then
+    if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet moonraker 2>/dev/null; then
         log_info "Restarting Moonraker to apply configuration..."
         $SUDO systemctl restart moonraker || true
     elif [ -x "/etc/init.d/S56moonraker_service" ]; then
