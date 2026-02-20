@@ -8,6 +8,7 @@
 #include "afc_config_manager.h"
 #include "ams_backend.h"
 #include "moonraker_client.h"
+#include "slot_registry.h"
 
 #include <array>
 #include <atomic>
@@ -522,6 +523,9 @@ class AmsBackendAfc : public AmsBackend {
     AmsSystemInfo system_info_;           ///< Current system state
     bool lanes_initialized_{false};       ///< Have we received lane data yet?
     std::vector<std::string> lane_names_; ///< Ordered list of lane names
+
+    // Unified slot registry (parallel-run alongside legacy structures)
+    helix::printer::SlotRegistry slots_;
 
     // Lane name to slot index mapping
     std::unordered_map<std::string, int> lane_name_to_index_;

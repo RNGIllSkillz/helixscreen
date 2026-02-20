@@ -1655,6 +1655,9 @@ void AmsBackendAfc::initialize_lanes(const std::vector<std::string>& lane_names)
     }
 
     lanes_initialized_ = true;
+
+    // Initialize registry alongside legacy structures
+    slots_.initialize("AFC Box Turtle", lane_names);
 }
 
 /**
@@ -1771,6 +1774,13 @@ void AmsBackendAfc::reorganize_units_from_map() {
 
     spdlog::info("[AMS AFC] Reorganized into {} units, {} total slots", system_info_.units.size(),
                  system_info_.total_slots);
+
+    // Reorganize registry alongside legacy structures
+    {
+        std::map<std::string, std::vector<std::string>> sorted_map(unit_lane_map_.begin(),
+                                                                   unit_lane_map_.end());
+        slots_.reorganize(sorted_map);
+    }
 }
 
 std::string AmsBackendAfc::get_lane_name(int slot_index) const {
