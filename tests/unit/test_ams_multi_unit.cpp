@@ -57,7 +57,7 @@ static AmsSystemInfo make_multi_unit_info(const std::vector<int>& slots_per_unit
 /**
  * @brief Test helper for AFC multi-unit parsing
  *
- * Exposes parse_afc_state and initialize_lanes for testing multi-unit
+ * Exposes parse_afc_state and initialize_slots for testing multi-unit
  * initialization paths that currently create only 1 unit.
  */
 class AmsBackendAfcMultiUnitHelper : public AmsBackendAfc {
@@ -74,9 +74,9 @@ class AmsBackendAfcMultiUnitHelper : public AmsBackendAfc {
         handle_status_update(notification);
     }
 
-    /// Expose initialize_lanes for testing
-    void test_initialize_lanes(const std::vector<std::string>& names) {
-        initialize_lanes(names);
+    /// Expose initialize_slots for testing
+    void test_initialize_slots(const std::vector<std::string>& names) {
+        initialize_slots(names);
     }
 
     /// Access system_info for assertions (const)
@@ -404,7 +404,7 @@ TEST_CASE("AmsSystemInfo total_slots matches sum across units", "[ams][multi-uni
 // ============================================================================
 //
 // NOTE: These tests define the EXPECTED behavior for multi-unit AFC support.
-// The AFC backend's initialize_lanes() currently always creates 1 unit.
+// The AFC backend's initialize_slots() currently always creates 1 unit.
 // Tests for multi-unit will FAIL initially - this is TDD.
 // ============================================================================
 
@@ -413,7 +413,7 @@ TEST_CASE("AFC single-unit backward compatibility", "[ams][multi-unit][afc]") {
     AmsBackendAfcMultiUnitHelper helper;
 
     std::vector<std::string> lanes = {"lane1", "lane2", "lane3", "lane4"};
-    helper.test_initialize_lanes(lanes);
+    helper.test_initialize_slots(lanes);
 
     const auto& info = helper.get_system_info_ref();
 
@@ -613,7 +613,7 @@ TEST_CASE("Happy Hare single-unit backward compatibility", "[ams][multi-unit][ha
     // Standard single-unit Happy Hare with integer num_gates
     AmsBackendHHMultiUnitHelper helper;
 
-    // Feed initial MMU state with gate arrays (triggers initialize_gates)
+    // Feed initial MMU state with gate arrays (triggers initialize_slots)
     nlohmann::json mmu_data;
     mmu_data["gate_status"] = {1, 1, 0, -1};
     mmu_data["gate_color_rgb"] = {0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00};

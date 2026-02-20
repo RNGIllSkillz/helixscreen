@@ -107,7 +107,7 @@ AmsError AmsBackendAfc::start() {
         if (!discovered_lane_names_.empty() && !slots_.is_initialized()) {
             spdlog::info("[AMS AFC] Initializing {} lanes from discovery",
                          discovered_lane_names_.size());
-            initialize_lanes(discovered_lane_names_);
+            initialize_slots(discovered_lane_names_);
         }
 
         should_emit = true;
@@ -773,10 +773,10 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data) {
         // so system_info_ modifications are safe from concurrent get_system_info() reads.
         if (!unit_lane_map_.empty()) {
             if (!slots_.is_initialized() && !discovered_lane_names_.empty()) {
-                initialize_lanes(discovered_lane_names_);
+                initialize_slots(discovered_lane_names_);
             }
             if (slots_.is_initialized()) {
-                reorganize_units_from_map();
+                reorganize_slots();
             }
         }
     }
@@ -1270,16 +1270,16 @@ void AmsBackendAfc::parse_afc_unit_object(AfcUnitInfo& unit_info, const nlohmann
         }
     }
     if (all_have_lanes) {
-        reorganize_units_from_unit_info();
+        rebuild_unit_map_from_klipper();
     }
 }
 
-void AmsBackendAfc::reorganize_units_from_unit_info() {
+void AmsBackendAfc::rebuild_unit_map_from_klipper() {
     // Rebuild unit_lane_map_ from unit_infos_ data and trigger reorganization
     unit_lane_map_.clear();
     for (const auto& ui : unit_infos_) {
         if (!ui.lanes.empty()) {
-            // Use the full "Type Name" as map key for reorganize_units_from_map
+            // Use the full "Type Name" as map key for reorganize_slots
             // which uses unit names for AmsUnit::name
             std::string display_name = ui.type + " " + ui.name;
             unit_lane_map_[display_name] = ui.lanes;
@@ -1288,10 +1288,10 @@ void AmsBackendAfc::reorganize_units_from_unit_info() {
 
     if (!unit_lane_map_.empty()) {
         if (!slots_.is_initialized() && !discovered_lane_names_.empty()) {
-            initialize_lanes(discovered_lane_names_);
+            initialize_slots(discovered_lane_names_);
         }
         if (slots_.is_initialized()) {
-            reorganize_units_from_map();
+            reorganize_slots();
 
             // Set per-unit topology on AmsUnit structs from unit_infos_.
             // unit_infos_ is in AFC JSON order, system_info_.units is alphabetically sorted.
@@ -1549,7 +1549,7 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
     // Initialize lanes if this is the first time or count changed
     if (!slots_.is_initialized() ||
         static_cast<int>(new_lane_names.size()) != slots_.slot_count()) {
-        initialize_lanes(new_lane_names);
+        initialize_slots(new_lane_names);
     }
 
     // Update lane information
@@ -1629,7 +1629,7 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
     }
 }
 
-void AmsBackendAfc::initialize_lanes(const std::vector<std::string>& lane_names) {
+void AmsBackendAfc::initialize_slots(const std::vector<std::string>& lane_names) {
     int lane_count = static_cast<int>(lane_names.size());
 
     // Initialize registry (sets is_initialized = true, creates SlotEntry per lane)
@@ -1686,7 +1686,7 @@ void AmsBackendAfc::initialize_lanes(const std::vector<std::string>& lane_names)
  * @pre mutex_ must be held by caller (via handle_status_update → parse_afc_state)
  * @pre slots_ must be initialized (slots exist in system_info_.units[0])
  */
-void AmsBackendAfc::reorganize_units_from_map() {
+void AmsBackendAfc::reorganize_slots() {
     if (unit_lane_map_.size() <= 1) {
         // Single unit - just update the name if available
         if (!unit_lane_map_.empty() && !system_info_.units.empty()) {

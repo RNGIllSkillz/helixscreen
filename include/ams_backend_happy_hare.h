@@ -193,14 +193,14 @@ class AmsBackendHappyHare : public AmsBackend {
     void parse_mmu_state(const nlohmann::json& mmu_data);
 
     /**
-     * @brief Initialize gate structures based on gate_status array size
+     * @brief Initialize slot structures based on gate_status array size
      *
      * Called when we first receive gate_status to create the correct
      * number of SlotInfo entries.
      *
      * @param gate_count Number of gates detected
      */
-    void initialize_gates(int gate_count);
+    void initialize_slots(int gate_count);
 
     /**
      * @brief Emit event to registered callback

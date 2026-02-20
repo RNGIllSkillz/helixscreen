@@ -442,7 +442,7 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
 
         // Initialize gates if this is the first time we see gate_status
         if (!slots_.is_initialized() && gate_count > 0) {
-            initialize_gates(gate_count);
+            initialize_slots(gate_count);
         }
 
         // Update gate status values via SlotRegistry
@@ -571,8 +571,8 @@ void AmsBackendHappyHare::parse_mmu_state(const nlohmann::json& mmu_data) {
     }
 }
 
-void AmsBackendHappyHare::initialize_gates(int gate_count) {
-    spdlog::info("[AMS HappyHare] Initializing {} gates across {} units", gate_count, num_units_);
+void AmsBackendHappyHare::initialize_slots(int gate_count) {
+    spdlog::info("[AMS HappyHare] Initializing {} slots across {} units", gate_count, num_units_);
 
     system_info_.units.clear();
 

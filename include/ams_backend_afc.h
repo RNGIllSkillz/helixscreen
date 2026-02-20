@@ -410,25 +410,25 @@ class AmsBackendAfc : public AmsBackend {
     void parse_afc_unit_object(AfcUnitInfo& unit_info, const nlohmann::json& data);
 
     /**
-     * @brief Rebuild unit_lane_map_ and reorganize units from unit_infos_ data
+     * @brief Rebuild unit_lane_map_ from unit_infos_ and reorganize slots
      *
      * Called after all unit-level objects have been parsed. Rebuilds the
-     * unit-to-lane mapping from unit_infos_ and triggers reorganize_units_from_map().
+     * unit-to-lane mapping from unit_infos_ and triggers reorganize_slots().
      */
-    void reorganize_units_from_unit_info();
+    void rebuild_unit_map_from_klipper();
 
     /**
-     * @brief Initialize lane structures based on discovered lanes
+     * @brief Initialize slot structures based on discovered lanes
      *
      * Called when we first receive lane data to create the correct
      * number of SlotInfo entries.
      *
-     * @param lane_names Vector of lane name strings
+     * @param lane_names Vector of lane name strings (from AFC discovery)
      */
-    void initialize_lanes(const std::vector<std::string>& lane_names);
+    void initialize_slots(const std::vector<std::string>& lane_names);
 
     /**
-     * @brief Reorganize units based on unit-lane mapping from AFC
+     * @brief Reorganize slots into multi-unit structure using unit_lane_map_
      *
      * When AFC reports multiple units with per-unit lane assignments,
      * this method rebuilds system_info_.units to reflect the actual
@@ -436,9 +436,9 @@ class AmsBackendAfc : public AmsBackend {
      * (colors, materials, etc.) during reorganization.
      *
      * Called from parse_afc_state() when unit_lane_map_ is populated
-     * and lanes are already initialized.
+     * and slots are already initialized.
      */
-    void reorganize_units_from_map();
+    void reorganize_slots();
 
     /**
      * @brief Compute filament segment from sensor states (no locking)
@@ -515,7 +515,7 @@ class AmsBackendAfc : public AmsBackend {
     helix::printer::SlotRegistry slots_;
 
     // Pre-init storage for lane names from PrinterCapabilities discovery.
-    // Consumed by initialize_lanes() then cleared; after init use slots_.name_of().
+    // Consumed by initialize_slots() then cleared; after init use slots_.name_of().
     std::vector<std::string> discovered_lane_names_;
 
     // Unit-to-lane mapping (populated from AFC unit data)
