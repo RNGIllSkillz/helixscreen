@@ -946,6 +946,22 @@ void NetworkSettingsOverlay::handle_add_other_clicked() {
             spdlog::error("[NetworkSettingsOverlay] Failed to show hidden network modal");
             return;
         }
+
+        // Register soft keyboard for text inputs
+        lv_obj_t* ssid_input = lv_obj_find_by_name(hidden_network_modal_, "ssid_input");
+        if (ssid_input) {
+            helix::ui::modal_register_keyboard(hidden_network_modal_, ssid_input);
+            // Focus SSID input so user can start typing immediately
+            lv_group_t* group = lv_group_get_default();
+            if (group) {
+                lv_group_focus_obj(ssid_input);
+            }
+        }
+
+        lv_obj_t* password_input = lv_obj_find_by_name(hidden_network_modal_, "password_input");
+        if (password_input) {
+            helix::ui::modal_register_keyboard(hidden_network_modal_, password_input);
+        }
     }
 
     spdlog::debug("[NetworkSettingsOverlay] Hidden network modal shown");
@@ -1047,7 +1063,7 @@ void NetworkSettingsOverlay::handle_security_changed(lv_event_t* e) {
 }
 
 void NetworkSettingsOverlay::handle_network_item_clicked(lv_event_t* e) {
-    lv_obj_t* item = static_cast<lv_obj_t*>(lv_event_get_target(e));
+    lv_obj_t* item = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     if (!item)
         return;
 
