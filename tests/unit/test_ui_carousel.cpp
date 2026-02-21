@@ -386,3 +386,66 @@ TEST_CASE_METHOD(LVGLTestFixture, "Carousel auto-advance timer", "[carousel][tim
     delete cs;
     lv_obj_set_user_data(container, nullptr);
 }
+
+// ============================================================================
+// Task 10: Edge case tests
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "Carousel edge cases", "[carousel][edge]") {
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 400, 300);
+    CarouselState* cs = new CarouselState();
+    cs->scroll_container = lv_obj_create(container);
+    lv_obj_set_size(cs->scroll_container, 400, 280);
+    cs->indicator_row = lv_obj_create(container);
+    lv_obj_set_flex_flow(cs->indicator_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_user_data(container, cs);
+
+    SECTION("empty carousel: goto_page is safe") {
+        ui_carousel_goto_page(container, 0, false);
+        REQUIRE(ui_carousel_get_current_page(container) == 0);
+        REQUIRE(ui_carousel_get_page_count(container) == 0);
+    }
+
+    SECTION("single item carousel") {
+        ui_carousel_add_item(container, lv_obj_create(test_screen()));
+        REQUIRE(ui_carousel_get_page_count(container) == 1);
+
+        // Clamp should keep at 0
+        cs->wrap = false;
+        ui_carousel_goto_page(container, 1, false);
+        REQUIRE(ui_carousel_get_current_page(container) == 0);
+    }
+
+    SECTION("single item with wrap: goto_page wraps to 0") {
+        ui_carousel_add_item(container, lv_obj_create(test_screen()));
+        cs->wrap = true;
+        ui_carousel_goto_page(container, 1, false);
+        REQUIRE(ui_carousel_get_current_page(container) == 0);
+    }
+
+    SECTION("rebuild_indicators with no indicator_row is safe") {
+        CarouselState* cs2 = new CarouselState();
+        cs2->scroll_container = lv_obj_create(container);
+        cs2->indicator_row = nullptr;
+        lv_obj_t* cont2 = lv_obj_create(test_screen());
+        lv_obj_set_user_data(cont2, cs2);
+
+        ui_carousel_add_item(cont2, lv_obj_create(test_screen()));
+        // Should not crash
+        ui_carousel_rebuild_indicators(cont2);
+        REQUIRE(ui_carousel_get_page_count(cont2) == 1);
+
+        delete cs2;
+        lv_obj_set_user_data(cont2, nullptr);
+    }
+
+    SECTION("auto-advance with zero interval is no-op") {
+        cs->auto_scroll_ms = 0;
+        ui_carousel_start_auto_advance(container);
+        REQUIRE(cs->auto_timer == nullptr);
+    }
+
+    delete cs;
+    lv_obj_set_user_data(container, nullptr);
+}

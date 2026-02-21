@@ -145,6 +145,7 @@ void register_xml_components() {
     ui_markdown_init();           // <ui_markdown> with theme-aware markdown rendering
     ui_notification_badge_init(); // <notification_badge> with auto-contrast text
     ui_carousel_init();           // <ui_carousel> horizontal scroll-snap carousel
+    register_xml("carousel.xml"); // <carousel> XML component wrapping ui_carousel
     ui_confetti_init();           // <ui_confetti> celebration animation canvas
 
     // Register no-op callback and subject for optional handlers in XML components
