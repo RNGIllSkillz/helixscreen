@@ -165,6 +165,7 @@ using namespace helix;
 // External globals for logging (defined in cli_args.cpp, populated by parse_cli_args)
 extern std::string g_log_dest_cli;
 extern std::string g_log_file_cli;
+extern std::string g_log_level_cli;
 
 namespace {
 
@@ -584,10 +585,14 @@ bool Application::init_logging() {
 
     LogConfig log_config;
 
-    // Resolve log level with precedence: CLI verbosity > config file > defaults
+    // Resolve log level with precedence: --log-level > -v flags > config file > defaults
     std::string config_level = m_config->get<std::string>("/log_level", "");
-    log_config.level =
-        resolve_log_level(m_args.verbosity, config_level, get_runtime_config()->test_mode);
+    if (!g_log_level_cli.empty()) {
+        log_config.level = parse_level(g_log_level_cli, spdlog::level::warn);
+    } else {
+        log_config.level =
+            resolve_log_level(m_args.verbosity, config_level, get_runtime_config()->test_mode);
+    }
 
     // Resolve log destination: CLI > config > auto
     std::string log_dest_str = g_log_dest_cli;

@@ -13,12 +13,14 @@
 #
 # Launcher-specific options:
 #   --debug              Enable debug-level logging (-vv)
+#   --log-level=<level>  Log level: trace, debug, info, warn, error, critical, off
 #   --log-dest=<dest>    Log destination: auto, journal, syslog, file, console
 #   --log-file=<path>    Log file path (when --log-dest=file)
 #
 # Environment variables:
 #   HELIX_DATA_DIR=<d>   Override asset directory (ui_xml/, assets/, config/)
-#   HELIX_DEBUG=1        Same as --debug
+#   HELIX_LOG_LEVEL=<l>  Log level (preferred over HELIX_DEBUG)
+#   HELIX_DEBUG=1        Same as --debug (legacy, use HELIX_LOG_LEVEL instead)
 #   HELIX_LOG_DEST=<d>   Same as --log-dest (auto|journal|syslog|file|console)
 #   HELIX_LOG_FILE=<f>   Same as --log-file
 #
@@ -46,6 +48,7 @@ PASSTHROUGH_ARGS=""
 CLI_DEBUG=""
 CLI_LOG_DEST=""
 CLI_LOG_FILE=""
+CLI_LOG_LEVEL=""
 for arg in "$@"; do
     case "$arg" in
         --debug)
@@ -56,6 +59,9 @@ for arg in "$@"; do
             ;;
         --log-file=*)
             CLI_LOG_FILE="${arg#--log-file=}"
+            ;;
+        --log-level=*)
+            CLI_LOG_LEVEL="${arg#--log-level=}"
             ;;
         *)
             PASSTHROUGH_ARGS="${PASSTHROUGH_ARGS} ${arg}"
@@ -143,6 +149,7 @@ unset _helix_env_file
 DEBUG_MODE="${CLI_DEBUG:-${HELIX_DEBUG:-0}}"
 LOG_DEST="${CLI_LOG_DEST:-${HELIX_LOG_DEST:-auto}}"
 LOG_FILE="${CLI_LOG_FILE:-${HELIX_LOG_FILE:-}}"
+LOG_LEVEL="${CLI_LOG_LEVEL:-${HELIX_LOG_LEVEL:-}}"
 
 # Default display backend to fbdev on embedded Linux targets.
 # DRM atomic modesetting has compatibility issues with some SoCs and breaks
@@ -207,8 +214,11 @@ log "Starting main application"
 # Build command flags
 EXTRA_FLAGS=""
 
-# Debug mode: debug-level logging
-if [ "${DEBUG_MODE}" = "1" ]; then
+# Log level: named level takes priority over HELIX_DEBUG
+if [ -n "${LOG_LEVEL}" ]; then
+    EXTRA_FLAGS="--log-level=${LOG_LEVEL}"
+    log "Log level: ${LOG_LEVEL}"
+elif [ "${DEBUG_MODE}" = "1" ]; then
     EXTRA_FLAGS="-vv"
     log "Debug mode enabled (debug-level logging)"
 fi

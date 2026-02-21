@@ -68,6 +68,7 @@ unset _helix_env_file
 DEBUG_MODE="${CLI_DEBUG:-${HELIX_DEBUG:-0}}"
 LOG_DEST="${CLI_LOG_DEST:-${HELIX_LOG_DEST:-auto}}"
 LOG_FILE="${CLI_LOG_FILE:-${HELIX_LOG_FILE:-}}"
+LOG_LEVEL="${CLI_LOG_LEVEL:-${HELIX_LOG_LEVEL:-}}"
 
 # Default display backend to fbdev on embedded Linux targets.
 if [ -z "${HELIX_DISPLAY_BACKEND:-}" ]; then
@@ -426,6 +427,80 @@ EOF
 
     [ -f "$MOCK_INSTALL/helix_screen_args.txt" ]
     grep -q '^-vv$' "$MOCK_INSTALL/helix_screen_args.txt"
+}
+
+# =============================================================================
+# Splash PID routing
+# =============================================================================
+
+# =============================================================================
+# HELIX_LOG_LEVEL: env var and --log-level flag
+# =============================================================================
+
+@test "HELIX_LOG_LEVEL in env file is resolved" {
+    cat > "$MOCK_INSTALL/config/helixscreen.env" << 'EOF'
+HELIX_LOG_LEVEL=trace
+EOF
+    unset HELIX_LOG_LEVEL CLI_LOG_LEVEL
+    result=$(MOCK_INSTALL="$MOCK_INSTALL" sh -c ". \"$BATS_TEST_TMPDIR/env_setup.sh\" && echo \"\$LOG_LEVEL\"")
+    [ "$result" = "trace" ]
+}
+
+@test "CLI_LOG_LEVEL takes priority over env file HELIX_LOG_LEVEL" {
+    cat > "$MOCK_INSTALL/config/helixscreen.env" << 'EOF'
+HELIX_LOG_LEVEL=info
+EOF
+    unset HELIX_LOG_LEVEL
+    export CLI_LOG_LEVEL=error
+    result=$(MOCK_INSTALL="$MOCK_INSTALL" sh -c ". \"$BATS_TEST_TMPDIR/env_setup.sh\" && echo \"\$LOG_LEVEL\"")
+    [ "$result" = "error" ]
+}
+
+@test "e2e: HELIX_LOG_LEVEL=trace causes launcher to pass --log-level=trace" {
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    rm -f "$MOCK_INSTALL/helix_screen_args.txt"
+    cat > "$MOCK_INSTALL/config/helixscreen.env" << 'EOF'
+HELIX_LOG_LEVEL=trace
+EOF
+    unset HELIX_LOG_LEVEL HELIX_DEBUG
+
+    MOCK_INSTALL="$MOCK_INSTALL" \
+        sh "$MOCK_INSTALL/bin/helix-launcher.sh" 2>/dev/null || true
+
+    [ -f "$MOCK_INSTALL/helix_screen_args.txt" ]
+    grep -q '^--log-level=trace$' "$MOCK_INSTALL/helix_screen_args.txt"
+}
+
+@test "e2e: HELIX_LOG_LEVEL takes priority over HELIX_DEBUG" {
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    rm -f "$MOCK_INSTALL/helix_screen_args.txt"
+    cat > "$MOCK_INSTALL/config/helixscreen.env" << 'EOF'
+HELIX_LOG_LEVEL=warn
+HELIX_DEBUG=1
+EOF
+    unset HELIX_LOG_LEVEL HELIX_DEBUG
+
+    MOCK_INSTALL="$MOCK_INSTALL" \
+        sh "$MOCK_INSTALL/bin/helix-launcher.sh" 2>/dev/null || true
+
+    [ -f "$MOCK_INSTALL/helix_screen_args.txt" ]
+    # Should have --log-level=warn, NOT -vv
+    grep -q '^--log-level=warn$' "$MOCK_INSTALL/helix_screen_args.txt"
+    ! grep -q '^-vv$' "$MOCK_INSTALL/helix_screen_args.txt"
+}
+
+@test "e2e: launcher does NOT pass --log-level when LOG_LEVEL is empty" {
+    cp "$LAUNCHER" "$MOCK_INSTALL/bin/helix-launcher.sh"
+    rm -f "$MOCK_INSTALL/helix_screen_args.txt"
+    rm -f "$MOCK_INSTALL/config/helixscreen.env"
+    unset HELIX_LOG_LEVEL HELIX_DEBUG
+
+    MOCK_INSTALL="$MOCK_INSTALL" \
+        sh "$MOCK_INSTALL/bin/helix-launcher.sh" 2>/dev/null || true
+
+    if [ -f "$MOCK_INSTALL/helix_screen_args.txt" ]; then
+        ! grep -q '^--log-level' "$MOCK_INSTALL/helix_screen_args.txt"
+    fi
 }
 
 # =============================================================================
