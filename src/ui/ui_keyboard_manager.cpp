@@ -279,31 +279,6 @@ void KeyboardManager::apply_keyboard_mode() {
 }
 
 // ============================================================================
-// HELPER FUNCTIONS (for event callbacks)
-// ============================================================================
-
-static size_t get_utf8_length(const char* str) {
-    size_t len = 0;
-    while (*str) {
-        if ((*str & 0xC0) != 0x80) {
-            len++;
-        }
-        str++;
-    }
-    return len;
-}
-
-static bool str_ends_with(const char* str, const char* suffix) {
-    if (!str || !suffix)
-        return false;
-    size_t str_len = strlen(str);
-    size_t suffix_len = strlen(suffix);
-    if (suffix_len > str_len)
-        return false;
-    return strcmp(str + str_len - suffix_len, suffix) == 0;
-}
-
-// ============================================================================
 // EVENT CALLBACKS
 // ============================================================================
 
@@ -505,19 +480,6 @@ void KeyboardManager::keyboard_event_cb(lv_event_t* e) {
             btn_text ? btn_text : "NULL", is_non_printing);
 
         if (is_non_printing) {
-            if (mgr.context_textarea_ && btn_text) {
-                const char* current_text = lv_textarea_get_text(mgr.context_textarea_);
-
-                if (str_ends_with(current_text, btn_text)) {
-                    size_t char_count = get_utf8_length(btn_text);
-                    spdlog::info("[KeyboardManager] Removing inserted text '{}' ({} chars)",
-                                 btn_text, char_count);
-                    for (size_t i = 0; i < char_count; i++) {
-                        lv_textarea_delete_char(mgr.context_textarea_);
-                    }
-                }
-            }
-
             if (btn_text && strcmp(btn_text, "?123") == 0) {
                 mgr.mode_ = MODE_NUMBERS_SYMBOLS;
                 mgr.shift_just_pressed_ = false;
@@ -569,18 +531,13 @@ void KeyboardManager::keyboard_event_cb(lv_event_t* e) {
 
             } else if (btn_text && strcmp(btn_text, ICON_KEYBOARD_RETURN) == 0) {
                 if (mgr.context_textarea_) {
-                    // Multiline textareas: keep the newline, keep keyboard open
+                    // Multiline textareas: insert newline, keep keyboard open
                     if (!lv_textarea_get_one_line(mgr.context_textarea_)) {
+                        lv_textarea_add_char(mgr.context_textarea_, '\n');
                         spdlog::debug("[KeyboardManager] Enter: newline inserted (multiline)");
                         return;
                     }
-                    // Single-line: remove the inserted newline
-                    const char* current_text = lv_textarea_get_text(mgr.context_textarea_);
-                    if (str_ends_with(current_text, "\n")) {
-                        lv_textarea_delete_char(mgr.context_textarea_);
-                        spdlog::debug("[KeyboardManager] Removed inserted newline");
-                    }
-                    // Fire READY on the textarea so forms can handle Enter-to-next-field.
+                    // Single-line: fire READY so forms can handle Enter-to-next-field.
                     // Save current textarea — if a handler switches to another field via
                     // show(), context_textarea_ will change and we should NOT hide.
                     lv_obj_t* ta_before = mgr.context_textarea_;
@@ -604,13 +561,14 @@ void KeyboardManager::keyboard_event_cb(lv_event_t* e) {
                 spdlog::debug("[KeyboardManager] Backspace");
             }
         } else {
-            // Regular printing key
-            if (btn_text && strcmp(btn_text, keyboard_layout_get_spacebar_text()) == 0 &&
-                mgr.context_textarea_) {
-                lv_textarea_delete_char(mgr.context_textarea_);
-                lv_textarea_delete_char(mgr.context_textarea_);
-                lv_textarea_add_char(mgr.context_textarea_, ' ');
-                spdlog::debug("[KeyboardManager] Converted double-space to single space");
+            // Regular printing key — insert text into textarea
+            if (mgr.context_textarea_ && btn_text) {
+                if (strcmp(btn_text, keyboard_layout_get_spacebar_text()) == 0) {
+                    lv_textarea_add_char(mgr.context_textarea_, ' ');
+                    spdlog::debug("[KeyboardManager] Space");
+                } else {
+                    lv_textarea_add_text(mgr.context_textarea_, btn_text);
+                }
             }
 
             mgr.shift_just_pressed_ = false;
@@ -735,6 +693,11 @@ void KeyboardManager::init(lv_obj_t* parent) {
     }
 
     keyboard_ = lv_keyboard_create(parent);
+
+    // Remove LVGL's built-in keyboard handler — our custom handler manages all keys.
+    // The default handler doesn't recognize our custom icon keys (ICON_BACKSPACE, etc.)
+    // and inserts their UTF-8 bytes as text, causing corruption when cursor is mid-string.
+    lv_obj_remove_event_cb(keyboard_, lv_keyboard_def_event_cb);
 
     lv_keyboard_set_mode(keyboard_, LV_KEYBOARD_MODE_TEXT_LOWER);
     lv_keyboard_set_popovers(keyboard_, true);
