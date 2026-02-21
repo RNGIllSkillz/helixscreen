@@ -5,7 +5,7 @@
  * @file ui_settings_panel_widgets.cpp
  * @brief Implementation of PanelWidgetsOverlay
  *
- * Dynamically creates toggle rows for each home panel widget.
+ * Dynamically creates toggle rows for each panel widget.
  * Hardware-gated widgets that aren't detected show as disabled with "Not detected".
  */
 
