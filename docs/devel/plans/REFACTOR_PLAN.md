@@ -3,7 +3,7 @@
 > **Document Purpose**: Reference guide for refactoring work and progress tracking
 > **Created**: 2026-01-08
 > **Last Updated**: 2026-02-21
-> **Version**: 1.5 (SettingsManager domain split complete, Panel base class helpers added)
+> **Version**: 1.6 (Settings consumer migration + callback batch registration complete)
 
 ## Table of Contents
 
@@ -1651,7 +1651,7 @@ Split into 5 domain-specific managers + thin residual facade:
 Also created `settings_callback_helpers.h` with dropdown/toggle callback factories.
 
 **Tests:** 40 test cases, 252 assertions across 5 domain test suites.
-**Backward compat:** All `SettingsManager::instance().method()` calls still work via `@deprecated` inline forwarding wrappers. Consumers can migrate incrementally.
+**Consumer migration** (2026-02-21): All 132 consumer callsites migrated from deprecated `SettingsManager` forwarding wrappers to domain managers directly. 40 files changed, net -566 lines. SettingsManager header: 854→165 lines. Implementation: 1,156→215 lines. Stale includes cleaned up post-migration.
 
 #### Effort Actual
 ~3 hours (2026-02-21)
@@ -1660,29 +1660,37 @@ Also created `settings_callback_helpers.h` with dropdown/toggle callback factori
 
 ### 2.9 Panel/Overlay Base Class Broader Adoption
 
-**Status**: [ ] Not Started  [x] In Progress  [ ] Complete
+**Status**: [ ] Not Started  [ ] In Progress  [x] Complete
 
 #### Problem Statement
 60+ panels/overlays share identical structural patterns: `register_callbacks()` → list of `lv_xml_register_event_cb()` calls, `init_subjects()` → guarded macro calls, `create()` → XML load + widget lookup. Base class helpers like `create_overlay_from_xml()` exist but are used by only 1-2 overlays.
 
-#### Solution (Phase 1 Complete)
+#### Solution
 Created `ui_callback_helpers.h` with two helpers:
 - **`register_xml_callbacks()`** — batch registration via `std::initializer_list<XmlCallbackEntry>`, replaces repetitive one-per-line calls with compact table format
 - **`find_required_widget()`** — wraps `lv_obj_find_by_name()` + error logging into single call
 
-Migrated 4 high-boilerplate files: bed mesh (26 callbacks), controls (24), spool wizard (25), settings (68 across two locations). Total: 143 individual registrations consolidated.
+**Phase 1** (2026-02-21): Migrated 4 high-boilerplate files: bed mesh (26 callbacks), controls (24), spool wizard (25), settings (68 across two locations). Total: 143 individual registrations consolidated.
+
+**Phase 2** (2026-02-21): Migrated remaining 38 panels/overlays across two parallel agent batches:
+- High-callback files (15 files, ~177 registrations): input_shaper, filament, modal, pid_cal, ams_edit, macro_buttons, printer_manager, temp_control, print_select, advanced, home, network_settings, theme_editor, probe, emergency_stop
+- Medium-callback files (22 files, ~126 registrations): dryer_card, settings_display, print_tune, ams_context, zoffset_cal, print_status, history_list, history_dashboard, detail_view, screws_tilt, timelapse_settings, touch_cal, spoolman_context, settings_sound, panel_spoolman, led_control, ams_sidebar, wizard_connection, step_test, settings_led, ams_loading_error, color_picker, console
+
+Code review found and fixed: 2 lambda callbacks in console panel not migrated, 1 bare call in timelapse init_subjects() moved to batch.
 
 `create_overlay_from_xml()` migration deferred — existing non-users intentionally differ in behavior (skip `ui_overlay_panel_setup_standard()` or defer `parent_screen_` assignment).
 
 **Tests:** 6 test cases, 9 assertions.
 
-#### Remaining Work
-- Migrate more panels to `register_xml_callbacks()` (many smaller panels with 5-15 callbacks)
+#### Remaining Work (optional)
 - Adopt `find_required_widget()` in panels with repetitive widget lookup + error checking
 - Investigate whether `create_overlay_from_xml()` can be made flexible enough for broader adoption
 
-#### Effort Estimate
-Low (1-2 days remaining)
+#### Metrics
+| Metric | Before | After |
+|--------|--------|-------|
+| Individual `lv_xml_register_event_cb()` calls | ~446 across 42 files | 0 (all use batch `register_xml_callbacks()`) |
+| Net lines | - | -16 (38 files changed, 551 insertions, 535 deletions) |
 
 ---
 
@@ -1799,9 +1807,9 @@ Low (1 day)
 |------|--------|-------|--------|
 | AMS backend base class extraction | 1d | | [x] Complete (2026-02-20) |
 | Temperature formatting consolidation | 0.5d | | [x] Complete (2026-02-20) |
-| SettingsManager domain split | 3-5d | | [ ] |
+| SettingsManager domain split + consumer migration | 3-5d | | [x] Complete (2026-02-21) |
 | Unified error handling | 3d | | [ ] |
-| Panel/overlay base class adoption | 2-3d | | [ ] |
+| Panel/overlay base class adoption | 2-3d | | [x] Complete (2026-02-21) |
 | Namespace organization | 5d | | [ ] |
 | Dependency injection | 5d | | [ ] |
 | MoonrakerClient decomposition | 3d | | [ ] |
@@ -1817,13 +1825,14 @@ Low (1 day)
 | Phase 1: Quick Wins | 5 | 5 | 100% |
 | Phase 2: Foundation | 4 | 4 | 100% |
 | Phase 3: Architecture | 5 | 4 | 80% |
-| Phase 4: Polish | 7 | 2 | 29% |
+| Phase 4: Polish | 7 | 4 | 57% |
 | Phase 5: New Findings | 5 | 3.5 | 70% |
-| **Total** | **26** | **18.5** | **71%** |
+| **Total** | **26** | **20.5** | **79%** |
 
 > **Note (2026-02-21)**: Completed SettingsManager domain split (2.8) — 5 domain managers
-> extracted, 40 tests, 252 assertions. Panel base class helpers (2.9) Phase 1 done — batch
-> callback registration + 4 panels migrated. AMS base class (2.6) and temperature
+> extracted, 40 tests, 252 assertions. Consumer migration done: 132 callsites, 40 files,
+> net -566 lines. Panel callback batch registration (2.9) fully complete — 42 files migrated,
+> ~446 individual registrations consolidated. AMS base class (2.6) and temperature
 > consolidation (2.7) also completed on 2026-02-20.
 
 ### Metrics Dashboard
@@ -1836,7 +1845,7 @@ Low (1 day)
 | Temperature format duplication | 0 (consolidated) | 0 | 100% |
 | SettingsManager subjects | 2 residual (was 27) | <5 | 100% |
 | Settings domain managers | 5 extracted | - | 100% |
-| Callback registration boilerplate | 143 consolidated (4 panels) | - | ~30% |
+| Callback registration boilerplate | ~446 consolidated (42 files) | 0 individual calls | 100% |
 | Panels using SubjectManagedPanel | 100% | 100% | 100% |
 | Observer boilerplate instances | ~90 | <20 | 30% |
 | Extracted components | 13 domain + 8 overlays + 1 AMS base | - | Done |
@@ -1864,10 +1873,7 @@ Based on current codebase state and remaining work (updated 2026-02-21):
    - Migration would reduce ~1,000 lines of boilerplate
    - Optional but improves consistency
 
-3. **Panel/Overlay base class broader adoption** (Section 2.9) — Phase 1 done
-   - Helpers created, 4 panels migrated
-   - Many more panels with 5-15 callbacks could benefit
-   - Low-hanging fruit for continued boilerplate reduction
+3. ~~**Panel/Overlay base class broader adoption** (Section 2.9) — COMPLETE~~
 
 ### Medium Value / Higher Effort
 
@@ -1876,10 +1882,7 @@ Based on current codebase state and remaining work (updated 2026-02-21):
    - Mixes connection, protocol, subscriptions, discovery caching
    - Moderate complexity but high maintainability impact
 
-5. **SettingsManager consumer migration** (follow-up to 2.8)
-   - Domain managers done, but consumers still use forwarding wrappers
-   - Migrate 30+ files to use domain managers directly
-   - Remove deprecated forwarding wrappers from SettingsManager
+5. ~~**SettingsManager consumer migration** (follow-up to 2.8) — COMPLETE~~
 
 ### Lower Priority (Nice to Have)
 
@@ -2055,3 +2058,4 @@ private:
 | 2026-02-10 | Claude | **MoonrakerAPI abstraction boundary enforced.** Deleted dead `IMoonrakerDomainService` interface. Added proxy methods to MoonrakerAPI (connection state, subscriptions, database, plugin RPCs, gcode store). Migrated all UI code from `get_client()`/`get_moonraker_client()` to API proxies. Moved `BedMeshProfile` and `GcodeStoreEntry` to `moonraker_types.h`. Removed `client_` members from PID panel, retraction settings, spoolman overlay, console panel. ~17 legitimate `get_moonraker_client()` calls remain (mostly connection wizard). Commits: a5650da0, ec140f65, 4cabd79a. |
 | 2026-01-17 | Claude | **Major status update**: PrinterState decomposition COMPLETE (11+ domain classes extracted, facade now 2,002 lines). Quick Wins 100% complete (PrintStatusPanel modals extracted to 4 dedicated files). PrintStatusPanel now IN PROGRESS. Updated all progress tracking tables. Added Recommended Next Priorities section. Overall progress: 61% (was 28%). |
 | 2026-02-20 | Claude | **AMS backend base class extraction** (Section 2.6): Created `AmsSubscriptionBackend` base class, migrated AFC/HappyHare/ToolChanger. Net -361 lines. AFC `recursive_mutex` → `std::mutex`. **Temperature formatting consolidation** (Section 2.7): Moved `HeaterDisplayResult`/`heater_display()` to `ui_temperature_utils`, added `color` field, removed duplicates from `format_utils`. Net -61 lines. **New sections added** (2.8-2.10): SettingsManager domain split, Panel/Overlay base class adoption, ui_utils.cpp split. Updated recommended priorities. |
+| 2026-02-21 | Claude | **SettingsManager domain split** (Section 2.8): 5 domain managers extracted (Display, Audio, Safety, System, Input), 40 tests, 252 assertions. Consumer migration: 132 callsites in 40 files migrated to domain managers, net -566 lines. Header 854→165, impl 1156→215. Stale includes cleaned. **Callback batch registration** (Section 2.9): Phase 2 complete — 38 additional panels/overlays migrated via parallel agents (15 high-callback + 22 medium-callback files). Total: 42 files, ~446 registrations consolidated. Code review caught 3 consistency gaps, all fixed. Overall progress: 79% (was 71%). |
