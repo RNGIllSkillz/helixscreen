@@ -1644,8 +1644,9 @@ TEST_CASE("AFC recover sends AFC_RESET", "[ams][afc][recovery][phase4]") {
     REQUIRE_FALSE(helper.has_gcode("AFC_HOME"));
 }
 
-TEST_CASE("AFC reset sends AFC_HOME not AFC_RESET", "[ams][afc][recovery][phase4]") {
-    // reset() should send AFC_HOME to differentiate from recover()'s AFC_RESET
+TEST_CASE("AFC reset sends AFC_RESET command", "[ams][afc][recovery]") {
+    // reset() sends AFC_RESET — the same gcode as recover(), since AFC only has one reset command.
+    // Both operations use AFC_RESET; the distinction is in the UI notification text only.
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
     helper.set_running(true); // Bypass precondition for unit test
@@ -1653,8 +1654,7 @@ TEST_CASE("AFC reset sends AFC_HOME not AFC_RESET", "[ams][afc][recovery][phase4
     auto result = helper.reset();
 
     REQUIRE(result.success());
-    REQUIRE(helper.has_gcode("AFC_HOME"));
-    REQUIRE_FALSE(helper.has_gcode("AFC_RESET"));
+    REQUIRE(helper.has_gcode("AFC_RESET"));
 }
 
 TEST_CASE("AFC reset_lane sends per-lane reset command", "[ams][afc][recovery][phase4]") {
