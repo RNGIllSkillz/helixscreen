@@ -44,6 +44,7 @@ lv_display_t* DisplayBackendSDL::create_display(int width, int height) {
     if (window) {
         SDL_RaiseWindow(window);
     }
+    SDL_ShowCursor(SDL_DISABLE);
 
     spdlog::info("[SDL Backend] SDL display created: {}x{}", width, height);
     return display_;
