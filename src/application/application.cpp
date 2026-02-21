@@ -420,7 +420,7 @@ int Application::run(int argc, char** argv) {
     // lv_display_create() queues an initial dirty area that would flush the wizard
     // UI to fb0 before splash exits, causing a visible flash. The post-splash
     // handler in main_loop() performs this refresh after splash exits.
-    if (m_splash_manager.has_exited()) {
+    if (get_runtime_config()->splash_pid <= 0 || m_splash_manager.has_exited()) {
         lv_obj_update_layout(m_screen);
         invalidate_all_recursive(m_screen);
         lv_refr_now(nullptr);
@@ -2285,6 +2285,13 @@ void Application::shutdown() {
     if (m_plugin_manager) {
         m_plugin_manager->unload_all();
         m_plugin_manager.reset();
+    }
+
+    // Disconnect the client FIRST to stop background threads (mock simulation, WebSocket).
+    // This prevents races where the simulation thread dispatches callbacks from
+    // method_callbacks_ while we're erasing/destroying entries on the main thread.
+    if (m_moonraker && m_moonraker->client()) {
+        m_moonraker->client()->disconnect();
     }
 
     // Reset managers in reverse order (MoonrakerManager handles print_start_collector cleanup)
