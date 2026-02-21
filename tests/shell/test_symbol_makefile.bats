@@ -1,8 +1,16 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Tests for symbol extraction build targets
-# Verifies Makefile symbols/strip targets and that LDFLAGS no longer strips at link time.
+# Tests for symbol extraction Makefile targets and variables
+# Split from test_symbol_extraction.bats for parallel execution.
+
+# Cache make -n -p output once per file (expensive: parses entire Makefile tree)
+setup_file() {
+    export MAKE_DB_CACHE="$BATS_FILE_TMPDIR/make_db.txt"
+    export MAKE_DB_STRIP_CACHE="$BATS_FILE_TMPDIR/make_db_strip.txt"
+    make -n -p 2>/dev/null > "$MAKE_DB_CACHE" || true
+    make -n -p STRIP_BINARY=yes CROSS_COMPILE=fake- 2>/dev/null > "$MAKE_DB_STRIP_CACHE" || true
+}
 
 @test "symbols target is defined in Makefile" {
     run make -n symbols 2>&1
@@ -17,7 +25,7 @@
 
 @test "symbols and strip are in .PHONY" {
     local phony_line
-    phony_line=$(make -n -p 2>/dev/null | grep '^\.PHONY:' | head -1)
+    phony_line=$(grep '^\.PHONY:' "$MAKE_DB_CACHE" | head -1)
     [[ "$phony_line" == *"symbols"* ]]
     [[ "$phony_line" == *"strip"* ]]
 }
@@ -29,15 +37,11 @@
 }
 
 @test "STRIP_CMD is defined when STRIP_BINARY=yes" {
-    local makevars
-    makevars=$(make -n -p STRIP_BINARY=yes CROSS_COMPILE=fake- 2>/dev/null || true)
-    echo "$makevars" | grep -q 'STRIP_CMD'
+    grep -q 'STRIP_CMD' "$MAKE_DB_STRIP_CACHE"
 }
 
 @test "NM_CMD is defined when STRIP_BINARY=yes" {
-    local makevars
-    makevars=$(make -n -p STRIP_BINARY=yes CROSS_COMPILE=fake- 2>/dev/null || true)
-    echo "$makevars" | grep -q 'NM_CMD'
+    grep -q 'NM_CMD' "$MAKE_DB_STRIP_CACHE"
 }
 
 @test "symbols target uses nm -nC" {
@@ -51,27 +55,4 @@
 
 @test "symbol map output goes to TARGET.sym" {
     grep -A2 '^symbols:' Makefile | grep -q '$(TARGET).sym'
-}
-
-@test "release.yml build matrix includes all platforms" {
-    local yml=".github/workflows/release.yml"
-    [ -f "$yml" ]
-
-    # Verify the build matrix includes all expected platforms
-    for platform in pi pi32 ad5m k1 k2; do
-        grep -q "platform: ${platform}" "$yml"
-    done
-}
-
-@test "release.yml uploads symbol artifacts via matrix" {
-    local yml=".github/workflows/release.yml"
-
-    # Symbol upload uses matrix.platform variable, not literal platform names
-    grep -q 'name: symbols-\${{ matrix.platform }}' "$yml"
-    grep -q 'helix-screen.sym' "$yml"
-}
-
-@test "release.yml uploads symbol maps to R2" {
-    local yml=".github/workflows/release.yml"
-    grep -q 'symbols/v.*\.sym' "$yml"
 }
