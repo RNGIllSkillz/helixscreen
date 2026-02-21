@@ -9,6 +9,7 @@
 #include "ui_panel_home.h"
 #include "ui_utils.h"
 
+#include "display_settings_manager.h"
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
 #include "observer_factory.h"
@@ -187,7 +188,7 @@ void LedWidget::flash_light_icon() {
     // Flash gold briefly then fade back to muted
     ui_icon_set_color(light_icon_, theme_manager_get_color("light_icon_on"), LV_OPA_COVER);
 
-    if (!SettingsManager::instance().get_animations_enabled()) {
+    if (!DisplaySettingsManager::instance().get_animations_enabled()) {
         // No animations -- the next status update will restore the icon naturally
         return;
     }
