@@ -243,7 +243,7 @@ void register_xml_components() {
     register_xml("print_file_list_row.xml");
     register_xml("print_file_detail.xml");
 
-    // Home panel widget components (dynamic instantiation from PanelWidgetConfig)
+    // Panel widget components (dynamic instantiation from PanelWidgetConfig)
     register_xml("components/panel_widget_power.xml");
     register_xml("components/panel_widget_network.xml");
     register_xml("components/panel_widget_notifications.xml");
@@ -256,6 +256,8 @@ void register_xml_components() {
     register_xml("components/panel_widget_width_sensor.xml");
     register_xml("components/panel_widget_probe.xml");
     register_xml("components/panel_widget_filament.xml");
+    register_xml("components/panel_widget_thermistor.xml");
+    register_xml("thermistor_sensor_picker.xml");
 
     // Main navigation and panels
     register_xml("navigation_bar.xml");
